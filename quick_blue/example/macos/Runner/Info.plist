@@ -25,7 +25,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>The example app uses Bluetooth to scan for and connect to BLE peripherals.</string>
+	<string>Quick Blue scans for and connects to nearby Bluetooth LE devices.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
