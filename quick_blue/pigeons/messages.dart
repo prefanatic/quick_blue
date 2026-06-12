@@ -5,7 +5,6 @@ import 'package:pigeon/pigeon.dart';
     input: 'pigeons/messages.dart',
     kotlinOut: 'android/src/main/kotlin/com/example/quick_blue/Messages.g.kt',
     dartOut: 'lib/src/messages.g.dart',
-    dartTestOut: 'test/messages_test.g.dart',
   ),
 )
 enum PlatformBleInputProperty { disabled, notification, indication }

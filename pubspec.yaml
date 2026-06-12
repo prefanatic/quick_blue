@@ -1,0 +1,13 @@
+name: quick_blue_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+
+workspace:
+  - quick_blue
+  - quick_blue/example
+  - quick_blue_darwin
+  - quick_blue_linux
+  - quick_blue_platform_interface
+  - quick_blue_windows

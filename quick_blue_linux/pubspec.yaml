@@ -5,8 +5,10 @@ homepage: https://github.com/woodemi/quick_blue
 repository: https://github.com/woodemi/quick_blue/tree/master/quick_blue_linux
 
 environment:
-  sdk: "^3.7.0"
-  flutter: "3.29.0"
+  sdk: ^3.12.2
+  flutter: ">=3.44.2"
+
+resolution: workspace
 
 dependencies:
   flutter:
@@ -21,10 +23,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   ffigen: ^20.1.1
-
-dependency_overrides:
-  quick_blue_platform_interface:
-    path: ../quick_blue_platform_interface
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

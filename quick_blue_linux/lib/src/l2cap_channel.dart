@@ -158,8 +158,9 @@ class L2capChannel {
 
       final addrStruct = calloc<bdaddr_t>();
       try {
-        final addrCString =
-            deviceId.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
+        final addrCString = deviceId
+            .toNativeUtf8(allocator: calloc)
+            .cast<ffi.Char>();
         try {
           final parseResult = bluetooth.str2ba(addrCString, addrStruct);
           if (parseResult != 0) {
@@ -393,13 +394,13 @@ class L2capChannel {
       ptr.asTypedList(frame.data.length).setAll(0, frame.data);
       var offset = frame.offset;
       while (offset < frame.data.length) {
-        final chunkPtr = ptr.elementAt(offset).cast<ffi.Void>();
+        final chunkPtr = (ptr + offset).cast<ffi.Void>();
         final remaining = frame.data.length - offset;
         final chunkLimit = _peerTransmitMtu;
         final chunkLength =
             (chunkLimit != null && chunkLimit > 0 && remaining > chunkLimit)
-                ? chunkLimit
-                : remaining;
+            ? chunkLimit
+            : remaining;
         while (true) {
           final written = libc.send(_fd!, chunkPtr, chunkLength, 0);
           if (written > 0) {

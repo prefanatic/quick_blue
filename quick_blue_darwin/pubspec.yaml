@@ -3,8 +3,10 @@ description: darwin implementation of the quick_blue plugin.
 version: 0.4.0-dev.0
 
 environment:
-  sdk: ^3.7.0
-  flutter: 3.29.0
+  sdk: ^3.12.2
+  flutter: ">=3.44.2"
+
+resolution: workspace
 
 dependencies:
   quick_blue_platform_interface: ^0.4.0-dev.0
@@ -14,11 +16,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  pigeon: ^25.5.0
-
-dependency_overrides:
-  quick_blue_platform_interface:
-    path: ../quick_blue_platform_interface
+  pigeon: ^27.1.0
 
 flutter:
   plugin:

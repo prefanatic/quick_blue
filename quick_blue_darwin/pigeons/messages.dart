@@ -6,7 +6,6 @@ import 'package:pigeon/pigeon.dart';
     input: 'pigeons/messages.dart',
     swiftOut: 'darwin/Classes/Messages.g.swift',
     dartOut: 'lib/src/messages.g.dart',
-    dartTestOut: 'test/messages_test.g.dart',
   ),
 )
 enum PlatformBleInputProperty { disabled, notification, indication }
