@@ -199,11 +199,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                     details: nil
                 )
             }
-            guard
-                let cbCharacteristic = peripheral.getCharacteristic(
-                    characteristic,
-                    of: service
-                )
+            guard peripheral.getCharacteristic(characteristic, of: service) != nil
             else {
                 throw PigeonError(
                     code: "IllegalArgument",
@@ -330,7 +326,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         manager.stopScan()
 
         // Disconnect all active devices
-        try stateQueue.sync {
+        stateQueue.sync {
             for (_, peripheral) in discoveredPeripherals {
                 cleanConnection(peripheral)
             }
@@ -356,7 +352,7 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         advertisementData: [String: Any],
         rssi RSSI: NSNumber
     ) {
-        try stateQueue.sync {
+        stateQueue.sync {
             discoveredPeripherals[peripheral.identifier.uuidString] = peripheral
 
             let manufacturerData =
@@ -418,8 +414,8 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         didDisconnectPeripheral peripheral: CBPeripheral,
         error: Error?
     ) {
-        try stateQueue.sync {
-            if let error = error {
+        stateQueue.sync {
+            if error != nil {
                 central.cancelPeripheralConnection(peripheral)
                 if let streamDelegate = streamDelegates[peripheral.identifier.uuidString]
                 {
@@ -530,7 +526,7 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
         didOpen channel: CBL2CAPChannel?,
         error: Error?
     ) {
-        try stateQueue.sync {
+        stateQueue.sync {
             guard let channel = channel else {
                 return
             }

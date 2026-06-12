@@ -5,21 +5,21 @@
 Pod::Spec.new do |s|
   s.name             = 'quick_blue_darwin'
   s.version          = '0.0.1'
-  s.summary          = 'A new flutter plugin project.'
+  s.summary          = 'Darwin implementation of the quick_blue plugin.'
   s.description      = <<-DESC
-A new flutter plugin project.
+Darwin implementation of the quick_blue Bluetooth LE plugin.
                        DESC
-  s.homepage         = 'http://example.com'
-  s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.homepage         = 'https://github.com/woodemi/quick_blue'
+  s.license          = { :type => 'BSD-3-Clause', :file => '../LICENSE' }
+  s.author           = { 'Cody Goldberg' => 'cody@goldberg.fyi' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
+  s.source_files     = 'quick_blue_darwin/Sources/quick_blue_darwin/**/*.swift'
 
   s.ios.dependency 'Flutter'
   s.osx.dependency 'FlutterMacOS'
-  s.ios.deployment_target = '9.0'
-  s.osx.deployment_target = '10.14'
+  s.ios.deployment_target = '13.0'
+  s.osx.deployment_target = '10.15'
 
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
-  s.swift_version = '5.0'
+  s.swift_version = '5.9'
 end

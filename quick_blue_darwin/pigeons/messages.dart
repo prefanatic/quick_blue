@@ -4,7 +4,8 @@ import 'package:pigeon/pigeon.dart';
   PigeonOptions(
     dartPackageName: 'quick_blue_darwin',
     input: 'pigeons/messages.dart',
-    swiftOut: 'darwin/Classes/Messages.g.swift',
+    swiftOut:
+        'darwin/quick_blue_darwin/Sources/quick_blue_darwin/Messages.g.swift',
     dartOut: 'lib/src/messages.g.dart',
   ),
 )

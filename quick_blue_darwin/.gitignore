@@ -21,6 +21,7 @@
 #.vscode/
 
 # Flutter/Dart/Pub related
+.build/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -29,7 +30,9 @@
 .packages
 .pub-cache/
 .pub/
+.swiftpm/
 /build/
+!.gitkeep
 
 # Web related
 lib/generated_plugin_registrant.dart
@@ -39,4 +42,3 @@ app.*.symbols
 
 # Obfuscation related
 app.*.map.json
-

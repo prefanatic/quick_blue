@@ -1,7 +1,10 @@
 # Flutter-related
+.build/
+.swiftpm/
 **/Flutter/ephemeral/
 **/Pods/
 GeneratedPluginRegistrant.swift
+!.gitkeep
 
 # Xcode-related
 **/xcuserdata/

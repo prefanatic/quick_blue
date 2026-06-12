@@ -1,11 +1,14 @@
 # Flutter/Dart/Pub related
+.build/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
 .pub-cache/
 .pub/
+.swiftpm/
 build/
+!.gitkeep
 pubspec.lock
 
 **/android/**/gradle-wrapper.jar
