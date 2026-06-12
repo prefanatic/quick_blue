@@ -250,17 +250,32 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
+                mainThreadHandler.post {
+                    quickBlueFlutterApi?.onServiceDiscoveryComplete(gatt.device.address) {}
+                }
                 return
             }
 
             mainThreadHandler.post {
-                gatt.services?.forEach { service ->
+                val services = gatt.services ?: emptyList()
+                if (services.isEmpty()) {
+                    quickBlueFlutterApi?.onServiceDiscoveryComplete(gatt.device.address) {}
+                    return@post
+                }
+
+                var pendingServiceCallbacks = services.size
+                services.forEach { service ->
                     quickBlueFlutterApi?.onServiceDiscovered(
                         PlatformServiceDiscovered(
                             deviceId = gatt.device.address,
                             serviceUuid = service.uuid.toString(),
                             characteristics = service.characteristics.map { it.uuid.toString() }
-                        )) {}
+                        )) {
+                        pendingServiceCallbacks -= 1
+                        if (pendingServiceCallbacks == 0) {
+                            quickBlueFlutterApi?.onServiceDiscoveryComplete(gatt.device.address) {}
+                        }
+                    }
                 }
             }
         }

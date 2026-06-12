@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 export 'package:quick_blue_platform_interface/models.dart';
+export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart'
+    show BluetoothCharacteristic, BluetoothDevice;
 
 export 'quick_blue_android.dart';
 
@@ -22,6 +24,19 @@ class QuickBlue {
     return _platform.scanResultStream;
   }
 
+  static Stream<BluetoothDevice> scan({
+    ScanFilter scanFilter = const ScanFilter(),
+  }) {
+    return _platform.scan(scanFilter: scanFilter);
+  }
+
+  @Deprecated('Use QuickBlue.scan() instead.')
+  static Stream<BluetoothDevice> get bluetoothDeviceStream {
+    return _platform.bluetoothDeviceStream;
+  }
+
+  static BluetoothDevice device(String deviceId) => _platform.device(deviceId);
+
   static Future<void> connect(String deviceId) => _platform.connect(deviceId);
 
   static Future<void> disconnect(String deviceId) =>
@@ -39,6 +54,9 @@ class QuickBlue {
   static Future<List<CompanionDevice>?> getCompanionAssociations() =>
       _platform.getCompanionAssociations();
 
+  @Deprecated(
+    'Listen to QuickBlue.device(deviceId).connectionStateStream instead.',
+  )
   static void setConnectionHandler(OnConnectionChanged? onConnectionChanged) {
     _platform.onConnectionChanged = onConnectionChanged;
   }
@@ -46,6 +64,7 @@ class QuickBlue {
   static Future<void> discoverServices(String deviceId) =>
       _platform.discoverServices(deviceId);
 
+  @Deprecated('Use QuickBlue.device(deviceId).discoverServices() instead.')
   static void setServiceHandler(OnServiceDiscovered? onServiceDiscovered) {
     _platform.onServiceDiscovered = onServiceDiscovered;
   }
@@ -64,6 +83,10 @@ class QuickBlue {
     );
   }
 
+  @Deprecated(
+    'Use QuickBlue.device(deviceId).readValue or listen to '
+    'QuickBlue.device(deviceId).characteristicValueStream instead.',
+  )
   static void setValueHandler(OnValueChanged? onValueChanged) {
     _platform.onValueChanged = onValueChanged;
   }

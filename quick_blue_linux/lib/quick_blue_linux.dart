@@ -453,6 +453,7 @@ class QuickBlueLinux extends QuickBluePlatform {
           .toList(growable: false);
       handler(device.address, serviceId, characteristics);
     }
+    onServiceDiscoveryComplete(device.address);
   }
 
   Future<void> _waitForConnected(

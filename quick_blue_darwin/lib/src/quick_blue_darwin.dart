@@ -27,6 +27,9 @@ class QuickBlueDarwin extends QuickBluePlatform {
       onServiceDiscoveredCallback: (deviceId, serviceId, characteristicIds) {
         onServiceDiscovered?.call(deviceId, serviceId, characteristicIds);
       },
+      onServiceDiscoveryCompleteCallback: (deviceId) {
+        onServiceDiscoveryComplete(deviceId);
+      },
       onValueChangedCallback: (deviceId, characteristicId, value) {
         onValueChanged?.call(deviceId, characteristicId, value);
       },
@@ -167,9 +170,16 @@ class QuickBlueDarwin extends QuickBluePlatform {
   Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) {
     _ensureInitialized();
 
+    final serviceUuids =
+        scanFilter.serviceUuids.isEmpty ? null : scanFilter.serviceUuids;
+    final manufacturerData =
+        scanFilter.manufacturerData?.isEmpty == true
+            ? null
+            : scanFilter.manufacturerData;
+
     return _api.startScan(
-      serviceUuids: scanFilter.serviceUuids,
-      manufacturerData: scanFilter.manufacturerData,
+      serviceUuids: serviceUuids,
+      manufacturerData: manufacturerData,
     );
   }
 
@@ -222,11 +232,13 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
   _FlutterApi({
     required this.onConnectionChangedCallback,
     required this.onServiceDiscoveredCallback,
+    required this.onServiceDiscoveryCompleteCallback,
     required this.onValueChangedCallback,
   });
 
   final OnConnectionChanged onConnectionChangedCallback;
   final OnServiceDiscovered onServiceDiscoveredCallback;
+  final OnServiceDiscoveryComplete onServiceDiscoveryCompleteCallback;
   final OnValueChanged onValueChangedCallback;
 
   @override
@@ -269,6 +281,11 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
       serviceDiscovered.serviceUuid,
       serviceDiscovered.characteristics,
     );
+  }
+
+  @override
+  void onServiceDiscoveryComplete(String deviceId) {
+    onServiceDiscoveryCompleteCallback.call(deviceId);
   }
 }
 

@@ -84,6 +84,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var manager: CBCentralManager!
     private var discoveredPeripherals: [String: CBPeripheral]!
     private var streamDelegates: [String: L2CapStreamDelegate]!
+    private var pendingServiceDiscovery: [String: Set<String>]!
 
     private var targetManufacturerData: Data?
 
@@ -96,6 +97,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         manager = CBCentralManager(delegate: self, queue: nil)
         discoveredPeripherals = Dictionary()
         streamDelegates = Dictionary()
+        pendingServiceDiscovery = Dictionary()
     }
 
     func isBluetoothAvailable() throws -> Bool {
@@ -106,10 +108,19 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         serviceUuids: [String]?,
         manufacturerData: [Int64: FlutterStandardTypedData]?
     ) throws {
-        let withServices = serviceUuids?.map { uuid in CBUUID(string: uuid) }
+        let withServices: [CBUUID]?
+        if let serviceUuids = serviceUuids, !serviceUuids.isEmpty {
+            withServices = serviceUuids.map { uuid in CBUUID(string: uuid) }
+        } else {
+            withServices = nil
+        }
+        targetManufacturerData = nil
+
         // Handle manufacturer data if provided
-        if let manufacturerId = manufacturerData?.keys.first,
-            let data = manufacturerData?[manufacturerId]
+        if let manufacturerData = manufacturerData,
+            !manufacturerData.isEmpty,
+            let manufacturerId = manufacturerData.keys.first,
+            let data = manufacturerData[manufacturerId]
         {
             var mByteArray = withUnsafeBytes(
                 of: UInt16(manufacturerId).littleEndian
@@ -433,7 +444,29 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
         _ peripheral: CBPeripheral,
         didDiscoverServices error: Error?
     ) {
-        for service in peripheral.services! {
+        let deviceId = peripheral.identifier.uuidString
+        guard error == nil, let services = peripheral.services else {
+            pendingServiceDiscovery.removeValue(forKey: deviceId)
+            flutterApi.onServiceDiscoveryComplete(
+                deviceId: deviceId,
+                completion: { _ in }
+            )
+            return
+        }
+
+        pendingServiceDiscovery[deviceId] = Set(
+            services.map { $0.uuid.uuidStr }
+        )
+        if services.isEmpty {
+            pendingServiceDiscovery.removeValue(forKey: deviceId)
+            flutterApi.onServiceDiscoveryComplete(
+                deviceId: deviceId,
+                completion: { _ in }
+            )
+            return
+        }
+
+        for service in services {
             peripheral.discoverCharacteristics(nil, for: service)
         }
     }
@@ -443,17 +476,28 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
         didDiscoverCharacteristicsFor service: CBService,
         error: Error?
     ) {
+        let deviceId = peripheral.identifier.uuidString
         flutterApi.onServiceDiscovered(
             serviceDiscovered: PlatformServiceDiscovered(
-                deviceId: peripheral.identifier.uuidString,
+                deviceId: deviceId,
                 serviceUuid: service.uuid.uuidStr,
-                characteristics: service.characteristics!.map {
+                characteristics: (service.characteristics ?? []).map {
                     $0.uuid.uuidStr
                 }
             ),
-            completion: { _ in }
+            completion: { [weak self] _ in
+                self?.pendingServiceDiscovery[deviceId]?.remove(
+                    service.uuid.uuidStr
+                )
+                if self?.pendingServiceDiscovery[deviceId]?.isEmpty == true {
+                    self?.pendingServiceDiscovery.removeValue(forKey: deviceId)
+                    self?.flutterApi.onServiceDiscoveryComplete(
+                        deviceId: deviceId,
+                        completion: { _ in }
+                    )
+                }
+            }
         )
-
     }
 
     public func peripheral(

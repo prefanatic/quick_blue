@@ -425,7 +425,7 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::DiscoverServicesAsync(BluetoothDe
     message_connector_->Send(
       EncodableMap{
         {"deviceId", std::to_string(bluetoothDeviceAgent.device.BluetoothAddress())},
-        {"ServiceState", "discovered"}
+        {"ServiceState", "complete"}
       }
     );
     co_return;
@@ -447,6 +447,12 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::DiscoverServicesAsync(BluetoothDe
     }
     message_connector_->Send(msg);
   }
+  message_connector_->Send(
+    EncodableMap{
+      {"deviceId", std::to_string(bluetoothDeviceAgent.device.BluetoothAddress())},
+      {"ServiceState", "complete"}
+    }
+  );
 }
 
 winrt::fire_and_forget QuickBlueWindowsPlugin::RequestMtuAsync(BluetoothDeviceAgent& bluetoothDeviceAgent, uint64_t expectedMtu) {

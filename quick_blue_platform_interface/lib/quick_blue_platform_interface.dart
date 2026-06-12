@@ -1,5 +1,6 @@
 library quick_blue_platform_interface;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -23,6 +24,8 @@ typedef OnServiceDiscovered =
 typedef OnValueChanged =
     void Function(String deviceId, String characteristicId, Uint8List value);
 
+typedef OnServiceDiscoveryComplete = void Function(String deviceId);
+
 abstract class QuickBluePlatform extends PlatformInterface {
   QuickBluePlatform() : super(token: _token);
 
@@ -45,6 +48,40 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   Stream<BlueScanResult> get scanResultStream;
 
+  Stream<BluetoothDevice> scan({ScanFilter scanFilter = const ScanFilter()}) {
+    late StreamSubscription<BlueScanResult> scanResultSubscription;
+    final controller = StreamController<BluetoothDevice>();
+
+    controller.onListen = () {
+      scanResultSubscription = scanResultStream.listen(
+        (result) => controller.add(device(result.deviceId)),
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      unawaited(
+        startScan(scanFilter: scanFilter).catchError((Object error) async {
+          controller.addError(error);
+          await controller.close();
+        }),
+      );
+    };
+
+    controller.onCancel = () async {
+      await scanResultSubscription.cancel();
+      await stopScan();
+    };
+
+    return controller.stream;
+  }
+
+  Stream<BluetoothDevice> get bluetoothDeviceStream {
+    return scan();
+  }
+
+  BluetoothDevice device(String deviceId) {
+    return BluetoothDevice._(deviceId: deviceId, platform: this);
+  }
+
   Future<void> connect(String deviceId);
 
   Future<void> disconnect(String deviceId);
@@ -58,11 +95,48 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   Future<List<CompanionDevice>?> getCompanionAssociations();
 
-  OnConnectionChanged? onConnectionChanged;
+  final StreamController<BluetoothConnectionStateChange>
+  _connectionStateController =
+      StreamController<BluetoothConnectionStateChange>.broadcast();
+
+  Stream<BluetoothConnectionStateChange> get connectionStateStream {
+    return _connectionStateController.stream;
+  }
+
+  OnConnectionChanged? _onConnectionChanged;
+
+  OnConnectionChanged? get onConnectionChanged => _handleConnectionChanged;
+
+  set onConnectionChanged(OnConnectionChanged? handler) {
+    _onConnectionChanged = handler;
+  }
 
   Future<void> discoverServices(String deviceId);
 
-  OnServiceDiscovered? onServiceDiscovered;
+  final StreamController<BluetoothService> _serviceDiscoveryController =
+      StreamController<BluetoothService>.broadcast();
+  final StreamController<String> _serviceDiscoveryCompleteController =
+      StreamController<String>.broadcast();
+
+  Stream<BluetoothService> get serviceDiscoveryStream {
+    return _serviceDiscoveryController.stream;
+  }
+
+  Stream<String> get serviceDiscoveryCompleteStream {
+    return _serviceDiscoveryCompleteController.stream;
+  }
+
+  OnServiceDiscovered? _onServiceDiscovered;
+
+  OnServiceDiscovered? get onServiceDiscovered => _handleServiceDiscovered;
+
+  set onServiceDiscovered(OnServiceDiscovered? handler) {
+    _onServiceDiscovered = handler;
+  }
+
+  OnServiceDiscoveryComplete get onServiceDiscoveryComplete {
+    return _handleServiceDiscoveryComplete;
+  }
 
   Future<void> setNotifiable(
     String deviceId,
@@ -71,7 +145,21 @@ abstract class QuickBluePlatform extends PlatformInterface {
     BleInputProperty bleInputProperty,
   );
 
-  OnValueChanged? onValueChanged;
+  final StreamController<BluetoothCharacteristicValue>
+  _characteristicValueController =
+      StreamController<BluetoothCharacteristicValue>.broadcast();
+
+  Stream<BluetoothCharacteristicValue> get characteristicValueStream {
+    return _characteristicValueController.stream;
+  }
+
+  OnValueChanged? _onValueChanged;
+
+  OnValueChanged? get onValueChanged => _handleValueChanged;
+
+  set onValueChanged(OnValueChanged? handler) {
+    _onValueChanged = handler;
+  }
 
   Future<void> readValue(
     String deviceId,
@@ -90,4 +178,242 @@ abstract class QuickBluePlatform extends PlatformInterface {
   Future<int> requestMtu(String deviceId, int expectedMtu);
 
   Future<BleL2capSocket> openL2cap(String deviceId, int psm);
+
+  void _handleConnectionChanged(
+    String deviceId,
+    BlueConnectionState state,
+    BleStatus status,
+  ) {
+    _connectionStateController.add(
+      BluetoothConnectionStateChange(
+        deviceId: deviceId,
+        state: state,
+        status: status,
+      ),
+    );
+    _onConnectionChanged?.call(deviceId, state, status);
+  }
+
+  void _handleServiceDiscovered(
+    String deviceId,
+    String serviceId,
+    List<String> characteristicIds,
+  ) {
+    _serviceDiscoveryController.add(
+      BluetoothService(
+        deviceId: deviceId,
+        uuid: serviceId,
+        characteristics: characteristicIds,
+      ),
+    );
+    _onServiceDiscovered?.call(deviceId, serviceId, characteristicIds);
+  }
+
+  void _handleServiceDiscoveryComplete(String deviceId) {
+    _serviceDiscoveryCompleteController.add(deviceId);
+  }
+
+  void _handleValueChanged(
+    String deviceId,
+    String characteristicId,
+    Uint8List value,
+  ) {
+    _characteristicValueController.add(
+      BluetoothCharacteristicValue(
+        deviceId: deviceId,
+        characteristicId: characteristicId,
+        value: value,
+      ),
+    );
+    _onValueChanged?.call(deviceId, characteristicId, value);
+  }
+}
+
+class BluetoothDevice {
+  BluetoothDevice._({
+    required this.deviceId,
+    required QuickBluePlatform platform,
+  }) : _platform = platform;
+
+  final String deviceId;
+  final QuickBluePlatform _platform;
+
+  String get id => deviceId;
+
+  Stream<BluetoothConnectionStateChange> get connectionStateStream {
+    return _platform.connectionStateStream.where(
+      (event) => event.deviceId == deviceId,
+    );
+  }
+
+  Stream<BluetoothService> get serviceDiscoveryStream {
+    return _platform.serviceDiscoveryStream.where(
+      (event) => event.deviceId == deviceId,
+    );
+  }
+
+  Stream<BluetoothCharacteristicValue> get characteristicValueStream {
+    return _platform.characteristicValueStream.where(
+      (event) => event.deviceId == deviceId,
+    );
+  }
+
+  Future<void> connect() => _platform.connect(deviceId);
+
+  Future<void> disconnect() => _platform.disconnect(deviceId);
+
+  Future<List<BluetoothService>> discoverServices({
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final services = <BluetoothService>[];
+    final subscription = serviceDiscoveryStream.listen((service) {
+      services.add(service);
+    });
+    final complete =
+        _platform.serviceDiscoveryCompleteStream
+            .where((completedDeviceId) => completedDeviceId == deviceId)
+            .first;
+
+    try {
+      await _platform.discoverServices(deviceId);
+      await complete.timeout(timeout);
+      return List<BluetoothService>.unmodifiable(services);
+    } finally {
+      await subscription.cancel();
+    }
+  }
+
+  BluetoothCharacteristic characteristic(
+    String service,
+    String characteristic,
+  ) {
+    return BluetoothCharacteristic._(
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      platform: _platform,
+    );
+  }
+
+  Future<void> setNotifiable(
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) {
+    return _platform.setNotifiable(
+      deviceId,
+      service,
+      characteristic,
+      bleInputProperty,
+    );
+  }
+
+  Future<Uint8List> readValue(
+    String service,
+    String characteristic, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    return this.characteristic(service, characteristic).read(timeout: timeout);
+  }
+
+  Future<void> writeValue(
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty,
+  ) {
+    return this
+        .characteristic(service, characteristic)
+        .write(value, bleOutputProperty);
+  }
+
+  Future<int> requestMtu(int expectedMtu) {
+    return _platform.requestMtu(deviceId, expectedMtu);
+  }
+
+  Future<BleL2capSocket> openL2cap(int psm) {
+    return _platform.openL2cap(deviceId, psm);
+  }
+}
+
+class BluetoothCharacteristic {
+  BluetoothCharacteristic._({
+    required this.deviceId,
+    required this.serviceId,
+    required this.characteristicId,
+    required QuickBluePlatform platform,
+  }) : _platform = platform;
+
+  final String deviceId;
+  final String serviceId;
+  final String characteristicId;
+  final QuickBluePlatform _platform;
+
+  Stream<Uint8List> get valueStream {
+    return _platform.characteristicValueStream
+        .where(
+          (event) =>
+              event.deviceId == deviceId &&
+              event.characteristicId == characteristicId,
+        )
+        .map((event) => event.value);
+  }
+
+  Stream<Uint8List> notifications({
+    BleInputProperty bleInputProperty = BleInputProperty.notification,
+  }) {
+    late StreamSubscription<Uint8List> valueSubscription;
+    final controller = StreamController<Uint8List>();
+
+    controller.onListen = () {
+      valueSubscription = valueStream.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      unawaited(
+        _platform
+            .setNotifiable(
+              deviceId,
+              serviceId,
+              characteristicId,
+              bleInputProperty,
+            )
+            .catchError((Object error) async {
+              controller.addError(error);
+              await controller.close();
+            }),
+      );
+    };
+
+    controller.onCancel = () async {
+      await valueSubscription.cancel();
+      await _platform.setNotifiable(
+        deviceId,
+        serviceId,
+        characteristicId,
+        BleInputProperty.disabled,
+      );
+    };
+
+    return controller.stream;
+  }
+
+  Future<Uint8List> read({
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final value = valueStream.first.timeout(timeout);
+    await _platform.readValue(deviceId, serviceId, characteristicId);
+    return value;
+  }
+
+  Future<void> write(Uint8List value, BleOutputProperty bleOutputProperty) {
+    return _platform.writeValue(
+      deviceId,
+      serviceId,
+      characteristicId,
+      value,
+      bleOutputProperty,
+    );
+  }
 }

@@ -961,6 +961,8 @@ abstract class QuickBlueFlutterApi {
 
   void onServiceDiscovered(PlatformServiceDiscovered serviceDiscovered);
 
+  void onServiceDiscoveryComplete(String deviceId);
+
   void onCharacteristicValueChanged(PlatformCharacteristicValueChanged valueChanged);
 
   static void setUp(QuickBlueFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
@@ -1006,6 +1008,31 @@ abstract class QuickBlueFlutterApi {
               'Argument for dev.flutter.pigeon.quick_blue.QuickBlueFlutterApi.onServiceDiscovered was null, expected non-null PlatformServiceDiscovered.');
           try {
             api.onServiceDiscovered(arg_serviceDiscovered!);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueFlutterApi.onServiceDiscoveryComplete$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+          'Argument for dev.flutter.pigeon.quick_blue.QuickBlueFlutterApi.onServiceDiscoveryComplete was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final String? arg_deviceId = (args[0] as String?);
+          assert(arg_deviceId != null,
+              'Argument for dev.flutter.pigeon.quick_blue.QuickBlueFlutterApi.onServiceDiscoveryComplete was null, expected non-null String.');
+          try {
+            api.onServiceDiscoveryComplete(arg_deviceId!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

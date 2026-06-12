@@ -827,6 +827,7 @@ class L2CapSocketEventsStreamHandler: PigeonEventChannelWrapper<PlatformL2CapSoc
 protocol QuickBlueFlutterApiProtocol {
   func onConnectionStateChange(stateChange stateChangeArg: PlatformConnectionStateChange, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onServiceDiscovered(serviceDiscovered serviceDiscoveredArg: PlatformServiceDiscovered, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func onServiceDiscoveryComplete(deviceId deviceIdArg: String, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onCharacteristicValueChanged(valueChanged valueChangedArg: PlatformCharacteristicValueChanged, completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
 class QuickBlueFlutterApi: QuickBlueFlutterApiProtocol {
@@ -861,6 +862,24 @@ class QuickBlueFlutterApi: QuickBlueFlutterApiProtocol {
     let channelName: String = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onServiceDiscovered\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([serviceDiscoveredArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        completion(.success(()))
+      }
+    }
+  }
+  func onServiceDiscoveryComplete(deviceId deviceIdArg: String, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onServiceDiscoveryComplete\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage([deviceIdArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

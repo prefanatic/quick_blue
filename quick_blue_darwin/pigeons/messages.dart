@@ -151,6 +151,7 @@ abstract class QuickBlueEventApi {
 abstract class QuickBlueFlutterApi {
   void onConnectionStateChange(PlatformConnectionStateChange stateChange);
   void onServiceDiscovered(PlatformServiceDiscovered serviceDiscovered);
+  void onServiceDiscoveryComplete(String deviceId);
   void onCharacteristicValueChanged(
     PlatformCharacteristicValueChanged valueChanged,
   );

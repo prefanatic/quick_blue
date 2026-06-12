@@ -75,6 +75,42 @@ class BlueConnectionState {
 
 enum BleStatus { success, failure }
 
+class BluetoothConnectionStateChange {
+  BluetoothConnectionStateChange({
+    required this.deviceId,
+    required this.state,
+    required this.status,
+  });
+
+  final String deviceId;
+  final BlueConnectionState state;
+  final BleStatus status;
+}
+
+class BluetoothService {
+  BluetoothService({
+    required this.deviceId,
+    required this.uuid,
+    required this.characteristics,
+  });
+
+  final String deviceId;
+  final String uuid;
+  final List<String> characteristics;
+}
+
+class BluetoothCharacteristicValue {
+  BluetoothCharacteristicValue({
+    required this.deviceId,
+    required this.characteristicId,
+    required this.value,
+  });
+
+  final String deviceId;
+  final String characteristicId;
+  final Uint8List value;
+}
+
 class BleInputProperty {
   static const disabled = BleInputProperty._('disabled');
   static const notification = BleInputProperty._('notification');
