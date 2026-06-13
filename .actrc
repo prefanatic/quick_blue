@@ -1,0 +1,4 @@
+--workflows=.github/workflows/ci.yml
+--platform=ubuntu-latest=-self-hosted
+--container-architecture=linux/amd64
+--eventpath=.act/event.json

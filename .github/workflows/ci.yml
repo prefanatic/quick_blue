@@ -1,0 +1,222 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_CHANNEL: stable
+  USE_PREINSTALLED_FLUTTER: ${{ vars.USE_PREINSTALLED_FLUTTER }}
+  USE_PREINSTALLED_JAVA: ${{ vars.USE_PREINSTALLED_JAVA }}
+  SKIP_HOST_DEPENDENCY_INSTALL: ${{ vars.SKIP_HOST_DEPENDENCY_INSTALL }}
+
+# Runner override variables accept JSON. For example:
+# LINUX_RUNNER: ["self-hosted","linux","x64"]
+# MACOS_RUNNER: "macos-latest"
+# WINDOWS_RUNNER: "windows-latest"
+# Set USE_PREINSTALLED_FLUTTER=true when a self-hosted image already includes Flutter.
+jobs:
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect relevant changes
+        id: filter
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git rev-parse --verify HEAD^1 >/dev/null 2>&1 &&
+            git diff --quiet HEAD^1 HEAD -- . ':(exclude)**/*.md' ':(exclude)LICENSE'
+          then
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  validate:
+    name: Validate
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ${{ fromJSON(vars.LINUX_RUNNER || '"ubuntu-latest"') }}
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        if: ${{ !github.event.act && env.USE_PREINSTALLED_FLUTTER != 'true' }}
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Validate packages
+        run: |
+          set -euo pipefail
+
+          flutter pub get
+
+          (cd quick_blue && dart run pigeon --input pigeons/messages.dart)
+          (cd quick_blue_darwin && dart run pigeon --input pigeons/messages.dart)
+
+          git diff --exit-code -- \
+            quick_blue/lib/src/messages.g.dart \
+            quick_blue/android/src/main/kotlin/com/example/quick_blue/Messages.g.kt \
+            quick_blue_darwin/lib/src/messages.g.dart \
+            quick_blue_darwin/darwin/quick_blue_darwin/Sources/quick_blue_darwin/Messages.g.swift
+
+          for package in \
+            quick_blue \
+            quick_blue/example \
+            quick_blue_darwin \
+            quick_blue_linux \
+            quick_blue_platform_interface \
+            quick_blue_windows
+          do
+            echo "::group::flutter analyze $package"
+            (cd "$package" && flutter analyze)
+            echo "::endgroup::"
+          done
+
+          for package in \
+            quick_blue \
+            quick_blue/example \
+            quick_blue_darwin \
+            quick_blue_platform_interface
+          do
+            echo "::group::flutter test $package"
+            (cd "$package" && flutter test)
+            echo "::endgroup::"
+          done
+
+  build-linux-hosted:
+    name: Build Android and Linux
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ${{ fromJSON(vars.LINUX_RUNNER || '"ubuntu-latest"') }}
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        if: ${{ !github.event.act && env.USE_PREINSTALLED_JAVA != 'true' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        if: ${{ !github.event.act && env.USE_PREINSTALLED_FLUTTER != 'true' }}
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Install Linux dependencies
+        if: ${{ !github.event.act && env.SKIP_HOST_DEPENDENCY_INSTALL != 'true' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - name: Build examples
+        run: |
+          set -euo pipefail
+
+          flutter config --enable-linux-desktop
+          flutter pub get
+
+          (cd quick_blue/example && flutter build apk --debug)
+          (cd quick_blue/example && flutter build linux --debug)
+
+  build-apple:
+    name: Build ${{ matrix.target }}
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' && vars.SKIP_HOSTED_PLATFORM_BUILDS != 'true' && !github.event.act }}
+    runs-on: ${{ fromJSON(vars.MACOS_RUNNER || '"macos-latest"') }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: ios
+            command: flutter build ios --no-codesign
+          - target: macos
+            command: flutter build macos --debug
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        if: ${{ !github.event.act && env.USE_PREINSTALLED_FLUTTER != 'true' }}
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Enable macOS desktop
+        if: ${{ matrix.target == 'macos' }}
+        run: flutter config --enable-macos-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build example
+        working-directory: quick_blue/example
+        run: ${{ matrix.command }}
+
+  build-windows:
+    name: Build windows
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' && vars.SKIP_HOSTED_PLATFORM_BUILDS != 'true' && !github.event.act }}
+    runs-on: ${{ fromJSON(vars.WINDOWS_RUNNER || '"windows-latest"') }}
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        if: ${{ !github.event.act && env.USE_PREINSTALLED_FLUTTER != 'true' }}
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build example
+        working-directory: quick_blue/example
+        run: flutter build windows --debug
