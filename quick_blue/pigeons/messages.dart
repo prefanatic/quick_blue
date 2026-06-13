@@ -11,6 +11,14 @@ enum PlatformBleInputProperty { disabled, notification, indication }
 
 enum PlatformBleOutputProperty { withResponse, withoutResponse }
 
+enum PlatformBluetoothState {
+  unknown,
+  unavailable,
+  unauthorized,
+  poweredOff,
+  poweredOn,
+}
+
 class PlatformCompanionDevice {
   PlatformCompanionDevice({
     required this.id,
@@ -159,6 +167,7 @@ class PlatformL2CapSocketEvent {
 
 @EventChannelApi()
 abstract class QuickBlueEventApi {
+  PlatformBluetoothState bluetoothState();
   PlatformScanResult scanResults();
   PlatformMtuChange mtuChanged();
   PlatformL2CapSocketEvent l2CapSocketEvents();

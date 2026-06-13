@@ -15,6 +15,9 @@ class QuickBlue {
   static Future<bool> isBluetoothAvailable() =>
       _platform.isBluetoothAvailable();
 
+  static Stream<BlueBluetoothState> get bluetoothStateStream =>
+      _platform.bluetoothStateStream;
+
   @Deprecated('Use QuickBlue.scanResults() instead.')
   static Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) =>
       _platform.startScan(scanFilter: scanFilter);

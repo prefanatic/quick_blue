@@ -42,6 +42,12 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   Future<bool> isBluetoothAvailable();
 
+  Stream<BlueBluetoothState> get bluetoothStateStream async* {
+    yield await isBluetoothAvailable()
+        ? BlueBluetoothState.poweredOn
+        : BlueBluetoothState.poweredOff;
+  }
+
   Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty});
 
   Future<void> stopScan();

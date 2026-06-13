@@ -6,6 +6,14 @@ import 'package:collection/collection.dart';
 const _stringListEquality = ListEquality<String>();
 const _deepEquality = DeepCollectionEquality();
 
+enum BlueBluetoothState {
+  unknown,
+  unavailable,
+  unauthorized,
+  poweredOff,
+  poweredOn,
+}
+
 class BlueScanResult {
   BlueScanResult({
     required this.name,

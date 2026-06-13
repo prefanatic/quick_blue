@@ -217,6 +217,20 @@ enum class PlatformBleOutputProperty(val raw: Int) {
   }
 }
 
+enum class PlatformBluetoothState(val raw: Int) {
+  UNKNOWN(0),
+  UNAVAILABLE(1),
+  UNAUTHORIZED(2),
+  POWERED_OFF(3),
+  POWERED_ON(4);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformBluetoothState? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 enum class PlatformConnectionState(val raw: Int) {
   DISCONNECTED(0),
   CONNECTING(1),
@@ -591,45 +605,50 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       131.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformConnectionState.ofRaw(it.toInt())
+          PlatformBluetoothState.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformGattStatus.ofRaw(it.toInt())
+          PlatformConnectionState.ofRaw(it.toInt())
         }
       }
       133.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCompanionDevice.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformGattStatus.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformScanResult.fromList(it)
+          PlatformCompanionDevice.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformConnectionStateChange.fromList(it)
+          PlatformScanResult.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformServiceDiscovered.fromList(it)
+          PlatformConnectionStateChange.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformMtuChange.fromList(it)
+          PlatformServiceDiscovered.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristicValueChanged.fromList(it)
+          PlatformMtuChange.fromList(it)
         }
       }
       139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCharacteristicValueChanged.fromList(it)
+        }
+      }
+      140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformL2CapSocketEvent.fromList(it)
         }
@@ -647,40 +666,44 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformConnectionState -> {
+      is PlatformBluetoothState -> {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformGattStatus -> {
+      is PlatformConnectionState -> {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformCompanionDevice -> {
+      is PlatformGattStatus -> {
         stream.write(133)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformScanResult -> {
+      is PlatformCompanionDevice -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is PlatformConnectionStateChange -> {
+      is PlatformScanResult -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is PlatformServiceDiscovered -> {
+      is PlatformConnectionStateChange -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is PlatformMtuChange -> {
+      is PlatformServiceDiscovered -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristicValueChanged -> {
+      is PlatformMtuChange -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is PlatformL2CapSocketEvent -> {
+      is PlatformCharacteristicValueChanged -> {
         stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is PlatformL2CapSocketEvent -> {
+        stream.write(140)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1056,7 +1079,24 @@ class PigeonEventSink<T>(private val sink: EventChannel.EventSink) {
     sink.endOfStream()
   }
 }
-      
+
+abstract class BluetoothStateStreamHandler : MessagesPigeonEventChannelWrapper<PlatformBluetoothState> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: BluetoothStateStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bluetoothState"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = MessagesPigeonStreamHandler<PlatformBluetoothState>(streamHandler)
+      EventChannel(messenger, channelName, MessagesPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from MessagesPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformBluetoothState>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+
 abstract class ScanResultsStreamHandler : MessagesPigeonEventChannelWrapper<PlatformScanResult> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: ScanResultsStreamHandler, instanceName: String = "") {
@@ -1073,7 +1113,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformScanResult>) {}
 
 override fun onCancel(p0: Any?) {}
 }
-      
+
 abstract class MtuChangedStreamHandler : MessagesPigeonEventChannelWrapper<PlatformMtuChange> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: MtuChangedStreamHandler, instanceName: String = "") {
@@ -1090,7 +1130,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformMtuChange>) {}
 
 override fun onCancel(p0: Any?) {}
 }
-      
+
 abstract class L2CapSocketEventsStreamHandler : MessagesPigeonEventChannelWrapper<PlatformL2CapSocketEvent> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: L2CapSocketEventsStreamHandler, instanceName: String = "") {
@@ -1107,7 +1147,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformL2CapSocketEvent>)
 
 override fun onCancel(p0: Any?) {}
 }
-      
+
 /** Generated class from Pigeon that represents Flutter messages that can be called from Kotlin. */
 class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private val messageChannelSuffix: String = "") {
   companion object {
@@ -1130,7 +1170,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
         }
       } else {
         callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
-      } 
+      }
     }
   }
   fun onServiceDiscovered(serviceDiscoveredArg: PlatformServiceDiscovered, callback: (Result<Unit>) -> Unit)
@@ -1147,7 +1187,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
         }
       } else {
         callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
-      } 
+      }
     }
   }
   fun onServiceDiscoveryComplete(deviceIdArg: String, callback: (Result<Unit>) -> Unit)
@@ -1164,7 +1204,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
         }
       } else {
         callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
-      } 
+      }
     }
   }
   fun onCharacteristicValueChanged(valueChangedArg: PlatformCharacteristicValueChanged, callback: (Result<Unit>) -> Unit)
@@ -1181,7 +1221,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
         }
       } else {
         callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
-      } 
+      }
     }
   }
 }

@@ -1,11 +1,13 @@
 package com.example.quick_blue
 
 import FlutterError
+import BluetoothStateStreamHandler
 import L2CapSocketEventsStreamHandler
 import MtuChangedStreamHandler
 import PigeonEventSink
 import PlatformBleInputProperty
 import PlatformBleOutputProperty
+import PlatformBluetoothState
 import PlatformCharacteristicValueChanged
 import PlatformCompanionDevice
 import PlatformConnectionState
@@ -20,6 +22,7 @@ import QuickBlueFlutterApi
 import ScanResultsStreamHandler
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
@@ -36,8 +39,10 @@ import android.companion.AssociationRequest
 import android.companion.BluetoothDeviceFilter
 import android.companion.CompanionDeviceManager
 import android.content.Context
+import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentSender
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
@@ -76,9 +81,12 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private val scanResultListener = ScanResultListener()
     private val mtuChangedListener = MtuChangedListener()
     private val l2CapSocketEventsListener = L2CapSocketEventsListener()
+    private lateinit var bluetoothStateListener: BluetoothStateListener
 
     private fun setUp(messenger: BinaryMessenger, context: Context) {
         QuickBlueApi.setUp(messenger, this)
+        bluetoothStateListener = BluetoothStateListener(context, bluetoothManager)
+        BluetoothStateStreamHandler.register(messenger, bluetoothStateListener)
         ScanResultsStreamHandler.register(messenger, scanResultListener)
         MtuChangedStreamHandler.register(messenger, mtuChangedListener)
         L2CapSocketEventsStreamHandler.register(messenger, l2CapSocketEventsListener)
@@ -122,6 +130,9 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
 
         QuickBlueApi.setUp(binding.binaryMessenger, null)
+        if (::bluetoothStateListener.isInitialized) {
+            bluetoothStateListener.onEventsDone()
+        }
         scanResultListener.onEventsDone()
         mtuChangedListener.onEventsDone()
         l2CapSocketEventsListener.onEventsDone()
@@ -916,6 +927,90 @@ fun BluetoothGatt.setNotifiable(
     }
     descriptor.value = value
     setCharacteristicNotification(descriptor.characteristic, enable) && writeDescriptor(descriptor)
+}
+
+class BluetoothStateListener(
+    private val context: Context,
+    private val bluetoothManager: BluetoothManager,
+) : BluetoothStateStreamHandler() {
+    private var eventSink: PigeonEventSink<PlatformBluetoothState>? = null
+    private var receiverRegistered = false
+    private val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                emitCurrentState()
+            }
+        }
+    }
+
+    override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformBluetoothState>) {
+        eventSink = sink
+        emitCurrentState()
+        registerReceiver()
+    }
+
+    override fun onCancel(p0: Any?) {
+        unregisterReceiver()
+        eventSink = null
+    }
+
+    fun onEventsDone() {
+        unregisterReceiver()
+        eventSink?.endOfStream()
+        eventSink = null
+    }
+
+    private fun emitCurrentState() {
+        eventSink?.success(currentState())
+    }
+
+    private fun registerReceiver() {
+        if (receiverRegistered) return
+        context.registerReceiver(
+            receiver,
+            IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+        )
+        receiverRegistered = true
+    }
+
+    private fun unregisterReceiver() {
+        if (!receiverRegistered) return
+        context.unregisterReceiver(receiver)
+        receiverRegistered = false
+    }
+
+    private fun currentState(): PlatformBluetoothState {
+        val adapter = bluetoothManager.adapter ?: return PlatformBluetoothState.UNAVAILABLE
+        if (!hasBluetoothPermission()) {
+            return PlatformBluetoothState.UNAUTHORIZED
+        }
+        return when (adapter.state) {
+            BluetoothAdapter.STATE_ON -> PlatformBluetoothState.POWERED_ON
+            BluetoothAdapter.STATE_OFF -> PlatformBluetoothState.POWERED_OFF
+            BluetoothAdapter.STATE_TURNING_ON,
+            BluetoothAdapter.STATE_TURNING_OFF -> PlatformBluetoothState.UNKNOWN
+            else -> PlatformBluetoothState.UNKNOWN
+        }
+    }
+
+    private fun hasBluetoothPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            val bluetoothPerm = ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.BLUETOOTH
+            ) == PackageManager.PERMISSION_GRANTED
+            val adminPerm = ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.BLUETOOTH_ADMIN
+            ) == PackageManager.PERMISSION_GRANTED
+            bluetoothPerm && adminPerm
+        }
+    }
 }
 
 class ScanResultListener : ScanResultsStreamHandler() {

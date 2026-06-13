@@ -46,6 +46,25 @@ extension CBPeripheral {
     }
 }
 
+extension CBManagerState {
+    var platformBluetoothState: PlatformBluetoothState {
+        switch self {
+        case .unknown, .resetting:
+            return .unknown
+        case .unsupported:
+            return .unavailable
+        case .unauthorized:
+            return .unauthorized
+        case .poweredOff:
+            return .poweredOff
+        case .poweredOn:
+            return .poweredOn
+        @unknown default:
+            return .unknown
+        }
+    }
+}
+
 public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     func getConnectedPeripherals(serviceUuids: [String]) throws -> [Peripheral]
     {
@@ -70,6 +89,10 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         let flutterApi = QuickBlueFlutterApi(binaryMessenger: messenger)
         let instance = QuickBlueDarwinPlugin(flutterApi: flutterApi)
         QuickBlueApiSetup.setUp(binaryMessenger: messenger, api: instance)
+        BluetoothStateStreamHandler.register(
+            with: messenger,
+            streamHandler: instance.bluetoothStateListener
+        )
         ScanResultListener.register(
             with: messenger,
             streamHandler: instance.scanResultListener
@@ -83,6 +106,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private let stateQueue = DispatchQueue(label: "quick_blue.state.queue")
 
     private var flutterApi: QuickBlueFlutterApi
+    private var bluetoothStateListener: BluetoothStateListener
     private var scanResultListener: ScanResultListener
     private var l2CapSocketEventsListener: L2CapSocketEventsListener
 
@@ -107,11 +131,15 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
 
     init(flutterApi: QuickBlueFlutterApi) {
         self.flutterApi = flutterApi
+        self.bluetoothStateListener = BluetoothStateListener()
         self.scanResultListener = ScanResultListener()
         self.l2CapSocketEventsListener = L2CapSocketEventsListener()
 
         super.init()
         manager = CBCentralManager(delegate: self, queue: nil)
+        bluetoothStateListener.currentStateProvider = { [weak self] in
+            self?.manager.state.platformBluetoothState ?? .unknown
+        }
         discoveredPeripherals = Dictionary()
         streamDelegates = Dictionary()
         pendingServiceDiscovery = Dictionary()
@@ -383,6 +411,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
         // Stop scanning
         manager.stopScan()
+        bluetoothStateListener.onEventsDone()
 
         // Disconnect all active devices
         stateQueue.sync {
@@ -431,6 +460,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
 
 extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        bluetoothStateListener.onEvent(event: central.state.platformBluetoothState)
     }
 
     public func centralManager(
@@ -908,6 +938,36 @@ class L2CapStreamDelegate: NSObject, @preconcurrency StreamDelegate {
         outgoingData.removeAll()
 
         onClose()
+    }
+}
+
+class BluetoothStateListener: BluetoothStateStreamHandler {
+    var eventSink: PigeonEventSink<PlatformBluetoothState>?
+    var currentStateProvider: (() -> PlatformBluetoothState)?
+
+    override func onListen(
+        withArguments arguments: Any?,
+        sink: PigeonEventSink<PlatformBluetoothState>
+    ) {
+        eventSink = sink
+        if let currentStateProvider = currentStateProvider {
+            sink.success(currentStateProvider())
+        }
+    }
+
+    override func onCancel(withArguments arguments: Any?) {
+        eventSink = nil
+    }
+
+    func onEvent(event: PlatformBluetoothState) {
+        if let eventSink = eventSink {
+            eventSink.success(event)
+        }
+    }
+
+    func onEventsDone() {
+        eventSink?.endOfStream()
+        eventSink = nil
     }
 }
 

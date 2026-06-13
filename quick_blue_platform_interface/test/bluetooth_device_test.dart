@@ -56,6 +56,19 @@ void main() {
     expect(result.serviceData, serviceData);
   });
 
+  test(
+    'bluetoothStateStream emits the current availability snapshot',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      expect(
+        await platform.bluetoothStateStream.first,
+        BlueBluetoothState.poweredOn,
+      );
+    },
+  );
+
   test('scan starts scanning, emits devices, and stops on cancel', () async {
     final platform = _FakeQuickBluePlatform();
     addTearDown(platform.dispose);

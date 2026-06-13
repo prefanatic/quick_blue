@@ -10,6 +10,10 @@ class QuickBlueAndroid extends QuickBluePlatform {
 
   final messages.QuickBlueApi _api = messages.QuickBlueApi();
   messages.QuickBlueFlutterApi? _flutterApi;
+  late final Stream<BlueBluetoothState> _bluetoothStateStream = messages
+      .bluetoothState()
+      .map((state) => state.toBlueBluetoothState())
+      .distinct();
 
   static void registerWith() {
     QuickBluePlatform.instance = QuickBlueAndroid();
@@ -103,6 +107,13 @@ class QuickBlueAndroid extends QuickBluePlatform {
     _ensureInitialized();
 
     return _api.isBluetoothAvailable();
+  }
+
+  @override
+  Stream<BlueBluetoothState> get bluetoothStateStream {
+    _ensureInitialized();
+
+    return _bluetoothStateStream;
   }
 
   @override
@@ -335,6 +346,23 @@ extension _BleStatusExtension on messages.PlatformGattStatus {
         return BleStatus.success;
       case messages.PlatformGattStatus.failure:
         return BleStatus.failure;
+    }
+  }
+}
+
+extension _BluetoothStateExtension on messages.PlatformBluetoothState {
+  BlueBluetoothState toBlueBluetoothState() {
+    switch (this) {
+      case messages.PlatformBluetoothState.unknown:
+        return BlueBluetoothState.unknown;
+      case messages.PlatformBluetoothState.unavailable:
+        return BlueBluetoothState.unavailable;
+      case messages.PlatformBluetoothState.unauthorized:
+        return BlueBluetoothState.unauthorized;
+      case messages.PlatformBluetoothState.poweredOff:
+        return BlueBluetoothState.poweredOff;
+      case messages.PlatformBluetoothState.poweredOn:
+        return BlueBluetoothState.poweredOn;
     }
   }
 }

@@ -199,6 +199,14 @@ enum PlatformBleOutputProperty: Int, CaseIterable {
   case withoutResponse = 1
 }
 
+enum PlatformBluetoothState: Int, CaseIterable {
+  case unknown = 0
+  case unavailable = 1
+  case unauthorized = 2
+  case poweredOff = 3
+  case poweredOn = 4
+}
+
 enum PlatformConnectionState: Int, CaseIterable {
   case disconnected = 0
   case connecting = 1
@@ -525,26 +533,32 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 131:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return PlatformConnectionState(rawValue: enumResultAsInt)
+        return PlatformBluetoothState(rawValue: enumResultAsInt)
       }
       return nil
     case 132:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return PlatformGattStatus(rawValue: enumResultAsInt)
+        return PlatformConnectionState(rawValue: enumResultAsInt)
       }
       return nil
     case 133:
-      return Peripheral.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PlatformGattStatus(rawValue: enumResultAsInt)
+      }
+      return nil
     case 134:
-      return PlatformScanResult.fromList(self.readValue() as! [Any?])
+      return Peripheral.fromList(self.readValue() as! [Any?])
     case 135:
-      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
+      return PlatformScanResult.fromList(self.readValue() as! [Any?])
     case 136:
-      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
+      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
     case 137:
-      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
     case 138:
+      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+    case 139:
       return PlatformL2CapSocketEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -560,29 +574,32 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PlatformBleOutputProperty {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? PlatformConnectionState {
+    } else if let value = value as? PlatformBluetoothState {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? PlatformGattStatus {
+    } else if let value = value as? PlatformConnectionState {
       super.writeByte(132)
       super.writeValue(value.rawValue)
-    } else if let value = value as? Peripheral {
+    } else if let value = value as? PlatformGattStatus {
       super.writeByte(133)
-      super.writeValue(value.toList())
-    } else if let value = value as? PlatformScanResult {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? Peripheral {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformConnectionStateChange {
+    } else if let value = value as? PlatformScanResult {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformServiceDiscovered {
+    } else if let value = value as? PlatformConnectionStateChange {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristicValueChanged {
+    } else if let value = value as? PlatformServiceDiscovered {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformL2CapSocketEvent {
+    } else if let value = value as? PlatformCharacteristicValueChanged {
       super.writeByte(138)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformL2CapSocketEvent {
+      super.writeByte(139)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -904,6 +921,20 @@ class PigeonEventSink<ReturnType> {
 
 }
 
+class BluetoothStateStreamHandler: PigeonEventChannelWrapper<PlatformBluetoothState> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: BluetoothStateStreamHandler) {
+    var channelName = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.bluetoothState"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<PlatformBluetoothState>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+
 class ScanResultsStreamHandler: PigeonEventChannelWrapper<PlatformScanResult> {
   static func register(with messenger: FlutterBinaryMessenger,
                       instanceName: String = "",
@@ -917,7 +948,7 @@ class ScanResultsStreamHandler: PigeonEventChannelWrapper<PlatformScanResult> {
     channel.setStreamHandler(internalStreamHandler)
   }
 }
-      
+
 class L2CapSocketEventsStreamHandler: PigeonEventChannelWrapper<PlatformL2CapSocketEvent> {
   static func register(with messenger: FlutterBinaryMessenger,
                       instanceName: String = "",
@@ -931,7 +962,7 @@ class L2CapSocketEventsStreamHandler: PigeonEventChannelWrapper<PlatformL2CapSoc
     channel.setStreamHandler(internalStreamHandler)
   }
 }
-      
+
 
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol QuickBlueFlutterApiProtocol {

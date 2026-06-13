@@ -12,6 +12,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 | API | Android | iOS | macOS | Windows | Linux |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | isBluetoothAvailable | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| bluetoothStateStream | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | scan/scanResults | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | connect/disconnect | ✔️ | ✔️ | ✔️ | ✔️ |  |
 | discoverServices | ✔️ | ✔️ | ✔️ | ✔️ |  |
@@ -19,6 +20,9 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 | readValue | ✔️ | ✔️ | ✔️ | ✔️ |  |
 | writeValue | ✔️ | ✔️ | ✔️ | ✔️ |  |
 | requestMtu | ✔️ | ✔️ | ✔️ | ✔️ |  |
+
+`bluetoothStateStream` emits live state changes on Android, iOS, and macOS.
+Windows and Linux currently emit the current availability snapshot.
 
 > * Windows' APIs are little different on `discoverServices`: https://github.com/woodemi/quick_blue/issues/76
 

@@ -118,6 +118,14 @@ enum PlatformBleOutputProperty {
   withoutResponse,
 }
 
+enum PlatformBluetoothState {
+  unknown,
+  unavailable,
+  unauthorized,
+  poweredOff,
+  poweredOn,
+}
+
 enum PlatformConnectionState {
   disconnected,
   connecting,
@@ -555,32 +563,35 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformBleOutputProperty) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformConnectionState) {
+    }    else if (value is PlatformBluetoothState) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformGattStatus) {
+    }    else if (value is PlatformConnectionState) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformCompanionDevice) {
+    }    else if (value is PlatformGattStatus) {
       buffer.putUint8(133);
-      writeValue(buffer, value.encode());
-    }    else if (value is PlatformScanResult) {
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformCompanionDevice) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformConnectionStateChange) {
+    }    else if (value is PlatformScanResult) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformServiceDiscovered) {
+    }    else if (value is PlatformConnectionStateChange) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformMtuChange) {
+    }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformMtuChange) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformL2CapSocketEvent) {
+    }    else if (value is PlatformCharacteristicValueChanged) {
       buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformL2CapSocketEvent) {
+      buffer.putUint8(140);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -598,23 +609,26 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : PlatformBleOutputProperty.values[value];
       case 131:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlatformConnectionState.values[value];
+        return value == null ? null : PlatformBluetoothState.values[value];
       case 132:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlatformGattStatus.values[value];
+        return value == null ? null : PlatformConnectionState.values[value];
       case 133:
-        return PlatformCompanionDevice.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformGattStatus.values[value];
       case 134:
-        return PlatformScanResult.decode(readValue(buffer)!);
+        return PlatformCompanionDevice.decode(readValue(buffer)!);
       case 135:
-        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+        return PlatformScanResult.decode(readValue(buffer)!);
       case 136:
-        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+        return PlatformConnectionStateChange.decode(readValue(buffer)!);
       case 137:
-        return PlatformMtuChange.decode(readValue(buffer)!);
+        return PlatformServiceDiscovered.decode(readValue(buffer)!);
       case 138:
-        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+        return PlatformMtuChange.decode(readValue(buffer)!);
       case 139:
+        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+      case 140:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -930,6 +944,17 @@ class QuickBlueApi {
   }
 }
 
+Stream<PlatformBluetoothState> bluetoothState( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel bluetoothStateChannel =
+      EventChannel('dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bluetoothState$instanceName', pigeonMethodCodec);
+  return bluetoothStateChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as PlatformBluetoothState;
+  });
+}
+
 Stream<PlatformScanResult> scanResults( {String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
@@ -940,7 +965,7 @@ Stream<PlatformScanResult> scanResults( {String instanceName = ''}) {
     return event as PlatformScanResult;
   });
 }
-    
+
 Stream<PlatformMtuChange> mtuChanged( {String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
@@ -951,7 +976,7 @@ Stream<PlatformMtuChange> mtuChanged( {String instanceName = ''}) {
     return event as PlatformMtuChange;
   });
 }
-    
+
 Stream<PlatformL2CapSocketEvent> l2CapSocketEvents( {String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
@@ -962,7 +987,7 @@ Stream<PlatformL2CapSocketEvent> l2CapSocketEvents( {String instanceName = ''}) 
     return event as PlatformL2CapSocketEvent;
   });
 }
-    
+
 
 abstract class QuickBlueFlutterApi {
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();

@@ -17,8 +17,9 @@ void main() {
     QuickBluePlatform.instance = platform;
   });
 
-  tearDown(() {
+  tearDown(() async {
     QuickBluePlatform.instance = previousPlatform;
+    await platform.dispose();
   });
 
   test('connect waits for the connected state', () async {
@@ -47,6 +48,20 @@ void main() {
 
     expect(await QuickBlue.isBluetoothAvailable(), isFalse);
     expect(platform.calls, <String>['isBluetoothAvailable']);
+  });
+
+  test('bluetoothStateStream delegates to the platform', () async {
+    final states = <BlueBluetoothState>[];
+    final subscription = QuickBlue.bluetoothStateStream.listen(states.add);
+
+    await pumpEventQueue();
+    platform.addBluetoothState(BlueBluetoothState.poweredOff);
+    await pumpEventQueue();
+
+    expect(states, <BlueBluetoothState>[BlueBluetoothState.poweredOff]);
+    expect(platform.calls, <String>['bluetoothStateStream']);
+
+    await subscription.cancel();
   });
 
   test('device returns a BluetoothDevice for the id', () {
@@ -241,6 +256,13 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   CompanionDevice? companionAssociation;
   List<CompanionDevice>? companionAssociations = const <CompanionDevice>[];
   final _scanResultController = StreamController<BlueScanResult>.broadcast();
+  final _bluetoothStateController =
+      StreamController<BlueBluetoothState>.broadcast();
+
+  Future<void> dispose() async {
+    await _scanResultController.close();
+    await _bluetoothStateController.close();
+  }
 
   void addScanResult(String deviceId) {
     _scanResultController.add(
@@ -248,10 +270,20 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     );
   }
 
+  void addBluetoothState(BlueBluetoothState state) {
+    _bluetoothStateController.add(state);
+  }
+
   @override
   Future<bool> isBluetoothAvailable() async {
     calls.add('isBluetoothAvailable');
     return isAvailable;
+  }
+
+  @override
+  Stream<BlueBluetoothState> get bluetoothStateStream {
+    calls.add('bluetoothStateStream');
+    return _bluetoothStateController.stream;
   }
 
   @override

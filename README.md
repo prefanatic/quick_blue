@@ -59,6 +59,7 @@ See the [example app](quick_blue/example/README.md) for a full usage demonstrati
 | API                | Android | iOS | macOS | Windows | Linux |
 |--------------------|:-------:|:---:|:-----:|:-------:|:-----:|
 | isBluetoothAvailable |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
+| bluetoothStateStream |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
 | startScan/stopScan   |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
 | connect/disconnect   |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
 | discoverServices     |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
@@ -66,6 +67,9 @@ See the [example app](quick_blue/example/README.md) for a full usage demonstrati
 | readValue            |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
 | writeValue           |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
 | requestMtu           |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
+
+`bluetoothStateStream` emits live state changes on Android, iOS, and macOS.
+Windows and Linux currently emit the current availability snapshot.
 
 ---
 
