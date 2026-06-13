@@ -37,10 +37,10 @@ class QuickBlue {
 
   static BluetoothDevice device(String deviceId) => _platform.device(deviceId);
 
-  static Future<void> connect(String deviceId) => _platform.connect(deviceId);
+  static Future<void> connect(String deviceId) => device(deviceId).connect();
 
   static Future<void> disconnect(String deviceId) =>
-      _platform.disconnect(deviceId);
+      device(deviceId).disconnect();
 
   static Future<CompanionDevice?> companionAssociate({
     String? deviceId,
@@ -61,8 +61,10 @@ class QuickBlue {
     _platform.onConnectionChanged = onConnectionChanged;
   }
 
-  static Future<void> discoverServices(String deviceId) =>
-      _platform.discoverServices(deviceId);
+  static Future<List<BluetoothService>> discoverServices(
+    String deviceId, {
+    Duration timeout = const Duration(seconds: 15),
+  }) => device(deviceId).discoverServices(timeout: timeout);
 
   @Deprecated('Use QuickBlue.device(deviceId).discoverServices() instead.')
   static void setServiceHandler(OnServiceDiscovered? onServiceDiscovered) {
@@ -75,12 +77,9 @@ class QuickBlue {
     String characteristic,
     BleInputProperty bleInputProperty,
   ) {
-    return _platform.setNotifiable(
+    return device(
       deviceId,
-      service,
-      characteristic,
-      bleInputProperty,
-    );
+    ).setNotifiable(service, characteristic, bleInputProperty);
   }
 
   @Deprecated(
@@ -91,12 +90,15 @@ class QuickBlue {
     _platform.onValueChanged = onValueChanged;
   }
 
-  static Future<void> readValue(
+  static Future<Uint8List> readValue(
     String deviceId,
     String service,
-    String characteristic,
-  ) {
-    return _platform.readValue(deviceId, service, characteristic);
+    String characteristic, {
+    Duration timeout = const Duration(seconds: 15),
+  }) {
+    return device(
+      deviceId,
+    ).readValue(service, characteristic, timeout: timeout);
   }
 
   static Future<void> writeValue(
@@ -106,18 +108,14 @@ class QuickBlue {
     Uint8List value,
     BleOutputProperty bleOutputProperty,
   ) {
-    return _platform.writeValue(
+    return device(
       deviceId,
-      service,
-      characteristic,
-      value,
-      bleOutputProperty,
-    );
+    ).writeValue(service, characteristic, value, bleOutputProperty);
   }
 
   static Future<int> requestMtu(String deviceId, int expectedMtu) =>
-      _platform.requestMtu(deviceId, expectedMtu);
+      device(deviceId).requestMtu(expectedMtu);
 
   static Future<BleL2capSocket> openL2cap(String deviceId, int psm) =>
-      _platform.openL2cap(deviceId, psm);
+      device(deviceId).openL2cap(psm);
 }

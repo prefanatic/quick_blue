@@ -1,0 +1,234 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:quick_blue/quick_blue.dart';
+import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late QuickBluePlatform previousPlatform;
+  late _FakeQuickBluePlatform platform;
+
+  setUp(() {
+    previousPlatform = QuickBluePlatform.instance;
+    platform = _FakeQuickBluePlatform();
+    QuickBluePlatform.instance = platform;
+  });
+
+  tearDown(() {
+    QuickBluePlatform.instance = previousPlatform;
+  });
+
+  test('connect waits for the connected state', () async {
+    platform.connectsImmediately = false;
+
+    final connect = QuickBlue.connect('device-a');
+    var connectCompleted = false;
+    unawaited(connect.then((_) => connectCompleted = true));
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['connect device-a']);
+    expect(connectCompleted, isFalse);
+
+    platform.onConnectionChanged!(
+      'device-a',
+      BlueConnectionState.connected,
+      BleStatus.success,
+    );
+    await connect;
+
+    expect(connectCompleted, isTrue);
+  });
+
+  test('disconnect waits for the disconnected state', () async {
+    platform.disconnectsImmediately = false;
+
+    final disconnect = QuickBlue.disconnect('device-a');
+    var disconnectCompleted = false;
+    unawaited(disconnect.then((_) => disconnectCompleted = true));
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['disconnect device-a']);
+    expect(disconnectCompleted, isFalse);
+
+    platform.onConnectionChanged!(
+      'device-a',
+      BlueConnectionState.disconnected,
+      BleStatus.success,
+    );
+    await disconnect;
+
+    expect(disconnectCompleted, isTrue);
+  });
+
+  test('discoverServices returns discovered services', () async {
+    platform.discoveredServices = <BluetoothService>[
+      BluetoothService(
+        deviceId: 'device-a',
+        uuid: 'service-a',
+        characteristics: const <String>['characteristic-a'],
+      ),
+    ];
+
+    final services = await QuickBlue.discoverServices('device-a');
+
+    expect(platform.calls, <String>['discoverServices device-a']);
+    expect(services.map((service) => service.uuid), <String>['service-a']);
+  });
+
+  test('readValue returns the characteristic value', () async {
+    platform.readValueResult = Uint8List.fromList(<int>[1, 2, 3]);
+
+    final value = await QuickBlue.readValue(
+      'device-a',
+      'service-a',
+      'characteristic-a',
+    );
+
+    expect(platform.calls, <String>[
+      'readValue device-a service-a characteristic-a',
+    ]);
+    expect(value, Uint8List.fromList(<int>[1, 2, 3]));
+  });
+}
+
+class _FakeQuickBluePlatform extends QuickBluePlatform {
+  final List<String> calls = <String>[];
+  var connectsImmediately = true;
+  var disconnectsImmediately = true;
+  var readValueResult = Uint8List(0);
+  var discoveredServices = <BluetoothService>[];
+
+  @override
+  Future<bool> isBluetoothAvailable() async => true;
+
+  @override
+  Stream<BlueScanResult> get scanResultStream => const Stream.empty();
+
+  @override
+  Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) async {
+    calls.add('startScan');
+  }
+
+  @override
+  Future<void> stopScan() async {
+    calls.add('stopScan');
+  }
+
+  @override
+  Future<void> connect(String deviceId) async {
+    calls.add('connect $deviceId');
+    if (connectsImmediately) {
+      onConnectionChanged!(
+        deviceId,
+        BlueConnectionState.connected,
+        BleStatus.success,
+      );
+    }
+  }
+
+  @override
+  Future<void> disconnect(String deviceId) async {
+    calls.add('disconnect $deviceId');
+    if (disconnectsImmediately) {
+      onConnectionChanged!(
+        deviceId,
+        BlueConnectionState.disconnected,
+        BleStatus.success,
+      );
+    }
+  }
+
+  @override
+  Future<CompanionDevice?> companionAssociate({
+    String? deviceId,
+    ScanFilter? scanFilter,
+  }) async {
+    calls.add('companionAssociate');
+    return null;
+  }
+
+  @override
+  Future<void> companionDisassociate(int associationId) async {
+    calls.add('companionDisassociate $associationId');
+  }
+
+  @override
+  Future<List<CompanionDevice>?> getCompanionAssociations() async {
+    calls.add('getCompanionAssociations');
+    return const <CompanionDevice>[];
+  }
+
+  @override
+  Future<void> discoverServices(String deviceId) async {
+    calls.add('discoverServices $deviceId');
+    for (final service in discoveredServices) {
+      onServiceDiscovered!(deviceId, service.uuid, service.characteristics);
+    }
+    onServiceDiscoveryComplete(deviceId);
+  }
+
+  @override
+  Future<void> setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) async {
+    calls.add(
+      'setNotifiable $deviceId $service $characteristic ${bleInputProperty.value}',
+    );
+  }
+
+  @override
+  Future<void> readValue(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    calls.add('readValue $deviceId $service $characteristic');
+    onValueChanged!(deviceId, characteristic, readValueResult);
+  }
+
+  @override
+  Future<void> writeValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty,
+  ) async {
+    calls.add(
+      'writeValue $deviceId $service $characteristic '
+      '${bleOutputProperty.value} ${value.toList()}',
+    );
+  }
+
+  @override
+  Future<int> requestMtu(String deviceId, int expectedMtu) async {
+    calls.add('requestMtu $deviceId $expectedMtu');
+    return expectedMtu;
+  }
+
+  @override
+  Future<BleL2capSocket> openL2cap(String deviceId, int psm) async {
+    calls.add('openL2cap $deviceId $psm');
+    return BleL2capSocket(
+      sink: _NoopSink(),
+      stream: const Stream<BleL2CapSocketEvent>.empty(),
+    );
+  }
+}
+
+class _NoopSink implements EventSink<Uint8List> {
+  @override
+  void add(Uint8List event) {}
+
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) {}
+
+  @override
+  void close() {}
+}

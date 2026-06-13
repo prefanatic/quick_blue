@@ -267,7 +267,14 @@ class BluetoothDevice {
     await connected;
   }
 
-  Future<void> disconnect() => _platform.disconnect(deviceId);
+  Future<void> disconnect() async {
+    final disconnected = connectionStateStream
+        .where((event) => event.state == BlueConnectionState.disconnected)
+        .first;
+
+    await _platform.disconnect(deviceId);
+    await disconnected;
+  }
 
   Future<List<BluetoothService>> discoverServices({
     Duration timeout = const Duration(seconds: 15),

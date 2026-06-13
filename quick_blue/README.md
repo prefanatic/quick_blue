@@ -46,9 +46,9 @@ void _handleConnectionChange(String deviceId, BlueConnectionState state) {
   print('_handleConnectionChange $deviceId, $state');
 }
 
-QuickBlue.connect(deviceId);
+await QuickBlue.connect(deviceId);
 // ...
-QuickBlue.disconnect(deviceId);
+await QuickBlue.disconnect(deviceId);
 ```
 
 Or use the device object API:
@@ -72,7 +72,11 @@ void _handleServiceDiscovery(String deviceId, String serviceId) {
   print('_handleServiceDiscovery $deviceId, $serviceId');
 }
 
-QuickBlue.discoverServices(deviceId);
+final services = await QuickBlue.discoverServices(deviceId);
+
+for (final service in services) {
+  print('${service.uuid}: ${service.characteristics}');
+}
 ```
 
 Or use the device object API:
@@ -95,8 +99,7 @@ for (final service in services) {
 > Because it is how [peripheral(_:didUpdateValueFor:error:)](https://developer.apple.com/documentation/corebluetooth/cbperipheraldelegate/1518708-peripheral) work on iOS/macOS
 
 ```dart
-// Data would receive from value handler of `QuickBlue.setValueHandler`
-QuickBlue.readValue(deviceId, serviceId, characteristicId);
+final value = await QuickBlue.readValue(deviceId, serviceId, characteristicId);
 ```
 
 Or receive the read result as a `Future` from the device object:

@@ -242,6 +242,36 @@ void main() {
     expect(connectCompleted, isTrue);
   });
 
+  test('BluetoothDevice.disconnect waits for disconnected state', () async {
+    final platform = _FakeQuickBluePlatform(disconnectsImmediately: false);
+    addTearDown(platform.dispose);
+
+    final disconnect = platform.device('device-a').disconnect();
+    var disconnectCompleted = false;
+    unawaited(disconnect.then((_) => disconnectCompleted = true));
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['disconnect device-a']);
+    expect(disconnectCompleted, isFalse);
+
+    platform.onConnectionChanged!(
+      'device-b',
+      BlueConnectionState.disconnected,
+      BleStatus.success,
+    );
+    await pumpEventQueue();
+    expect(disconnectCompleted, isFalse);
+
+    platform.onConnectionChanged!(
+      'device-a',
+      BlueConnectionState.disconnected,
+      BleStatus.success,
+    );
+    await disconnect;
+
+    expect(disconnectCompleted, isTrue);
+  });
+
   test(
     'BluetoothDevice.discoverServices completes with discovered services',
     () async {
@@ -412,6 +442,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     List<BluetoothService> discoveredServices = const <BluetoothService>[],
     List<Completer<void>> setNotifiableCompletions = const <Completer<void>>[],
     this.connectsImmediately = true,
+    this.disconnectsImmediately = true,
   }) : readValueResult = readValueResult ?? Uint8List(0),
        discoveredServices = discoveredServices,
        setNotifiableCompletions = setNotifiableCompletions;
@@ -423,6 +454,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final List<BluetoothService> discoveredServices;
   final List<Completer<void>> setNotifiableCompletions;
   final bool connectsImmediately;
+  final bool disconnectsImmediately;
   ScanFilter? lastScanFilter;
   int _setNotifiableCallCount = 0;
 
@@ -468,6 +500,13 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> disconnect(String deviceId) async {
     calls.add('disconnect $deviceId');
+    if (disconnectsImmediately) {
+      onConnectionChanged!(
+        deviceId,
+        BlueConnectionState.disconnected,
+        BleStatus.success,
+      );
+    }
   }
 
   @override
