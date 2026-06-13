@@ -169,6 +169,40 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private val streamDelegates = mutableMapOf<String, L2CapStreamDelegate>()
     private val gattLock = Any()
 
+    // Callbacks for writes awaiting their onCharacteristicWrite acknowledgement,
+    // keyed by "deviceId/characteristicId". GATT operations are serialized and
+    // acknowledged in order, so each key holds a FIFO queue. Guarded by
+    // `pendingWritesLock`.
+    private val pendingWrites =
+        mutableMapOf<String, ArrayDeque<(Result<Unit>) -> Unit>>()
+    private val pendingWritesLock = Any()
+
+    private fun writeKey(deviceId: String, characteristicId: String) =
+        "$deviceId/$characteristicId"
+
+    /** Fails every write still awaiting acknowledgement for [deviceId]. */
+    private fun failPendingWrites(deviceId: String) {
+        val callbacks = synchronized(pendingWritesLock) {
+            val prefix = "$deviceId/"
+            val matching = pendingWrites.keys.filter { it.startsWith(prefix) }
+            matching.flatMap { pendingWrites.remove(it) ?: emptyList() }
+        }
+        if (callbacks.isEmpty()) return
+        mainThreadHandler.post {
+            callbacks.forEach {
+                it(
+                    Result.failure(
+                        FlutterError(
+                            "Disconnected",
+                            "Connection lost before the write was acknowledged",
+                            null
+                        )
+                    )
+                )
+            }
+        }
+    }
+
 
     private fun connectDevice(bluetoothDevice: BluetoothDevice) {
         val gatt =
@@ -237,6 +271,9 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
 
             // If we've disconnected, ensure that we also close out the gatt.
             if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+                // No further onCharacteristicWrite will arrive, so fail any
+                // writes still awaiting acknowledgement instead of hanging.
+                failPendingWrites(gatt.device.address)
                 mainThreadHandler.post {
                     synchronized(gattLock) {
                         knownGatts.remove(gatt)
@@ -333,7 +370,29 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
-            // TODO(cg): send this as a message
+            val deviceId = gatt?.device?.address ?: return
+            val key = writeKey(deviceId, characteristic.uuid.toString())
+            val callback = synchronized(pendingWritesLock) {
+                val queue = pendingWrites[key]
+                val next = queue?.removeFirstOrNull()
+                if (queue?.isEmpty() == true) pendingWrites.remove(key)
+                next
+            } ?: return
+            mainThreadHandler.post {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    callback(Result.success(Unit))
+                } else {
+                    callback(
+                        Result.failure(
+                            FlutterError(
+                                "WriteFailed",
+                                "Write failed with status $status",
+                                null
+                            )
+                        )
+                    )
+                }
+            }
         }
     }
 
@@ -539,18 +598,66 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         service: String,
         characteristic: String,
         value: ByteArray,
-        bleOutputProperty: PlatformBleOutputProperty
+        bleOutputProperty: PlatformBleOutputProperty,
+        callback: (Result<Unit>) -> Unit
     ) {
+        // @async: report guard failures through the callback rather than
+        // throwing, since the generated dispatcher does not catch synchronous
+        // throws for async methods (the reply would never be sent).
         val gatt = knownGatts.find { it.device.address == deviceId }
-            ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
-        val writeResult = gatt.getCharacteristic(service to characteristic)?.let {
-            it.value = value
-            gatt.writeCharacteristic(it)
-        }
-        if (writeResult == true)
+        if (gatt == null) {
+            callback(
+                Result.failure(
+                    FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
+                )
+            )
             return
-        else
-            throw FlutterError("Characteristic unavailable", null, null)
+        }
+        val gattChar = gatt.getCharacteristic(service to characteristic)
+        if (gattChar == null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "IllegalArgument",
+                        "Unknown characteristic: $characteristic",
+                        null
+                    )
+                )
+            )
+            return
+        }
+
+        gattChar.writeType =
+            if (bleOutputProperty == PlatformBleOutputProperty.WITHOUT_RESPONSE)
+                BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            else
+                BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        gattChar.value = value
+
+        // onCharacteristicWrite fires once per write (both write types) in FIFO
+        // order, so register the callback before initiating to avoid missing a
+        // fast acknowledgement.
+        val key = writeKey(deviceId, gattChar.uuid.toString())
+        synchronized(pendingWritesLock) {
+            pendingWrites.getOrPut(key) { ArrayDeque() }.addLast(callback)
+        }
+
+        if (!gatt.writeCharacteristic(gattChar)) {
+            val removed = synchronized(pendingWritesLock) {
+                pendingWrites[key]?.remove(callback) ?: false
+            }
+            if (removed) {
+                callback(
+                    Result.failure(
+                        FlutterError(
+                            "WriteFailed",
+                            "Failed to initiate write to $characteristic",
+                            null
+                        )
+                    )
+                )
+            }
+        }
     }
 
     override fun requestMtu(deviceId: String, expectedMtu: Long): Long {

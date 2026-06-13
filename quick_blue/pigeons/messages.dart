@@ -49,6 +49,10 @@ abstract class QuickBlueApi {
     PlatformBleInputProperty bleInputProperty,
   );
   void readValue(String deviceId, String service, String characteristic);
+
+  // Async so the reply can be deferred until the GATT write completes
+  // (onCharacteristicWrite) rather than when the write is merely queued.
+  @async
   void writeValue(
     String deviceId,
     String service,

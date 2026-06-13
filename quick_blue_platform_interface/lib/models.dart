@@ -14,7 +14,13 @@ class BlueScanResult {
 
   Uint8List get manufacturerDataHead => _manufacturerDataHead ?? _empty;
 
-  Uint8List get manufacturerData => _manufacturerData ?? manufacturerDataHead;
+  /// The full manufacturer data when available, otherwise the advertised
+  /// "head". Platforms that only surface advertisement data populate the head,
+  /// so fall back to it when the full payload is absent (null or empty).
+  Uint8List get manufacturerData {
+    final data = _manufacturerData;
+    return (data != null && data.isNotEmpty) ? data : manufacturerDataHead;
+  }
 
   BlueScanResult({
     required this.name,

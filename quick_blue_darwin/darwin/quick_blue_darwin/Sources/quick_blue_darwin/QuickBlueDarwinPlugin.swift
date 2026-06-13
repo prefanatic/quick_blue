@@ -18,6 +18,11 @@ extension CBPeripheral {
     public func getCharacteristic(_ characteristic: String, of service: String)
         -> CBCharacteristic?
     {
+        // CoreBluetooth reports UUIDs lowercased and 16-bit UUIDs in short form
+        // (e.g. "180d"). Callers may pass uppercase and/or the full 128-bit GSS
+        // form, so normalize both sides before comparing.
+        let service = service.lowercased()
+        let characteristic = characteristic.lowercased()
         let s = self.services?.first {
             $0.uuid.uuidStr == service
                 || "0000\($0.uuid.uuidStr)-\(GSS_SUFFIX)" == service
@@ -86,7 +91,19 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var streamDelegates: [String: L2CapStreamDelegate]!
     private var pendingServiceDiscovery: [String: Set<String>]!
 
+    // Completions for write-with-response calls awaiting their didWriteValueFor
+    // acknowledgement, keyed by "deviceId/characteristicId". CoreBluetooth
+    // serializes writes and delivers acknowledgements in order, so each key
+    // holds a FIFO queue. Guarded by `stateQueue`.
+    private var pendingWrites: [String: [(Result<Void, Error>) -> Void]] = [:]
+
     private var targetManufacturerData: Data?
+
+    private func writeKey(_ deviceId: String, _ characteristicId: String)
+        -> String
+    {
+        "\(deviceId)/\(characteristicId)"
+    }
 
     init(flutterApi: QuickBlueFlutterApi) {
         self.flutterApi = flutterApi
@@ -247,9 +264,58 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         service: String,
         characteristic: String,
         value: FlutterStandardTypedData,
-        bleOutputProperty: PlatformBleOutputProperty
-    ) throws {
-        try stateQueue.sync {
+        bleOutputProperty: PlatformBleOutputProperty,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        let isWithResponse =
+            bleOutputProperty != PlatformBleOutputProperty.withoutResponse
+        do {
+            try stateQueue.sync {
+                guard let peripheral = discoveredPeripherals[deviceId] else {
+                    throw PigeonError(
+                        code: "IllegalArgument",
+                        message: "Unknown deviceId:\(deviceId)",
+                        details: nil
+                    )
+                }
+                guard
+                    let cbCharacteristic = peripheral.getCharacteristic(
+                        characteristic,
+                        of: service
+                    )
+                else {
+                    throw PigeonError(
+                        code: "IllegalArgument",
+                        message: "Unknown characteristic:\(characteristic)",
+                        details: nil
+                    )
+                }
+                if isWithResponse {
+                    // Resolved when didWriteValueFor fires for this write.
+                    pendingWrites[
+                        writeKey(deviceId, cbCharacteristic.uuid.uuidStr),
+                        default: []
+                    ].append(completion)
+                }
+                peripheral.writeValue(
+                    value.data,
+                    for: cbCharacteristic,
+                    type: isWithResponse ? .withResponse : .withoutResponse
+                )
+            }
+        } catch {
+            completion(.failure(error))
+            return
+        }
+        if !isWithResponse {
+            // CoreBluetooth does not acknowledge writes without response, so the
+            // call is complete once the value has been handed off.
+            completion(.success(()))
+        }
+    }
+
+    func requestMtu(deviceId: String, expectedMtu: Int64) throws -> Int64 {
+        return try stateQueue.sync {
             guard let peripheral = discoveredPeripherals[deviceId] else {
                 throw PigeonError(
                     code: "IllegalArgument",
@@ -257,23 +323,16 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                     details: nil
                 )
             }
-            guard
-                let cbCharacteristic = peripheral.getCharacteristic(
-                    characteristic,
-                    of: service
-                )
-            else {
-                throw PigeonError(
-                    code: "IllegalArgument",
-                    message: "Unknown characteristic:\(characteristic)",
-                    details: nil
-                )
-            }
-            let type =
-                bleOutputProperty == PlatformBleOutputProperty.withoutResponse
-                ? CBCharacteristicWriteType.withoutResponse
-                : CBCharacteristicWriteType.withResponse
-            peripheral.writeValue(value.data, for: cbCharacteristic, type: type)
+            // CoreBluetooth negotiates the ATT MTU automatically at connection
+            // time and offers no API to request a specific value, so
+            // `expectedMtu` is ignored. `maximumWriteValueLength(for:)` reports
+            // the largest single-packet payload (ATT_MTU - 3) for a
+            // write-without-response; add the 3-byte ATT header back so the
+            // returned value matches the ATT MTU other platforms report.
+            let writeLength = peripheral.maximumWriteValueLength(
+                for: .withoutResponse
+            )
+            return Int64(writeLength + 3)
         }
     }
 
@@ -340,6 +399,34 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         }
         manager.cancelPeripheralConnection(peripheral)
     }
+
+    /// Fails any write-with-response completions still awaiting acknowledgement
+    /// for `deviceId`; once the peripheral is gone CoreBluetooth never delivers
+    /// didWriteValueFor, so the Dart futures would otherwise hang. Must be
+    /// called outside a `stateQueue` block to avoid deadlock.
+    private func failPendingWrites(forDeviceId deviceId: String, reason: String)
+    {
+        var completions: [(Result<Void, Error>) -> Void] = []
+        stateQueue.sync {
+            let prefix = "\(deviceId)/"
+            // Snapshot keys before removing to avoid mutating during iteration.
+            let matchingKeys = pendingWrites.keys.filter { $0.hasPrefix(prefix) }
+            for key in matchingKeys {
+                if let queue = pendingWrites.removeValue(forKey: key) {
+                    completions.append(contentsOf: queue)
+                }
+            }
+        }
+        guard !completions.isEmpty else { return }
+        let error = PigeonError(
+            code: "Disconnected",
+            message: reason,
+            details: nil
+        )
+        for completion in completions {
+            completion(.failure(error))
+        }
+    }
 }
 
 extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
@@ -360,37 +447,29 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
             let serviceUuids =
                 advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]
                 ?? []
-            if targetManufacturerData != nil {
-                if targetManufacturerData == manufacturerData {
-                    scanResultListener.onEvent(
-                        event: PlatformScanResult(
-                            name: peripheral.name ?? "",
-                            deviceId: peripheral.identifier.uuidString,
-                            manufacturerDataHead: FlutterStandardTypedData(
-                                bytes: manufacturerData ?? Data()
-                            ),
-                            manufacturerData: FlutterStandardTypedData(
-                                bytes: Data()
-                            ),
-                            rssi: Int64(truncating: RSSI),
-                            serviceUuids: serviceUuids.map { $0.uuidString }
-                        )
-                    )
-                }
-            } else {
-                scanResultListener.onEvent(
-                    event: PlatformScanResult(
-                        name: peripheral.name ?? "",
-                        deviceId: peripheral.identifier.uuidString,
-                        manufacturerDataHead: FlutterStandardTypedData(
-                            bytes: Data()
-                        ),
-                        manufacturerData: FlutterStandardTypedData(bytes: Data()),
-                        rssi: Int64(truncating: RSSI),
-                        serviceUuids: serviceUuids.map { $0.uuidString }
-                    )
-                )
+
+            // When a manufacturer-data filter is active, only surface
+            // peripherals whose advertised manufacturer data matches it.
+            if let target = targetManufacturerData, target != manufacturerData {
+                return
             }
+
+            scanResultListener.onEvent(
+                event: PlatformScanResult(
+                    name: peripheral.name ?? "",
+                    deviceId: peripheral.identifier.uuidString,
+                    // The advertised manufacturer data is the portion available
+                    // while scanning, so it is surfaced as the "head".
+                    // `manufacturerData` carries the full value read after
+                    // connecting and is left empty here.
+                    manufacturerDataHead: FlutterStandardTypedData(
+                        bytes: manufacturerData ?? Data()
+                    ),
+                    manufacturerData: FlutterStandardTypedData(bytes: Data()),
+                    rssi: Int64(truncating: RSSI),
+                    serviceUuids: serviceUuids.map { $0.uuidStr }
+                )
+            )
         }
     }
 
@@ -432,6 +511,11 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
                 completion: { _ in }
             )
         }
+
+        failPendingWrites(
+            forDeviceId: peripheral.identifier.uuidString,
+            reason: "Peripheral disconnected before the write was acknowledged"
+        )
     }
 }
 
@@ -501,7 +585,39 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
         didWriteValueFor characteristic: CBCharacteristic,
         error: Error?
     ) {
-        // TODO(cg): send this as a message
+        // Resolve the matching write-with-response completion. Extract it under
+        // the lock, then invoke it outside to avoid reentrancy on stateQueue.
+        let key = writeKey(
+            peripheral.identifier.uuidString,
+            characteristic.uuid.uuidStr
+        )
+        var completion: ((Result<Void, Error>) -> Void)?
+        stateQueue.sync {
+            if var queue = pendingWrites[key], !queue.isEmpty {
+                completion = queue.removeFirst()
+                if queue.isEmpty {
+                    pendingWrites.removeValue(forKey: key)
+                } else {
+                    pendingWrites[key] = queue
+                }
+            }
+        }
+        if let error = error {
+            NSLog(
+                "[quick_blue] write failed for \(characteristic.uuid.uuidStr) on \(peripheral.identifier.uuidString): \(error.localizedDescription)"
+            )
+            completion?(
+                .failure(
+                    PigeonError(
+                        code: "WriteFailed",
+                        message: error.localizedDescription,
+                        details: nil
+                    )
+                )
+            )
+        } else {
+            completion?(.success(()))
+        }
     }
 
     public func peripheral(
@@ -509,6 +625,14 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
         didUpdateValueFor characteristic: CBCharacteristic,
         error: Error?
     ) {
+        if let error = error {
+            // A failed read/notify delivers no value, so the Dart-side read
+            // would simply time out. Surface it for diagnosis.
+            NSLog(
+                "[quick_blue] value update failed for \(characteristic.uuid.uuidStr) on \(peripheral.identifier.uuidString): \(error.localizedDescription)"
+            )
+            return
+        }
         if let value = characteristic.value {
             flutterApi.onCharacteristicValueChanged(
                 valueChanged: PlatformCharacteristicValueChanged(
@@ -517,6 +641,21 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
                     value: FlutterStandardTypedData(bytes: value)
                 ),
                 completion: { _ in }
+            )
+        }
+    }
+
+    public func peripheral(
+        _ peripheral: CBPeripheral,
+        didUpdateNotificationStateFor characteristic: CBCharacteristic,
+        error: Error?
+    ) {
+        // `setNotifiable` cannot fail synchronously on CoreBluetooth; a failure
+        // to enable/disable notifications only arrives here. Log it so a
+        // silently-broken subscription is diagnosable.
+        if let error = error {
+            NSLog(
+                "[quick_blue] setNotifiable failed for \(characteristic.uuid.uuidStr) on \(peripheral.identifier.uuidString): \(error.localizedDescription)"
             )
         }
     }

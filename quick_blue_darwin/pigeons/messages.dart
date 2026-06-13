@@ -40,6 +40,11 @@ abstract class QuickBlueApi {
     PlatformBleInputProperty bleInputProperty,
   );
   void readValue(String deviceId, String service, String characteristic);
+
+  // Async so the reply can be deferred until the peripheral acknowledges a
+  // write-with-response (via didWriteValueFor). Writes-without-response have no
+  // acknowledgement and complete as soon as they are handed to CoreBluetooth.
+  @async
   void writeValue(
     String deviceId,
     String service,
@@ -47,6 +52,11 @@ abstract class QuickBlueApi {
     Uint8List value,
     PlatformBleOutputProperty bleOutputProperty,
   );
+
+  // CoreBluetooth negotiates the ATT MTU automatically at connection time and
+  // exposes no API to request a specific value, so [expectedMtu] is advisory.
+  // Returns the negotiated ATT MTU currently in effect for the peripheral.
+  int requestMtu(String deviceId, int expectedMtu);
 
   void openL2cap(String deviceId, int psm);
   void closeL2cap(String deviceId);
@@ -105,13 +115,6 @@ class PlatformServiceDiscovered {
   final List<String> characteristics;
 }
 
-class PlatformMtuChange {
-  PlatformMtuChange({required this.deviceId, required this.mtu});
-
-  final String deviceId;
-  final int mtu;
-}
-
 class PlatformCharacteristicValueChanged {
   PlatformCharacteristicValueChanged({
     required this.deviceId,
@@ -143,7 +146,6 @@ class PlatformL2CapSocketEvent {
 @EventChannelApi()
 abstract class QuickBlueEventApi {
   PlatformScanResult scanResults();
-  PlatformMtuChange mtuChanged();
   PlatformL2CapSocketEvent l2CapSocketEvents();
 }
 

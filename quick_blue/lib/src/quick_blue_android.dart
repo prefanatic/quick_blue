@@ -163,6 +163,7 @@ class QuickBlueAndroid extends QuickBluePlatform {
       name: item.name,
       rssi: item.rssi,
       serviceUuids: item.serviceUuids,
+      manufacturerDataHead: item.manufacturerDataHead,
       manufacturerData: item.manufacturerData,
     ),
   );

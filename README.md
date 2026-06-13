@@ -79,7 +79,10 @@ See the [example app](quick_blue/example/README.md) for a full usage demonstrati
 - Some device-specific quirks may apply (see [issues](https://github.com/pisontechnology/quick_blue/issues)).
 
 ### iOS/macOS
-- Some common service/characteristic UUIDs may be shortened. Be careful when comparing UUIDs.
+- Some common service/characteristic UUIDs may be shortened. UUIDs are matched case-insensitively and 16-bit UUIDs are expanded against the Bluetooth base UUID, so either short or full 128-bit form works.
+- `requestMtu` cannot request a specific value — CoreBluetooth negotiates the ATT MTU automatically at connection. The call returns the negotiated MTU currently in effect (`maximumWriteValueLength(for: .withoutResponse) + 3`); the `expectedMtu` argument is advisory.
+- Advertised manufacturer data is surfaced via `BlueScanResult.manufacturerDataHead` (and `manufacturerData`, which falls back to the head when no full payload is available).
+- Companion device association (`companionAssociate`/`getCompanionAssociations`) is Android-only and throws `UnsupportedError` here.
 - See [Apple Bluetooth documentation](https://developer.apple.com/bluetooth/).
 
 ### Windows

@@ -403,46 +403,6 @@ struct PlatformServiceDiscovered: Hashable, CustomStringConvertible {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
-struct PlatformMtuChange: Hashable, CustomStringConvertible {
-  var deviceId: String
-  var mtu: Int64
-
-
-  // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformMtuChange? {
-    let deviceId = pigeonVar_list[0] as! String
-    let mtu = pigeonVar_list[1] as! Int64
-
-    return PlatformMtuChange(
-      deviceId: deviceId,
-      mtu: mtu
-    )
-  }
-  func toList() -> [Any?] {
-    return [
-      deviceId,
-      mtu,
-    ]
-  }
-  static func == (lhs: PlatformMtuChange, rhs: PlatformMtuChange) -> Bool {
-    if Swift.type(of: lhs) != Swift.type(of: rhs) {
-      return false
-    }
-    return MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.mtu, rhs.mtu)
-  }
-
-  func hash(into hasher: inout Hasher) {
-    hasher.combine("PlatformMtuChange")
-    MessagesPigeonInternal.deepHash(value: deviceId, hasher: &hasher)
-    MessagesPigeonInternal.deepHash(value: mtu, hasher: &hasher)
-  }
-
-  public var description: String {
-    return "PlatformMtuChange(deviceId: \(String(describing: deviceId)), mtu: \(String(describing: mtu)))"
-  }
-}
-
-/// Generated class from Pigeon that represents data sent in messages.
 struct PlatformCharacteristicValueChanged: Hashable, CustomStringConvertible {
   var deviceId: String
   var characteristicId: String
@@ -578,10 +538,8 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 136:
       return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
     case 137:
-      return PlatformMtuChange.fromList(self.readValue() as! [Any?])
-    case 138:
       return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
-    case 139:
+    case 138:
       return PlatformL2CapSocketEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -615,14 +573,11 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PlatformServiceDiscovered {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformMtuChange {
+    } else if let value = value as? PlatformCharacteristicValueChanged {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristicValueChanged {
-      super.writeByte(138)
-      super.writeValue(value.toList())
     } else if let value = value as? PlatformL2CapSocketEvent {
-      super.writeByte(139)
+      super.writeByte(138)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -646,6 +601,7 @@ class MessagesPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
 
 var messagesPigeonMethodCodec = FlutterStandardMethodCodec(readerWriter: MessagesPigeonCodecReaderWriter());
 
+
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol QuickBlueApi {
   func getConnectedPeripherals(serviceUuids: [String]) throws -> [Peripheral]
@@ -657,7 +613,8 @@ protocol QuickBlueApi {
   func discoverServices(deviceId: String) throws
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: PlatformBleInputProperty) throws
   func readValue(deviceId: String, service: String, characteristic: String) throws
-  func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: PlatformBleOutputProperty) throws
+  func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: PlatformBleOutputProperty, completion: @escaping (Result<Void, Error>) -> Void)
+  func requestMtu(deviceId: String, expectedMtu: Int64) throws -> Int64
   func openL2cap(deviceId: String, psm: Int64) throws
   func closeL2cap(deviceId: String) throws
   func writeL2cap(deviceId: String, value: FlutterStandardTypedData) throws
@@ -815,15 +772,33 @@ class QuickBlueApiSetup {
         let characteristicArg = args[2] as! String
         let valueArg = args[3] as! FlutterStandardTypedData
         let bleOutputPropertyArg = args[4] as! PlatformBleOutputProperty
+        api.writeValue(deviceId: deviceIdArg, service: serviceArg, characteristic: characteristicArg, value: valueArg, bleOutputProperty: bleOutputPropertyArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      writeValueChannel.setMessageHandler(nil)
+    }
+    let requestMtuChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.requestMtu\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      requestMtuChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        let expectedMtuArg = args[1] as! Int64
         do {
-          try api.writeValue(deviceId: deviceIdArg, service: serviceArg, characteristic: characteristicArg, value: valueArg, bleOutputProperty: bleOutputPropertyArg)
-          reply(wrapResult(nil))
+          let result = try api.requestMtu(deviceId: deviceIdArg, expectedMtu: expectedMtuArg)
+          reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
         }
       }
     } else {
-      writeValueChannel.setMessageHandler(nil)
+      requestMtuChannel.setMessageHandler(nil)
     }
     let openL2capChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.openL2cap\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -933,20 +908,6 @@ class ScanResultsStreamHandler: PigeonEventChannelWrapper<PlatformScanResult> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<PlatformScanResult>(wrapper: streamHandler)
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
-    channel.setStreamHandler(internalStreamHandler)
-  }
-}
-      
-class MtuChangedStreamHandler: PigeonEventChannelWrapper<PlatformMtuChange> {
-  static func register(with messenger: FlutterBinaryMessenger,
-                      instanceName: String = "",
-                      streamHandler: MtuChangedStreamHandler) {
-    var channelName = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.mtuChanged"
-    if !instanceName.isEmpty {
-      channelName += ".\(instanceName)"
-    }
-    let internalStreamHandler = PigeonStreamHandler<PlatformMtuChange>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }

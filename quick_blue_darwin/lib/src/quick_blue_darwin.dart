@@ -37,22 +37,28 @@ class QuickBlueDarwin extends QuickBluePlatform {
     messages.QuickBlueFlutterApi.setUp(_flutterApi);
   }
 
+  // Companion device association is an Android CompanionDeviceManager feature
+  // with no CoreBluetooth equivalent on iOS/macOS.
+  static const _companionUnsupported =
+      'Companion device association is not supported on iOS/macOS '
+      '(no CoreBluetooth equivalent for Android CompanionDeviceManager).';
+
   @override
   Future<CompanionDevice?> companionAssociate({
     String? deviceId,
     ScanFilter? scanFilter,
   }) async {
-    throw UnimplementedError();
+    throw UnsupportedError(_companionUnsupported);
   }
 
   @override
   Future<void> companionDisassociate(int associationId) {
-    throw UnimplementedError();
+    throw UnsupportedError(_companionUnsupported);
   }
 
   @override
   Future<List<CompanionDevice>?> getCompanionAssociations() async {
-    throw UnimplementedError();
+    throw UnsupportedError(_companionUnsupported);
   }
 
   @override
@@ -135,7 +141,9 @@ class QuickBlueDarwin extends QuickBluePlatform {
 
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) {
-    throw UnimplementedError();
+    _ensureInitialized();
+
+    return _api.requestMtu(deviceId, expectedMtu);
   }
 
   @override
@@ -145,6 +153,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
       name: item.name,
       rssi: item.rssi,
       serviceUuids: item.serviceUuids,
+      manufacturerDataHead: item.manufacturerDataHead,
       manufacturerData: item.manufacturerData,
     ),
   );

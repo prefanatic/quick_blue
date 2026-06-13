@@ -361,56 +361,6 @@ class PlatformServiceDiscovered {
   }
 }
 
-class PlatformMtuChange {
-  PlatformMtuChange({
-    required this.deviceId,
-    required this.mtu,
-  });
-
-  String deviceId;
-
-  int mtu;
-
-  List<Object?> _toList() {
-    return <Object?>[
-      deviceId,
-      mtu,
-    ];
-  }
-
-  Object encode() {
-    return _toList();  }
-
-  static PlatformMtuChange decode(Object result) {
-    result as List<Object?>;
-    return PlatformMtuChange(
-      deviceId: result[0]! as String,
-      mtu: result[1]! as int,
-    );
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  bool operator ==(Object other) {
-    if (other is! PlatformMtuChange || other.runtimeType != runtimeType) {
-      return false;
-    }
-    if (identical(this, other)) {
-      return true;
-    }
-    return _deepEquals(deviceId, other.deviceId) && _deepEquals(mtu, other.mtu);
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
-
-  @override
-  String toString() {
-    return 'PlatformMtuChange(deviceId: $deviceId, mtu: $mtu)';
-  }
-}
-
 class PlatformCharacteristicValueChanged {
   PlatformCharacteristicValueChanged({
     required this.deviceId,
@@ -563,14 +513,11 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformMtuChange) {
+    }    else if (value is PlatformCharacteristicValueChanged) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
-      buffer.putUint8(138);
-      writeValue(buffer, value.encode());
     }    else if (value is PlatformL2CapSocketEvent) {
-      buffer.putUint8(139);
+      buffer.putUint8(138);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -601,10 +548,8 @@ class _PigeonCodec extends StandardMessageCodec {
       case 136:
         return PlatformServiceDiscovered.decode(readValue(buffer)!);
       case 137:
-        return PlatformMtuChange.decode(readValue(buffer)!);
-      case 138:
         return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
-      case 139:
+      case 138:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -809,6 +754,25 @@ class QuickBlueApi {
     ;
   }
 
+  Future<int> requestMtu(String deviceId, int expectedMtu) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.requestMtu$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, expectedMtu]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
   Future<void> openL2cap(String deviceId, int psm) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.openL2cap$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -872,17 +836,6 @@ Stream<PlatformScanResult> scanResults( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.scanResults$instanceName', pigeonMethodCodec);
   return scanResultsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as PlatformScanResult;
-  });
-}
-    
-Stream<PlatformMtuChange> mtuChanged( {String instanceName = ''}) {
-  if (instanceName.isNotEmpty) {
-    instanceName = '.$instanceName';
-  }
-  final EventChannel mtuChangedChannel =
-      EventChannel('dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.mtuChanged$instanceName', pigeonMethodCodec);
-  return mtuChangedChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as PlatformMtuChange;
   });
 }
     

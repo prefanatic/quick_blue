@@ -700,7 +700,7 @@ interface QuickBlueApi {
   fun discoverServices(deviceId: String)
   fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: PlatformBleInputProperty)
   fun readValue(deviceId: String, service: String, characteristic: String)
-  fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: PlatformBleOutputProperty)
+  fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: PlatformBleOutputProperty, callback: (Result<Unit>) -> Unit)
   fun requestMtu(deviceId: String, expectedMtu: Long): Long
   fun openL2cap(deviceId: String, psm: Long, callback: (Result<Unit>) -> Unit)
   fun closeL2cap(deviceId: String)
@@ -925,13 +925,14 @@ interface QuickBlueApi {
             val characteristicArg = args[2] as String
             val valueArg = args[3] as ByteArray
             val bleOutputPropertyArg = args[4] as PlatformBleOutputProperty
-            val wrapped: List<Any?> = try {
-              api.writeValue(deviceIdArg, serviceArg, characteristicArg, valueArg, bleOutputPropertyArg)
-              listOf(null)
-            } catch (exception: Throwable) {
-              MessagesPigeonUtils.wrapError(exception)
+            api.writeValue(deviceIdArg, serviceArg, characteristicArg, valueArg, bleOutputPropertyArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(MessagesPigeonUtils.wrapResult(null))
+              }
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)
