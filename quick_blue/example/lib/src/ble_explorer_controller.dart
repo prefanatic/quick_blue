@@ -76,26 +76,6 @@ class BleExplorerController extends ChangeNotifier {
 
   bool get connected => connectionState == BlueConnectionState.connected;
 
-  Future<void> refreshBluetoothAvailability() async {
-    try {
-      final available = await QuickBlue.isBluetoothAvailable();
-      _handleBluetoothState(
-        available
-            ? BlueBluetoothState.poweredOn
-            : BlueBluetoothState.poweredOff,
-      );
-    } catch (error) {
-      _setError('Bluetooth check failed', error);
-      _mutate(() {
-        bluetoothState = BlueBluetoothState.unknown;
-        bluetoothAvailable = false;
-        availabilityChecked = true;
-        status = 'Bluetooth check failed.';
-      });
-      _completeInitialBluetoothCheck();
-    }
-  }
-
   Future<void> toggleScan() {
     return scanning ? stopScan() : startScan();
   }

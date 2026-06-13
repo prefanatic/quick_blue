@@ -180,16 +180,7 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
       animation: _controller,
       builder: (context, _) {
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('quick_blue example'),
-            actions: [
-              IconButton(
-                tooltip: 'Refresh Bluetooth status',
-                onPressed: _controller.refreshBluetoothAvailability,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
+          appBar: AppBar(title: const Text('quick_blue example')),
           body: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
