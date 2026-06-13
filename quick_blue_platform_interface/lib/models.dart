@@ -11,6 +11,7 @@ class BlueScanResult {
   final int rssi;
   final DateTime advertisedDateTime;
   final List<String> serviceUuids;
+  final Map<String, Uint8List> serviceData;
 
   Uint8List get manufacturerDataHead => _manufacturerDataHead ?? _empty;
 
@@ -30,6 +31,7 @@ class BlueScanResult {
     required this.rssi,
     DateTime? advertisedDateTime,
     this.serviceUuids = const [],
+    this.serviceData = const <String, Uint8List>{},
   }) : _manufacturerDataHead = manufacturerDataHead ?? _empty,
        _manufacturerData = manufacturerData ?? _empty,
        advertisedDateTime = advertisedDateTime ?? DateTime.now();
@@ -41,7 +43,10 @@ class BlueScanResult {
       _manufacturerData = map['manufacturerData'],
       rssi = map['rssi'],
       advertisedDateTime = DateTime.now(),
-      serviceUuids = map['serviceUuids']?.cast<String>() ?? <String>[];
+      serviceUuids = map['serviceUuids']?.cast<String>() ?? <String>[],
+      serviceData =
+          map['serviceData']?.cast<String, Uint8List>() ??
+          <String, Uint8List>{};
 
   Map<String, dynamic> toMap() => {
     'name': name,
@@ -51,6 +56,7 @@ class BlueScanResult {
     'rssi': rssi,
     'advertisedDateTime': advertisedDateTime,
     'serviceUuids': serviceUuids,
+    'serviceData': serviceData,
   };
 }
 

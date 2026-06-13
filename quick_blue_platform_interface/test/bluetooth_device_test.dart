@@ -5,6 +5,57 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 void main() {
+  test('BlueScanResult exposes advertising manufacturer bytes', () {
+    final manufacturerDataHead = Uint8List.fromList(<int>[0x4c, 0x00, 1, 2]);
+    final manufacturerData = Uint8List.fromList(<int>[1, 2]);
+    final serviceData = <String, Uint8List>{
+      '0000180d-0000-1000-8000-00805f9b34fb': Uint8List.fromList(<int>[3, 4]),
+    };
+
+    final result = BlueScanResult(
+      name: 'device',
+      deviceId: 'device-a',
+      manufacturerDataHead: manufacturerDataHead,
+      manufacturerData: manufacturerData,
+      rssi: -42,
+      serviceUuids: const <String>['180d'],
+      serviceData: serviceData,
+    );
+
+    expect(result.manufacturerDataHead, manufacturerDataHead);
+    expect(result.manufacturerData, manufacturerData);
+    expect(result.serviceData, serviceData);
+    expect(
+      result.toMap(),
+      containsPair('manufacturerDataHead', manufacturerDataHead),
+    );
+    expect(result.toMap(), containsPair('manufacturerData', manufacturerData));
+    expect(result.toMap(), containsPair('serviceData', serviceData));
+  });
+
+  test('BlueScanResult keeps scan data from map payloads', () {
+    final manufacturerDataHead = Uint8List.fromList(<int>[0x4c, 0x00, 1, 2]);
+    final manufacturerData = Uint8List.fromList(<int>[1, 2]);
+    final serviceData = <String, Uint8List>{
+      '0000180d-0000-1000-8000-00805f9b34fb': Uint8List.fromList(<int>[3, 4]),
+    };
+
+    final result = BlueScanResult.fromMap(<String, dynamic>{
+      'name': 'device',
+      'deviceId': 'device-a',
+      'manufacturerDataHead': manufacturerDataHead,
+      'manufacturerData': manufacturerData,
+      'rssi': -42,
+      'serviceUuids': <String>['180d'],
+      'serviceData': serviceData,
+    });
+
+    expect(result.manufacturerDataHead, manufacturerDataHead);
+    expect(result.manufacturerData, manufacturerData);
+    expect(result.serviceUuids, <String>['180d']);
+    expect(result.serviceData, serviceData);
+  });
+
   test('scan starts scanning, emits devices, and stops on cancel', () async {
     final platform = _FakeQuickBluePlatform();
     addTearDown(platform.dispose);
