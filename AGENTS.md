@@ -61,6 +61,17 @@ cd quick_blue_darwin && flutter test
 cd quick_blue/example && flutter test
 ```
 
+macOS BLE smoke test, for changes touching Darwin scan/connect/service
+discovery behavior or when explicitly validating hardware-backed behavior:
+
+```sh
+cd quick_blue/example
+QUICK_BLUE_HIDE_TEST_WINDOW=1 flutter test integration_test/macos_ble_smoke_test.dart -d macos
+```
+
+This test needs macOS Bluetooth permission, powered-on Bluetooth hardware, and
+nearby BLE advertisements or explicit smoke-test Dart defines.
+
 Use platform builds or the example app for Android, iOS, macOS, Windows, and
 Linux behavior that unit tests cannot cover.
 
