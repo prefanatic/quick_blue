@@ -72,6 +72,22 @@ std::string to_uuidstr(winrt::guid guid) {
   return std::string{ chars };
 }
 
+bool has_property(GattCharacteristicProperties properties, GattCharacteristicProperties property) {
+  return (static_cast<uint32_t>(properties) & static_cast<uint32_t>(property)) != 0;
+}
+
+EncodableMap to_characteristic_info(GattCharacteristic characteristic) {
+  auto properties = characteristic.CharacteristicProperties();
+  return EncodableMap{
+    {"uuid", to_uuidstr(characteristic.Uuid())},
+    {"canRead", has_property(properties, GattCharacteristicProperties::Read)},
+    {"canWriteWithResponse", has_property(properties, GattCharacteristicProperties::Write)},
+    {"canWriteWithoutResponse", has_property(properties, GattCharacteristicProperties::WriteWithoutResponse)},
+    {"canNotify", has_property(properties, GattCharacteristicProperties::Notify)},
+    {"canIndicate", has_property(properties, GattCharacteristicProperties::Indicate)}
+  };
+}
+
 struct BluetoothDeviceAgent {
   BluetoothLEDevice device;
   winrt::event_token connnectionStatusChangedToken;
@@ -441,7 +457,7 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::DiscoverServicesAsync(BluetoothDe
     if (characteristicResult.Status() == GattCommunicationStatus::Success) {
       EncodableList characteristics;
       for (auto c : characteristicResult.Characteristics()) {
-        characteristics.push_back(to_uuidstr(c.Uuid()));
+        characteristics.push_back(to_characteristic_info(c));
       }
       msg.insert({"characteristics", characteristics});
     }
@@ -485,6 +501,7 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::ReadValueAsync(BluetoothDeviceAge
   message_connector_->Send(EncodableMap{
     {"deviceId", std::to_string(gattCharacteristic.Service().Device().BluetoothAddress())},
     {"characteristicValue", EncodableMap{
+      {"service", to_uuidstr(gattCharacteristic.Service().Uuid())},
       {"characteristic", characteristic},
       {"value", bytes},
     }},
@@ -504,6 +521,7 @@ void QuickBlueWindowsPlugin::GattCharacteristic_ValueChanged(GattCharacteristic 
   message_connector_->Send(EncodableMap{
     {"deviceId", std::to_string(sender.Service().Device().BluetoothAddress())},
     {"characteristicValue", EncodableMap{
+      {"service", to_uuidstr(sender.Service().Uuid())},
       {"characteristic", uuid},
       {"value", bytes},
     }},

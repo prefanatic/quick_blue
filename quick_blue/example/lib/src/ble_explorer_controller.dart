@@ -384,7 +384,14 @@ class BleExplorerController extends ChangeNotifier {
       final characteristic = QuickBlue.device(
         service.deviceId,
       ).characteristic(service.uuid, characteristicId);
-      final outputProperty = writeWithoutResponseFor(key)
+      final characteristicInfo = service.characteristicDetails.firstWhere(
+        (candidate) => candidate.uuid == characteristicId,
+        orElse: () => BluetoothCharacteristicInfo(uuid: characteristicId),
+      );
+      final outputProperty =
+          writeWithoutResponseFor(key) ||
+              (!characteristicInfo.canWriteWithResponse &&
+                  characteristicInfo.canWriteWithoutResponse)
           ? BleOutputProperty.withoutResponse
           : BleOutputProperty.withResponse;
       await characteristic.write(value, outputProperty);

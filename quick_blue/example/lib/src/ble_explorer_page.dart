@@ -706,7 +706,7 @@ class _ServiceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final characteristicCount = service.characteristics.length;
+    final characteristicCount = service.characteristicDetails.length;
     return Material(
       color: Colors.transparent,
       shape: const Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
@@ -715,7 +715,7 @@ class _ServiceTile extends StatelessWidget {
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16),
           childrenPadding: const EdgeInsets.only(bottom: 8),
-          initiallyExpanded: service.characteristics.length <= 4,
+          initiallyExpanded: service.characteristicDetails.length <= 4,
           title: SelectableText(
             service.uuid,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -727,30 +727,30 @@ class _ServiceTile extends StatelessWidget {
             '$characteristicCount characteristic${characteristicCount == 1 ? '' : 's'}',
           ),
           children: [
-            for (final characteristicId in service.characteristics)
+            for (final characteristic in service.characteristicDetails)
               _CharacteristicRow(
                 service: service,
-                characteristicId: characteristicId,
+                characteristic: characteristic,
                 value:
                     latestValues[characteristicKey(
                       service.uuid,
-                      characteristicId,
+                      characteristic.uuid,
                     )],
                 notifying: notificationKeys.contains(
-                  characteristicKey(service.uuid, characteristicId),
+                  characteristicKey(service.uuid, characteristic.uuid),
                 ),
                 writeWithoutResponse: writeWithoutResponseFor(
-                  characteristicKey(service.uuid, characteristicId),
+                  characteristicKey(service.uuid, characteristic.uuid),
                 ),
                 onRead: onRead,
                 onWrite: onWrite,
                 onToggleNotify: onToggleNotify,
                 onWriteModeChanged: (enabled) => onWriteModeChanged(
-                  characteristicKey(service.uuid, characteristicId),
+                  characteristicKey(service.uuid, characteristic.uuid),
                   enabled,
                 ),
                 writeController: writeControllerFor(
-                  characteristicKey(service.uuid, characteristicId),
+                  characteristicKey(service.uuid, characteristic.uuid),
                 ),
               ),
           ],
@@ -763,7 +763,7 @@ class _ServiceTile extends StatelessWidget {
 class _CharacteristicRow extends StatelessWidget {
   const _CharacteristicRow({
     required this.service,
-    required this.characteristicId,
+    required this.characteristic,
     required this.value,
     required this.notifying,
     required this.writeWithoutResponse,
@@ -775,7 +775,7 @@ class _CharacteristicRow extends StatelessWidget {
   });
 
   final BluetoothService service;
-  final String characteristicId;
+  final BluetoothCharacteristicInfo characteristic;
   final Uint8List? value;
   final bool notifying;
   final bool writeWithoutResponse;
@@ -788,16 +788,25 @@ class _CharacteristicRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final utf8Preview = value == null ? null : formatUtf8Preview(value!);
+    final characteristicId = characteristic.uuid;
     final valuePreview = _ValuePreview(
       hex: value == null ? '<none>' : formatBleValue(value!),
       utf8Preview: utf8Preview,
     );
-    final writeDisclosure = _WriteDisclosure(
-      controller: writeController,
-      writeWithoutResponse: writeWithoutResponse,
-      onWriteModeChanged: onWriteModeChanged,
-      onWrite: () => onWrite(service, characteristicId),
-    );
+    final effectiveWriteWithoutResponse =
+        writeWithoutResponse ||
+        (!characteristic.canWriteWithResponse &&
+            characteristic.canWriteWithoutResponse);
+    final writeDisclosure = characteristic.canWrite
+        ? _WriteDisclosure(
+            controller: writeController,
+            writeWithoutResponse: effectiveWriteWithoutResponse,
+            canWriteWithResponse: characteristic.canWriteWithResponse,
+            canWriteWithoutResponse: characteristic.canWriteWithoutResponse,
+            onWriteModeChanged: onWriteModeChanged,
+            onWrite: () => onWrite(service, characteristicId),
+          )
+        : null;
 
     return DecoratedBox(
       decoration: const BoxDecoration(
@@ -820,12 +829,16 @@ class _CharacteristicRow extends StatelessWidget {
               runSpacing: 6,
               children: [
                 OutlinedButton.icon(
-                  onPressed: () => onRead(service, characteristicId),
+                  onPressed: characteristic.canRead
+                      ? () => onRead(service, characteristicId)
+                      : null,
                   icon: const Icon(Icons.download),
                   label: const Text('Read'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => onToggleNotify(service, characteristicId),
+                  onPressed: characteristic.canSubscribe
+                      ? () => onToggleNotify(service, characteristicId)
+                      : null,
                   icon: Icon(
                     notifying
                         ? Icons.notifications_active
@@ -858,8 +871,10 @@ class _CharacteristicRow extends StatelessWidget {
                   ),
                 const SizedBox(height: 10),
                 valuePreview,
-                const SizedBox(height: 6),
-                writeDisclosure,
+                if (writeDisclosure != null) ...[
+                  const SizedBox(height: 6),
+                  writeDisclosure,
+                ],
               ],
             );
           },
@@ -873,12 +888,16 @@ class _WriteDisclosure extends StatelessWidget {
   const _WriteDisclosure({
     required this.controller,
     required this.writeWithoutResponse,
+    required this.canWriteWithResponse,
+    required this.canWriteWithoutResponse,
     required this.onWriteModeChanged,
     required this.onWrite,
   });
 
   final TextEditingController controller;
   final bool writeWithoutResponse;
+  final bool canWriteWithResponse;
+  final bool canWriteWithoutResponse;
   final ValueChanged<bool> onWriteModeChanged;
   final VoidCallback onWrite;
 
@@ -913,7 +932,10 @@ class _WriteDisclosure extends StatelessWidget {
             const SizedBox(height: 8),
             _WriteOptions(
               writeWithoutResponse: writeWithoutResponse,
-              onWriteModeChanged: onWriteModeChanged,
+              onWriteModeChanged:
+                  canWriteWithResponse && canWriteWithoutResponse
+                  ? onWriteModeChanged
+                  : null,
               onWrite: onWrite,
             ),
           ],
@@ -931,7 +953,7 @@ class _WriteOptions extends StatelessWidget {
   });
 
   final bool writeWithoutResponse;
-  final ValueChanged<bool> onWriteModeChanged;
+  final ValueChanged<bool>? onWriteModeChanged;
   final VoidCallback onWrite;
 
   @override
@@ -941,7 +963,7 @@ class _WriteOptions extends StatelessWidget {
         final compact = constraints.maxWidth < 320;
         final noResponse = _CheckboxRow(
           value: writeWithoutResponse,
-          onChanged: onWriteModeChanged,
+          onChanged: onWriteModeChanged ?? (_) {},
           label: 'No response',
         );
         final sendButton = FilledButton.tonalIcon(

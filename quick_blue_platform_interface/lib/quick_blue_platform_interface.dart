@@ -180,7 +180,11 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   OnServiceDiscovered? _onServiceDiscovered;
 
-  OnServiceDiscovered? get onServiceDiscovered => _handleServiceDiscovered;
+  OnServiceDiscovered? get onServiceDiscovered {
+    return (deviceId, serviceId, characteristicIds) {
+      _handleServiceDiscovered(deviceId, serviceId, characteristicIds, null);
+    };
+  }
 
   set onServiceDiscovered(OnServiceDiscovered? handler) {
     _onServiceDiscovered = handler;
@@ -207,7 +211,11 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   OnValueChanged? _onValueChanged;
 
-  OnValueChanged? get onValueChanged => _handleValueChanged;
+  OnValueChanged? get onValueChanged {
+    return (deviceId, characteristicId, value) {
+      _handleValueChanged(deviceId, '', characteristicId, value);
+    };
+  }
 
   set onValueChanged(OnValueChanged? handler) {
     _onValueChanged = handler;
@@ -250,12 +258,19 @@ abstract class QuickBluePlatform extends PlatformInterface {
     String deviceId,
     String serviceId,
     List<String> characteristicIds,
+    List<BluetoothCharacteristicInfo>? characteristicDetails,
   ) {
+    final details =
+        characteristicDetails ??
+        characteristicIds
+            .map((uuid) => BluetoothCharacteristicInfo(uuid: uuid))
+            .toList(growable: false);
     _serviceDiscoveryController.add(
       BluetoothService(
         deviceId: deviceId,
         uuid: serviceId,
         characteristics: characteristicIds,
+        characteristicDetails: details,
       ),
     );
     _onServiceDiscovered?.call(deviceId, serviceId, characteristicIds);
@@ -267,17 +282,43 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   void _handleValueChanged(
     String deviceId,
+    String serviceId,
     String characteristicId,
     Uint8List value,
   ) {
     _characteristicValueController.add(
       BluetoothCharacteristicValue(
         deviceId: deviceId,
+        serviceId: serviceId,
         characteristicId: characteristicId,
         value: value,
       ),
     );
     _onValueChanged?.call(deviceId, characteristicId, value);
+  }
+
+  void handleServiceDiscovered(
+    String deviceId,
+    String serviceId,
+    List<BluetoothCharacteristicInfo> characteristics,
+  ) {
+    _handleServiceDiscovered(
+      deviceId,
+      serviceId,
+      characteristics
+          .map((characteristic) => characteristic.uuid)
+          .toList(growable: false),
+      characteristics,
+    );
+  }
+
+  void handleCharacteristicValueChanged(
+    String deviceId,
+    String serviceId,
+    String characteristicId,
+    Uint8List value,
+  ) {
+    _handleValueChanged(deviceId, serviceId, characteristicId, value);
   }
 }
 
@@ -538,7 +579,9 @@ class BluetoothCharacteristic {
         .where(
           (event) =>
               event.deviceId == deviceId &&
-              event.characteristicId == characteristicId,
+              (event.serviceId.isEmpty ||
+                  _matchesBluetoothUuid(event.serviceId, serviceId)) &&
+              _matchesBluetoothUuid(event.characteristicId, characteristicId),
         )
         .map((event) => event.value);
   }
@@ -622,4 +665,32 @@ class BluetoothCharacteristic {
       bleOutputProperty,
     );
   }
+}
+
+bool _matchesBluetoothUuid(String left, String right) {
+  if (left == right) {
+    return true;
+  }
+
+  final normalizedLeft = _normalizeBluetoothUuid(left);
+  final normalizedRight = _normalizeBluetoothUuid(right);
+  return normalizedLeft != null &&
+      normalizedRight != null &&
+      normalizedLeft == normalizedRight;
+}
+
+String? _normalizeBluetoothUuid(String uuid) {
+  final cleaned = uuid.replaceAll('-', '').toLowerCase();
+  if (cleaned.length == 4) {
+    return '0000$cleaned'
+        '00001000800000805f9b34fb';
+  }
+  if (cleaned.length == 8) {
+    return '$cleaned'
+        '00001000800000805f9b34fb';
+  }
+  if (cleaned.length == 32) {
+    return cleaned;
+  }
+  return null;
 }

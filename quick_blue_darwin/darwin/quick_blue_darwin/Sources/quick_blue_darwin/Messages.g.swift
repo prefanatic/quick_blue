@@ -374,14 +374,14 @@ struct PlatformConnectionStateChange: Hashable, CustomStringConvertible {
 struct PlatformServiceDiscovered: Hashable, CustomStringConvertible {
   var deviceId: String
   var serviceUuid: String
-  var characteristics: [String]
+  var characteristics: [PlatformCharacteristic]
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> PlatformServiceDiscovered? {
     let deviceId = pigeonVar_list[0] as! String
     let serviceUuid = pigeonVar_list[1] as! String
-    let characteristics = pigeonVar_list[2] as! [String]
+    let characteristics = pigeonVar_list[2] as! [PlatformCharacteristic]
 
     return PlatformServiceDiscovered(
       deviceId: deviceId,
@@ -416,8 +416,69 @@ struct PlatformServiceDiscovered: Hashable, CustomStringConvertible {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct PlatformCharacteristic: Hashable, CustomStringConvertible {
+  var uuid: String
+  var canRead: Bool
+  var canWriteWithResponse: Bool
+  var canWriteWithoutResponse: Bool
+  var canNotify: Bool
+  var canIndicate: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformCharacteristic? {
+    let uuid = pigeonVar_list[0] as! String
+    let canRead = pigeonVar_list[1] as! Bool
+    let canWriteWithResponse = pigeonVar_list[2] as! Bool
+    let canWriteWithoutResponse = pigeonVar_list[3] as! Bool
+    let canNotify = pigeonVar_list[4] as! Bool
+    let canIndicate = pigeonVar_list[5] as! Bool
+
+    return PlatformCharacteristic(
+      uuid: uuid,
+      canRead: canRead,
+      canWriteWithResponse: canWriteWithResponse,
+      canWriteWithoutResponse: canWriteWithoutResponse,
+      canNotify: canNotify,
+      canIndicate: canIndicate
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      uuid,
+      canRead,
+      canWriteWithResponse,
+      canWriteWithoutResponse,
+      canNotify,
+      canIndicate,
+    ]
+  }
+  static func == (lhs: PlatformCharacteristic, rhs: PlatformCharacteristic) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.uuid, rhs.uuid) && MessagesPigeonInternal.deepEquals(lhs.canRead, rhs.canRead) && MessagesPigeonInternal.deepEquals(lhs.canWriteWithResponse, rhs.canWriteWithResponse) && MessagesPigeonInternal.deepEquals(lhs.canWriteWithoutResponse, rhs.canWriteWithoutResponse) && MessagesPigeonInternal.deepEquals(lhs.canNotify, rhs.canNotify) && MessagesPigeonInternal.deepEquals(lhs.canIndicate, rhs.canIndicate)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformCharacteristic")
+    MessagesPigeonInternal.deepHash(value: uuid, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: canRead, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: canWriteWithResponse, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: canWriteWithoutResponse, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: canNotify, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: canIndicate, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformCharacteristic(uuid: \(String(describing: uuid)), canRead: \(String(describing: canRead)), canWriteWithResponse: \(String(describing: canWriteWithResponse)), canWriteWithoutResponse: \(String(describing: canWriteWithoutResponse)), canNotify: \(String(describing: canNotify)), canIndicate: \(String(describing: canIndicate)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct PlatformCharacteristicValueChanged: Hashable, CustomStringConvertible {
   var deviceId: String
+  var serviceUuid: String
   var characteristicId: String
   var value: FlutterStandardTypedData
 
@@ -425,11 +486,13 @@ struct PlatformCharacteristicValueChanged: Hashable, CustomStringConvertible {
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> PlatformCharacteristicValueChanged? {
     let deviceId = pigeonVar_list[0] as! String
-    let characteristicId = pigeonVar_list[1] as! String
-    let value = pigeonVar_list[2] as! FlutterStandardTypedData
+    let serviceUuid = pigeonVar_list[1] as! String
+    let characteristicId = pigeonVar_list[2] as! String
+    let value = pigeonVar_list[3] as! FlutterStandardTypedData
 
     return PlatformCharacteristicValueChanged(
       deviceId: deviceId,
+      serviceUuid: serviceUuid,
       characteristicId: characteristicId,
       value: value
     )
@@ -437,6 +500,7 @@ struct PlatformCharacteristicValueChanged: Hashable, CustomStringConvertible {
   func toList() -> [Any?] {
     return [
       deviceId,
+      serviceUuid,
       characteristicId,
       value,
     ]
@@ -445,18 +509,19 @@ struct PlatformCharacteristicValueChanged: Hashable, CustomStringConvertible {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.characteristicId, rhs.characteristicId) && MessagesPigeonInternal.deepEquals(lhs.value, rhs.value)
+    return MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.serviceUuid, rhs.serviceUuid) && MessagesPigeonInternal.deepEquals(lhs.characteristicId, rhs.characteristicId) && MessagesPigeonInternal.deepEquals(lhs.value, rhs.value)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("PlatformCharacteristicValueChanged")
     MessagesPigeonInternal.deepHash(value: deviceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: serviceUuid, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: characteristicId, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: value, hasher: &hasher)
   }
 
   public var description: String {
-    return "PlatformCharacteristicValueChanged(deviceId: \(String(describing: deviceId)), characteristicId: \(String(describing: characteristicId)), value: \(String(describing: value)))"
+    return "PlatformCharacteristicValueChanged(deviceId: \(String(describing: deviceId)), serviceUuid: \(String(describing: serviceUuid)), characteristicId: \(String(describing: characteristicId)), value: \(String(describing: value)))"
   }
 }
 
@@ -557,8 +622,10 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 137:
       return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
     case 138:
-      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
     case 139:
+      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+    case 140:
       return PlatformL2CapSocketEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -595,11 +662,14 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PlatformServiceDiscovered {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristicValueChanged {
+    } else if let value = value as? PlatformCharacteristic {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformL2CapSocketEvent {
+    } else if let value = value as? PlatformCharacteristicValueChanged {
       super.writeByte(139)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformL2CapSocketEvent {
+      super.writeByte(140)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

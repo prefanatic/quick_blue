@@ -349,7 +349,11 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   Future<void> discoverServices(String deviceId) async {
     calls.add('discoverServices $deviceId');
     for (final service in discoveredServices) {
-      onServiceDiscovered!(deviceId, service.uuid, service.characteristics);
+      handleServiceDiscovered(
+        deviceId,
+        service.uuid,
+        service.characteristicDetails,
+      );
     }
     onServiceDiscoveryComplete(deviceId);
   }
@@ -373,7 +377,12 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     String characteristic,
   ) async {
     calls.add('readValue $deviceId $service $characteristic');
-    onValueChanged!(deviceId, characteristic, readValueResult);
+    handleCharacteristicValueChanged(
+      deviceId,
+      service,
+      characteristic,
+      readValueResult,
+    );
   }
 
   @override

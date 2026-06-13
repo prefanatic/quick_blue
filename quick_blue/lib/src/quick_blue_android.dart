@@ -25,14 +25,19 @@ class QuickBlueAndroid extends QuickBluePlatform {
       onConnectionChangedCallback: (deviceId, state, status) {
         onConnectionChanged?.call(deviceId, state, status);
       },
-      onServiceDiscoveredCallback: (deviceId, serviceId, characteristicIds) {
-        onServiceDiscovered?.call(deviceId, serviceId, characteristicIds);
+      onServiceDiscoveredCallback: (deviceId, serviceId, characteristics) {
+        handleServiceDiscovered(deviceId, serviceId, characteristics);
       },
       onServiceDiscoveryCompleteCallback: (deviceId) {
         onServiceDiscoveryComplete(deviceId);
       },
-      onValueChangedCallback: (deviceId, characteristicId, value) {
-        onValueChanged?.call(deviceId, characteristicId, value);
+      onValueChangedCallback: (deviceId, serviceId, characteristicId, value) {
+        handleCharacteristicValueChanged(
+          deviceId,
+          serviceId,
+          characteristicId,
+          value,
+        );
       },
     );
     messages.QuickBlueFlutterApi.setUp(_flutterApi);
@@ -261,9 +266,20 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
   });
 
   final OnConnectionChanged onConnectionChangedCallback;
-  final OnServiceDiscovered onServiceDiscoveredCallback;
+  final void Function(
+    String deviceId,
+    String serviceId,
+    List<BluetoothCharacteristicInfo> characteristics,
+  )
+  onServiceDiscoveredCallback;
   final OnServiceDiscoveryComplete onServiceDiscoveryCompleteCallback;
-  final OnValueChanged onValueChangedCallback;
+  final void Function(
+    String deviceId,
+    String serviceId,
+    String characteristicId,
+    Uint8List value,
+  )
+  onValueChangedCallback;
 
   @override
   void onCharacteristicValueChanged(
@@ -271,6 +287,7 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
   ) {
     onValueChangedCallback.call(
       valueChanged.deviceId,
+      valueChanged.serviceUuid,
       valueChanged.characteristicId,
       valueChanged.value,
     );
@@ -303,13 +320,30 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
     onServiceDiscoveredCallback.call(
       serviceDiscovered.deviceId,
       serviceDiscovered.serviceUuid,
-      serviceDiscovered.characteristics,
+      serviceDiscovered.characteristics
+          .map(
+            (characteristic) => characteristic.toBluetoothCharacteristicInfo(),
+          )
+          .toList(growable: false),
     );
   }
 
   @override
   void onServiceDiscoveryComplete(String deviceId) {
     onServiceDiscoveryCompleteCallback.call(deviceId);
+  }
+}
+
+extension _PlatformCharacteristicExtension on messages.PlatformCharacteristic {
+  BluetoothCharacteristicInfo toBluetoothCharacteristicInfo() {
+    return BluetoothCharacteristicInfo(
+      uuid: uuid,
+      canRead: canRead,
+      canWriteWithResponse: canWriteWithResponse,
+      canWriteWithoutResponse: canWriteWithoutResponse,
+      canNotify: canNotify,
+      canIndicate: canIndicate,
+    );
   }
 }
 

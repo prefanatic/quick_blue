@@ -124,9 +124,10 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
       if (message['ServiceState'] == 'discovered') {
         String deviceId = message['deviceId'];
         String service = message['service'];
-        List<String> characteristics = (message['characteristics'] as List)
-            .cast();
-        onServiceDiscovered?.call(deviceId, service, characteristics);
+        final characteristics = _parseCharacteristics(
+          message['characteristics'] as List,
+        );
+        handleServiceDiscovered(deviceId, service, characteristics);
       } else if (message['ServiceState'] == 'complete') {
         String deviceId = message['deviceId'];
         onServiceDiscoveryComplete(deviceId);
@@ -134,6 +135,7 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
     } else if (message['characteristicValue'] != null) {
       String deviceId = message['deviceId'];
       var characteristicValue = message['characteristicValue'];
+      String service = characteristicValue['service'] ?? '';
       String characteristic = characteristicValue['characteristic'];
       final value = characteristicValue['value'];
       if (value == null) {
@@ -143,7 +145,12 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
       final valueBytes = Uint8List.fromList(
         characteristicValue['value'],
       ); // In case of _Uint8ArrayView
-      onValueChanged?.call(deviceId, characteristic, valueBytes);
+      handleCharacteristicValueChanged(
+        deviceId,
+        service,
+        characteristic,
+        valueBytes,
+      );
     } else if (message['mtuConfig'] != null) {
       _mtuConfigController.add(message['mtuConfig']);
     } else if (message['l2capStatus'] != null) {
@@ -162,6 +169,26 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
 
       _l2CapEventController.add(event);
     }
+  }
+
+  List<BluetoothCharacteristicInfo> _parseCharacteristics(List raw) {
+    return raw
+        .map((value) {
+          if (value is String) {
+            return BluetoothCharacteristicInfo(uuid: value);
+          }
+          final map = (value as Map).cast<String, Object?>();
+          return BluetoothCharacteristicInfo(
+            uuid: map['uuid'] as String,
+            canRead: map['canRead'] as bool? ?? false,
+            canWriteWithResponse: map['canWriteWithResponse'] as bool? ?? false,
+            canWriteWithoutResponse:
+                map['canWriteWithoutResponse'] as bool? ?? false,
+            canNotify: map['canNotify'] as bool? ?? false,
+            canIndicate: map['canIndicate'] as bool? ?? false,
+          );
+        })
+        .toList(growable: false);
   }
 
   @override

@@ -261,6 +261,9 @@ void main() {
       characteristics.add('characteristic-b');
 
       expect(service.characteristics, <String>['characteristic-a']);
+      expect(service.characteristicDetails, <BluetoothCharacteristicInfo>[
+        BluetoothCharacteristicInfo(uuid: 'characteristic-a'),
+      ]);
       expect(
         () => service.characteristics.add('characteristic-b'),
         throwsUnsupportedError,
@@ -277,11 +280,36 @@ void main() {
     });
   });
 
+  group(BluetoothCharacteristicInfo, () {
+    test('compares by properties', () {
+      final characteristic = BluetoothCharacteristicInfo(
+        uuid: 'characteristic-a',
+        canRead: true,
+        canWriteWithResponse: true,
+        canNotify: true,
+      );
+
+      expect(characteristic.canWrite, isTrue);
+      expect(characteristic.canSubscribe, isTrue);
+      expect(
+        characteristic,
+        BluetoothCharacteristicInfo(
+          uuid: 'characteristic-a',
+          canRead: true,
+          canWriteWithResponse: true,
+          canNotify: true,
+        ),
+      );
+      expect(characteristic.toString(), contains('canRead: true'));
+    });
+  });
+
   group(BluetoothCharacteristicValue, () {
     test('defensively copies bytes', () {
       final value = Uint8List.fromList(<int>[1, 2, 3]);
       final characteristicValue = BluetoothCharacteristicValue(
         deviceId: 'device-a',
+        serviceId: 'service-a',
         characteristicId: 'characteristic-a',
         value: value,
       );
@@ -298,6 +326,7 @@ void main() {
         characteristicValue,
         BluetoothCharacteristicValue(
           deviceId: 'device-a',
+          serviceId: 'service-a',
           characteristicId: 'characteristic-a',
           value: Uint8List.fromList(<int>[1, 2, 3]),
         ),

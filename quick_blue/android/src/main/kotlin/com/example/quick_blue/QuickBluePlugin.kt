@@ -8,6 +8,7 @@ import PigeonEventSink
 import PlatformBleInputProperty
 import PlatformBleOutputProperty
 import PlatformBluetoothState
+import PlatformCharacteristic
 import PlatformCharacteristicValueChanged
 import PlatformCompanionDevice
 import PlatformConnectionState
@@ -318,7 +319,9 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                         PlatformServiceDiscovered(
                             deviceId = gatt.device.address,
                             serviceUuid = service.uuid.toString(),
-                            characteristics = service.characteristics.map { it.uuid.toString() }
+                            characteristics = service.characteristics.map {
+                                it.toPlatformCharacteristic()
+                            }
                         )) {
                         pendingServiceCallbacks -= 1
                         if (pendingServiceCallbacks == 0) {
@@ -355,6 +358,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                 quickBlueFlutterApi?.onCharacteristicValueChanged(
                     PlatformCharacteristicValueChanged(
                         deviceId = gatt.device.address,
+                        serviceUuid = characteristic.service.uuid.toString(),
                         characteristicId = characteristic.uuid.toString(),
                         value = characteristic.value,
                     )
@@ -370,6 +374,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                 quickBlueFlutterApi?.onCharacteristicValueChanged(
                     PlatformCharacteristicValueChanged(
                         deviceId = gatt.device.address,
+                        serviceUuid = characteristic.service.uuid.toString(),
                         characteristicId = characteristic.uuid.toString(),
                         value = characteristic.value,
                     )
@@ -1011,6 +1016,18 @@ class BluetoothStateListener(
             bluetoothPerm && adminPerm
         }
     }
+}
+
+private fun BluetoothGattCharacteristic.toPlatformCharacteristic(): PlatformCharacteristic {
+    val props = properties
+    return PlatformCharacteristic(
+        uuid = uuid.toString(),
+        canRead = props and BluetoothGattCharacteristic.PROPERTY_READ != 0,
+        canWriteWithResponse = props and BluetoothGattCharacteristic.PROPERTY_WRITE != 0,
+        canWriteWithoutResponse = props and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0,
+        canNotify = props and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0,
+        canIndicate = props and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0,
+    )
 }
 
 class ScanResultListener : ScanResultsStreamHandler() {

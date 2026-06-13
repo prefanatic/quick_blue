@@ -275,11 +275,19 @@ class BluetoothService {
     required this.deviceId,
     required this.uuid,
     required List<String> characteristics,
-  }) : characteristics = List<String>.unmodifiable(characteristics);
+    List<BluetoothCharacteristicInfo>? characteristicDetails,
+  }) : characteristics = List<String>.unmodifiable(characteristics),
+       characteristicDetails = List<BluetoothCharacteristicInfo>.unmodifiable(
+         characteristicDetails ??
+             characteristics.map(
+               (uuid) => BluetoothCharacteristicInfo(uuid: uuid),
+             ),
+       );
 
   final String deviceId;
   final String uuid;
   final List<String> characteristics;
+  final List<BluetoothCharacteristicInfo> characteristicDetails;
 
   @override
   bool operator ==(Object other) {
@@ -287,7 +295,14 @@ class BluetoothService {
         other is BluetoothService &&
             other.deviceId == deviceId &&
             other.uuid == uuid &&
-            _stringListEquality.equals(other.characteristics, characteristics);
+            _stringListEquality.equals(
+              other.characteristics,
+              characteristics,
+            ) &&
+            const ListEquality<BluetoothCharacteristicInfo>().equals(
+              other.characteristicDetails,
+              characteristicDetails,
+            );
   }
 
   @override
@@ -296,6 +311,9 @@ class BluetoothService {
       deviceId,
       uuid,
       _stringListEquality.hash(characteristics),
+      const ListEquality<BluetoothCharacteristicInfo>().hash(
+        characteristicDetails,
+      ),
     );
   }
 
@@ -303,6 +321,65 @@ class BluetoothService {
   String toString() {
     return 'BluetoothService('
         'deviceId: $deviceId, uuid: $uuid, characteristics: $characteristics'
+        ', characteristicDetails: $characteristicDetails'
+        ')';
+  }
+}
+
+class BluetoothCharacteristicInfo {
+  BluetoothCharacteristicInfo({
+    required this.uuid,
+    this.canRead = false,
+    this.canWriteWithResponse = false,
+    this.canWriteWithoutResponse = false,
+    this.canNotify = false,
+    this.canIndicate = false,
+  });
+
+  final String uuid;
+  final bool canRead;
+  final bool canWriteWithResponse;
+  final bool canWriteWithoutResponse;
+  final bool canNotify;
+  final bool canIndicate;
+
+  bool get canWrite => canWriteWithResponse || canWriteWithoutResponse;
+
+  bool get canSubscribe => canNotify || canIndicate;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BluetoothCharacteristicInfo &&
+            other.uuid == uuid &&
+            other.canRead == canRead &&
+            other.canWriteWithResponse == canWriteWithResponse &&
+            other.canWriteWithoutResponse == canWriteWithoutResponse &&
+            other.canNotify == canNotify &&
+            other.canIndicate == canIndicate;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      uuid,
+      canRead,
+      canWriteWithResponse,
+      canWriteWithoutResponse,
+      canNotify,
+      canIndicate,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'BluetoothCharacteristicInfo('
+        'uuid: $uuid, '
+        'canRead: $canRead, '
+        'canWriteWithResponse: $canWriteWithResponse, '
+        'canWriteWithoutResponse: $canWriteWithoutResponse, '
+        'canNotify: $canNotify, '
+        'canIndicate: $canIndicate'
         ')';
   }
 }
@@ -310,11 +387,13 @@ class BluetoothService {
 class BluetoothCharacteristicValue {
   BluetoothCharacteristicValue({
     required this.deviceId,
+    required this.serviceId,
     required this.characteristicId,
     required Uint8List value,
   }) : _value = _copyBytes(value);
 
   final String deviceId;
+  final String serviceId;
   final String characteristicId;
   final Uint8List _value;
 
@@ -325,19 +404,26 @@ class BluetoothCharacteristicValue {
     return identical(this, other) ||
         other is BluetoothCharacteristicValue &&
             other.deviceId == deviceId &&
+            other.serviceId == serviceId &&
             other.characteristicId == characteristicId &&
             _deepEquality.equals(other._value, _value);
   }
 
   @override
   int get hashCode {
-    return Object.hash(deviceId, characteristicId, _deepEquality.hash(_value));
+    return Object.hash(
+      deviceId,
+      serviceId,
+      characteristicId,
+      _deepEquality.hash(_value),
+    );
   }
 
   @override
   String toString() {
     return 'BluetoothCharacteristicValue('
         'deviceId: $deviceId, '
+        'serviceId: $serviceId, '
         'characteristicId: $characteristicId, '
         'value: ${_value.toList()}'
         ')';

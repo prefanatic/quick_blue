@@ -281,7 +281,16 @@ void main() {
       messages.PlatformServiceDiscovered(
         deviceId: 'device-a',
         serviceUuid: 'service-a',
-        characteristics: const <String>['characteristic-a'],
+        characteristics: <messages.PlatformCharacteristic>[
+          messages.PlatformCharacteristic(
+            uuid: 'characteristic-a',
+            canRead: true,
+            canWriteWithResponse: false,
+            canWriteWithoutResponse: true,
+            canNotify: true,
+            canIndicate: false,
+          ),
+        ],
       ),
     );
     await _sendFlutterApiMessage('onServiceDiscoveryComplete', 'device-a');
@@ -289,6 +298,7 @@ void main() {
       'onCharacteristicValueChanged',
       messages.PlatformCharacteristicValueChanged(
         deviceId: 'device-a',
+        serviceUuid: 'service-a',
         characteristicId: 'characteristic-a',
         value: Uint8List.fromList(<int>[1, 2, 3]),
       ),
@@ -308,6 +318,14 @@ void main() {
         deviceId: 'device-a',
         uuid: 'service-a',
         characteristics: const <String>['characteristic-a'],
+        characteristicDetails: <BluetoothCharacteristicInfo>[
+          BluetoothCharacteristicInfo(
+            uuid: 'characteristic-a',
+            canRead: true,
+            canWriteWithoutResponse: true,
+            canNotify: true,
+          ),
+        ],
       ),
     );
     expect(await serviceComplete, 'device-a');
@@ -315,6 +333,7 @@ void main() {
       await value,
       BluetoothCharacteristicValue(
         deviceId: 'device-a',
+        serviceId: 'service-a',
         characteristicId: 'characteristic-a',
         value: Uint8List.fromList(<int>[1, 2, 3]),
       ),

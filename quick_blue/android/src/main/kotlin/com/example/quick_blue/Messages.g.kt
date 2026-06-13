@@ -411,14 +411,14 @@ data class PlatformConnectionStateChange (
 data class PlatformServiceDiscovered (
   val deviceId: String,
   val serviceUuid: String,
-  val characteristics: List<String>
+  val characteristics: List<PlatformCharacteristic>
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): PlatformServiceDiscovered {
       val deviceId = pigeonVar_list[0] as String
       val serviceUuid = pigeonVar_list[1] as String
-      val characteristics = pigeonVar_list[2] as List<String>
+      val characteristics = pigeonVar_list[2] as List<PlatformCharacteristic>
       return PlatformServiceDiscovered(deviceId, serviceUuid, characteristics)
     }
   }
@@ -449,6 +449,63 @@ data class PlatformServiceDiscovered (
   }
   override fun toString(): String {
     return "PlatformServiceDiscovered(deviceId=$deviceId, serviceUuid=$serviceUuid, characteristics=$characteristics)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformCharacteristic (
+  val uuid: String,
+  val canRead: Boolean,
+  val canWriteWithResponse: Boolean,
+  val canWriteWithoutResponse: Boolean,
+  val canNotify: Boolean,
+  val canIndicate: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformCharacteristic {
+      val uuid = pigeonVar_list[0] as String
+      val canRead = pigeonVar_list[1] as Boolean
+      val canWriteWithResponse = pigeonVar_list[2] as Boolean
+      val canWriteWithoutResponse = pigeonVar_list[3] as Boolean
+      val canNotify = pigeonVar_list[4] as Boolean
+      val canIndicate = pigeonVar_list[5] as Boolean
+      return PlatformCharacteristic(uuid, canRead, canWriteWithResponse, canWriteWithoutResponse, canNotify, canIndicate)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      uuid,
+      canRead,
+      canWriteWithResponse,
+      canWriteWithoutResponse,
+      canNotify,
+      canIndicate,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformCharacteristic
+    return MessagesPigeonUtils.deepEquals(this.uuid, other.uuid) && MessagesPigeonUtils.deepEquals(this.canRead, other.canRead) && MessagesPigeonUtils.deepEquals(this.canWriteWithResponse, other.canWriteWithResponse) && MessagesPigeonUtils.deepEquals(this.canWriteWithoutResponse, other.canWriteWithoutResponse) && MessagesPigeonUtils.deepEquals(this.canNotify, other.canNotify) && MessagesPigeonUtils.deepEquals(this.canIndicate, other.canIndicate)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.uuid)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.canRead)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.canWriteWithResponse)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.canWriteWithoutResponse)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.canNotify)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.canIndicate)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformCharacteristic(uuid=$uuid, canRead=$canRead, canWriteWithResponse=$canWriteWithResponse, canWriteWithoutResponse=$canWriteWithoutResponse, canNotify=$canNotify, canIndicate=$canIndicate)"
   }
 }
 
@@ -496,6 +553,7 @@ data class PlatformMtuChange (
 /** Generated class from Pigeon that represents data sent in messages. */
 data class PlatformCharacteristicValueChanged (
   val deviceId: String,
+  val serviceUuid: String,
   val characteristicId: String,
   val value: ByteArray
 )
@@ -503,14 +561,16 @@ data class PlatformCharacteristicValueChanged (
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): PlatformCharacteristicValueChanged {
       val deviceId = pigeonVar_list[0] as String
-      val characteristicId = pigeonVar_list[1] as String
-      val value = pigeonVar_list[2] as ByteArray
-      return PlatformCharacteristicValueChanged(deviceId, characteristicId, value)
+      val serviceUuid = pigeonVar_list[1] as String
+      val characteristicId = pigeonVar_list[2] as String
+      val value = pigeonVar_list[3] as ByteArray
+      return PlatformCharacteristicValueChanged(deviceId, serviceUuid, characteristicId, value)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       deviceId,
+      serviceUuid,
       characteristicId,
       value,
     )
@@ -523,18 +583,19 @@ data class PlatformCharacteristicValueChanged (
       return true
     }
     val other = other as PlatformCharacteristicValueChanged
-    return MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.characteristicId, other.characteristicId) && MessagesPigeonUtils.deepEquals(this.value, other.value)
+    return MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.serviceUuid, other.serviceUuid) && MessagesPigeonUtils.deepEquals(this.characteristicId, other.characteristicId) && MessagesPigeonUtils.deepEquals(this.value, other.value)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.serviceUuid)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.characteristicId)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.value)
     return result
   }
   override fun toString(): String {
-    return "PlatformCharacteristicValueChanged(deviceId=$deviceId, characteristicId=$characteristicId, value=${value.contentToString()})"
+    return "PlatformCharacteristicValueChanged(deviceId=$deviceId, serviceUuid=$serviceUuid, characteristicId=$characteristicId, value=${value.contentToString()})"
   }
 }
 
@@ -640,15 +701,20 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformMtuChange.fromList(it)
+          PlatformCharacteristic.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristicValueChanged.fromList(it)
+          PlatformMtuChange.fromList(it)
         }
       }
       140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCharacteristicValueChanged.fromList(it)
+        }
+      }
+      141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformL2CapSocketEvent.fromList(it)
         }
@@ -694,16 +760,20 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is PlatformMtuChange -> {
+      is PlatformCharacteristic -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristicValueChanged -> {
+      is PlatformMtuChange -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is PlatformL2CapSocketEvent -> {
+      is PlatformCharacteristicValueChanged -> {
         stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is PlatformL2CapSocketEvent -> {
+        stream.write(141)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

@@ -289,9 +289,10 @@ void main() {
       BlueConnectionState.disconnected,
       BleStatus.success,
     );
-    platform.onServiceDiscovered!('device-b', 'service-b', <String>[]);
-    platform.onValueChanged!(
+    platform.handleServiceDiscovered('device-b', 'service-b', const []);
+    platform.handleCharacteristicValueChanged(
       'device-b',
+      'service-b',
       'characteristic-b',
       Uint8List.fromList(<int>[9]),
     );
@@ -301,11 +302,12 @@ void main() {
       BlueConnectionState.connected,
       BleStatus.success,
     );
-    platform.onServiceDiscovered!('device-a', 'service-a', <String>[
-      'characteristic-a',
+    platform.handleServiceDiscovered('device-a', 'service-a', [
+      BluetoothCharacteristicInfo(uuid: 'characteristic-a'),
     ]);
-    platform.onValueChanged!(
+    platform.handleCharacteristicValueChanged(
       'device-a',
+      'service-a',
       'characteristic-a',
       Uint8List.fromList(<int>[1, 2, 3]),
     );
@@ -654,6 +656,27 @@ void main() {
     );
   });
 
+  test('BluetoothCharacteristic.valueStream matches short and full UUIDs', () {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    final characteristic = platform
+        .device('device-a')
+        .characteristic('180d', '2a37');
+
+    expectLater(
+      characteristic.valueStream,
+      emits(Uint8List.fromList(<int>[1, 2, 3])),
+    );
+
+    platform.handleCharacteristicValueChanged(
+      'device-a',
+      '0000180d-0000-1000-8000-00805f9b34fb',
+      '00002a37-0000-1000-8000-00805f9b34fb',
+      Uint8List.fromList(<int>[1, 2, 3]),
+    );
+  });
+
   test('BluetoothDevice.readValue propagates platform errors', () async {
     final error = StateError('read failed');
     final platform = _FakeQuickBluePlatform(readValueError: error);
@@ -709,8 +732,9 @@ void main() {
         'setNotifiable device-a service-a characteristic-a notification',
       ]);
 
-      platform.onValueChanged!(
+      platform.handleCharacteristicValueChanged(
         'device-a',
+        'service-a',
         'characteristic-a',
         Uint8List.fromList(<int>[7, 8, 9]),
       );
@@ -774,8 +798,9 @@ void main() {
         'setNotifiable device-a service-a characteristic-a notification',
       ]);
 
-      platform.onValueChanged!(
+      platform.handleCharacteristicValueChanged(
         'device-a',
+        'service-a',
         'characteristic-a',
         Uint8List.fromList(<int>[7, 8, 9]),
       );
@@ -955,7 +980,11 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
       throw error;
     }
     for (final service in discoveredServices) {
-      onServiceDiscovered!(deviceId, service.uuid, service.characteristics);
+      handleServiceDiscovered(
+        deviceId,
+        service.uuid,
+        service.characteristicDetails,
+      );
     }
     onServiceDiscoveryComplete(deviceId);
   }
@@ -990,7 +1019,12 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     if (error != null) {
       throw error;
     }
-    onValueChanged!(deviceId, characteristic, readValueResult);
+    handleCharacteristicValueChanged(
+      deviceId,
+      service,
+      characteristic,
+      readValueResult,
+    );
   }
 
   @override

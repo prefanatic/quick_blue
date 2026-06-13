@@ -330,7 +330,7 @@ class PlatformServiceDiscovered {
 
   String serviceUuid;
 
-  List<String> characteristics;
+  List<PlatformCharacteristic> characteristics;
 
   List<Object?> _toList() {
     return <Object?>[
@@ -348,7 +348,7 @@ class PlatformServiceDiscovered {
     return PlatformServiceDiscovered(
       deviceId: result[0]! as String,
       serviceUuid: result[1]! as String,
-      characteristics: (result[2]! as List<Object?>).cast<String>(),
+      characteristics: (result[2]! as List<Object?>).cast<PlatformCharacteristic>(),
     );
   }
 
@@ -374,14 +374,87 @@ class PlatformServiceDiscovered {
   }
 }
 
+class PlatformCharacteristic {
+  PlatformCharacteristic({
+    required this.uuid,
+    required this.canRead,
+    required this.canWriteWithResponse,
+    required this.canWriteWithoutResponse,
+    required this.canNotify,
+    required this.canIndicate,
+  });
+
+  String uuid;
+
+  bool canRead;
+
+  bool canWriteWithResponse;
+
+  bool canWriteWithoutResponse;
+
+  bool canNotify;
+
+  bool canIndicate;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      uuid,
+      canRead,
+      canWriteWithResponse,
+      canWriteWithoutResponse,
+      canNotify,
+      canIndicate,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformCharacteristic decode(Object result) {
+    result as List<Object?>;
+    return PlatformCharacteristic(
+      uuid: result[0]! as String,
+      canRead: result[1]! as bool,
+      canWriteWithResponse: result[2]! as bool,
+      canWriteWithoutResponse: result[3]! as bool,
+      canNotify: result[4]! as bool,
+      canIndicate: result[5]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformCharacteristic || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(uuid, other.uuid) && _deepEquals(canRead, other.canRead) && _deepEquals(canWriteWithResponse, other.canWriteWithResponse) && _deepEquals(canWriteWithoutResponse, other.canWriteWithoutResponse) && _deepEquals(canNotify, other.canNotify) && _deepEquals(canIndicate, other.canIndicate);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformCharacteristic(uuid: $uuid, canRead: $canRead, canWriteWithResponse: $canWriteWithResponse, canWriteWithoutResponse: $canWriteWithoutResponse, canNotify: $canNotify, canIndicate: $canIndicate)';
+  }
+}
+
 class PlatformCharacteristicValueChanged {
   PlatformCharacteristicValueChanged({
     required this.deviceId,
+    required this.serviceUuid,
     required this.characteristicId,
     required this.value,
   });
 
   String deviceId;
+
+  String serviceUuid;
 
   String characteristicId;
 
@@ -390,6 +463,7 @@ class PlatformCharacteristicValueChanged {
   List<Object?> _toList() {
     return <Object?>[
       deviceId,
+      serviceUuid,
       characteristicId,
       value,
     ];
@@ -402,8 +476,9 @@ class PlatformCharacteristicValueChanged {
     result as List<Object?>;
     return PlatformCharacteristicValueChanged(
       deviceId: result[0]! as String,
-      characteristicId: result[1]! as String,
-      value: result[2]! as Uint8List,
+      serviceUuid: result[1]! as String,
+      characteristicId: result[2]! as String,
+      value: result[3]! as Uint8List,
     );
   }
 
@@ -416,7 +491,7 @@ class PlatformCharacteristicValueChanged {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(deviceId, other.deviceId) && _deepEquals(characteristicId, other.characteristicId) && _deepEquals(value, other.value);
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(serviceUuid, other.serviceUuid) && _deepEquals(characteristicId, other.characteristicId) && _deepEquals(value, other.value);
   }
 
   @override
@@ -425,7 +500,7 @@ class PlatformCharacteristicValueChanged {
 
   @override
   String toString() {
-    return 'PlatformCharacteristicValueChanged(deviceId: $deviceId, characteristicId: $characteristicId, value: $value)';
+    return 'PlatformCharacteristicValueChanged(deviceId: $deviceId, serviceUuid: $serviceUuid, characteristicId: $characteristicId, value: $value)';
   }
 }
 
@@ -529,11 +604,14 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformCharacteristic) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformL2CapSocketEvent) {
+    }    else if (value is PlatformCharacteristicValueChanged) {
       buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformL2CapSocketEvent) {
+      buffer.putUint8(140);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -567,8 +645,10 @@ class _PigeonCodec extends StandardMessageCodec {
       case 137:
         return PlatformServiceDiscovered.decode(readValue(buffer)!);
       case 138:
-        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+        return PlatformCharacteristic.decode(readValue(buffer)!);
       case 139:
+        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+      case 140:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

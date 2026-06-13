@@ -227,7 +227,11 @@ class QuickBlueLinux extends QuickBluePlatform {
     final subscription = targetCharacteristic.propertiesChanged.listen(
       (changed) {
         if (changed.contains('Value')) {
-          _emitCharacteristicValue(device.address, targetCharacteristic);
+          _emitCharacteristicValue(
+            device.address,
+            service,
+            targetCharacteristic,
+          );
         }
         if (changed.contains('Notifying') && !targetCharacteristic.notifying) {
           unawaited(_removeNotificationSubscription(device.address, key));
@@ -248,7 +252,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     );
     deviceSubscriptions[key] = subscription;
 
-    _emitCharacteristicValue(device.address, targetCharacteristic);
+    _emitCharacteristicValue(device.address, service, targetCharacteristic);
   }
 
   @override
@@ -269,6 +273,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     final data = await targetCharacteristic.readValue();
     _emitCharacteristicValue(
       device.address,
+      resolved.serviceId,
       targetCharacteristic,
       overrideValue: data,
     );
@@ -438,17 +443,31 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   void _emitServiceDiscovery(BlueZDevice device) {
-    final handler = onServiceDiscovered;
-    if (handler == null) {
-      return;
-    }
-
     for (final service in device.gattServices) {
       final serviceId = _formatUuid(service.uuid);
       final characteristics = service.characteristics
-          .map((characteristic) => _formatUuid(characteristic.uuid))
+          .map(
+            (characteristic) => BluetoothCharacteristicInfo(
+              uuid: _formatUuid(characteristic.uuid),
+              canRead: characteristic.flags.contains(
+                BlueZGattCharacteristicFlag.read,
+              ),
+              canWriteWithResponse: characteristic.flags.contains(
+                BlueZGattCharacteristicFlag.write,
+              ),
+              canWriteWithoutResponse: characteristic.flags.contains(
+                BlueZGattCharacteristicFlag.writeWithoutResponse,
+              ),
+              canNotify: characteristic.flags.contains(
+                BlueZGattCharacteristicFlag.notify,
+              ),
+              canIndicate: characteristic.flags.contains(
+                BlueZGattCharacteristicFlag.indicate,
+              ),
+            ),
+          )
           .toList(growable: false);
-      handler(device.address, serviceId, characteristics);
+      handleServiceDiscovered(device.address, serviceId, characteristics);
     }
     onServiceDiscoveryComplete(device.address);
   }
@@ -548,22 +567,24 @@ class QuickBlueLinux extends QuickBluePlatform {
 
     return _ResolvedCharacteristic(
       device: device,
+      serviceId: _formatUuid(service.uuid),
       characteristic: characteristic,
     );
   }
 
   void _emitCharacteristicValue(
     String deviceId,
+    String serviceId,
     BlueZGattCharacteristic characteristic, {
     List<int>? overrideValue,
   }) {
-    final handler = onValueChanged;
-    if (handler == null) {
-      return;
-    }
-
     final value = Uint8List.fromList(overrideValue ?? characteristic.value);
-    handler(deviceId, _formatUuid(characteristic.uuid), value);
+    handleCharacteristicValueChanged(
+      deviceId,
+      serviceId,
+      _formatUuid(characteristic.uuid),
+      value,
+    );
   }
 
   void _emitConnectionState(
@@ -668,9 +689,14 @@ class QuickBlueLinux extends QuickBluePlatform {
 }
 
 class _ResolvedCharacteristic {
-  _ResolvedCharacteristic({required this.device, required this.characteristic});
+  _ResolvedCharacteristic({
+    required this.device,
+    required this.serviceId,
+    required this.characteristic,
+  });
 
   final BlueZDevice device;
+  final String serviceId;
   final BlueZGattCharacteristic characteristic;
 }
 

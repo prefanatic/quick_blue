@@ -1,6 +1,8 @@
 ## [0.5.0-dev.2] - 2022.6.3
 
 - Update federated plugins' versions
+- Add characteristic property metadata to discovered services.
+- Scope characteristic value events by service UUID.
 
 ## [0.5.0-dev.0] - 2022.5.18
 

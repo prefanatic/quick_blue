@@ -148,7 +148,12 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
     String characteristic,
   ) async {
     calls.add('readValue $deviceId $service $characteristic');
-    onValueChanged!(deviceId, characteristic, Uint8List(0));
+    handleCharacteristicValueChanged(
+      deviceId,
+      service,
+      characteristic,
+      Uint8List(0),
+    );
   }
 
   @override

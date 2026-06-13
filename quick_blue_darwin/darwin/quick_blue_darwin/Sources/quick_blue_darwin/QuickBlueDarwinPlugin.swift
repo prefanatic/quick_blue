@@ -14,6 +14,19 @@ extension CBUUID {
     }
 }
 
+extension CBCharacteristic {
+    var platformCharacteristic: PlatformCharacteristic {
+        PlatformCharacteristic(
+            uuid: uuid.uuidStr,
+            canRead: properties.contains(.read),
+            canWriteWithResponse: properties.contains(.write),
+            canWriteWithoutResponse: properties.contains(.writeWithoutResponse),
+            canNotify: properties.contains(.notify),
+            canIndicate: properties.contains(.indicate)
+        )
+    }
+}
+
 extension CBPeripheral {
     public func getCharacteristic(_ characteristic: String, of service: String)
         -> CBCharacteristic?
@@ -606,7 +619,7 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
                 deviceId: deviceId,
                 serviceUuid: service.uuid.uuidStr,
                 characteristics: (service.characteristics ?? []).map {
-                    $0.uuid.uuidStr
+                    $0.platformCharacteristic
                 }
             ),
             completion: { [weak self] _ in
@@ -681,6 +694,7 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
             flutterApi.onCharacteristicValueChanged(
                 valueChanged: PlatformCharacteristicValueChanged(
                     deviceId: peripheral.identifier.uuidString,
+                    serviceUuid: characteristic.service?.uuid.uuidStr ?? "",
                     characteristicId: characteristic.uuid.uuidStr,
                     value: FlutterStandardTypedData(bytes: value)
                 ),

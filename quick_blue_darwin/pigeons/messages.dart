@@ -122,17 +122,37 @@ class PlatformServiceDiscovered {
 
   final String deviceId;
   final String serviceUuid;
-  final List<String> characteristics;
+  final List<PlatformCharacteristic> characteristics;
+}
+
+class PlatformCharacteristic {
+  PlatformCharacteristic({
+    required this.uuid,
+    required this.canRead,
+    required this.canWriteWithResponse,
+    required this.canWriteWithoutResponse,
+    required this.canNotify,
+    required this.canIndicate,
+  });
+
+  final String uuid;
+  final bool canRead;
+  final bool canWriteWithResponse;
+  final bool canWriteWithoutResponse;
+  final bool canNotify;
+  final bool canIndicate;
 }
 
 class PlatformCharacteristicValueChanged {
   PlatformCharacteristicValueChanged({
     required this.deviceId,
+    required this.serviceUuid,
     required this.characteristicId,
     required this.value,
   });
 
   final String deviceId;
+  final String serviceUuid;
   final String characteristicId;
   final Uint8List value;
 }
