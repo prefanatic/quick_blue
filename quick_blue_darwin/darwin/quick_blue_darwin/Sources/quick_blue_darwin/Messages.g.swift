@@ -1004,7 +1004,7 @@ class BluetoothStateStreamHandler: PigeonEventChannelWrapper<PlatformBluetoothSt
     channel.setStreamHandler(internalStreamHandler)
   }
 }
-
+      
 class ScanResultsStreamHandler: PigeonEventChannelWrapper<PlatformScanResult> {
   static func register(with messenger: FlutterBinaryMessenger,
                       instanceName: String = "",
@@ -1018,7 +1018,7 @@ class ScanResultsStreamHandler: PigeonEventChannelWrapper<PlatformScanResult> {
     channel.setStreamHandler(internalStreamHandler)
   }
 }
-
+      
 class L2CapSocketEventsStreamHandler: PigeonEventChannelWrapper<PlatformL2CapSocketEvent> {
   static func register(with messenger: FlutterBinaryMessenger,
                       instanceName: String = "",
@@ -1032,7 +1032,7 @@ class L2CapSocketEventsStreamHandler: PigeonEventChannelWrapper<PlatformL2CapSoc
     channel.setStreamHandler(internalStreamHandler)
   }
 }
-
+      
 
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol QuickBlueFlutterApiProtocol {

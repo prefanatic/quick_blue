@@ -1034,7 +1034,7 @@ Stream<PlatformBluetoothState> bluetoothState( {String instanceName = ''}) {
     return event as PlatformBluetoothState;
   });
 }
-
+    
 Stream<PlatformScanResult> scanResults( {String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
@@ -1045,7 +1045,7 @@ Stream<PlatformScanResult> scanResults( {String instanceName = ''}) {
     return event as PlatformScanResult;
   });
 }
-
+    
 Stream<PlatformMtuChange> mtuChanged( {String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
@@ -1056,7 +1056,7 @@ Stream<PlatformMtuChange> mtuChanged( {String instanceName = ''}) {
     return event as PlatformMtuChange;
   });
 }
-
+    
 Stream<PlatformL2CapSocketEvent> l2CapSocketEvents( {String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
@@ -1067,7 +1067,7 @@ Stream<PlatformL2CapSocketEvent> l2CapSocketEvents( {String instanceName = ''}) 
     return event as PlatformL2CapSocketEvent;
   });
 }
-
+    
 
 abstract class QuickBlueFlutterApi {
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();

@@ -1149,7 +1149,7 @@ class PigeonEventSink<T>(private val sink: EventChannel.EventSink) {
     sink.endOfStream()
   }
 }
-
+      
 abstract class BluetoothStateStreamHandler : MessagesPigeonEventChannelWrapper<PlatformBluetoothState> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: BluetoothStateStreamHandler, instanceName: String = "") {
@@ -1166,7 +1166,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformBluetoothState>) {
 
 override fun onCancel(p0: Any?) {}
 }
-
+      
 abstract class ScanResultsStreamHandler : MessagesPigeonEventChannelWrapper<PlatformScanResult> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: ScanResultsStreamHandler, instanceName: String = "") {
@@ -1183,7 +1183,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformScanResult>) {}
 
 override fun onCancel(p0: Any?) {}
 }
-
+      
 abstract class MtuChangedStreamHandler : MessagesPigeonEventChannelWrapper<PlatformMtuChange> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: MtuChangedStreamHandler, instanceName: String = "") {
@@ -1200,7 +1200,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformMtuChange>) {}
 
 override fun onCancel(p0: Any?) {}
 }
-
+      
 abstract class L2CapSocketEventsStreamHandler : MessagesPigeonEventChannelWrapper<PlatformL2CapSocketEvent> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: L2CapSocketEventsStreamHandler, instanceName: String = "") {
@@ -1217,7 +1217,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformL2CapSocketEvent>)
 
 override fun onCancel(p0: Any?) {}
 }
-
+      
 /** Generated class from Pigeon that represents Flutter messages that can be called from Kotlin. */
 class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private val messageChannelSuffix: String = "") {
   companion object {
@@ -1240,7 +1240,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
         }
       } else {
         callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
-      }
+      } 
     }
   }
   fun onServiceDiscovered(serviceDiscoveredArg: PlatformServiceDiscovered, callback: (Result<Unit>) -> Unit)
@@ -1257,7 +1257,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
         }
       } else {
         callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
-      }
+      } 
     }
   }
   fun onServiceDiscoveryComplete(deviceIdArg: String, callback: (Result<Unit>) -> Unit)
@@ -1274,7 +1274,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
         }
       } else {
         callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
-      }
+      } 
     }
   }
   fun onCharacteristicValueChanged(valueChangedArg: PlatformCharacteristicValueChanged, callback: (Result<Unit>) -> Unit)
@@ -1291,7 +1291,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
         }
       } else {
         callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
-      }
+      } 
     }
   }
 }
