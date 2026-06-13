@@ -448,16 +448,20 @@ class BluetoothDevice {
     final subscription = serviceDiscoveryStream.listen((service) {
       services.add(service);
     });
-    final complete = _platform.serviceDiscoveryCompleteStream
-        .where((completedDeviceId) => completedDeviceId == deviceId)
-        .first;
+    final completeEvents = StreamIterator(
+      _platform.serviceDiscoveryCompleteStream.where(
+        (completedDeviceId) => completedDeviceId == deviceId,
+      ),
+    );
 
     try {
+      final complete = completeEvents.moveNext();
       await _platform.discoverServices(deviceId);
       await complete;
       return List<BluetoothService>.unmodifiable(services);
     } finally {
       await subscription.cancel();
+      await completeEvents.cancel();
     }
   }
 
@@ -538,8 +542,17 @@ class BluetoothCharacteristic {
   }) {
     late StreamSubscription<Uint8List> valueSubscription;
     late Future<void> setUpNotification;
+    var valueSubscriptionCanceled = false;
     var enabled = false;
     final controller = StreamController<Uint8List>();
+
+    Future<void> cancelValueSubscription() async {
+      if (valueSubscriptionCanceled) {
+        return;
+      }
+      valueSubscriptionCanceled = true;
+      await valueSubscription.cancel();
+    }
 
     controller.onListen = () {
       valueSubscription = valueStream.listen(
@@ -560,14 +573,14 @@ class BluetoothCharacteristic {
           valueSubscription.resume();
         } catch (error, stackTrace) {
           controller.addError(error, stackTrace);
-          await controller.close();
+          await cancelValueSubscription();
         }
       }();
     };
 
     controller.onCancel = () async {
       await setUpNotification;
-      await valueSubscription.cancel();
+      await cancelValueSubscription();
       if (enabled) {
         await _platform.setNotifiable(
           deviceId,
@@ -582,9 +595,16 @@ class BluetoothCharacteristic {
   }
 
   Future<Uint8List> read() async {
-    final value = valueStream.first;
-    await _platform.readValue(deviceId, serviceId, characteristicId);
-    return value;
+    final values = StreamIterator(valueStream);
+
+    try {
+      final value = values.moveNext();
+      await _platform.readValue(deviceId, serviceId, characteristicId);
+      await value;
+      return values.current;
+    } finally {
+      await values.cancel();
+    }
   }
 
   Future<void> write(Uint8List value, BleOutputProperty bleOutputProperty) {

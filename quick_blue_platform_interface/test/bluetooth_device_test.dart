@@ -593,6 +593,40 @@ void main() {
     },
   );
 
+  test('BluetoothDevice.discoverServices propagates platform errors', () async {
+    final error = StateError('discover failed');
+    final platform = _FakeQuickBluePlatform(discoverServicesError: error);
+    addTearDown(platform.dispose);
+
+    await expectLater(
+      platform.device('device-a').discoverServices(),
+      throwsA(same(error)),
+    );
+
+    expect(platform.calls, <String>['discoverServices device-a']);
+  });
+
+  test('BluetoothDevice.setNotifiable propagates platform errors', () async {
+    final error = StateError('notify failed');
+    final platform = _FakeQuickBluePlatform(setNotifiableError: error);
+    addTearDown(platform.dispose);
+
+    await expectLater(
+      platform
+          .device('device-a')
+          .setNotifiable(
+            'service-a',
+            'characteristic-a',
+            BleInputProperty.notification,
+          ),
+      throwsA(same(error)),
+    );
+
+    expect(platform.calls, <String>[
+      'setNotifiable device-a service-a characteristic-a notification',
+    ]);
+  });
+
   test('BluetoothDevice.readValue completes with the matching value event', () {
     final platform = _FakeQuickBluePlatform(
       readValueResult: Uint8List.fromList(<int>[4, 5, 6]),
@@ -605,6 +639,43 @@ void main() {
       device.readValue('service-a', 'characteristic-a'),
       completion(Uint8List.fromList(<int>[4, 5, 6])),
     );
+  });
+
+  test('BluetoothDevice.readValue propagates platform errors', () async {
+    final error = StateError('read failed');
+    final platform = _FakeQuickBluePlatform(readValueError: error);
+    addTearDown(platform.dispose);
+
+    await expectLater(
+      platform.device('device-a').readValue('service-a', 'characteristic-a'),
+      throwsA(same(error)),
+    );
+
+    expect(platform.calls, <String>[
+      'readValue device-a service-a characteristic-a',
+    ]);
+  });
+
+  test('BluetoothDevice.writeValue propagates platform errors', () async {
+    final error = StateError('write failed');
+    final platform = _FakeQuickBluePlatform(writeValueError: error);
+    addTearDown(platform.dispose);
+
+    await expectLater(
+      platform
+          .device('device-a')
+          .writeValue(
+            'service-a',
+            'characteristic-a',
+            Uint8List.fromList(<int>[1, 2, 3]),
+            BleOutputProperty.withResponse,
+          ),
+      throwsA(same(error)),
+    );
+
+    expect(platform.calls, <String>[
+      'writeValue device-a service-a characteristic-a withResponse [1, 2, 3]',
+    ]);
   });
 
   test(
@@ -639,6 +710,32 @@ void main() {
       expect(platform.calls, <String>[
         'setNotifiable device-a service-a characteristic-a notification',
         'setNotifiable device-a service-a characteristic-a disabled',
+      ]);
+    },
+  );
+
+  test(
+    'BluetoothCharacteristic notifications emits notify setup errors',
+    () async {
+      final error = StateError('notify failed');
+      final platform = _FakeQuickBluePlatform(setNotifiableError: error);
+      addTearDown(platform.dispose);
+
+      final characteristic = platform
+          .device('device-a')
+          .characteristic('service-a', 'characteristic-a');
+      final errors = <Object>[];
+      final subscription = characteristic.notifications().listen(
+        (_) {},
+        onError: errors.add,
+      );
+
+      await pumpEventQueue();
+      await subscription.cancel();
+
+      expect(errors, <Object>[error]);
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
       ]);
     },
   );
@@ -735,6 +832,10 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     List<BluetoothService> discoveredServices = const <BluetoothService>[],
     List<Completer<void>> startScanCompletions = const <Completer<void>>[],
     List<Completer<void>> setNotifiableCompletions = const <Completer<void>>[],
+    this.discoverServicesError,
+    this.setNotifiableError,
+    this.readValueError,
+    this.writeValueError,
     this.connectsImmediately = true,
     this.disconnectsImmediately = true,
   }) : readValueResult = readValueResult ?? Uint8List(0),
@@ -749,6 +850,10 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final List<BluetoothService> discoveredServices;
   final List<Completer<void>> startScanCompletions;
   final List<Completer<void>> setNotifiableCompletions;
+  final Object? discoverServicesError;
+  final Object? setNotifiableError;
+  final Object? readValueError;
+  final Object? writeValueError;
   final bool connectsImmediately;
   final bool disconnectsImmediately;
   ScanFilter? lastScanFilter;
@@ -832,6 +937,10 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> discoverServices(String deviceId) async {
     calls.add('discoverServices $deviceId');
+    final error = discoverServicesError;
+    if (error != null) {
+      throw error;
+    }
     for (final service in discoveredServices) {
       onServiceDiscovered!(deviceId, service.uuid, service.characteristics);
     }
@@ -848,6 +957,10 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     calls.add(
       'setNotifiable $deviceId $service $characteristic ${bleInputProperty.value}',
     );
+    final error = setNotifiableError;
+    if (error != null) {
+      throw error;
+    }
     if (_setNotifiableCallCount < setNotifiableCompletions.length) {
       await setNotifiableCompletions[_setNotifiableCallCount++].future;
     }
@@ -860,6 +973,10 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     String characteristic,
   ) async {
     calls.add('readValue $deviceId $service $characteristic');
+    final error = readValueError;
+    if (error != null) {
+      throw error;
+    }
     onValueChanged!(deviceId, characteristic, readValueResult);
   }
 
@@ -875,6 +992,10 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
       'writeValue $deviceId $service $characteristic '
       '${bleOutputProperty.value} ${value.toList()}',
     );
+    final error = writeValueError;
+    if (error != null) {
+      throw error;
+    }
   }
 
   @override
