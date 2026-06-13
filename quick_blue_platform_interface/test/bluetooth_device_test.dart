@@ -289,21 +289,110 @@ void main() {
       ]);
     },
   );
+
+  test(
+    'BluetoothCharacteristic notifications waits for notify before forwarding',
+    () async {
+      final enableNotify = Completer<void>();
+      final platform = _FakeQuickBluePlatform(
+        setNotifiableCompletions: <Completer<void>>[enableNotify],
+      );
+      addTearDown(platform.dispose);
+
+      final values = <Uint8List>[];
+      final characteristic = platform
+          .device('device-a')
+          .characteristic('service-a', 'characteristic-a');
+
+      final subscription = characteristic.notifications().listen(values.add);
+      await pumpEventQueue();
+
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+      ]);
+
+      platform.onValueChanged!(
+        'device-a',
+        'characteristic-a',
+        Uint8List.fromList(<int>[7, 8, 9]),
+      );
+      await pumpEventQueue();
+
+      expect(values, isEmpty);
+
+      enableNotify.complete();
+      await pumpEventQueue();
+
+      expect(values.single, Uint8List.fromList(<int>[7, 8, 9]));
+
+      await subscription.cancel();
+    },
+  );
+
+  test(
+    'BluetoothCharacteristic notifications disables after pending enable',
+    () async {
+      final enableNotify = Completer<void>();
+      final disableNotify = Completer<void>();
+      final platform = _FakeQuickBluePlatform(
+        setNotifiableCompletions: <Completer<void>>[
+          enableNotify,
+          disableNotify,
+        ],
+      );
+      addTearDown(platform.dispose);
+
+      final characteristic = platform
+          .device('device-a')
+          .characteristic('service-a', 'characteristic-a');
+
+      final subscription = characteristic.notifications().listen((_) {});
+      await pumpEventQueue();
+
+      final cancel = subscription.cancel();
+      var cancelCompleted = false;
+      unawaited(cancel.then((_) => cancelCompleted = true));
+      await pumpEventQueue();
+
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+      ]);
+      expect(cancelCompleted, isFalse);
+
+      enableNotify.complete();
+      await pumpEventQueue();
+
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+        'setNotifiable device-a service-a characteristic-a disabled',
+      ]);
+      expect(cancelCompleted, isFalse);
+
+      disableNotify.complete();
+      await cancel;
+
+      expect(cancelCompleted, isTrue);
+    },
+  );
 }
 
 class _FakeQuickBluePlatform extends QuickBluePlatform {
   _FakeQuickBluePlatform({
     Uint8List? readValueResult,
     List<BluetoothService> discoveredServices = const <BluetoothService>[],
+    List<Completer<void>> setNotifiableCompletions = const <Completer<void>>[],
   }) : readValueResult = readValueResult ?? Uint8List(0),
-       discoveredServices = discoveredServices;
+       discoveredServices = discoveredServices,
+       setNotifiableCompletions = setNotifiableCompletions;
 
   final StreamController<BlueScanResult> _scanResultController =
       StreamController<BlueScanResult>.broadcast();
   final List<String> calls = <String>[];
   final Uint8List readValueResult;
   final List<BluetoothService> discoveredServices;
+  final List<Completer<void>> setNotifiableCompletions;
   ScanFilter? lastScanFilter;
+  int _setNotifiableCallCount = 0;
 
   void addScanResult(String deviceId) {
     _scanResultController.add(
@@ -381,6 +470,9 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     calls.add(
       'setNotifiable $deviceId $service $characteristic ${bleInputProperty.value}',
     );
+    if (_setNotifiableCallCount < setNotifiableCompletions.length) {
+      await setNotifiableCompletions[_setNotifiableCallCount++].future;
+    }
   }
 
   @override

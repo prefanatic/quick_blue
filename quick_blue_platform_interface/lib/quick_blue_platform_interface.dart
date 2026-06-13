@@ -269,10 +269,9 @@ class BluetoothDevice {
     final subscription = serviceDiscoveryStream.listen((service) {
       services.add(service);
     });
-    final complete =
-        _platform.serviceDiscoveryCompleteStream
-            .where((completedDeviceId) => completedDeviceId == deviceId)
-            .first;
+    final complete = _platform.serviceDiscoveryCompleteStream
+        .where((completedDeviceId) => completedDeviceId == deviceId)
+        .first;
 
     try {
       await _platform.discoverServices(deviceId);
@@ -363,6 +362,8 @@ class BluetoothCharacteristic {
     BleInputProperty bleInputProperty = BleInputProperty.notification,
   }) {
     late StreamSubscription<Uint8List> valueSubscription;
+    late Future<void> setUpNotification;
+    var enabled = false;
     final controller = StreamController<Uint8List>();
 
     controller.onListen = () {
@@ -371,29 +372,35 @@ class BluetoothCharacteristic {
         onError: controller.addError,
         onDone: controller.close,
       );
-      unawaited(
-        _platform
-            .setNotifiable(
-              deviceId,
-              serviceId,
-              characteristicId,
-              bleInputProperty,
-            )
-            .catchError((Object error) async {
-              controller.addError(error);
-              await controller.close();
-            }),
-      );
+      valueSubscription.pause();
+      setUpNotification = () async {
+        try {
+          await _platform.setNotifiable(
+            deviceId,
+            serviceId,
+            characteristicId,
+            bleInputProperty,
+          );
+          enabled = true;
+          valueSubscription.resume();
+        } catch (error, stackTrace) {
+          controller.addError(error, stackTrace);
+          await controller.close();
+        }
+      }();
     };
 
     controller.onCancel = () async {
+      await setUpNotification;
       await valueSubscription.cancel();
-      await _platform.setNotifiable(
-        deviceId,
-        serviceId,
-        characteristicId,
-        BleInputProperty.disabled,
-      );
+      if (enabled) {
+        await _platform.setNotifiable(
+          deviceId,
+          serviceId,
+          characteristicId,
+          BleInputProperty.disabled,
+        );
+      }
     };
 
     return controller.stream;
