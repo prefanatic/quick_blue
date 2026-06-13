@@ -21,8 +21,8 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 | writeValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | requestMtu | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 
-`bluetoothStateStream` emits live state changes on Android, iOS, and macOS.
-Windows and Linux currently emit the current availability snapshot.
+`bluetoothStateStream` emits live state changes on Android, iOS, macOS, and
+Linux. Windows currently emits the current availability snapshot.
 
 > * Windows' APIs are little different on `discoverServices`: https://github.com/woodemi/quick_blue/issues/76
 

@@ -4,6 +4,17 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+namespace {
+
+bool ShouldHideTestWindow() {
+  wchar_t value[2];
+  const DWORD length = ::GetEnvironmentVariableW(
+      L"QUICK_BLUE_HIDE_TEST_WINDOW", value, sizeof(value) / sizeof(value[0]));
+  return length == 1 && value[0] == L'1';
+}
+
+}  // namespace
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -28,7 +39,9 @@ bool FlutterWindow::OnCreate() {
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
+    if (!ShouldHideTestWindow()) {
+      this->Show();
+    }
   });
 
   // Flutter can complete the first frame before the "show window" callback is

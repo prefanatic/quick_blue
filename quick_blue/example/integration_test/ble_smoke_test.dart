@@ -39,11 +39,11 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'blind BLE explorer scans, connects, discovers services, and disconnects',
+    'BLE explorer scans, connects, discovers services, and disconnects',
     (_) async {
-      if (defaultTargetPlatform != TargetPlatform.macOS) {
+      if (!_supportsBleSmoke(defaultTargetPlatform)) {
         markTestSkipped(
-          'This smoke test targets the macOS CoreBluetooth path.',
+          'This smoke test targets platforms supported by quick_blue.',
         );
         return;
       }
@@ -111,6 +111,14 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 3)),
   );
+}
+
+bool _supportsBleSmoke(TargetPlatform platform) {
+  return platform == TargetPlatform.android ||
+      platform == TargetPlatform.iOS ||
+      platform == TargetPlatform.macOS ||
+      platform == TargetPlatform.windows ||
+      platform == TargetPlatform.linux;
 }
 
 Future<bool> _waitForBluetoothAvailable() async {

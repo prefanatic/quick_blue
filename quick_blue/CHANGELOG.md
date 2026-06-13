@@ -13,9 +13,14 @@
   `BluetoothService.characteristicDetails`.
 - Add `serviceId` to `BluetoothCharacteristicValue` so characteristic value
   events are scoped by device, service, and characteristic.
-- Add macOS hardware smoke testing for scan/connect/service discovery flows.
+- Add cross-platform hardware smoke testing for scan/connect/service discovery
+  flows.
+- Add `QUICK_BLUE_HIDE_TEST_WINDOW` desktop runner support for agent-friendly
+  integration test runs.
 - Add macOS regression tests for switching devices while a connection attempt is
   still pending.
+- Add cross-platform explorer UI regression coverage for switching away from a
+  pending device connection on macOS and Linux.
 - Add broader Dart API, Android wrapper, Darwin wrapper, and model test
   coverage.
 - Add GitHub Actions CI updates and local `act` configuration.
@@ -46,6 +51,8 @@
   manual BLE verification.
 - Update README coverage for current stream/device APIs, Linux GATT support,
   characteristic metadata, and service-scoped values.
+- Bring the Linux implementation up to the current Dart surface with live
+  Bluetooth state, scan filters, and service data in scan results.
 
 ### Fixed
 

@@ -2,15 +2,21 @@
 
 Demonstrates how to use the quick_blue plugin.
 
-## macOS BLE smoke test
+## BLE smoke test
 
-The macOS integration smoke test scans for nearby BLE advertisements, tries to
-connect to matching devices, discovers services, and disconnects. It is
-headless: no manual device picker is shown.
+The integration smoke test scans for nearby BLE advertisements, tries to connect
+to matching devices, discovers services, and disconnects. It is headless: no
+manual device picker is shown. Set `QUICK_BLUE_HIDE_TEST_WINDOW=1` for desktop
+agent runs that should not show a visible app window. Run it against any
+supported Flutter target with Bluetooth LE hardware and permissions; for
+example:
 
 ```sh
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
-  flutter test integration_test/macos_ble_smoke_test.dart -d macos
+  flutter test integration_test/ble_smoke_test.dart -d macos
+
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/ble_smoke_test.dart -d linux
 ```
 
 Useful Dart defines:
@@ -19,7 +25,7 @@ Useful Dart defines:
   begin. Defaults to `12`.
 - `QUICK_BLUE_SMOKE_MAX_CONNECT_ATTEMPTS`: maximum number of candidates to try.
   Defaults to `3`.
-- `QUICK_BLUE_SMOKE_DEVICE_ID`: exact CoreBluetooth device identifier to target.
+- `QUICK_BLUE_SMOKE_DEVICE_ID`: exact platform device identifier to target.
 - `QUICK_BLUE_SMOKE_NAME_PATTERN`: case-insensitive regular expression matched
   against advertised device names.
 - `QUICK_BLUE_SMOKE_SERVICE_UUIDS`: comma-separated service UUID scan filter.
@@ -27,23 +33,26 @@ Useful Dart defines:
 Example targeted run:
 
 ```sh
-flutter test integration_test/macos_ble_smoke_test.dart -d macos \
+flutter test integration_test/ble_smoke_test.dart -d macos \
   --dart-define=QUICK_BLUE_SMOKE_NAME_PATTERN='sensor|heart' \
   --dart-define=QUICK_BLUE_SMOKE_MAX_CONNECT_ATTEMPTS=5
 ```
 
-## macOS device-switch regressions
+## Device-switch regressions
 
-The example also includes macOS regression tests for switching devices while a
+The example also includes regression tests for switching devices while a
 connection attempt is still pending. These tests are hardware-backed and skip
-when Bluetooth is unavailable or permission is denied.
+when Bluetooth is unavailable, permission is denied, or the target platform is
+not supported by the test.
 
 ```sh
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
   flutter test integration_test/macos_ble_switch_test.dart -d macos
 
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
-  flutter test integration_test/macos_ble_ui_switch_test.dart -d macos
+  flutter test integration_test/ble_ui_switch_test.dart -d macos
+
+flutter test integration_test/ble_ui_switch_test.dart -d linux
 ```
 
 Useful Dart defines:

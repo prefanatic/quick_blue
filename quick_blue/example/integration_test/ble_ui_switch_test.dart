@@ -36,9 +36,10 @@ void main() {
   testWidgets(
     'connects another device after backing out of a pending detail connection',
     (tester) async {
-      if (defaultTargetPlatform != TargetPlatform.macOS) {
+      if (!_supportsUiSwitchRegression(defaultTargetPlatform)) {
         markTestSkipped(
-          'This UI switch regression targets the macOS CoreBluetooth path.',
+          'This UI switch regression targets macOS CoreBluetooth and '
+          'Linux BlueZ paths.',
         );
         return;
       }
@@ -112,6 +113,10 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 2)),
   );
+}
+
+bool _supportsUiSwitchRegression(TargetPlatform platform) {
+  return platform == TargetPlatform.macOS || platform == TargetPlatform.linux;
 }
 
 Finder _deviceRow(RegExp namePattern) {

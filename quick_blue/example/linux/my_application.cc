@@ -17,6 +17,8 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  const gboolean hide_test_window =
+      g_strcmp0(g_getenv("QUICK_BLUE_HIDE_TEST_WINDOW"), "1") == 0;
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
@@ -47,7 +49,16 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "quick_blue_example");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  if (hide_test_window) {
+    gtk_window_set_decorated(window, FALSE);
+    gtk_window_set_skip_taskbar_hint(window, TRUE);
+    gtk_window_set_skip_pager_hint(window, TRUE);
+    gtk_window_set_default_size(window, 1, 1);
+    gtk_window_move(window, -10000, -10000);
+    gtk_widget_set_opacity(GTK_WIDGET(window), 0);
+  } else {
+    gtk_window_set_default_size(window, 1280, 720);
+  }
   gtk_widget_show(GTK_WIDGET(window));
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
