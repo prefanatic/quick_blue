@@ -258,7 +258,14 @@ class BluetoothDevice {
     );
   }
 
-  Future<void> connect() => _platform.connect(deviceId);
+  Future<void> connect() async {
+    final connected = connectionStateStream
+        .where((event) => event.state == BlueConnectionState.connected)
+        .first;
+
+    await _platform.connect(deviceId);
+    await connected;
+  }
 
   Future<void> disconnect() => _platform.disconnect(deviceId);
 

@@ -212,6 +212,36 @@ void main() {
     ]);
   });
 
+  test('BluetoothDevice.connect waits for connected state', () async {
+    final platform = _FakeQuickBluePlatform(connectsImmediately: false);
+    addTearDown(platform.dispose);
+
+    final connect = platform.device('device-a').connect();
+    var connectCompleted = false;
+    unawaited(connect.then((_) => connectCompleted = true));
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['connect device-a']);
+    expect(connectCompleted, isFalse);
+
+    platform.onConnectionChanged!(
+      'device-b',
+      BlueConnectionState.connected,
+      BleStatus.success,
+    );
+    await pumpEventQueue();
+    expect(connectCompleted, isFalse);
+
+    platform.onConnectionChanged!(
+      'device-a',
+      BlueConnectionState.connected,
+      BleStatus.success,
+    );
+    await connect;
+
+    expect(connectCompleted, isTrue);
+  });
+
   test(
     'BluetoothDevice.discoverServices completes with discovered services',
     () async {
@@ -381,6 +411,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     Uint8List? readValueResult,
     List<BluetoothService> discoveredServices = const <BluetoothService>[],
     List<Completer<void>> setNotifiableCompletions = const <Completer<void>>[],
+    this.connectsImmediately = true,
   }) : readValueResult = readValueResult ?? Uint8List(0),
        discoveredServices = discoveredServices,
        setNotifiableCompletions = setNotifiableCompletions;
@@ -391,6 +422,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final Uint8List readValueResult;
   final List<BluetoothService> discoveredServices;
   final List<Completer<void>> setNotifiableCompletions;
+  final bool connectsImmediately;
   ScanFilter? lastScanFilter;
   int _setNotifiableCallCount = 0;
 
@@ -424,6 +456,13 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> connect(String deviceId) async {
     calls.add('connect $deviceId');
+    if (connectsImmediately) {
+      onConnectionChanged!(
+        deviceId,
+        BlueConnectionState.connected,
+        BleStatus.success,
+      );
+    }
   }
 
   @override
