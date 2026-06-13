@@ -184,6 +184,8 @@ class BleExplorerController extends ChangeNotifier {
 
     _mutate(() {
       selectedDeviceId = deviceId;
+      connecting = false;
+      discovering = false;
       connectionState = BlueConnectionState.disconnected;
       _clearGattState(disposeControllers: false);
       status = 'Selected ${deviceTitle(deviceId)}.';
@@ -207,11 +209,15 @@ class BleExplorerController extends ChangeNotifier {
       await stopScan();
       await QuickBlue.device(deviceId).connect();
     } catch (error) {
-      _setError('Connect failed', error);
+      if (selectedDeviceId == deviceId) {
+        _setError('Connect failed', error);
+      }
     } finally {
-      _mutate(() {
-        connecting = false;
-      });
+      if (selectedDeviceId == deviceId) {
+        _mutate(() {
+          connecting = false;
+        });
+      }
     }
   }
 
@@ -254,17 +260,24 @@ class BleExplorerController extends ChangeNotifier {
       final discoveredServices = await QuickBlue.device(
         deviceId,
       ).discoverServices();
+      if (selectedDeviceId != deviceId) {
+        return;
+      }
       _mutate(() {
         services.addAll(discoveredServices);
         status = 'Found ${discoveredServices.length} service(s).';
         _log(status!, BleEventSeverity.info);
       });
     } catch (error) {
-      _setError('Discover services failed', error);
+      if (selectedDeviceId == deviceId) {
+        _setError('Discover services failed', error);
+      }
     } finally {
-      _mutate(() {
-        discovering = false;
-      });
+      if (selectedDeviceId == deviceId) {
+        _mutate(() {
+          discovering = false;
+        });
+      }
     }
   }
 

@@ -10,6 +10,7 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
       StreamController<BlueBluetoothState>.broadcast();
   ScanFilter? lastScanFilter;
   BlueBluetoothState bluetoothState = BlueBluetoothState.poweredOn;
+  Completer<void>? pendingConnect;
 
   void addScanResult(BlueScanResult result) {
     _scanResultController.add(result);
@@ -63,6 +64,10 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> connect(String deviceId) async {
     calls.add('connect $deviceId');
+    final pending = pendingConnect;
+    if (pending != null) {
+      await pending.future;
+    }
     onConnectionChanged!(
       deviceId,
       BlueConnectionState.connected,

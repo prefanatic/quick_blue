@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quick_blue_example/src/ble_explorer_controller.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
@@ -170,4 +172,33 @@ void main() {
     expect(controller.services, isEmpty);
     expect(controller.latestValues, isEmpty);
   });
+
+  test(
+    'selecting a different device clears pending connection state',
+    () async {
+      final controller = BleExplorerController();
+      addTearDown(controller.dispose);
+      await controller.initialBluetoothCheck;
+      platform.pendingConnect = Completer<void>();
+
+      await controller.selectDevice('device-a');
+      final connect = controller.connectSelected();
+      await pumpEventQueue();
+
+      expect(controller.connecting, isTrue);
+
+      await controller.selectDevice('device-b');
+
+      expect(controller.selectedDeviceId, 'device-b');
+      expect(controller.connecting, isFalse);
+      expect(controller.status, 'Selected device-b.');
+
+      platform.pendingConnect!.complete();
+      await connect;
+      await pumpEventQueue();
+
+      expect(controller.selectedDeviceId, 'device-b');
+      expect(controller.connecting, isFalse);
+    },
+  );
 }
