@@ -712,10 +712,9 @@ class _ServiceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final characteristicCount = service.characteristics.length;
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
-      ),
+    return Material(
+      color: Colors.transparent,
+      shape: const Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
@@ -890,12 +889,13 @@ class _WriteDisclosure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Color(0xFFE5E7EB)),
         borderRadius: BorderRadius.circular(6),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
