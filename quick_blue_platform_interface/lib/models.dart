@@ -61,10 +61,117 @@ class BlueScanResult {
 }
 
 class ScanFilter {
-  const ScanFilter({this.serviceUuids = const [], this.manufacturerData});
+  ScanFilter({
+    List<String> serviceUuids = const [],
+    Map<int, Uint8List>? manufacturerData,
+  }) : serviceUuids = List<String>.unmodifiable(serviceUuids),
+       _manufacturerData = _copyManufacturerData(manufacturerData);
+
+  const ScanFilter._empty()
+    : serviceUuids = const <String>[],
+      _manufacturerData = null;
+
+  static const empty = ScanFilter._empty();
 
   final List<String> serviceUuids;
-  final Map<int, Uint8List>? manufacturerData;
+  final Map<int, Uint8List>? _manufacturerData;
+
+  Map<int, Uint8List>? get manufacturerData {
+    final data = _manufacturerData;
+    return data == null ? null : _copyManufacturerData(data);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is ScanFilter &&
+            _stringListsEqual(serviceUuids, other.serviceUuids) &&
+            _manufacturerDataEqual(_manufacturerData, other._manufacturerData);
+  }
+
+  @override
+  int get hashCode {
+    final data = _manufacturerData;
+    final manufacturerDataHash = data == null
+        ? null
+        : Object.hashAll(
+            (data.keys.toList()..sort()).map(
+              (manufacturerId) => Object.hash(
+                manufacturerId,
+                Object.hashAll(data[manufacturerId]!),
+              ),
+            ),
+          );
+
+    return Object.hash(Object.hashAll(serviceUuids), manufacturerDataHash);
+  }
+}
+
+Map<int, Uint8List>? _copyManufacturerData(
+  Map<int, Uint8List>? manufacturerData,
+) {
+  if (manufacturerData == null || manufacturerData.isEmpty) {
+    return null;
+  }
+
+  return Map<int, Uint8List>.unmodifiable(
+    manufacturerData.map(
+      (manufacturerId, data) =>
+          MapEntry(manufacturerId, Uint8List.fromList(data)),
+    ),
+  );
+}
+
+bool _stringListsEqual(List<String> left, List<String> right) {
+  if (left.length != right.length) {
+    return false;
+  }
+
+  for (var index = 0; index < left.length; index++) {
+    if (left[index] != right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool _manufacturerDataEqual(
+  Map<int, Uint8List>? left,
+  Map<int, Uint8List>? right,
+) {
+  if (left == null || right == null) {
+    return left == right;
+  }
+  if (left.length != right.length) {
+    return false;
+  }
+
+  for (final key in left.keys) {
+    final leftValue = left[key];
+    final rightValue = right[key];
+    if (leftValue == null ||
+        rightValue == null ||
+        !_uint8ListsEqual(leftValue, rightValue)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool _uint8ListsEqual(Uint8List left, Uint8List right) {
+  if (left.length != right.length) {
+    return false;
+  }
+
+  for (var index = 0; index < left.length; index++) {
+    if (left[index] != right[index]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 class BlueConnectionState {

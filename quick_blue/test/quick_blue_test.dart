@@ -123,6 +123,12 @@ void main() {
     await subscription.cancel();
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
+
+  test('companionDisassociate delegates to the platform', () async {
+    await QuickBlue.companionDisassociate(42);
+
+    expect(platform.calls, <String>['companionDisassociate 42']);
+  });
 }
 
 class _FakeQuickBluePlatform extends QuickBluePlatform {
@@ -146,7 +152,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   Stream<BlueScanResult> get scanResultStream => _scanResultController.stream;
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) async {
+  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) async {
     calls.add('startScan');
   }
 

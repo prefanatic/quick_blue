@@ -29,7 +29,7 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
   }
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) {
+  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) {
     return _method.invokeMethod('startScan', {
       'serviceUuids': scanFilter.serviceUuids,
       'manufacturerData': scanFilter.manufacturerData,
@@ -124,8 +124,8 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
       if (message['ServiceState'] == 'discovered') {
         String deviceId = message['deviceId'];
         String service = message['service'];
-        List<String> characteristics =
-            (message['characteristics'] as List).cast();
+        List<String> characteristics = (message['characteristics'] as List)
+            .cast();
         onServiceDiscovered?.call(deviceId, service, characteristics);
       } else if (message['ServiceState'] == 'complete') {
         String deviceId = message['deviceId'];

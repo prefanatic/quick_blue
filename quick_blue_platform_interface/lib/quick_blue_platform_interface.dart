@@ -42,7 +42,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   Future<bool> isBluetoothAvailable();
 
-  Future<void> startScan({ScanFilter scanFilter = const ScanFilter()});
+  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty});
 
   Future<void> stopScan();
 
@@ -54,7 +54,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
   Future<void> _scanLifecycle = Future<void>.value();
 
   Stream<BlueScanResult> scanResults({
-    ScanFilter scanFilter = const ScanFilter(),
+    ScanFilter scanFilter = ScanFilter.empty,
   }) async* {
     final filter = _ScanFilterKey.from(scanFilter);
 
@@ -114,7 +114,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
     return next;
   }
 
-  Stream<BluetoothDevice> scan({ScanFilter scanFilter = const ScanFilter()}) {
+  Stream<BluetoothDevice> scan({ScanFilter scanFilter = ScanFilter.empty}) {
     return scanResults(
       scanFilter: scanFilter,
     ).map((result) => device(result.deviceId));
@@ -404,21 +404,43 @@ class BluetoothDevice {
   }
 
   Future<void> connect() async {
-    final connected = connectionStateStream
-        .where((event) => event.state == BlueConnectionState.connected)
-        .first;
-
-    await _platform.connect(deviceId);
-    await connected;
+    await _runConnectionOperation(
+      targetState: BlueConnectionState.connected,
+      failureMessage: 'Failed to connect to Bluetooth device $deviceId.',
+      operation: () => _platform.connect(deviceId),
+    );
   }
 
   Future<void> disconnect() async {
-    final disconnected = connectionStateStream
-        .where((event) => event.state == BlueConnectionState.disconnected)
-        .first;
+    await _runConnectionOperation(
+      targetState: BlueConnectionState.disconnected,
+      failureMessage: 'Failed to disconnect Bluetooth device $deviceId.',
+      operation: () => _platform.disconnect(deviceId),
+    );
+  }
 
-    await _platform.disconnect(deviceId);
-    await disconnected;
+  Future<void> _runConnectionOperation({
+    required BlueConnectionState targetState,
+    required String failureMessage,
+    required Future<void> Function() operation,
+  }) async {
+    final stateEvents = StreamIterator(
+      connectionStateStream.where(
+        (event) =>
+            event.status == BleStatus.failure || event.state == targetState,
+      ),
+    );
+
+    try {
+      final stateChanged = stateEvents.moveNext();
+      await operation();
+      await stateChanged;
+      if (stateEvents.current.status == BleStatus.failure) {
+        throw StateError(failureMessage);
+      }
+    } finally {
+      await stateEvents.cancel();
+    }
   }
 
   Future<List<BluetoothService>> discoverServices() async {

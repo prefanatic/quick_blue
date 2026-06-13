@@ -15,23 +15,26 @@ class QuickBlue {
   static Future<bool> isBluetoothAvailable() =>
       _platform.isBluetoothAvailable();
 
-  static Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) =>
+  @Deprecated('Use QuickBlue.scanResults() instead.')
+  static Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) =>
       _platform.startScan(scanFilter: scanFilter);
 
+  @Deprecated('Use QuickBlue.scanResults() instead.')
   static Future<void> stopScan() => _platform.stopScan();
 
+  @Deprecated('Use QuickBlue.scanResults() instead.')
   static Stream<BlueScanResult> get scanResultStream {
     return _platform.scanResultStream;
   }
 
   static Stream<BlueScanResult> scanResults({
-    ScanFilter scanFilter = const ScanFilter(),
+    ScanFilter scanFilter = ScanFilter.empty,
   }) {
     return _platform.scanResults(scanFilter: scanFilter);
   }
 
   static Stream<BluetoothDevice> scan({
-    ScanFilter scanFilter = const ScanFilter(),
+    ScanFilter scanFilter = ScanFilter.empty,
   }) {
     return _platform.scan(scanFilter: scanFilter);
   }
@@ -54,8 +57,12 @@ class QuickBlue {
   }) =>
       _platform.companionAssociate(deviceId: deviceId, scanFilter: scanFilter);
 
-  static Future<void> companionDissassociate(int associationId) =>
+  static Future<void> companionDisassociate(int associationId) =>
       _platform.companionDisassociate(associationId);
+
+  @Deprecated('Use QuickBlue.companionDisassociate() instead.')
+  static Future<void> companionDissassociate(int associationId) =>
+      companionDisassociate(associationId);
 
   static Future<List<CompanionDevice>?> getCompanionAssociations() =>
       _platform.getCompanionAssociations();

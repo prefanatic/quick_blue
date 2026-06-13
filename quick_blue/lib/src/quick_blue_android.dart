@@ -187,7 +187,7 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) {
+  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) {
     _ensureInitialized();
 
     return _api.startScan(

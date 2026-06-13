@@ -150,7 +150,7 @@ void main() {
     addTearDown(platform.dispose);
 
     final firstSubscription = platform
-        .scanResults(scanFilter: const ScanFilter(serviceUuids: <String>['a']))
+        .scanResults(scanFilter: ScanFilter(serviceUuids: <String>['a']))
         .listen((_) {});
 
     await pumpEventQueue();
@@ -158,7 +158,7 @@ void main() {
 
     final errors = <Object>[];
     final secondSubscription = platform
-        .scanResults(scanFilter: const ScanFilter(serviceUuids: <String>['b']))
+        .scanResults(scanFilter: ScanFilter(serviceUuids: <String>['b']))
         .listen((_) {}, onError: errors.add);
 
     await pumpEventQueue();
@@ -399,6 +399,70 @@ void main() {
     expect(connectCompleted, isTrue);
   });
 
+  test('BluetoothDevice.connect completes with an error on failure', () async {
+    final platform = _FakeQuickBluePlatform(connectsImmediately: false);
+    addTearDown(platform.dispose);
+
+    final connect = platform.device('device-a').connect();
+    final connectExpectation = expectLater(
+      connect,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          'Failed to connect to Bluetooth device device-a.',
+        ),
+      ),
+    );
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['connect device-a']);
+
+    platform.onConnectionChanged!(
+      'device-a',
+      BlueConnectionState.disconnected,
+      BleStatus.failure,
+    );
+
+    await connectExpectation;
+  });
+
+  test('BluetoothDevice.connect ignores other-device failure events', () async {
+    final platform = _FakeQuickBluePlatform(connectsImmediately: false);
+    addTearDown(platform.dispose);
+
+    final connect = platform.device('device-a').connect();
+    var connectCompleted = false;
+    Object? connectError;
+    final connectCompletedFuture = connect.then<void>(
+      (_) => connectCompleted = true,
+      onError: (Object error) => connectError = error,
+    );
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['connect device-a']);
+
+    platform.onConnectionChanged!(
+      'device-b',
+      BlueConnectionState.disconnected,
+      BleStatus.failure,
+    );
+    await pumpEventQueue();
+
+    expect(connectCompleted, isFalse);
+    expect(connectError, isNull);
+
+    platform.onConnectionChanged!(
+      'device-a',
+      BlueConnectionState.connected,
+      BleStatus.success,
+    );
+    await connectCompletedFuture;
+
+    expect(connectCompleted, isTrue);
+    expect(connectError, isNull);
+  });
+
   test('BluetoothDevice.disconnect waits for disconnected state', () async {
     final platform = _FakeQuickBluePlatform(disconnectsImmediately: false);
     addTearDown(platform.dispose);
@@ -430,6 +494,76 @@ void main() {
 
     expect(disconnectCompleted, isTrue);
   });
+
+  test(
+    'BluetoothDevice.disconnect completes with an error on failure',
+    () async {
+      final platform = _FakeQuickBluePlatform(disconnectsImmediately: false);
+      addTearDown(platform.dispose);
+
+      final disconnect = platform.device('device-a').disconnect();
+      final disconnectExpectation = expectLater(
+        disconnect,
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'Failed to disconnect Bluetooth device device-a.',
+          ),
+        ),
+      );
+
+      await pumpEventQueue();
+      expect(platform.calls, <String>['disconnect device-a']);
+
+      platform.onConnectionChanged!(
+        'device-a',
+        BlueConnectionState.connected,
+        BleStatus.failure,
+      );
+
+      await disconnectExpectation;
+    },
+  );
+
+  test(
+    'BluetoothDevice.disconnect ignores other-device failure events',
+    () async {
+      final platform = _FakeQuickBluePlatform(disconnectsImmediately: false);
+      addTearDown(platform.dispose);
+
+      final disconnect = platform.device('device-a').disconnect();
+      var disconnectCompleted = false;
+      Object? disconnectError;
+      final disconnectCompletedFuture = disconnect.then<void>(
+        (_) => disconnectCompleted = true,
+        onError: (Object error) => disconnectError = error,
+      );
+
+      await pumpEventQueue();
+      expect(platform.calls, <String>['disconnect device-a']);
+
+      platform.onConnectionChanged!(
+        'device-b',
+        BlueConnectionState.connected,
+        BleStatus.failure,
+      );
+      await pumpEventQueue();
+
+      expect(disconnectCompleted, isFalse);
+      expect(disconnectError, isNull);
+
+      platform.onConnectionChanged!(
+        'device-a',
+        BlueConnectionState.disconnected,
+        BleStatus.success,
+      );
+      await disconnectCompletedFuture;
+
+      expect(disconnectCompleted, isTrue);
+      expect(disconnectError, isNull);
+    },
+  );
 
   test(
     'BluetoothDevice.discoverServices completes with discovered services',
@@ -638,7 +772,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   Future<bool> isBluetoothAvailable() async => true;
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) async {
+  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) async {
     lastScanFilter = scanFilter;
     calls.add('startScan');
     if (_startScanCallCount < startScanCompletions.length) {

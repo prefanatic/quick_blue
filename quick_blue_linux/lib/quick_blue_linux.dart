@@ -81,7 +81,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) async {
+  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) async {
     await _ensureInitialized();
 
     final adapter = _activeAdapter;
@@ -205,10 +205,9 @@ class QuickBlueLinux extends QuickBluePlatform {
       return;
     }
 
-    final requiredFlag =
-        bleInputProperty == BleInputProperty.indication
-            ? BlueZGattCharacteristicFlag.indicate
-            : BlueZGattCharacteristicFlag.notify;
+    final requiredFlag = bleInputProperty == BleInputProperty.indication
+        ? BlueZGattCharacteristicFlag.indicate
+        : BlueZGattCharacteristicFlag.notify;
     if (!targetCharacteristic.flags.contains(requiredFlag)) {
       throw StateError(
         'Characteristic $characteristic on $service does not support ${bleInputProperty.value}',
@@ -291,10 +290,9 @@ class QuickBlueLinux extends QuickBluePlatform {
     );
     final targetCharacteristic = resolved.characteristic;
 
-    final writeType =
-        bleOutputProperty == BleOutputProperty.withResponse
-            ? BlueZGattCharacteristicWriteType.request
-            : BlueZGattCharacteristicWriteType.command;
+    final writeType = bleOutputProperty == BleOutputProperty.withResponse
+        ? BlueZGattCharacteristicWriteType.request
+        : BlueZGattCharacteristicWriteType.command;
 
     await targetCharacteristic.writeValue(value, type: writeType);
   }
@@ -413,10 +411,9 @@ class QuickBlueLinux extends QuickBluePlatform {
     final subscription = device.propertiesChanged.listen(
       (properties) {
         if (properties.contains('Connected')) {
-          final state =
-              device.connected
-                  ? BlueConnectionState.connected
-                  : BlueConnectionState.disconnected;
+          final state = device.connected
+              ? BlueConnectionState.connected
+              : BlueConnectionState.disconnected;
           _emitConnectionState(deviceId, state, BleStatus.success);
           if (!device.connected) {
             unawaited(_clearNotificationSubscriptions(deviceId));
@@ -681,8 +678,8 @@ extension BlueZDeviceExtension on BlueZDevice {
   Uint8List get manufacturerDataHead {
     if (manufacturerData.isEmpty) return Uint8List(0);
 
-    final sorted =
-        manufacturerData.entries.toList()..sort((a, b) => a.key.id - b.key.id);
+    final sorted = manufacturerData.entries.toList()
+      ..sort((a, b) => a.key.id - b.key.id);
     return Uint8List.fromList(sorted.first.value);
   }
 }
