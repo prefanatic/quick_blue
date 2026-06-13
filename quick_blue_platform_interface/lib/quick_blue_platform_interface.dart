@@ -55,53 +55,15 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   Stream<BlueScanResult> scanResults({
     ScanFilter scanFilter = const ScanFilter(),
-  }) {
+  }) async* {
     final filter = _ScanFilterKey.from(scanFilter);
 
-    return Stream<BlueScanResult>.multi((controller) {
-      late final StreamSubscription<BlueScanResult> scanResultSubscription;
-      late final Future<void> setUpScan;
-      var canceled = false;
-      var acquiredScan = false;
-
-      scanResultSubscription = scanResultStream.listen(
-        controller.addSync,
-        onError: controller.addErrorSync,
-        onDone: controller.closeSync,
-      );
-      scanResultSubscription.pause();
-
-      setUpScan = () async {
-        try {
-          await _acquireScan(filter);
-          acquiredScan = true;
-          if (!canceled) {
-            scanResultSubscription.resume();
-          }
-        } catch (error, stackTrace) {
-          await scanResultSubscription.cancel();
-          if (!canceled) {
-            controller.addErrorSync(error, stackTrace);
-            controller.closeSync();
-          }
-        }
-      }();
-
-      controller.onPause = scanResultSubscription.pause;
-      controller.onResume = () {
-        if (acquiredScan && !canceled) {
-          scanResultSubscription.resume();
-        }
-      };
-      controller.onCancel = () async {
-        canceled = true;
-        await setUpScan;
-        await scanResultSubscription.cancel();
-        if (acquiredScan) {
-          await _releaseScan();
-        }
-      };
-    }, isBroadcast: true);
+    await _acquireScan(filter);
+    try {
+      yield* scanResultStream;
+    } finally {
+      await _releaseScan();
+    }
   }
 
   Future<void> _acquireScan(_ScanFilterKey filter) {

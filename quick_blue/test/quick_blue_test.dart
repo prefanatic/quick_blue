@@ -111,30 +111,16 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
-  test('scanResults stream supports multiple listeners', () async {
+  test('scanResults stream is single subscription', () async {
     final stream = QuickBlue.scanResults();
-    final firstResults = <String>[];
-    final secondResults = <String>[];
-    final firstSubscription = stream.listen(
-      (result) => firstResults.add(result.deviceId),
-    );
-    final secondSubscription = stream.listen(
-      (result) => secondResults.add(result.deviceId),
-    );
+    final subscription = stream.listen((_) {});
 
     await pumpEventQueue();
     expect(platform.calls, <String>['startScan']);
 
-    platform.addScanResult('device-a');
-    await pumpEventQueue();
+    expect(() => stream.listen((_) {}), throwsStateError);
 
-    expect(firstResults, <String>['device-a']);
-    expect(secondResults, <String>['device-a']);
-
-    await firstSubscription.cancel();
-    expect(platform.calls, <String>['startScan']);
-
-    await secondSubscription.cancel();
+    await subscription.cancel();
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 }

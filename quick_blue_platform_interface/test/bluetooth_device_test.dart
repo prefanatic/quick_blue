@@ -97,38 +97,21 @@ void main() {
     },
   );
 
-  test(
-    'scanResults stream supports multiple listeners with one scan',
-    () async {
-      final platform = _FakeQuickBluePlatform();
-      addTearDown(platform.dispose);
+  test('scanResults stream is single subscription', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
 
-      final stream = platform.scanResults();
-      final firstResults = <String>[];
-      final secondResults = <String>[];
-      final firstSubscription = stream.listen(
-        (result) => firstResults.add(result.deviceId),
-      );
-      final secondSubscription = stream.listen(
-        (result) => secondResults.add(result.deviceId),
-      );
+    final stream = platform.scanResults();
+    final subscription = stream.listen((_) {});
 
-      await pumpEventQueue();
-      expect(platform.calls, <String>['startScan']);
+    await pumpEventQueue();
+    expect(platform.calls, <String>['startScan']);
 
-      platform.addScanResult('device-a');
-      await pumpEventQueue();
+    expect(() => stream.listen((_) {}), throwsStateError);
 
-      expect(firstResults, <String>['device-a']);
-      expect(secondResults, <String>['device-a']);
-
-      await firstSubscription.cancel();
-      expect(platform.calls, <String>['startScan']);
-
-      await secondSubscription.cancel();
-      expect(platform.calls, <String>['startScan', 'stopScan']);
-    },
-  );
+    await subscription.cancel();
+    expect(platform.calls, <String>['startScan', 'stopScan']);
+  });
 
   test(
     'scanResults calls share the active scan for matching filters',
@@ -189,7 +172,7 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
-  test('scanResults waits for startScan before forwarding results', () async {
+  test('scanResults emits results after startScan completes', () async {
     final startScan = Completer<void>();
     final platform = _FakeQuickBluePlatform(
       startScanCompletions: <Completer<void>>[startScan],
@@ -208,7 +191,11 @@ void main() {
 
     startScan.complete();
     await pumpEventQueue();
-    expect(results.single.deviceId, 'device-a');
+    expect(results, isEmpty);
+
+    platform.addScanResult('device-b');
+    await pumpEventQueue();
+    expect(results.single.deviceId, 'device-b');
 
     await subscription.cancel();
   });
