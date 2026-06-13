@@ -61,15 +61,15 @@ See the [example app](quick_blue/example/README.md) for a full usage demonstrati
 | isBluetoothAvailable |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
 | bluetoothStateStream |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
 | startScan/stopScan   |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
-| connect/disconnect   |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
-| discoverServices     |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
-| setNotifiable        |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
-| readValue            |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
-| writeValue           |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
-| requestMtu           |   ✔️   | ✔️  |  ✔️   |   ✔️    |       |
+| connect/disconnect   |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
+| discoverServices     |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
+| setNotifiable        |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
+| readValue            |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
+| writeValue           |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
+| requestMtu           |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
 
-`bluetoothStateStream` emits live state changes on Android, iOS, and macOS.
-Windows and Linux currently emit the current availability snapshot.
+`bluetoothStateStream` emits live state changes on Android, iOS, macOS, and
+Linux. Windows currently emits the current availability snapshot.
 
 ---
 
@@ -95,6 +95,12 @@ Windows and Linux currently emit the current availability snapshot.
 
 ### Linux
 - Uses BlueZ. See [BlueZ documentation](http://www.bluez.org/).
+- Explorer UI switch regression:
+
+```sh
+cd quick_blue/example
+flutter test integration_test/ble_ui_switch_test.dart -d linux
+```
 
 ---
 

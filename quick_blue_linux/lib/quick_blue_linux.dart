@@ -36,6 +36,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   StreamSubscription<BlueZDevice>? _deviceRemovedSubscription;
 
   BlueZAdapter? _activeAdapter;
+  ScanFilter _activeScanFilter = ScanFilter.empty;
 
   final StreamController<BlueScanResult> _scanResultController =
       StreamController<BlueScanResult>.broadcast();
@@ -50,9 +51,7 @@ class QuickBlueLinux extends QuickBluePlatform {
 
     await _client.connect();
 
-    _activeAdapter ??= _client.adapters.firstWhereOrNull(
-      (adapter) => adapter.powered,
-    );
+    _activeAdapter = _selectPoweredAdapter();
 
     _deviceAddedSubscription ??= _client.deviceAdded.listen(
       _onDeviceAdd,
@@ -77,18 +76,94 @@ class QuickBlueLinux extends QuickBluePlatform {
   @override
   Future<bool> isBluetoothAvailable() async {
     await _ensureInitialized();
+    _activeAdapter = _selectPoweredAdapter();
     return _activeAdapter != null;
+  }
+
+  @override
+  Stream<BlueBluetoothState> get bluetoothStateStream {
+    return Stream.multi((controller) {
+      final adapterSubscriptions = <StreamSubscription<List<String>>>[];
+      final watchedAdapterAddresses = <String>{};
+      StreamSubscription<BlueZAdapter>? adapterAddedSubscription;
+      StreamSubscription<BlueZAdapter>? adapterRemovedSubscription;
+      var canceled = false;
+
+      void emitState() {
+        final adapters = _client.adapters;
+        _activeAdapter = _selectPoweredAdapter();
+        if (adapters.isEmpty) {
+          controller.add(BlueBluetoothState.unavailable);
+        } else if (_activeAdapter != null) {
+          controller.add(BlueBluetoothState.poweredOn);
+        } else {
+          controller.add(BlueBluetoothState.poweredOff);
+        }
+      }
+
+      void watchAdapter(BlueZAdapter adapter) {
+        if (!watchedAdapterAddresses.add(adapter.address)) {
+          return;
+        }
+        adapterSubscriptions.add(
+          adapter.propertiesChanged.listen((properties) {
+            if (properties.contains('Powered')) {
+              emitState();
+            }
+          }, onError: controller.addError),
+        );
+      }
+
+      void watchAdapters() {
+        for (final adapter in _client.adapters) {
+          watchAdapter(adapter);
+        }
+      }
+
+      () async {
+        try {
+          await _ensureInitialized();
+          if (!canceled) {
+            watchAdapters();
+            emitState();
+
+            adapterAddedSubscription = _client.adapterAdded.listen((_) {
+              watchAdapters();
+              emitState();
+            }, onError: controller.addError);
+            adapterRemovedSubscription = _client.adapterRemoved.listen((_) {
+              watchAdapters();
+              emitState();
+            }, onError: controller.addError);
+          }
+        } catch (error, stackTrace) {
+          controller.addError(error, stackTrace);
+        }
+      }();
+
+      controller.onCancel = () async {
+        canceled = true;
+        await adapterAddedSubscription?.cancel();
+        await adapterRemovedSubscription?.cancel();
+        for (final subscription in adapterSubscriptions) {
+          await subscription.cancel();
+        }
+      };
+    });
   }
 
   @override
   Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) async {
     await _ensureInitialized();
 
+    _activeAdapter = _selectPoweredAdapter();
     final adapter = _activeAdapter;
     if (adapter == null) {
       throw StateError('No active Bluetooth adapter available');
     }
 
+    _activeScanFilter = scanFilter;
+    await _setDiscoveryFilter(adapter, scanFilter);
     await adapter.startDiscovery();
     for (final device in _client.devices) {
       _onDeviceAdd(device);
@@ -103,19 +178,29 @@ class QuickBlueLinux extends QuickBluePlatform {
       return;
     }
     await adapter.stopDiscovery();
+    _activeScanFilter = ScanFilter.empty;
   }
 
   void _onDeviceAdd(BlueZDevice device) {
     _devices[device.address] = device;
+    if (!_matchesScanFilter(device, _activeScanFilter)) {
+      return;
+    }
+
     _scanResultController.add(
       BlueScanResult(
         deviceId: device.address,
-        name: device.alias,
+        name: device.alias.isEmpty ? device.name : device.alias,
         manufacturerDataHead: device.manufacturerDataHead,
+        manufacturerData: device.manufacturerDataPayload,
         rssi: device.rssi,
         serviceUuids: device.uuids
             .map((uuid) => _formatUuid(uuid))
             .toList(growable: false),
+        serviceData: device.serviceData.map(
+          (uuid, value) =>
+              MapEntry(_formatUuid(uuid), Uint8List.fromList(value)),
+        ),
       ),
     );
   }
@@ -368,6 +453,69 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   @override
   Future<void> companionDisassociate(int associationId) async {}
+
+  BlueZAdapter? _selectPoweredAdapter() {
+    return _client.adapters.firstWhereOrNull((adapter) => adapter.powered);
+  }
+
+  Future<void> _setDiscoveryFilter(
+    BlueZAdapter adapter,
+    ScanFilter scanFilter,
+  ) {
+    final serviceUuids = scanFilter.serviceUuids
+        .map(_canonicalizeUuid)
+        .map(_canonicalToDashed)
+        .toList(growable: false);
+
+    return adapter.setDiscoveryFilter(
+      uuids: serviceUuids.isEmpty ? null : serviceUuids,
+      transport: 'le',
+      duplicateData: false,
+    );
+  }
+
+  bool _matchesScanFilter(BlueZDevice device, ScanFilter scanFilter) {
+    final serviceUuids = scanFilter.serviceUuids;
+    if (serviceUuids.isNotEmpty) {
+      final advertisedServiceUuids = device.uuids
+          .map(_bluezUuidToCanonical)
+          .toSet();
+      final matchesService = serviceUuids
+          .map(_canonicalizeUuid)
+          .any(advertisedServiceUuids.contains);
+      if (!matchesService) {
+        return false;
+      }
+    }
+
+    final manufacturerData = scanFilter.manufacturerData;
+    if (manufacturerData != null && manufacturerData.isNotEmpty) {
+      final advertisedManufacturerData = device.manufacturerData.map(
+        (id, value) => MapEntry(id.id, value),
+      );
+      for (final entry in manufacturerData.entries) {
+        final advertisedData = advertisedManufacturerData[entry.key];
+        if (advertisedData == null ||
+            !_startsWith(advertisedData, entry.value)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  bool _startsWith(List<int> data, Uint8List prefix) {
+    if (prefix.length > data.length) {
+      return false;
+    }
+    for (var index = 0; index < prefix.length; index++) {
+      if (data[index] != prefix[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   int _resolveAddressType(BlueZDevice device) {
     final addressType = device.addressType;
@@ -707,5 +855,13 @@ extension BlueZDeviceExtension on BlueZDevice {
     final sorted = manufacturerData.entries.toList()
       ..sort((a, b) => a.key.id - b.key.id);
     return Uint8List.fromList(sorted.first.value);
+  }
+
+  Uint8List get manufacturerDataPayload {
+    if (manufacturerData.isEmpty) return Uint8List(0);
+
+    final sorted = manufacturerData.entries.toList()
+      ..sort((a, b) => a.key.id - b.key.id);
+    return Uint8List.fromList(sorted.expand((entry) => entry.value).toList());
   }
 }
