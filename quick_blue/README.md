@@ -85,7 +85,9 @@ void _handleServiceDiscovery(String deviceId, String serviceId) {
   print('_handleServiceDiscovery $deviceId, $serviceId');
 }
 
-final services = await QuickBlue.discoverServices(deviceId);
+final services = await QuickBlue.discoverServices(
+  deviceId,
+).timeout(const Duration(seconds: 15));
 
 for (final service in services) {
   print('${service.uuid}: ${service.characteristics}');
@@ -97,7 +99,9 @@ Or use the device object API:
 ```dart
 final device = QuickBlue.device(deviceId);
 
-final services = await device.discoverServices();
+final services = await device.discoverServices().timeout(
+  const Duration(seconds: 15),
+);
 
 for (final service in services) {
   print('${service.uuid}: ${service.characteristics}');
@@ -112,13 +116,20 @@ for (final service in services) {
 > Because it is how [peripheral(_:didUpdateValueFor:error:)](https://developer.apple.com/documentation/corebluetooth/cbperipheraldelegate/1518708-peripheral) work on iOS/macOS
 
 ```dart
-final value = await QuickBlue.readValue(deviceId, serviceId, characteristicId);
+final value = await QuickBlue.readValue(
+  deviceId,
+  serviceId,
+  characteristicId,
+).timeout(const Duration(seconds: 5));
 ```
 
 Or receive the read result as a `Future` from the device object:
 
 ```dart
-final value = await device.readValue(serviceId, characteristicId);
+final value = await device.readValue(
+  serviceId,
+  characteristicId,
+).timeout(const Duration(seconds: 5));
 ```
 
 - Send data to peripheral of `deviceId`

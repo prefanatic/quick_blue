@@ -67,10 +67,8 @@ class QuickBlue {
     _platform.onConnectionChanged = onConnectionChanged;
   }
 
-  static Future<List<BluetoothService>> discoverServices(
-    String deviceId, {
-    Duration timeout = const Duration(seconds: 15),
-  }) => device(deviceId).discoverServices(timeout: timeout);
+  static Future<List<BluetoothService>> discoverServices(String deviceId) =>
+      device(deviceId).discoverServices();
 
   @Deprecated('Use QuickBlue.device(deviceId).discoverServices() instead.')
   static void setServiceHandler(OnServiceDiscovered? onServiceDiscovered) {
@@ -99,12 +97,9 @@ class QuickBlue {
   static Future<Uint8List> readValue(
     String deviceId,
     String service,
-    String characteristic, {
-    Duration timeout = const Duration(seconds: 15),
-  }) {
-    return device(
-      deviceId,
-    ).readValue(service, characteristic, timeout: timeout);
+    String characteristic,
+  ) {
+    return device(deviceId).readValue(service, characteristic);
   }
 
   static Future<void> writeValue(

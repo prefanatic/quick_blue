@@ -459,9 +459,7 @@ class BluetoothDevice {
     await disconnected;
   }
 
-  Future<List<BluetoothService>> discoverServices({
-    Duration timeout = const Duration(seconds: 15),
-  }) async {
+  Future<List<BluetoothService>> discoverServices() async {
     final services = <BluetoothService>[];
     final subscription = serviceDiscoveryStream.listen((service) {
       services.add(service);
@@ -472,7 +470,7 @@ class BluetoothDevice {
 
     try {
       await _platform.discoverServices(deviceId);
-      await complete.timeout(timeout);
+      await complete;
       return List<BluetoothService>.unmodifiable(services);
     } finally {
       await subscription.cancel();
@@ -504,12 +502,8 @@ class BluetoothDevice {
     );
   }
 
-  Future<Uint8List> readValue(
-    String service,
-    String characteristic, {
-    Duration timeout = const Duration(seconds: 15),
-  }) async {
-    return this.characteristic(service, characteristic).read(timeout: timeout);
+  Future<Uint8List> readValue(String service, String characteristic) async {
+    return this.characteristic(service, characteristic).read();
   }
 
   Future<void> writeValue(
@@ -603,10 +597,8 @@ class BluetoothCharacteristic {
     return controller.stream;
   }
 
-  Future<Uint8List> read({
-    Duration timeout = const Duration(seconds: 15),
-  }) async {
-    final value = valueStream.first.timeout(timeout);
+  Future<Uint8List> read() async {
+    final value = valueStream.first;
     await _platform.readValue(deviceId, serviceId, characteristicId);
     return value;
   }
