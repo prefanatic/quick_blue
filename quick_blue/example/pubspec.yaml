@@ -37,6 +37,7 @@ dev_dependencies:
     sdk: flutter
   flutter_test:
     sdk: flutter
+  quick_blue_platform_interface: ^0.4.0-dev.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
