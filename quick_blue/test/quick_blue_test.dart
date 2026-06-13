@@ -42,6 +42,19 @@ void main() {
     expect(connectCompleted, isTrue);
   });
 
+  test('isBluetoothAvailable delegates to the platform', () async {
+    platform.isAvailable = false;
+
+    expect(await QuickBlue.isBluetoothAvailable(), isFalse);
+    expect(platform.calls, <String>['isBluetoothAvailable']);
+  });
+
+  test('device returns a BluetoothDevice for the id', () {
+    final device = QuickBlue.device('device-a');
+
+    expect(device.id, 'device-a');
+  });
+
   test('disconnect waits for the disconnected state', () async {
     platform.disconnectsImmediately = false;
 
@@ -95,6 +108,50 @@ void main() {
     expect(value, Uint8List.fromList(<int>[1, 2, 3]));
   });
 
+  test('setNotifiable delegates through the device API', () async {
+    await QuickBlue.setNotifiable(
+      'device-a',
+      'service-a',
+      'characteristic-a',
+      BleInputProperty.indication,
+    );
+
+    expect(platform.calls, <String>[
+      'setNotifiable device-a service-a characteristic-a indication',
+    ]);
+  });
+
+  test('writeValue delegates through the device API', () async {
+    final value = Uint8List.fromList(<int>[4, 5, 6]);
+
+    await QuickBlue.writeValue(
+      'device-a',
+      'service-a',
+      'characteristic-a',
+      value,
+      BleOutputProperty.withoutResponse,
+    );
+
+    expect(platform.calls, <String>[
+      'writeValue device-a service-a characteristic-a withoutResponse [4, 5, 6]',
+    ]);
+  });
+
+  test('requestMtu delegates through the device API', () async {
+    final mtu = await QuickBlue.requestMtu('device-a', 247);
+
+    expect(mtu, 247);
+    expect(platform.calls, <String>['requestMtu device-a 247']);
+  });
+
+  test('openL2cap delegates through the device API', () async {
+    final socket = await QuickBlue.openL2cap('device-a', 25);
+
+    socket.sink.add(Uint8List.fromList(<int>[1, 2, 3]));
+    expect(await socket.stream.toList(), isEmpty);
+    expect(platform.calls, <String>['openL2cap device-a 25']);
+  });
+
   test('scanResults starts and stops scanning', () async {
     final results = <BlueScanResult>[];
     final subscription = QuickBlue.scanResults().listen(results.add);
@@ -106,6 +163,22 @@ void main() {
     await pumpEventQueue();
 
     expect(results.single.deviceId, 'device-a');
+
+    await subscription.cancel();
+    expect(platform.calls, <String>['startScan', 'stopScan']);
+  });
+
+  test('scan emits BluetoothDevice objects', () async {
+    final devices = <BluetoothDevice>[];
+    final subscription = QuickBlue.scan().listen(devices.add);
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['startScan']);
+
+    platform.addScanResult('device-a');
+    await pumpEventQueue();
+
+    expect(devices.single.id, 'device-a');
 
     await subscription.cancel();
     expect(platform.calls, <String>['startScan', 'stopScan']);
@@ -129,14 +202,44 @@ void main() {
 
     expect(platform.calls, <String>['companionDisassociate 42']);
   });
+
+  test('companionAssociate delegates to the platform', () async {
+    platform.companionAssociation = CompanionDevice(
+      id: 'device-a',
+      name: 'Device A',
+      associationId: 42,
+    );
+
+    final device = await QuickBlue.companionAssociate(
+      deviceId: 'device-a',
+      scanFilter: ScanFilter(serviceUuids: const <String>['180d']),
+    );
+
+    expect(device, platform.companionAssociation);
+    expect(platform.calls, <String>['companionAssociate device-a [180d]']);
+  });
+
+  test('getCompanionAssociations delegates to the platform', () async {
+    platform.companionAssociations = <CompanionDevice>[
+      CompanionDevice(id: 'device-a', name: 'Device A', associationId: 42),
+    ];
+
+    final associations = await QuickBlue.getCompanionAssociations();
+
+    expect(associations, platform.companionAssociations);
+    expect(platform.calls, <String>['getCompanionAssociations']);
+  });
 }
 
 class _FakeQuickBluePlatform extends QuickBluePlatform {
   final List<String> calls = <String>[];
+  var isAvailable = true;
   var connectsImmediately = true;
   var disconnectsImmediately = true;
   var readValueResult = Uint8List(0);
   var discoveredServices = <BluetoothService>[];
+  CompanionDevice? companionAssociation;
+  List<CompanionDevice>? companionAssociations = const <CompanionDevice>[];
   final _scanResultController = StreamController<BlueScanResult>.broadcast();
 
   void addScanResult(String deviceId) {
@@ -146,7 +249,10 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
-  Future<bool> isBluetoothAvailable() async => true;
+  Future<bool> isBluetoothAvailable() async {
+    calls.add('isBluetoothAvailable');
+    return isAvailable;
+  }
 
   @override
   Stream<BlueScanResult> get scanResultStream => _scanResultController.stream;
@@ -190,8 +296,10 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     String? deviceId,
     ScanFilter? scanFilter,
   }) async {
-    calls.add('companionAssociate');
-    return null;
+    calls.add(
+      'companionAssociate $deviceId ${scanFilter?.serviceUuids ?? <String>[]}',
+    );
+    return companionAssociation;
   }
 
   @override
@@ -202,7 +310,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<List<CompanionDevice>?> getCompanionAssociations() async {
     calls.add('getCompanionAssociations');
-    return const <CompanionDevice>[];
+    return companionAssociations;
   }
 
   @override
