@@ -1,21 +1,32 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:quick_blue_example/main.dart';
+import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
+
+import 'fake_quick_blue_platform.dart';
 
 void main() {
-  testWidgets('shows the BLE explorer shell', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    expect(find.text('Quick Blue'), findsOneWidget);
-    expect(find.text('Nearby devices'), findsOneWidget);
-    expect(find.text('Select a device'), findsOneWidget);
+  late QuickBluePlatform previousPlatform;
+  late FakeQuickBluePlatform platform;
+
+  setUp(() {
+    previousPlatform = QuickBluePlatform.instance;
+    platform = FakeQuickBluePlatform();
+    QuickBluePlatform.instance = platform;
+  });
+
+  tearDown(() async {
+    QuickBluePlatform.instance = previousPlatform;
+    await platform.dispose();
+  });
+
+  testWidgets('shows the BLE explorer shell', (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pump();
+
+    expect(find.text('quick_blue example'), findsOneWidget);
+    expect(find.text('Devices'), findsOneWidget);
+    expect(find.text('Events (1)'), findsOneWidget);
   });
 }
