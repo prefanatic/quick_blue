@@ -11,8 +11,8 @@ class QuickBlueDarwin extends QuickBluePlatform {
   final messages.QuickBlueApi _api = messages.QuickBlueApi();
   messages.QuickBlueFlutterApi? _flutterApi;
 
-  final Stream<messages.PlatformL2CapSocketEvent> _l2CapEventStream =
-      messages.l2CapSocketEvents();
+  final Stream<messages.PlatformL2CapSocketEvent> _l2CapEventStream = messages
+      .l2CapSocketEvents();
 
   static void registerWith() {
     QuickBluePlatform.instance = QuickBlueDarwin();
@@ -155,6 +155,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
       serviceUuids: item.serviceUuids,
       manufacturerDataHead: item.manufacturerDataHead,
       manufacturerData: item.manufacturerData,
+      serviceData: item.serviceData,
     ),
   );
 
@@ -179,12 +180,12 @@ class QuickBlueDarwin extends QuickBluePlatform {
   Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) {
     _ensureInitialized();
 
-    final serviceUuids =
-        scanFilter.serviceUuids.isEmpty ? null : scanFilter.serviceUuids;
-    final manufacturerData =
-        scanFilter.manufacturerData?.isEmpty == true
-            ? null
-            : scanFilter.manufacturerData;
+    final serviceUuids = scanFilter.serviceUuids.isEmpty
+        ? null
+        : scanFilter.serviceUuids;
+    final manufacturerData = scanFilter.manufacturerData?.isEmpty == true
+        ? null
+        : scanFilter.manufacturerData;
 
     return _api.startScan(
       serviceUuids: serviceUuids,

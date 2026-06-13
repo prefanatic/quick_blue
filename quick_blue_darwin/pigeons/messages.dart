@@ -71,6 +71,7 @@ class PlatformScanResult {
     required this.manufacturerData,
     required this.rssi,
     required this.serviceUuids,
+    required this.serviceData,
   });
 
   final String name;
@@ -79,6 +80,7 @@ class PlatformScanResult {
   final Uint8List manufacturerData;
   final int rssi;
   final List<String> serviceUuids;
+  final Map<String, Uint8List> serviceData;
 }
 
 enum PlatformConnectionState {

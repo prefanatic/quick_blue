@@ -233,10 +233,11 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                     name = result.scanRecord?.deviceName ?: "",
                     deviceId = result.device.address,
                     manufacturerDataHead = result.manufacturerDataHead ?: byteArrayOf(),
-                    manufacturerData = byteArrayOf(),
+                    manufacturerData = result.manufacturerData ?: byteArrayOf(),
                     rssi = result.rssi.toLong(),
                     serviceUuids = result.scanRecord?.serviceUuids?.map { it.uuid.toString() }
                         ?: emptyList(),
+                    serviceData = result.serviceData,
                 ))
         }
 
@@ -422,15 +423,32 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         serviceUuids: List<String>?,
         manufacturerData: Map<Long, ByteArray>?
     ) {
-        val filters = serviceUuids?.map {
-            val builder = ScanFilter.Builder()
-                .setServiceUuid(ParcelUuid.fromString(it))
-            if (manufacturerData != null) {
-                val id = manufacturerData.keys.first()
-                val data = manufacturerData[id]
-                builder.setManufacturerData(id.toInt(), data)
+        val manufacturerDataFilter = manufacturerData?.entries?.firstOrNull()
+        val filters = if (serviceUuids.isNullOrEmpty()) {
+            if (manufacturerDataFilter == null) {
+                null
+            } else {
+                listOf(
+                    ScanFilter.Builder()
+                        .setManufacturerData(
+                            manufacturerDataFilter.key.toInt(),
+                            manufacturerDataFilter.value
+                        )
+                        .build()
+                )
             }
-            builder.build()
+        } else {
+            serviceUuids.map {
+                val builder = ScanFilter.Builder()
+                    .setServiceUuid(ParcelUuid.fromString(it))
+                if (manufacturerDataFilter != null) {
+                    builder.setManufacturerData(
+                        manufacturerDataFilter.key.toInt(),
+                        manufacturerDataFilter.value
+                    )
+                }
+                builder.build()
+            }
         }
         val settings = ScanSettings.Builder()
             .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
@@ -857,6 +875,19 @@ val ScanResult.manufacturerDataHead: ByteArray?
         if (sparseArray.size() == 0) return null
 
         return sparseArray.keyAt(0).toShort().toByteArray() + sparseArray.valueAt(0)
+    }
+
+val ScanResult.manufacturerData: ByteArray?
+    get() {
+        val sparseArray = scanRecord?.manufacturerSpecificData ?: return null
+        if (sparseArray.size() == 0) return null
+
+        return sparseArray.valueAt(0)
+    }
+
+val ScanResult.serviceData: Map<String, ByteArray>
+    get() {
+        return scanRecord?.serviceData?.mapKeys { it.key.uuid.toString() } ?: emptyMap()
     }
 
 fun Short.toByteArray(byteOrder: ByteOrder = ByteOrder.LITTLE_ENDIAN): ByteArray =

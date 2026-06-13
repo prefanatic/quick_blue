@@ -260,6 +260,7 @@ struct PlatformScanResult: Hashable, CustomStringConvertible {
   var manufacturerData: FlutterStandardTypedData
   var rssi: Int64
   var serviceUuids: [String]
+  var serviceData: [String: FlutterStandardTypedData]
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -270,6 +271,7 @@ struct PlatformScanResult: Hashable, CustomStringConvertible {
     let manufacturerData = pigeonVar_list[3] as! FlutterStandardTypedData
     let rssi = pigeonVar_list[4] as! Int64
     let serviceUuids = pigeonVar_list[5] as! [String]
+    let serviceData = pigeonVar_list[6] as! [String: FlutterStandardTypedData]
 
     return PlatformScanResult(
       name: name,
@@ -277,7 +279,8 @@ struct PlatformScanResult: Hashable, CustomStringConvertible {
       manufacturerDataHead: manufacturerDataHead,
       manufacturerData: manufacturerData,
       rssi: rssi,
-      serviceUuids: serviceUuids
+      serviceUuids: serviceUuids,
+      serviceData: serviceData
     )
   }
   func toList() -> [Any?] {
@@ -288,13 +291,14 @@ struct PlatformScanResult: Hashable, CustomStringConvertible {
       manufacturerData,
       rssi,
       serviceUuids,
+      serviceData,
     ]
   }
   static func == (lhs: PlatformScanResult, rhs: PlatformScanResult) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.name, rhs.name) && MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.manufacturerDataHead, rhs.manufacturerDataHead) && MessagesPigeonInternal.deepEquals(lhs.manufacturerData, rhs.manufacturerData) && MessagesPigeonInternal.deepEquals(lhs.rssi, rhs.rssi) && MessagesPigeonInternal.deepEquals(lhs.serviceUuids, rhs.serviceUuids)
+    return MessagesPigeonInternal.deepEquals(lhs.name, rhs.name) && MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.manufacturerDataHead, rhs.manufacturerDataHead) && MessagesPigeonInternal.deepEquals(lhs.manufacturerData, rhs.manufacturerData) && MessagesPigeonInternal.deepEquals(lhs.rssi, rhs.rssi) && MessagesPigeonInternal.deepEquals(lhs.serviceUuids, rhs.serviceUuids) && MessagesPigeonInternal.deepEquals(lhs.serviceData, rhs.serviceData)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -305,10 +309,11 @@ struct PlatformScanResult: Hashable, CustomStringConvertible {
     MessagesPigeonInternal.deepHash(value: manufacturerData, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: rssi, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: serviceUuids, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: serviceData, hasher: &hasher)
   }
 
   public var description: String {
-    return "PlatformScanResult(name: \(String(describing: name)), deviceId: \(String(describing: deviceId)), manufacturerDataHead: \(String(describing: manufacturerDataHead)), manufacturerData: \(String(describing: manufacturerData)), rssi: \(String(describing: rssi)), serviceUuids: \(String(describing: serviceUuids)))"
+    return "PlatformScanResult(name: \(String(describing: name)), deviceId: \(String(describing: deviceId)), manufacturerDataHead: \(String(describing: manufacturerDataHead)), manufacturerData: \(String(describing: manufacturerData)), rssi: \(String(describing: rssi)), serviceUuids: \(String(describing: serviceUuids)), serviceData: \(String(describing: serviceData)))"
   }
 }
 

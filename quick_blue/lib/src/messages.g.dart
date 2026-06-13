@@ -194,6 +194,7 @@ class PlatformScanResult {
     required this.manufacturerData,
     required this.rssi,
     required this.serviceUuids,
+    required this.serviceData,
   });
 
   String name;
@@ -208,6 +209,8 @@ class PlatformScanResult {
 
   List<String> serviceUuids;
 
+  Map<String, Uint8List> serviceData;
+
   List<Object?> _toList() {
     return <Object?>[
       name,
@@ -216,6 +219,7 @@ class PlatformScanResult {
       manufacturerData,
       rssi,
       serviceUuids,
+      serviceData,
     ];
   }
 
@@ -231,6 +235,7 @@ class PlatformScanResult {
       manufacturerData: result[3]! as Uint8List,
       rssi: result[4]! as int,
       serviceUuids: (result[5]! as List<Object?>).cast<String>(),
+      serviceData: (result[6]! as Map<Object?, Object?>).cast<String, Uint8List>(),
     );
   }
 
@@ -243,7 +248,7 @@ class PlatformScanResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(name, other.name) && _deepEquals(deviceId, other.deviceId) && _deepEquals(manufacturerDataHead, other.manufacturerDataHead) && _deepEquals(manufacturerData, other.manufacturerData) && _deepEquals(rssi, other.rssi) && _deepEquals(serviceUuids, other.serviceUuids);
+    return _deepEquals(name, other.name) && _deepEquals(deviceId, other.deviceId) && _deepEquals(manufacturerDataHead, other.manufacturerDataHead) && _deepEquals(manufacturerData, other.manufacturerData) && _deepEquals(rssi, other.rssi) && _deepEquals(serviceUuids, other.serviceUuids) && _deepEquals(serviceData, other.serviceData);
   }
 
   @override
@@ -252,7 +257,7 @@ class PlatformScanResult {
 
   @override
   String toString() {
-    return 'PlatformScanResult(name: $name, deviceId: $deviceId, manufacturerDataHead: $manufacturerDataHead, manufacturerData: $manufacturerData, rssi: $rssi, serviceUuids: $serviceUuids)';
+    return 'PlatformScanResult(name: $name, deviceId: $deviceId, manufacturerDataHead: $manufacturerDataHead, manufacturerData: $manufacturerData, rssi: $rssi, serviceUuids: $serviceUuids, serviceData: $serviceData)';
   }
 }
 

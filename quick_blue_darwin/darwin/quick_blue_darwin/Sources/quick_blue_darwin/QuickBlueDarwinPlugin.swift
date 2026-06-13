@@ -444,9 +444,24 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
 
             let manufacturerData =
                 advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
+            let manufacturerDataPayload =
+                manufacturerData.map { data in
+                    data.count > 2 ? Data(data.dropFirst(2)) : Data()
+                } ?? Data()
             let serviceUuids =
                 advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]
                 ?? []
+            let serviceData =
+                advertisementData[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data]
+                ?? [:]
+            let platformServiceData = Dictionary(
+                uniqueKeysWithValues: serviceData.map {
+                    (
+                        $0.key.uuidStr,
+                        FlutterStandardTypedData(bytes: $0.value)
+                    )
+                }
+            )
 
             // When a manufacturer-data filter is active, only surface
             // peripherals whose advertised manufacturer data matches it.
@@ -458,16 +473,15 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
                 event: PlatformScanResult(
                     name: peripheral.name ?? "",
                     deviceId: peripheral.identifier.uuidString,
-                    // The advertised manufacturer data is the portion available
-                    // while scanning, so it is surfaced as the "head".
-                    // `manufacturerData` carries the full value read after
-                    // connecting and is left empty here.
                     manufacturerDataHead: FlutterStandardTypedData(
                         bytes: manufacturerData ?? Data()
                     ),
-                    manufacturerData: FlutterStandardTypedData(bytes: Data()),
+                    manufacturerData: FlutterStandardTypedData(
+                        bytes: manufacturerDataPayload
+                    ),
                     rssi: Int64(truncating: RSSI),
-                    serviceUuids: serviceUuids.map { $0.uuidStr }
+                    serviceUuids: serviceUuids.map { $0.uuidStr },
+                    serviceData: platformServiceData
                 )
             )
         }

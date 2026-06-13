@@ -294,7 +294,8 @@ data class PlatformScanResult (
   val manufacturerDataHead: ByteArray,
   val manufacturerData: ByteArray,
   val rssi: Long,
-  val serviceUuids: List<String>
+  val serviceUuids: List<String>,
+  val serviceData: Map<String, ByteArray>
 )
  {
   companion object {
@@ -305,7 +306,8 @@ data class PlatformScanResult (
       val manufacturerData = pigeonVar_list[3] as ByteArray
       val rssi = pigeonVar_list[4] as Long
       val serviceUuids = pigeonVar_list[5] as List<String>
-      return PlatformScanResult(name, deviceId, manufacturerDataHead, manufacturerData, rssi, serviceUuids)
+      val serviceData = pigeonVar_list[6] as Map<String, ByteArray>
+      return PlatformScanResult(name, deviceId, manufacturerDataHead, manufacturerData, rssi, serviceUuids, serviceData)
     }
   }
   fun toList(): List<Any?> {
@@ -316,6 +318,7 @@ data class PlatformScanResult (
       manufacturerData,
       rssi,
       serviceUuids,
+      serviceData,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -326,7 +329,7 @@ data class PlatformScanResult (
       return true
     }
     val other = other as PlatformScanResult
-    return MessagesPigeonUtils.deepEquals(this.name, other.name) && MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.manufacturerDataHead, other.manufacturerDataHead) && MessagesPigeonUtils.deepEquals(this.manufacturerData, other.manufacturerData) && MessagesPigeonUtils.deepEquals(this.rssi, other.rssi) && MessagesPigeonUtils.deepEquals(this.serviceUuids, other.serviceUuids)
+    return MessagesPigeonUtils.deepEquals(this.name, other.name) && MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.manufacturerDataHead, other.manufacturerDataHead) && MessagesPigeonUtils.deepEquals(this.manufacturerData, other.manufacturerData) && MessagesPigeonUtils.deepEquals(this.rssi, other.rssi) && MessagesPigeonUtils.deepEquals(this.serviceUuids, other.serviceUuids) && MessagesPigeonUtils.deepEquals(this.serviceData, other.serviceData)
   }
 
   override fun hashCode(): Int {
@@ -337,10 +340,11 @@ data class PlatformScanResult (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.manufacturerData)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.rssi)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.serviceUuids)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.serviceData)
     return result
   }
   override fun toString(): String {
-    return "PlatformScanResult(name=$name, deviceId=$deviceId, manufacturerDataHead=${manufacturerDataHead.contentToString()}, manufacturerData=${manufacturerData.contentToString()}, rssi=$rssi, serviceUuids=$serviceUuids)"
+    return "PlatformScanResult(name=$name, deviceId=$deviceId, manufacturerDataHead=${manufacturerDataHead.contentToString()}, manufacturerData=${manufacturerData.contentToString()}, rssi=$rssi, serviceUuids=$serviceUuids, serviceData=$serviceData)"
   }
 }
 

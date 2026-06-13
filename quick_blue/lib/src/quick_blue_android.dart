@@ -165,6 +165,7 @@ class QuickBlueAndroid extends QuickBluePlatform {
       serviceUuids: item.serviceUuids,
       manufacturerDataHead: item.manufacturerDataHead,
       manufacturerData: item.manufacturerData,
+      serviceData: item.serviceData,
     ),
   );
 
