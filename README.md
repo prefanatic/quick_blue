@@ -3,7 +3,7 @@
 
 **A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutter**
 
-> **Note:** This repository is now actively maintained by [Pison Technology](https://pison.com) and community contributors. It was originally forked from [woodemi/quick_blue](https://github.com/woodemi/quick_blue). Please file issues and pull requests here.
+> **Note:** This fork is actively maintained here. Please file issues and pull requests in this repository.
 
 > **Federated plugin:** Uses a [federated plugin](https://docs.flutter.dev/development/packages-and-plugins/developing-packages#federated-plugins) structure for platform support.
 
@@ -80,7 +80,7 @@ Windows and Linux currently emit the current availability snapshot.
 
 ### Android
 - Ensure you have the correct permissions in your `AndroidManifest.xml` (see [quick_blue/android/src/main/AndroidManifest.xml](quick_blue/android/src/main/AndroidManifest.xml)).
-- Some device-specific quirks may apply (see [issues](https://github.com/pisontechnology/quick_blue/issues)).
+- Some device-specific quirks may apply (see [issues](https://github.com/prefanatic/quick_blue/issues)).
 
 ### iOS/macOS
 - Some common service/characteristic UUIDs may be shortened. UUIDs are matched case-insensitively and 16-bit UUIDs are expanded against the Bluetooth base UUID, so either short or full 128-bit form works.
@@ -116,7 +116,7 @@ Windows and Linux currently emit the current availability snapshot.
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, or open an issue to discuss your ideas or report bugs.
 
-For questions and support, open an [issue](https://github.com/pisontechnology/quick_blue/issues) or start a [discussion](https://github.com/pisontechnology/quick_blue/discussions).
+For questions and support, open an [issue](https://github.com/prefanatic/quick_blue/issues) or start a [discussion](https://github.com/prefanatic/quick_blue/discussions).
 
 ---
 
