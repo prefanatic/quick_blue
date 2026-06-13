@@ -3,10 +3,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quick_blue/quick_blue.dart';
+import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart'
+    show QuickBluePlatform;
 
 import 'ble_value_codec.dart';
 
 const scanDuration = Duration(seconds: 10);
+const defaultConnectTimeout = Duration(seconds: 15);
+const deviceSwitchDisconnectTimeout = Duration(seconds: 3);
 
 class BleEvent {
   const BleEvent({
@@ -23,13 +27,14 @@ class BleEvent {
 enum BleEventSeverity { info, warning, error }
 
 class BleExplorerController extends ChangeNotifier {
-  BleExplorerController() {
+  BleExplorerController({this.connectTimeout = defaultConnectTimeout}) {
     final completer = Completer<void>();
     _initialBluetoothCheck = completer;
     initialBluetoothCheck = completer.future;
     _startBluetoothStateUpdates();
   }
 
+  final Duration connectTimeout;
   final devices = <String, BlueScanResult>{};
   final services = <BluetoothService>[];
   final latestValues = <String, Uint8List>{};
@@ -47,6 +52,8 @@ class BleExplorerController extends ChangeNotifier {
   StreamSubscription<BlueScanResult>? _scanSubscription;
   StreamSubscription<BluetoothConnectionStateChange>? _connectionSubscription;
   Timer? _scanTimer;
+  Future<void> _connectionRelease = Future<void>.value();
+  var _connectionAttempt = 0;
 
   BlueBluetoothState bluetoothState = BlueBluetoothState.unknown;
   bool bluetoothAvailable = false;
@@ -119,7 +126,10 @@ class BleExplorerController extends ChangeNotifier {
     _scanSubscription = QuickBlue.scanResults(scanFilter: scanFilter).listen(
       (result) => _mutate(() {
         final firstSeen = !devices.containsKey(result.deviceId);
-        devices[result.deviceId] = result;
+        devices[result.deviceId] = _mergeScanResult(
+          previous: devices[result.deviceId],
+          latest: result,
+        );
         if (firstSeen) {
           _log('Found ${_deviceLabel(result)}.', BleEventSeverity.info);
         }
@@ -160,6 +170,16 @@ class BleExplorerController extends ChangeNotifier {
       return;
     }
 
+    final previousDeviceId = selectedDeviceId;
+    final shouldReleasePrevious =
+        previousDeviceId != null &&
+        (connecting || connectionState != BlueConnectionState.disconnected);
+    _connectionAttempt++;
+    if (shouldReleasePrevious) {
+      _connectionRelease = _connectionRelease.then(
+        (_) => _releaseDeviceConnection(previousDeviceId),
+      );
+    }
     await _cancelConnectionSubscription();
     await _cancelNotifications();
     _disposeWriteControllers();
@@ -198,6 +218,7 @@ class BleExplorerController extends ChangeNotifier {
     if (deviceId == null || connecting || connected) {
       return;
     }
+    final attempt = ++_connectionAttempt;
 
     _mutate(() {
       connecting = true;
@@ -207,13 +228,34 @@ class BleExplorerController extends ChangeNotifier {
 
     try {
       await stopScan();
-      await QuickBlue.device(deviceId).connect();
+      await _connectionRelease;
+      if (!_isCurrentConnectionAttempt(deviceId, attempt)) {
+        return;
+      }
+      final stateChanged = _nextConnectOutcome(deviceId);
+      await QuickBluePlatform.instance
+          .connect(deviceId)
+          .timeout(connectTimeout);
+      final event = await stateChanged.timeout(connectTimeout);
+      if (event.status == BleStatus.failure) {
+        throw StateError('Failed to connect to Bluetooth device $deviceId.');
+      }
+    } on TimeoutException {
+      if (_isCurrentConnectionAttempt(deviceId, attempt)) {
+        _mutate(() {
+          status = 'Connect timed out.';
+          _log(
+            'Connect timed out for ${deviceTitle(deviceId)}.',
+            BleEventSeverity.warning,
+          );
+        });
+      }
     } catch (error) {
-      if (selectedDeviceId == deviceId) {
+      if (_isCurrentConnectionAttempt(deviceId, attempt)) {
         _setError('Connect failed', error);
       }
     } finally {
-      if (selectedDeviceId == deviceId) {
+      if (_isCurrentConnectionAttempt(deviceId, attempt)) {
         _mutate(() {
           connecting = false;
         });
@@ -279,6 +321,47 @@ class BleExplorerController extends ChangeNotifier {
         });
       }
     }
+  }
+
+  bool _isCurrentConnectionAttempt(String deviceId, int attempt) {
+    return selectedDeviceId == deviceId && _connectionAttempt == attempt;
+  }
+
+  Future<void> _releaseDeviceConnection(String deviceId) async {
+    try {
+      await QuickBluePlatform.instance
+          .disconnect(deviceId)
+          .timeout(deviceSwitchDisconnectTimeout);
+      _mutate(() {
+        _log(
+          'Released previous connection for ${deviceTitle(deviceId)}.',
+          BleEventSeverity.info,
+        );
+      });
+    } on TimeoutException {
+      _mutate(() {
+        _log(
+          'Timed out releasing previous connection for ${deviceTitle(deviceId)}.',
+          BleEventSeverity.warning,
+        );
+      });
+    } catch (error) {
+      _mutate(() {
+        _log(
+          'Release previous connection failed for ${deviceTitle(deviceId)}: '
+          '$error',
+          BleEventSeverity.warning,
+        );
+      });
+    }
+  }
+
+  Future<BluetoothConnectionStateChange> _nextConnectOutcome(String deviceId) {
+    return QuickBlue.device(deviceId).connectionStateStream.firstWhere(
+      (event) =>
+          event.status == BleStatus.failure ||
+          event.state == BlueConnectionState.connected,
+    );
   }
 
   Future<void> readCharacteristic(
@@ -452,6 +535,34 @@ class BleExplorerController extends ChangeNotifier {
     return serviceUuids.isEmpty
         ? ScanFilter.empty
         : ScanFilter(serviceUuids: serviceUuids);
+  }
+
+  BlueScanResult _mergeScanResult({
+    required BlueScanResult? previous,
+    required BlueScanResult latest,
+  }) {
+    if (previous == null) {
+      return latest;
+    }
+
+    final name = latest.name.trim().isEmpty ? previous.name : latest.name;
+    final serviceUuids = latest.serviceUuids.isEmpty
+        ? previous.serviceUuids
+        : latest.serviceUuids;
+    final serviceData = latest.serviceData.isEmpty
+        ? previous.serviceData
+        : latest.serviceData;
+
+    return BlueScanResult(
+      name: name,
+      deviceId: latest.deviceId,
+      manufacturerDataHead: latest.manufacturerDataHead,
+      manufacturerData: latest.manufacturerData,
+      rssi: latest.rssi,
+      advertisedDateTime: latest.advertisedDateTime,
+      serviceUuids: serviceUuids,
+      serviceData: serviceData,
+    );
   }
 
   void _startBluetoothStateUpdates() {

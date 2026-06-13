@@ -302,6 +302,7 @@ class _ScanPane extends StatelessWidget {
                     ),
                   ),
                   FilledButton.tonalIcon(
+                    key: const ValueKey('ble_scan_button'),
                     onPressed: scanEnabled ? onToggleScan : null,
                     icon: Icon(
                       scanning ? Icons.stop : Icons.bluetooth_searching,
@@ -341,6 +342,7 @@ class _ScanPane extends StatelessWidget {
                       : 'Start a scan to find nearby BLE peripherals.',
                 )
               : ListView.separated(
+                  key: const ValueKey('ble_devices_list'),
                   itemCount: devices.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
@@ -405,6 +407,7 @@ class _DeviceResultTile extends StatelessWidget {
           ? colorScheme.primaryContainer.withValues(alpha: 0.35)
           : Colors.transparent,
       child: InkWell(
+        key: ValueKey('ble_device_row_name_${result.name}'),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -607,6 +610,7 @@ class _DevicePane extends StatelessWidget {
                 alignment: compact ? WrapAlignment.start : WrapAlignment.end,
                 children: [
                   FilledButton.tonalIcon(
+                    key: const ValueKey('ble_connect_button'),
                     onPressed: connecting || _connected ? null : onConnect,
                     icon: connecting
                         ? const SizedBox.square(

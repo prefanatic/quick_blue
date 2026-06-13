@@ -11,6 +11,7 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   ScanFilter? lastScanFilter;
   BlueBluetoothState bluetoothState = BlueBluetoothState.poweredOn;
   Completer<void>? pendingConnect;
+  final pendingConnects = <String, Completer<void>>{};
 
   void addScanResult(BlueScanResult result) {
     _scanResultController.add(result);
@@ -64,7 +65,10 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> connect(String deviceId) async {
     calls.add('connect $deviceId');
-    final pending = pendingConnect;
+    final pending =
+        pendingConnects[deviceId] ??
+        pendingConnect ??
+        _otherPendingConnect(deviceId);
     if (pending != null) {
       await pending.future;
     }
@@ -78,11 +82,24 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> disconnect(String deviceId) async {
     calls.add('disconnect $deviceId');
+    final pending = pendingConnects[deviceId];
+    if (pending != null && !pending.isCompleted) {
+      pending.complete();
+    }
     onConnectionChanged!(
       deviceId,
       BlueConnectionState.disconnected,
       BleStatus.success,
     );
+  }
+
+  Completer<void>? _otherPendingConnect(String deviceId) {
+    for (final entry in pendingConnects.entries) {
+      if (entry.key != deviceId && !entry.value.isCompleted) {
+        return entry.value;
+      }
+    }
+    return null;
   }
 
   @override

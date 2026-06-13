@@ -99,6 +99,28 @@ void main() {
     expect(controller.discoveredDevices.first.rssi, -45);
   });
 
+  test('keeps the last non-empty advertised device name', () async {
+    final controller = BleExplorerController();
+    addTearDown(controller.dispose);
+    await controller.initialBluetoothCheck;
+
+    await controller.startScan();
+    await pumpEventQueue();
+
+    platform.addScanResult(
+      BlueScanResult(name: 'Govee Sensor', deviceId: 'device-a', rssi: -70),
+    );
+    await pumpEventQueue();
+
+    platform.addScanResult(
+      BlueScanResult(name: '', deviceId: 'device-a', rssi: -50),
+    );
+    await pumpEventQueue();
+
+    expect(controller.discoveredDevices.single.name, 'Govee Sensor');
+    expect(controller.discoveredDevices.single.rssi, -50);
+  });
+
   test('uses bluetoothStateStream for initial availability', () async {
     final controller = BleExplorerController();
     addTearDown(controller.dispose);
@@ -201,4 +223,54 @@ void main() {
       expect(controller.connecting, isFalse);
     },
   );
+
+  test('a hung connection does not block connecting another device', () async {
+    final controller = BleExplorerController();
+    addTearDown(controller.dispose);
+    await controller.initialBluetoothCheck;
+    final firstConnect = Completer<void>();
+    platform.pendingConnects['device-a'] = firstConnect;
+
+    await controller.selectDevice('device-a');
+    final connectA = controller.connectSelected();
+    await pumpEventQueue();
+
+    expect(controller.connecting, isTrue);
+
+    await controller.selectDevice('device-b');
+    await controller.connectSelected();
+    await pumpEventQueue();
+
+    expect(platform.calls, contains('disconnect device-a'));
+    expect(platform.calls, contains('connect device-b'));
+    expect(controller.selectedDeviceId, 'device-b');
+    expect(controller.connecting, isFalse);
+    expect(controller.connectionState, BlueConnectionState.connected);
+
+    await connectA;
+    await pumpEventQueue();
+
+    expect(controller.selectedDeviceId, 'device-b');
+    expect(controller.connectionState, BlueConnectionState.connected);
+  });
+
+  test('connect timeout releases the connection affordance', () async {
+    final controller = BleExplorerController(
+      connectTimeout: const Duration(milliseconds: 1),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialBluetoothCheck;
+    platform.pendingConnects['device-a'] = Completer<void>();
+
+    await controller.selectDevice('device-a');
+    await controller.connectSelected();
+
+    expect(controller.selectedDeviceId, 'device-a');
+    expect(controller.connecting, isFalse);
+    expect(controller.status, 'Connect timed out.');
+    expect(
+      controller.events.map((event) => event.message),
+      contains('Connect timed out for device-a.'),
+    );
+  });
 }
