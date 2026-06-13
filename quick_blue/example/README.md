@@ -32,6 +32,31 @@ flutter test integration_test/macos_ble_smoke_test.dart -d macos \
   --dart-define=QUICK_BLUE_SMOKE_MAX_CONNECT_ATTEMPTS=5
 ```
 
+## macOS device-switch regressions
+
+The example also includes macOS regression tests for switching devices while a
+connection attempt is still pending. These tests are hardware-backed and skip
+when Bluetooth is unavailable or permission is denied.
+
+```sh
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/macos_ble_switch_test.dart -d macos
+
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/macos_ble_ui_switch_test.dart -d macos
+```
+
+Useful Dart defines:
+
+- `QUICK_BLUE_SWITCH_FIRST_NAME_PATTERN`: case-insensitive regular expression
+  for the device that should be abandoned while connecting. Defaults to `govee`.
+- `QUICK_BLUE_SWITCH_SECOND_NAME_PATTERN`: case-insensitive regular expression
+  for the device that should connect after backing out. Defaults to
+  `nest\s*hub|nesthub`.
+- `QUICK_BLUE_SWITCH_SCAN_SECONDS`: scan duration used to find both devices.
+- `QUICK_BLUE_SWITCH_DELAY_MILLISECONDS`: delay between starting the first
+  connection and switching devices.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

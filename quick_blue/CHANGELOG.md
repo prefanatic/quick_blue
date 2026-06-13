@@ -1,8 +1,70 @@
+## Unreleased
+
+### Added
+
+- Add Dart-shaped device and characteristic APIs, including `QuickBlue.device`,
+  `BluetoothDevice`, and `BluetoothCharacteristic`.
+- Add lifecycle-managed `scan()` and `scanResults()` streams that start scanning
+  on listen and stop scanning on cancel.
+- Add `bluetoothStateStream` with live Android, iOS, and macOS state updates and
+  snapshot fallback behavior for other platforms.
+- Add `BlueScanResult.serviceData` and platform support for Android and Darwin.
+- Add characteristic property metadata through
+  `BluetoothService.characteristicDetails`.
+- Add `serviceId` to `BluetoothCharacteristicValue` so characteristic value
+  events are scoped by device, service, and characteristic.
+- Add macOS hardware smoke testing for scan/connect/service discovery flows.
+- Add macOS regression tests for switching devices while a connection attempt is
+  still pending.
+- Add broader Dart API, Android wrapper, Darwin wrapper, and model test
+  coverage.
+- Add GitHub Actions CI updates and local `act` configuration.
+- Add repository contributor instructions.
+
+### Changed
+
+- Align static `QuickBlue` methods with the device object API.
+- Leave operation timeouts to clients through normal `Future.timeout`
+  composition.
+- Make scan result lifecycle handling deterministic when multiple listeners use
+  the same filter.
+- Make platform-interface models value-like, with defensive copies for mutable
+  byte and collection fields.
+- Order notification setup so values are forwarded only after notification
+  enabling succeeds.
+- Await connection and disconnection state events in the device API.
+- Tighten operation error handling for connection, disconnection, service
+  discovery, reads, writes, and notifications.
+- Update SDK constraints, workspace configuration, generated Pigeon output, and
+  package versions for the current toolchain.
+- Enable Swift Package Manager support for the Darwin package.
+- Consolidate licensing at the repository root.
+- Rework the example app into a BLE explorer with stable discovery ordering,
+  live Bluetooth state, responsive device detail navigation, and focused
+  characteristic controls.
+- Refresh the example app platform projects and Bluetooth permissions used for
+  manual BLE verification.
+- Update README coverage for current stream/device APIs, Linux GATT support,
+  characteristic metadata, and service-scoped values.
+
+### Fixed
+
+- Complete Android and Darwin writes after the platform reports the
+  characteristic write result.
+- Preserve pending Android and Darwin write failures when a peripheral
+  disconnects before acknowledgement.
+- Fix example connection switching so abandoning a pending connection does not
+  block connecting another device.
+- Reset pending example device actions when selecting a different device.
+- Preserve stable example discovery ordering and the last non-empty advertised
+  device name as scan results update.
+- Remove redundant manual Bluetooth status refresh from the example; the example
+  now relies on `bluetoothStateStream`.
+- Fix example `ExpansionTile` / `ListTile` material wrapping assertions.
+
 ## [0.5.0-dev.2] - 2022.6.3
 
 - Update federated plugins' versions
-- Add characteristic property metadata to discovered services.
-- Scope characteristic value events by service UUID.
 
 ## [0.5.0-dev.0] - 2022.5.18
 

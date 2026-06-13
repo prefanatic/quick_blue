@@ -14,12 +14,12 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 | isBluetoothAvailable | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | bluetoothStateStream | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | scan/scanResults | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| connect/disconnect | ✔️ | ✔️ | ✔️ | ✔️ |  |
-| discoverServices | ✔️ | ✔️ | ✔️ | ✔️ |  |
-| setNotifiable | ✔️ | ✔️ | ✔️ | ✔️ |  |
-| readValue | ✔️ | ✔️ | ✔️ | ✔️ |  |
-| writeValue | ✔️ | ✔️ | ✔️ | ✔️ |  |
-| requestMtu | ✔️ | ✔️ | ✔️ | ✔️ |  |
+| connect/disconnect | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| discoverServices | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| setNotifiable | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| readValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| writeValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| requestMtu | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 
 `bluetoothStateStream` emits live state changes on Android, iOS, and macOS.
 Windows and Linux currently emit the current availability snapshot.
@@ -54,51 +54,33 @@ await subscription.cancel();
 
 ## Connect BLE peripheral
 
-Connect to `deviceId`, received from `QuickBlue.scan()`
-
-```dart
-QuickBlue.setConnectionHandler(_handleConnectionChange);
-
-void _handleConnectionChange(String deviceId, BlueConnectionState state) {
-  print('_handleConnectionChange $deviceId, $state');
-}
-
-await QuickBlue.connect(deviceId);
-// ...
-await QuickBlue.disconnect(deviceId);
-```
-
-Or use the device object API:
+Connect to `deviceId`, received from `QuickBlue.scan()` or
+`QuickBlue.scanResults()`.
 
 ```dart
 final device = QuickBlue.device(deviceId);
 
-await device.connect();
+final connectionSubscription = device.connectionStateStream.listen((event) {
+  print('connection ${event.deviceId}: ${event.state} (${event.status})');
+});
+
+await device.connect().timeout(const Duration(seconds: 15));
 // ...
-await device.disconnect();
+await device.disconnect().timeout(const Duration(seconds: 5));
+await connectionSubscription.cancel();
+```
+
+The static methods delegate through the same device API:
+
+```dart
+await QuickBlue.connect(deviceId).timeout(const Duration(seconds: 15));
+// ...
+await QuickBlue.disconnect(deviceId).timeout(const Duration(seconds: 5));
 ```
 
 ## Discover services of BLE peripheral
 
-Discover services od `deviceId`
-
-```dart
-QuickBlue.setServiceHandler(_handleServiceDiscovery);
-
-void _handleServiceDiscovery(String deviceId, String serviceId) {
-  print('_handleServiceDiscovery $deviceId, $serviceId');
-}
-
-final services = await QuickBlue.discoverServices(
-  deviceId,
-).timeout(const Duration(seconds: 15));
-
-for (final service in services) {
-  print('${service.uuid}: ${service.characteristics}');
-}
-```
-
-Or use the device object API:
+Discover services and characteristic metadata for a connected device.
 
 ```dart
 final device = QuickBlue.device(deviceId);
@@ -108,16 +90,26 @@ final services = await device.discoverServices().timeout(
 );
 
 for (final service in services) {
-  print('${service.uuid}: ${service.characteristics}');
+  print(service.uuid);
+  for (final characteristic in service.characteristicDetails) {
+    print(
+      '${characteristic.uuid}: '
+      'read=${characteristic.canRead}, '
+      'write=${characteristic.canWrite}, '
+      'notify=${characteristic.canNotify}, '
+      'indicate=${characteristic.canIndicate}',
+    );
+  }
 }
 ```
 
+`BluetoothService.characteristics` remains available as the list of
+characteristic UUIDs. Use `BluetoothService.characteristicDetails` when you need
+read/write/notify/indicate capabilities.
+
 ## Transfer data between BLE central & peripheral
 
-- Pull data from peripheral of `deviceId`
-
-> Data would receive within value handler of `QuickBlue.setValueHandler`
-> Because it is how [peripheral(_:didUpdateValueFor:error:)](https://developer.apple.com/documentation/corebluetooth/cbperipheraldelegate/1518708-peripheral) work on iOS/macOS
+- Pull data from a characteristic.
 
 ```dart
 final value = await QuickBlue.readValue(
@@ -127,7 +119,7 @@ final value = await QuickBlue.readValue(
 ).timeout(const Duration(seconds: 5));
 ```
 
-Or receive the read result as a `Future` from the device object:
+Or use the device object:
 
 ```dart
 final value = await device.readValue(
@@ -139,30 +131,57 @@ final value = await device.readValue(
 - Send data to peripheral of `deviceId`
 
 ```dart
-QuickBlue.writeValue(deviceId, serviceId, characteristicId, value);
+await QuickBlue.writeValue(
+  deviceId,
+  serviceId,
+  characteristicId,
+  value,
+  BleOutputProperty.withResponse,
+);
 ```
 
 - Receive data from peripheral of `deviceId`
 
 ```dart
-QuickBlue.setValueHandler(_handleValueChange);
-
-void _handleValueChange(String deviceId, String characteristicId, Uint8List value) {
-  print('_handleValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
-}
-
-QuickBlue.setNotifiable(deviceId, serviceId, characteristicId, true);
-```
-
-Or subscribe to characteristic values from the device object:
-
-```dart
 final characteristic = device.characteristic(serviceId, characteristicId);
 
-final subscription = characteristic.notifications().listen((value) {
+final subscription = characteristic.notifications(
+  bleInputProperty: BleInputProperty.notification,
+).listen((value) {
   print(hex.encode(value));
 });
 
 // ...
 await subscription.cancel();
+```
+
+Characteristic value events are scoped by device, service, and characteristic.
+This matters for peripherals that reuse a characteristic UUID under multiple
+services.
+
+- Write data from the device object:
+
+```dart
+final characteristic = device.characteristic(serviceId, characteristicId);
+
+await characteristic.write(value, BleOutputProperty.withResponse);
+```
+
+- Enable notifications through the static API:
+
+```dart
+await QuickBlue.setNotifiable(
+  deviceId,
+  serviceId,
+  characteristicId,
+  BleInputProperty.notification,
+);
+
+// ...
+await QuickBlue.setNotifiable(
+  deviceId,
+  serviceId,
+  characteristicId,
+  BleInputProperty.disabled,
+);
 ```
