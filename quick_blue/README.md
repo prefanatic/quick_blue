@@ -35,6 +35,19 @@ final subscription = QuickBlue.scan().listen((device) {
 await subscription.cancel();
 ```
 
+Use `scanResults()` when you need advertisement payloads such as service data or
+manufacturer data. The scan starts when the stream is listened to and stops when
+the subscription is canceled.
+
+```dart
+final subscription = QuickBlue.scanResults().listen((result) {
+  print('onScanResult ${result.deviceId}, ${result.serviceData}');
+});
+
+// ...
+await subscription.cancel();
+```
+
 ## Connect BLE peripheral
 
 Connect to `deviceId`, received from `QuickBlue.scan()`

@@ -48,30 +48,114 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   Stream<BlueScanResult> get scanResultStream;
 
-  Stream<BluetoothDevice> scan({ScanFilter scanFilter = const ScanFilter()}) {
-    late StreamSubscription<BlueScanResult> scanResultSubscription;
-    final controller = StreamController<BluetoothDevice>();
+  _ScanFilterKey? _activeScanFilter;
+  var _activeScanListeners = 0;
+  var _activeScanStarted = false;
+  Future<void> _scanLifecycle = Future<void>.value();
 
-    controller.onListen = () {
+  Stream<BlueScanResult> scanResults({
+    ScanFilter scanFilter = const ScanFilter(),
+  }) {
+    final filter = _ScanFilterKey.from(scanFilter);
+
+    return Stream<BlueScanResult>.multi((controller) {
+      late final StreamSubscription<BlueScanResult> scanResultSubscription;
+      late final Future<void> setUpScan;
+      var canceled = false;
+      var acquiredScan = false;
+
       scanResultSubscription = scanResultStream.listen(
-        (result) => controller.add(device(result.deviceId)),
-        onError: controller.addError,
-        onDone: controller.close,
+        controller.addSync,
+        onError: controller.addErrorSync,
+        onDone: controller.closeSync,
       );
-      unawaited(
-        startScan(scanFilter: scanFilter).catchError((Object error) async {
-          controller.addError(error);
-          await controller.close();
-        }),
-      );
-    };
+      scanResultSubscription.pause();
 
-    controller.onCancel = () async {
-      await scanResultSubscription.cancel();
-      await stopScan();
-    };
+      setUpScan = () async {
+        try {
+          await _acquireScan(filter);
+          acquiredScan = true;
+          if (!canceled) {
+            scanResultSubscription.resume();
+          }
+        } catch (error, stackTrace) {
+          await scanResultSubscription.cancel();
+          if (!canceled) {
+            controller.addErrorSync(error, stackTrace);
+            controller.closeSync();
+          }
+        }
+      }();
 
-    return controller.stream;
+      controller.onPause = scanResultSubscription.pause;
+      controller.onResume = () {
+        if (acquiredScan && !canceled) {
+          scanResultSubscription.resume();
+        }
+      };
+      controller.onCancel = () async {
+        canceled = true;
+        await setUpScan;
+        await scanResultSubscription.cancel();
+        if (acquiredScan) {
+          await _releaseScan();
+        }
+      };
+    }, isBroadcast: true);
+  }
+
+  Future<void> _acquireScan(_ScanFilterKey filter) {
+    return _queueScanLifecycle(() async {
+      final activeFilter = _activeScanFilter;
+      if (_activeScanListeners == 0) {
+        _activeScanFilter = filter;
+        try {
+          await startScan(scanFilter: filter.toScanFilter());
+          _activeScanStarted = true;
+        } catch (_) {
+          _activeScanFilter = null;
+          rethrow;
+        }
+      } else if (activeFilter == null || !activeFilter.equals(filter)) {
+        throw StateError(
+          'Cannot start scanning with a different ScanFilter while another '
+          'scanResults stream is active.',
+        );
+      }
+
+      _activeScanListeners++;
+    });
+  }
+
+  Future<void> _releaseScan() {
+    return _queueScanLifecycle(() async {
+      if (_activeScanListeners == 0) {
+        return;
+      }
+
+      _activeScanListeners--;
+      if (_activeScanListeners != 0) {
+        return;
+      }
+
+      _activeScanFilter = null;
+      if (_activeScanStarted) {
+        _activeScanStarted = false;
+        await stopScan();
+      }
+    });
+  }
+
+  Future<void> _queueScanLifecycle(Future<void> Function() action) {
+    final next = _scanLifecycle.then((_) => action());
+    _scanLifecycle = next.catchError((Object _) {});
+    return next;
+  }
+
+  Stream<BluetoothDevice> scan({ScanFilter scanFilter = const ScanFilter()}) {
+    return scanResults(
+      scanFilter: scanFilter,
+    ).map((result) => device(result.deviceId));
   }
 
   Stream<BluetoothDevice> get bluetoothDeviceStream {
@@ -226,6 +310,105 @@ abstract class QuickBluePlatform extends PlatformInterface {
       ),
     );
     _onValueChanged?.call(deviceId, characteristicId, value);
+  }
+}
+
+class _ScanFilterKey {
+  _ScanFilterKey._({
+    required this.serviceUuids,
+    required this.manufacturerData,
+  });
+
+  factory _ScanFilterKey.from(ScanFilter scanFilter) {
+    final manufacturerData = scanFilter.manufacturerData;
+
+    return _ScanFilterKey._(
+      serviceUuids: List<String>.unmodifiable(scanFilter.serviceUuids),
+      manufacturerData: manufacturerData == null || manufacturerData.isEmpty
+          ? null
+          : Map<int, Uint8List>.unmodifiable(
+              manufacturerData.map(
+                (manufacturerId, data) =>
+                    MapEntry(manufacturerId, Uint8List.fromList(data)),
+              ),
+            ),
+    );
+  }
+
+  final List<String> serviceUuids;
+  final Map<int, Uint8List>? manufacturerData;
+
+  ScanFilter toScanFilter() {
+    final data = manufacturerData;
+
+    return ScanFilter(
+      serviceUuids: List<String>.unmodifiable(serviceUuids),
+      manufacturerData: data == null
+          ? null
+          : Map<int, Uint8List>.unmodifiable(
+              data.map(
+                (manufacturerId, value) =>
+                    MapEntry(manufacturerId, Uint8List.fromList(value)),
+              ),
+            ),
+    );
+  }
+
+  bool equals(_ScanFilterKey other) {
+    return _stringListsEqual(serviceUuids, other.serviceUuids) &&
+        _manufacturerDataEqual(manufacturerData, other.manufacturerData);
+  }
+
+  bool _stringListsEqual(List<String> left, List<String> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool _manufacturerDataEqual(
+    Map<int, Uint8List>? left,
+    Map<int, Uint8List>? right,
+  ) {
+    if (left == null || right == null) {
+      return left == right;
+    }
+    if (left.length != right.length) {
+      return false;
+    }
+
+    for (final key in left.keys) {
+      final leftValue = left[key];
+      final rightValue = right[key];
+      if (leftValue == null ||
+          rightValue == null ||
+          !_uint8ListsEqual(leftValue, rightValue)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool _uint8ListsEqual(Uint8List left, Uint8List right) {
+    if (left.length != right.length) {
+      return false;
+    }
+
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
 

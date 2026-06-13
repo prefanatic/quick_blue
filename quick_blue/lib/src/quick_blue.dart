@@ -24,6 +24,12 @@ class QuickBlue {
     return _platform.scanResultStream;
   }
 
+  static Stream<BlueScanResult> scanResults({
+    ScanFilter scanFilter = const ScanFilter(),
+  }) {
+    return _platform.scanResults(scanFilter: scanFilter);
+  }
+
   static Stream<BluetoothDevice> scan({
     ScanFilter scanFilter = const ScanFilter(),
   }) {

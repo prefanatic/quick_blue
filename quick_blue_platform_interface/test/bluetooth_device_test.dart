@@ -76,6 +76,171 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
+  test(
+    'scanResults starts scanning, emits results, and stops on cancel',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final results = <BlueScanResult>[];
+      final subscription = platform.scanResults().listen(results.add);
+
+      await pumpEventQueue();
+      expect(platform.calls, <String>['startScan']);
+
+      platform.addScanResult('device-a');
+      await pumpEventQueue();
+      expect(results.single.deviceId, 'device-a');
+
+      await subscription.cancel();
+      expect(platform.calls, <String>['startScan', 'stopScan']);
+    },
+  );
+
+  test(
+    'scanResults stream supports multiple listeners with one scan',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final stream = platform.scanResults();
+      final firstResults = <String>[];
+      final secondResults = <String>[];
+      final firstSubscription = stream.listen(
+        (result) => firstResults.add(result.deviceId),
+      );
+      final secondSubscription = stream.listen(
+        (result) => secondResults.add(result.deviceId),
+      );
+
+      await pumpEventQueue();
+      expect(platform.calls, <String>['startScan']);
+
+      platform.addScanResult('device-a');
+      await pumpEventQueue();
+
+      expect(firstResults, <String>['device-a']);
+      expect(secondResults, <String>['device-a']);
+
+      await firstSubscription.cancel();
+      expect(platform.calls, <String>['startScan']);
+
+      await secondSubscription.cancel();
+      expect(platform.calls, <String>['startScan', 'stopScan']);
+    },
+  );
+
+  test(
+    'scanResults calls share the active scan for matching filters',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final firstResults = <String>[];
+      final secondResults = <String>[];
+      final firstSubscription = platform.scanResults().listen(
+        (result) => firstResults.add(result.deviceId),
+      );
+      final secondSubscription = platform.scanResults().listen(
+        (result) => secondResults.add(result.deviceId),
+      );
+
+      await pumpEventQueue();
+      expect(platform.calls, <String>['startScan']);
+
+      platform.addScanResult('device-a');
+      await pumpEventQueue();
+
+      expect(firstResults, <String>['device-a']);
+      expect(secondResults, <String>['device-a']);
+
+      await firstSubscription.cancel();
+      expect(platform.calls, <String>['startScan']);
+
+      await secondSubscription.cancel();
+      expect(platform.calls, <String>['startScan', 'stopScan']);
+    },
+  );
+
+  test('scanResults rejects a different filter while scanning', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    final firstSubscription = platform
+        .scanResults(scanFilter: const ScanFilter(serviceUuids: <String>['a']))
+        .listen((_) {});
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['startScan']);
+
+    final errors = <Object>[];
+    final secondSubscription = platform
+        .scanResults(scanFilter: const ScanFilter(serviceUuids: <String>['b']))
+        .listen((_) {}, onError: errors.add);
+
+    await pumpEventQueue();
+
+    expect(errors.single, isA<StateError>());
+    expect(platform.calls, <String>['startScan']);
+
+    await firstSubscription.cancel();
+    await secondSubscription.cancel();
+
+    expect(platform.calls, <String>['startScan', 'stopScan']);
+  });
+
+  test('scanResults waits for startScan before forwarding results', () async {
+    final startScan = Completer<void>();
+    final platform = _FakeQuickBluePlatform(
+      startScanCompletions: <Completer<void>>[startScan],
+    );
+    addTearDown(platform.dispose);
+
+    final results = <BlueScanResult>[];
+    final subscription = platform.scanResults().listen(results.add);
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['startScan']);
+
+    platform.addScanResult('device-a');
+    await pumpEventQueue();
+    expect(results, isEmpty);
+
+    startScan.complete();
+    await pumpEventQueue();
+    expect(results.single.deviceId, 'device-a');
+
+    await subscription.cancel();
+  });
+
+  test(
+    'scanResults stops scanning after pending start completes on cancel',
+    () async {
+      final startScan = Completer<void>();
+      final platform = _FakeQuickBluePlatform(
+        startScanCompletions: <Completer<void>>[startScan],
+      );
+      addTearDown(platform.dispose);
+
+      final subscription = platform.scanResults().listen((_) {});
+      await pumpEventQueue();
+
+      final cancel = subscription.cancel();
+      var cancelCompleted = false;
+      final cancelCompletedFuture = cancel.then((_) => cancelCompleted = true);
+      await pumpEventQueue();
+
+      expect(platform.calls, <String>['startScan']);
+      expect(cancelCompleted, isFalse);
+
+      startScan.complete();
+      await cancelCompletedFuture;
+
+      expect(platform.calls, <String>['startScan', 'stopScan']);
+      expect(cancelCompleted, isTrue);
+    },
+  );
+
   test('scan forwards the scan filter to startScan', () async {
     final platform = _FakeQuickBluePlatform();
     addTearDown(platform.dispose);
@@ -90,7 +255,12 @@ void main() {
     final subscription = platform.scan(scanFilter: filter).listen((_) {});
 
     await pumpEventQueue();
-    expect(platform.lastScanFilter, same(filter));
+    expect(platform.lastScanFilter, isNot(same(filter)));
+    expect(platform.lastScanFilter!.serviceUuids, filter.serviceUuids);
+    expect(
+      platform.lastScanFilter!.manufacturerData![76],
+      orderedEquals(<int>[1, 2, 3]),
+    );
 
     await subscription.cancel();
   });
@@ -218,7 +388,7 @@ void main() {
 
     final connect = platform.device('device-a').connect();
     var connectCompleted = false;
-    unawaited(connect.then((_) => connectCompleted = true));
+    final connectCompletedFuture = connect.then((_) => connectCompleted = true);
 
     await pumpEventQueue();
     expect(platform.calls, <String>['connect device-a']);
@@ -237,7 +407,7 @@ void main() {
       BlueConnectionState.connected,
       BleStatus.success,
     );
-    await connect;
+    await connectCompletedFuture;
 
     expect(connectCompleted, isTrue);
   });
@@ -248,7 +418,9 @@ void main() {
 
     final disconnect = platform.device('device-a').disconnect();
     var disconnectCompleted = false;
-    unawaited(disconnect.then((_) => disconnectCompleted = true));
+    final disconnectCompletedFuture = disconnect.then(
+      (_) => disconnectCompleted = true,
+    );
 
     await pumpEventQueue();
     expect(platform.calls, <String>['disconnect device-a']);
@@ -267,7 +439,7 @@ void main() {
       BlueConnectionState.disconnected,
       BleStatus.success,
     );
-    await disconnect;
+    await disconnectCompletedFuture;
 
     expect(disconnectCompleted, isTrue);
   });
@@ -411,7 +583,7 @@ void main() {
 
       final cancel = subscription.cancel();
       var cancelCompleted = false;
-      unawaited(cancel.then((_) => cancelCompleted = true));
+      final cancelCompletedFuture = cancel.then((_) => cancelCompleted = true);
       await pumpEventQueue();
 
       expect(platform.calls, <String>[
@@ -429,7 +601,7 @@ void main() {
       expect(cancelCompleted, isFalse);
 
       disableNotify.complete();
-      await cancel;
+      await cancelCompletedFuture;
 
       expect(cancelCompleted, isTrue);
     },
@@ -440,11 +612,13 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   _FakeQuickBluePlatform({
     Uint8List? readValueResult,
     List<BluetoothService> discoveredServices = const <BluetoothService>[],
+    List<Completer<void>> startScanCompletions = const <Completer<void>>[],
     List<Completer<void>> setNotifiableCompletions = const <Completer<void>>[],
     this.connectsImmediately = true,
     this.disconnectsImmediately = true,
   }) : readValueResult = readValueResult ?? Uint8List(0),
        discoveredServices = discoveredServices,
+       startScanCompletions = startScanCompletions,
        setNotifiableCompletions = setNotifiableCompletions;
 
   final StreamController<BlueScanResult> _scanResultController =
@@ -452,10 +626,12 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final List<String> calls = <String>[];
   final Uint8List readValueResult;
   final List<BluetoothService> discoveredServices;
+  final List<Completer<void>> startScanCompletions;
   final List<Completer<void>> setNotifiableCompletions;
   final bool connectsImmediately;
   final bool disconnectsImmediately;
   ScanFilter? lastScanFilter;
+  int _startScanCallCount = 0;
   int _setNotifiableCallCount = 0;
 
   void addScanResult(String deviceId) {
@@ -478,6 +654,9 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   Future<void> startScan({ScanFilter scanFilter = const ScanFilter()}) async {
     lastScanFilter = scanFilter;
     calls.add('startScan');
+    if (_startScanCallCount < startScanCompletions.length) {
+      await startScanCompletions[_startScanCallCount++].future;
+    }
   }
 
   @override
