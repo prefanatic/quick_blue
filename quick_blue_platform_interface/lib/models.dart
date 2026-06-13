@@ -1,28 +1,12 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-final _empty = Uint8List.fromList(List.empty());
+import 'package:collection/collection.dart';
+
+const _stringListEquality = ListEquality<String>();
+const _deepEquality = DeepCollectionEquality();
 
 class BlueScanResult {
-  final String name;
-  final String deviceId;
-  final Uint8List? _manufacturerDataHead;
-  final Uint8List? _manufacturerData;
-  final int rssi;
-  final DateTime advertisedDateTime;
-  final List<String> serviceUuids;
-  final Map<String, Uint8List> serviceData;
-
-  Uint8List get manufacturerDataHead => _manufacturerDataHead ?? _empty;
-
-  /// The full manufacturer data when available, otherwise the advertised
-  /// "head". Platforms that only surface advertisement data populate the head,
-  /// so fall back to it when the full payload is absent (null or empty).
-  Uint8List get manufacturerData {
-    final data = _manufacturerData;
-    return (data != null && data.isNotEmpty) ? data : manufacturerDataHead;
-  }
-
   BlueScanResult({
     required this.name,
     required this.deviceId,
@@ -30,34 +14,107 @@ class BlueScanResult {
     Uint8List? manufacturerData,
     required this.rssi,
     DateTime? advertisedDateTime,
-    this.serviceUuids = const [],
-    this.serviceData = const <String, Uint8List>{},
-  }) : _manufacturerDataHead = manufacturerDataHead ?? _empty,
-       _manufacturerData = manufacturerData ?? _empty,
-       advertisedDateTime = advertisedDateTime ?? DateTime.now();
+    List<String> serviceUuids = const [],
+    Map<String, Uint8List> serviceData = const <String, Uint8List>{},
+  }) : _manufacturerDataHead = _copyBytes(manufacturerDataHead),
+       _manufacturerData = _copyBytes(manufacturerData),
+       advertisedDateTime = advertisedDateTime ?? DateTime.now(),
+       serviceUuids = List<String>.unmodifiable(serviceUuids),
+       _serviceData = _copyStringByteMap(serviceData);
 
   BlueScanResult.fromMap(Map<String, dynamic> map)
     : name = map['name'],
       deviceId = map['deviceId'],
-      _manufacturerDataHead = map['manufacturerDataHead'],
-      _manufacturerData = map['manufacturerData'],
+      _manufacturerDataHead = _copyBytes(map['manufacturerDataHead']),
+      _manufacturerData = _copyBytes(map['manufacturerData']),
       rssi = map['rssi'],
-      advertisedDateTime = DateTime.now(),
-      serviceUuids = map['serviceUuids']?.cast<String>() ?? <String>[],
-      serviceData =
-          map['serviceData']?.cast<String, Uint8List>() ??
-          <String, Uint8List>{};
+      advertisedDateTime =
+          map['advertisedDateTime'] as DateTime? ?? DateTime.now(),
+      serviceUuids = List<String>.unmodifiable(
+        map['serviceUuids']?.cast<String>() ?? <String>[],
+      ),
+      _serviceData = _copyStringByteMap(
+        map['serviceData']?.cast<String, Uint8List>() ?? <String, Uint8List>{},
+      );
+
+  final String name;
+  final String deviceId;
+  final Uint8List _manufacturerDataHead;
+  final Uint8List _manufacturerData;
+  final int rssi;
+  final DateTime advertisedDateTime;
+  final List<String> serviceUuids;
+  final Map<String, Uint8List> _serviceData;
+
+  Uint8List get manufacturerDataHead => _copyBytes(_manufacturerDataHead);
+
+  /// The full manufacturer data when available, otherwise the advertised
+  /// "head". Platforms that only surface advertisement data populate the head,
+  /// so fall back to it when the full payload is absent (null or empty).
+  Uint8List get manufacturerData {
+    final data = _manufacturerData.isNotEmpty
+        ? _manufacturerData
+        : _manufacturerDataHead;
+    return _copyBytes(data);
+  }
+
+  Map<String, Uint8List> get serviceData => _copyStringByteMap(_serviceData);
 
   Map<String, dynamic> toMap() => {
     'name': name,
     'deviceId': deviceId,
-    'manufacturerDataHead': _manufacturerDataHead,
-    'manufacturerData': _manufacturerData,
+    'manufacturerDataHead': manufacturerDataHead,
+    'manufacturerData': _copyBytes(_manufacturerData),
     'rssi': rssi,
     'advertisedDateTime': advertisedDateTime,
     'serviceUuids': serviceUuids,
     'serviceData': serviceData,
   };
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BlueScanResult &&
+            other.name == name &&
+            other.deviceId == deviceId &&
+            _deepEquality.equals(
+              other._manufacturerDataHead,
+              _manufacturerDataHead,
+            ) &&
+            _deepEquality.equals(other._manufacturerData, _manufacturerData) &&
+            other.rssi == rssi &&
+            other.advertisedDateTime == advertisedDateTime &&
+            _stringListEquality.equals(other.serviceUuids, serviceUuids) &&
+            _deepEquality.equals(other._serviceData, _serviceData);
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      name,
+      deviceId,
+      _deepEquality.hash(_manufacturerDataHead),
+      _deepEquality.hash(_manufacturerData),
+      rssi,
+      advertisedDateTime,
+      _stringListEquality.hash(serviceUuids),
+      _deepEquality.hash(_serviceData),
+    );
+  }
+
+  @override
+  String toString() {
+    return 'BlueScanResult('
+        'name: $name, '
+        'deviceId: $deviceId, '
+        'manufacturerDataHead: ${_manufacturerDataHead.toList()}, '
+        'manufacturerData: ${_manufacturerData.toList()}, '
+        'rssi: $rssi, '
+        'advertisedDateTime: $advertisedDateTime, '
+        'serviceUuids: $serviceUuids, '
+        'serviceData: ${_stringByteMapToString(_serviceData)}'
+        ')';
+  }
 }
 
 class ScanFilter {
@@ -85,26 +142,33 @@ class ScanFilter {
   bool operator ==(Object other) {
     return identical(this, other) ||
         other is ScanFilter &&
-            _stringListsEqual(serviceUuids, other.serviceUuids) &&
-            _manufacturerDataEqual(_manufacturerData, other._manufacturerData);
+            _stringListEquality.equals(serviceUuids, other.serviceUuids) &&
+            _deepEquality.equals(_manufacturerData, other._manufacturerData);
   }
 
   @override
   int get hashCode {
-    final data = _manufacturerData;
-    final manufacturerDataHash = data == null
-        ? null
-        : Object.hashAll(
-            (data.keys.toList()..sort()).map(
-              (manufacturerId) => Object.hash(
-                manufacturerId,
-                Object.hashAll(data[manufacturerId]!),
-              ),
-            ),
-          );
-
-    return Object.hash(Object.hashAll(serviceUuids), manufacturerDataHash);
+    return Object.hash(
+      _stringListEquality.hash(serviceUuids),
+      _deepEquality.hash(_manufacturerData),
+    );
   }
+
+  @override
+  String toString() {
+    return 'ScanFilter('
+        'serviceUuids: $serviceUuids, '
+        'manufacturerData: ${_intByteMapToString(_manufacturerData)}'
+        ')';
+  }
+}
+
+Uint8List _copyBytes(Object? bytes) {
+  if (bytes == null) {
+    return Uint8List(0);
+  }
+
+  return Uint8List.fromList((bytes as Uint8List));
 }
 
 Map<int, Uint8List>? _copyManufacturerData(
@@ -122,56 +186,26 @@ Map<int, Uint8List>? _copyManufacturerData(
   );
 }
 
-bool _stringListsEqual(List<String> left, List<String> right) {
-  if (left.length != right.length) {
-    return false;
+Map<String, Uint8List> _copyStringByteMap(Map<String, Uint8List> data) {
+  if (data.isEmpty) {
+    return const <String, Uint8List>{};
   }
 
-  for (var index = 0; index < left.length; index++) {
-    if (left[index] != right[index]) {
-      return false;
-    }
-  }
-
-  return true;
+  return Map<String, Uint8List>.unmodifiable(
+    data.map((key, value) => MapEntry(key, Uint8List.fromList(value))),
+  );
 }
 
-bool _manufacturerDataEqual(
-  Map<int, Uint8List>? left,
-  Map<int, Uint8List>? right,
-) {
-  if (left == null || right == null) {
-    return left == right;
-  }
-  if (left.length != right.length) {
-    return false;
+String _intByteMapToString(Map<int, Uint8List>? data) {
+  if (data == null) {
+    return 'null';
   }
 
-  for (final key in left.keys) {
-    final leftValue = left[key];
-    final rightValue = right[key];
-    if (leftValue == null ||
-        rightValue == null ||
-        !_uint8ListsEqual(leftValue, rightValue)) {
-      return false;
-    }
-  }
-
-  return true;
+  return data.map((key, value) => MapEntry(key, value.toList())).toString();
 }
 
-bool _uint8ListsEqual(Uint8List left, Uint8List right) {
-  if (left.length != right.length) {
-    return false;
-  }
-
-  for (var index = 0; index < left.length; index++) {
-    if (left[index] != right[index]) {
-      return false;
-    }
-  }
-
-  return true;
+String _stringByteMapToString(Map<String, Uint8List> data) {
+  return data.map((key, value) => MapEntry(key, value.toList())).toString();
 }
 
 class BlueConnectionState {
@@ -190,6 +224,9 @@ class BlueConnectionState {
     }
     throw ArgumentError.value(value);
   }
+
+  @override
+  String toString() => value;
 }
 
 enum BleStatus { success, failure }
@@ -204,30 +241,99 @@ class BluetoothConnectionStateChange {
   final String deviceId;
   final BlueConnectionState state;
   final BleStatus status;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BluetoothConnectionStateChange &&
+            other.deviceId == deviceId &&
+            other.state == state &&
+            other.status == status;
+  }
+
+  @override
+  int get hashCode => Object.hash(deviceId, state, status);
+
+  @override
+  String toString() {
+    return 'BluetoothConnectionStateChange('
+        'deviceId: $deviceId, state: $state, status: $status'
+        ')';
+  }
 }
 
 class BluetoothService {
   BluetoothService({
     required this.deviceId,
     required this.uuid,
-    required this.characteristics,
-  });
+    required List<String> characteristics,
+  }) : characteristics = List<String>.unmodifiable(characteristics);
 
   final String deviceId;
   final String uuid;
   final List<String> characteristics;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BluetoothService &&
+            other.deviceId == deviceId &&
+            other.uuid == uuid &&
+            _stringListEquality.equals(other.characteristics, characteristics);
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      deviceId,
+      uuid,
+      _stringListEquality.hash(characteristics),
+    );
+  }
+
+  @override
+  String toString() {
+    return 'BluetoothService('
+        'deviceId: $deviceId, uuid: $uuid, characteristics: $characteristics'
+        ')';
+  }
 }
 
 class BluetoothCharacteristicValue {
   BluetoothCharacteristicValue({
     required this.deviceId,
     required this.characteristicId,
-    required this.value,
-  });
+    required Uint8List value,
+  }) : _value = _copyBytes(value);
 
   final String deviceId;
   final String characteristicId;
-  final Uint8List value;
+  final Uint8List _value;
+
+  Uint8List get value => _copyBytes(_value);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BluetoothCharacteristicValue &&
+            other.deviceId == deviceId &&
+            other.characteristicId == characteristicId &&
+            _deepEquality.equals(other._value, _value);
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(deviceId, characteristicId, _deepEquality.hash(_value));
+  }
+
+  @override
+  String toString() {
+    return 'BluetoothCharacteristicValue('
+        'deviceId: $deviceId, '
+        'characteristicId: $characteristicId, '
+        'value: ${_value.toList()}'
+        ')';
+  }
 }
 
 class BleInputProperty {
@@ -238,6 +344,9 @@ class BleInputProperty {
   final String value;
 
   const BleInputProperty._(this.value);
+
+  @override
+  String toString() => value;
 }
 
 class BleOutputProperty {
@@ -247,6 +356,9 @@ class BleOutputProperty {
   final String value;
 
   const BleOutputProperty._(this.value);
+
+  @override
+  String toString() => value;
 }
 
 class BleL2capSocket {
@@ -264,22 +376,84 @@ sealed class BleL2CapSocketEvent {
 
 class BleL2CapSocketEventOpened extends BleL2CapSocketEvent {
   BleL2CapSocketEventOpened({required super.deviceId});
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BleL2CapSocketEventOpened && other.deviceId == deviceId;
+  }
+
+  @override
+  int get hashCode => Object.hash(BleL2CapSocketEventOpened, deviceId);
+
+  @override
+  String toString() => 'BleL2CapSocketEventOpened(deviceId: $deviceId)';
 }
 
 class BleL2CapSocketEventData extends BleL2CapSocketEvent {
-  BleL2CapSocketEventData({required super.deviceId, required this.data});
+  BleL2CapSocketEventData({required super.deviceId, required Uint8List data})
+    : _data = _copyBytes(data);
 
-  final Uint8List data;
+  final Uint8List _data;
+
+  Uint8List get data => _copyBytes(_data);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BleL2CapSocketEventData &&
+            other.deviceId == deviceId &&
+            _deepEquality.equals(other._data, _data);
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(BleL2CapSocketEventData, deviceId, _deepEquality.hash(_data));
+
+  @override
+  String toString() {
+    return 'BleL2CapSocketEventData('
+        'deviceId: $deviceId, data: ${_data.toList()}'
+        ')';
+  }
 }
 
 class BleL2CapSocketEventClosed extends BleL2CapSocketEvent {
   BleL2CapSocketEventClosed({required super.deviceId});
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BleL2CapSocketEventClosed && other.deviceId == deviceId;
+  }
+
+  @override
+  int get hashCode => Object.hash(BleL2CapSocketEventClosed, deviceId);
+
+  @override
+  String toString() => 'BleL2CapSocketEventClosed(deviceId: $deviceId)';
 }
 
 class BleL2CapSocketEventError extends BleL2CapSocketEvent {
   BleL2CapSocketEventError({required super.deviceId, this.error});
 
   final String? error;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BleL2CapSocketEventError &&
+            other.deviceId == deviceId &&
+            other.error == error;
+  }
+
+  @override
+  int get hashCode => Object.hash(BleL2CapSocketEventError, deviceId, error);
+
+  @override
+  String toString() {
+    return 'BleL2CapSocketEventError(deviceId: $deviceId, error: $error)';
+  }
 }
 
 class CompanionDevice {
@@ -297,6 +471,18 @@ class CompanionDevice {
   final String id;
   final String name;
   final int associationId;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is CompanionDevice &&
+            other.id == id &&
+            other.name == name &&
+            other.associationId == associationId;
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, associationId);
 
   @override
   String toString() =>
