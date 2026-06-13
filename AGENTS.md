@@ -84,6 +84,9 @@ Linux behavior that unit tests cannot cover.
   Pigeon files.
 - Keep Darwin channel/API changes aligned across Dart, Swift, and generated
   Pigeon files.
+- When changing APIs, user-facing behavior, examples, supported platforms, or
+  setup requirements, update the root `README.md` and root package changelog
+  (`quick_blue/CHANGELOG.md`) so they stay representative of the work.
 - Do not use `unawaited` futures in Dart code. If a future can throw, await it
   or route errors to an explicit handler so failures are observable.
 - `pubspec.lock` is ignored in this repository.
