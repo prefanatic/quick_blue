@@ -109,6 +109,25 @@ Future<void> readWriteNotify({
 }
 ```
 
+When you know a characteristic UUID but not its service UUID, discover a GATT
+view and resolve the characteristic from the discovered services:
+
+```dart
+final gatt = await device.discoverGatt();
+final characteristic = gatt.characteristic(characteristicId);
+final value = await characteristic.read();
+```
+
+If the same characteristic UUID appears under multiple services, pass the
+service UUID to disambiguate:
+
+```dart
+final characteristic = gatt.characteristic(
+  characteristicId,
+  service: serviceId,
+);
+```
+
 Use `QuickBlue.scan()` when you only need device handles. Use
 `QuickBlue.scanResults()` when you need advertisement fields such as RSSI,
 service UUIDs, service data, or manufacturer data.

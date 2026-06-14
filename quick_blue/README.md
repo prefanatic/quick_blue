@@ -122,6 +122,25 @@ for (final service in services) {
 characteristic UUIDs. Use `BluetoothService.characteristicDetails` when you need
 read/write/notify/indicate capabilities.
 
+When you know a characteristic UUID but not its service UUID, discover a GATT
+view and resolve the characteristic from the discovered services:
+
+```dart
+final gatt = await device.discoverGatt();
+final characteristic = gatt.characteristic(characteristicId);
+final value = await characteristic.read();
+```
+
+If the same characteristic UUID appears under multiple services, pass the
+service UUID to disambiguate:
+
+```dart
+final characteristic = gatt.characteristic(
+  characteristicId,
+  service: serviceId,
+);
+```
+
 ## Transfer data between BLE central & peripheral
 
 - Pull data from a characteristic.

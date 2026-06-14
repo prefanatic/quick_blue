@@ -4,6 +4,8 @@
 
 - Add Dart-shaped device and characteristic APIs, including `QuickBlue.device`,
   `BluetoothDevice`, and `BluetoothCharacteristic`.
+- Add `BluetoothDevice.discoverGatt()` for resolving characteristics from
+  discovered services by characteristic UUID.
 - Add lifecycle-managed `scan()` and `scanResults()` streams that start scanning
   on listen and stop scanning on cancel.
 - Add `bluetoothStateStream` with live Android, iOS, and macOS state updates and

@@ -124,6 +124,22 @@ void main() {
     expect(services.map((service) => service.uuid), <String>['service-a']);
   });
 
+  test('discoverGatt returns a discovered GATT view', () async {
+    platform.discoveredServices = <BluetoothService>[
+      BluetoothService(
+        deviceId: 'device-a',
+        uuid: 'service-a',
+        characteristics: const <String>['characteristic-a'],
+      ),
+    ];
+
+    final gatt = await QuickBlue.discoverGatt('device-a');
+
+    expect(platform.calls, <String>['discoverServices device-a']);
+    expect(gatt.deviceId, 'device-a');
+    expect(gatt.services.map((service) => service.uuid), <String>['service-a']);
+  });
+
   test('readValue returns the characteristic value', () async {
     platform.readValueResult = Uint8List.fromList(<int>[1, 2, 3]);
 

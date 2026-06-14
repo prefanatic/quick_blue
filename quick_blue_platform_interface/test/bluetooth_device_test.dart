@@ -625,6 +625,195 @@ void main() {
     },
   );
 
+  test('BluetoothDevice.discoverGatt exposes discovered services', () async {
+    final discoveredServices = <BluetoothService>[
+      BluetoothService(
+        deviceId: 'device-a',
+        uuid: 'service-a',
+        characteristics: const <String>['characteristic-a'],
+      ),
+    ];
+    final platform = _FakeQuickBluePlatform(
+      discoveredServices: discoveredServices,
+    );
+    addTearDown(platform.dispose);
+
+    final gatt = await platform.device('device-a').discoverGatt();
+
+    expect(gatt.deviceId, 'device-a');
+    expect(gatt.services, discoveredServices);
+    expect(platform.calls, <String>['discoverServices device-a']);
+  });
+
+  test(
+    'BluetoothGatt.characteristic resolves a discovered characteristic',
+    () async {
+      final platform = _FakeQuickBluePlatform(
+        readValueResult: Uint8List.fromList(<int>[1, 2, 3]),
+        discoveredServices: <BluetoothService>[
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: 'service-a',
+            characteristics: const <String>['characteristic-a'],
+          ),
+        ],
+      );
+      addTearDown(platform.dispose);
+
+      final gatt = await platform.device('device-a').discoverGatt();
+      final value = await gatt.characteristic('characteristic-a').read();
+
+      expect(value, Uint8List.fromList(<int>[1, 2, 3]));
+      expect(platform.calls, <String>[
+        'discoverServices device-a',
+        'readValue device-a service-a characteristic-a',
+      ]);
+    },
+  );
+
+  test('BluetoothGatt.characteristic matches short and full UUIDs', () async {
+    final platform = _FakeQuickBluePlatform(
+      readValueResult: Uint8List.fromList(<int>[4, 5, 6]),
+      discoveredServices: <BluetoothService>[
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: '0000180d-0000-1000-8000-00805f9b34fb',
+          characteristics: const <String>[
+            '00002a37-0000-1000-8000-00805f9b34fb',
+          ],
+        ),
+      ],
+    );
+    addTearDown(platform.dispose);
+
+    final gatt = await platform.device('device-a').discoverGatt();
+    final value = await gatt.characteristic('2a37', service: '180d').read();
+
+    expect(value, Uint8List.fromList(<int>[4, 5, 6]));
+    expect(platform.calls, <String>[
+      'discoverServices device-a',
+      'readValue device-a '
+          '0000180d-0000-1000-8000-00805f9b34fb '
+          '00002a37-0000-1000-8000-00805f9b34fb',
+    ]);
+  });
+
+  test('BluetoothGatt.characteristic exposes characteristic info', () async {
+    final platform = _FakeQuickBluePlatform(
+      discoveredServices: <BluetoothService>[
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-a',
+          characteristics: const <String>['characteristic-a'],
+          characteristicDetails: <BluetoothCharacteristicInfo>[
+            BluetoothCharacteristicInfo(
+              uuid: 'characteristic-a',
+              canRead: true,
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(platform.dispose);
+
+    final gatt = await platform.device('device-a').discoverGatt();
+
+    expect(gatt.characteristicInfo('characteristic-a').canRead, isTrue);
+  });
+
+  test('BluetoothGatt.characteristic throws when not found', () async {
+    final platform = _FakeQuickBluePlatform(
+      discoveredServices: <BluetoothService>[
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-a',
+          characteristics: const <String>['characteristic-a'],
+        ),
+      ],
+    );
+    addTearDown(platform.dispose);
+
+    final gatt = await platform.device('device-a').discoverGatt();
+
+    expect(
+      () => gatt.characteristic('missing-characteristic'),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('Characteristic missing-characteristic not found'),
+        ),
+      ),
+    );
+  });
+
+  test(
+    'BluetoothGatt.characteristic throws when characteristic is ambiguous',
+    () async {
+      final platform = _FakeQuickBluePlatform(
+        discoveredServices: <BluetoothService>[
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: 'service-a',
+            characteristics: const <String>['characteristic-a'],
+          ),
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: 'service-b',
+            characteristics: const <String>['characteristic-a'],
+          ),
+        ],
+      );
+      addTearDown(platform.dispose);
+
+      final gatt = await platform.device('device-a').discoverGatt();
+
+      expect(
+        () => gatt.characteristic('characteristic-a'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('multiple services'), contains('service-a')),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'BluetoothGatt.characteristic resolves ambiguous characteristic by service',
+    () async {
+      final platform = _FakeQuickBluePlatform(
+        readValueResult: Uint8List.fromList(<int>[7, 8, 9]),
+        discoveredServices: <BluetoothService>[
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: 'service-a',
+            characteristics: const <String>['characteristic-a'],
+          ),
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: 'service-b',
+            characteristics: const <String>['characteristic-a'],
+          ),
+        ],
+      );
+      addTearDown(platform.dispose);
+
+      final gatt = await platform.device('device-a').discoverGatt();
+      final value = await gatt
+          .characteristic('characteristic-a', service: 'service-b')
+          .read();
+
+      expect(value, Uint8List.fromList(<int>[7, 8, 9]));
+      expect(platform.calls, <String>[
+        'discoverServices device-a',
+        'readValue device-a service-b characteristic-a',
+      ]);
+    },
+  );
+
   test('BluetoothDevice.discoverServices propagates platform errors', () async {
     final error = StateError('discover failed');
     final platform = _FakeQuickBluePlatform(discoverServicesError: error);

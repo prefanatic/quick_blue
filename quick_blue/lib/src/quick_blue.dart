@@ -5,7 +5,7 @@ import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
 
 export 'package:quick_blue_platform_interface/models.dart';
 export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart'
-    show BluetoothCharacteristic, BluetoothDevice;
+    show BluetoothCharacteristic, BluetoothDevice, BluetoothGatt;
 
 export 'quick_blue_android.dart';
 
@@ -101,6 +101,9 @@ class QuickBlue {
 
   static Future<List<BluetoothService>> discoverServices(String deviceId) =>
       device(deviceId).discoverServices();
+
+  static Future<BluetoothGatt> discoverGatt(String deviceId) =>
+      device(deviceId).discoverGatt();
 
   @Deprecated('Use QuickBlue.device(deviceId).discoverServices() instead.')
   static void setServiceHandler(OnServiceDiscovered? onServiceDiscovered) {
