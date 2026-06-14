@@ -493,10 +493,10 @@ std::optional<FlutterError> QuickBlueWindowsPlugin::StartScan(
   if (manufacturer_data) {
     for (const auto& item : *manufacturer_data) {
       uint16_t company_id = 0;
-      if (const auto* id = std::get_if<int64_t>(&item.first)) {
-        company_id = static_cast<uint16_t>(*id);
-      } else if (const auto* id = std::get_if<int32_t>(&item.first)) {
-        company_id = static_cast<uint16_t>(*id);
+      if (const auto* id64 = std::get_if<int64_t>(&item.first)) {
+        company_id = static_cast<uint16_t>(*id64);
+      } else if (const auto* id32 = std::get_if<int32_t>(&item.first)) {
+        company_id = static_cast<uint16_t>(*id32);
       } else {
         continue;
       }
