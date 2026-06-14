@@ -257,25 +257,28 @@ enum class PlatformGattStatus(val raw: Int) {
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
-data class PlatformCompanionDevice (
-  val id: String,
-  val name: String,
-  val associationId: Long
+data class PlatformBleCompanionFilter (
+  val deviceId: String? = null,
+  val namePattern: String? = null,
+  val serviceUuids: List<String>,
+  val manufacturerData: Map<Long, ByteArray>? = null
 )
  {
   companion object {
-    fun fromList(pigeonVar_list: List<Any?>): PlatformCompanionDevice {
-      val id = pigeonVar_list[0] as String
-      val name = pigeonVar_list[1] as String
-      val associationId = pigeonVar_list[2] as Long
-      return PlatformCompanionDevice(id, name, associationId)
+    fun fromList(pigeonVar_list: List<Any?>): PlatformBleCompanionFilter {
+      val deviceId = pigeonVar_list[0] as String?
+      val namePattern = pigeonVar_list[1] as String?
+      val serviceUuids = pigeonVar_list[2] as List<String>
+      val manufacturerData = pigeonVar_list[3] as Map<Long, ByteArray>?
+      return PlatformBleCompanionFilter(deviceId, namePattern, serviceUuids, manufacturerData)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
-      id,
-      name,
-      associationId,
+      deviceId,
+      namePattern,
+      serviceUuids,
+      manufacturerData,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -285,19 +288,110 @@ data class PlatformCompanionDevice (
     if (this === other) {
       return true
     }
-    val other = other as PlatformCompanionDevice
-    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.name, other.name) && MessagesPigeonUtils.deepEquals(this.associationId, other.associationId)
+    val other = other as PlatformBleCompanionFilter
+    return MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.namePattern, other.namePattern) && MessagesPigeonUtils.deepEquals(this.serviceUuids, other.serviceUuids) && MessagesPigeonUtils.deepEquals(this.manufacturerData, other.manufacturerData)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.namePattern)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.serviceUuids)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.manufacturerData)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformBleCompanionFilter(deviceId=$deviceId, namePattern=$namePattern, serviceUuids=$serviceUuids, manufacturerData=$manufacturerData)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformCompanionAssociationRequest (
+  val filters: List<PlatformBleCompanionFilter>,
+  val singleDevice: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformCompanionAssociationRequest {
+      val filters = pigeonVar_list[0] as List<PlatformBleCompanionFilter>
+      val singleDevice = pigeonVar_list[1] as Boolean
+      return PlatformCompanionAssociationRequest(filters, singleDevice)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      filters,
+      singleDevice,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformCompanionAssociationRequest
+    return MessagesPigeonUtils.deepEquals(this.filters, other.filters) && MessagesPigeonUtils.deepEquals(this.singleDevice, other.singleDevice)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.filters)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.singleDevice)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformCompanionAssociationRequest(filters=$filters, singleDevice=$singleDevice)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformCompanionAssociation (
+  val id: Long,
+  val deviceId: String? = null,
+  val displayName: String? = null,
+  val deviceProfile: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformCompanionAssociation {
+      val id = pigeonVar_list[0] as Long
+      val deviceId = pigeonVar_list[1] as String?
+      val displayName = pigeonVar_list[2] as String?
+      val deviceProfile = pigeonVar_list[3] as String?
+      return PlatformCompanionAssociation(id, deviceId, displayName, deviceProfile)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      deviceId,
+      displayName,
+      deviceProfile,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformCompanionAssociation
+    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.displayName, other.displayName) && MessagesPigeonUtils.deepEquals(this.deviceProfile, other.deviceProfile)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + MessagesPigeonUtils.deepHash(this.id)
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.name)
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.associationId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.displayName)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceProfile)
     return result
   }
   override fun toString(): String {
-    return "PlatformCompanionDevice(id=$id, name=$name, associationId=$associationId)"
+    return "PlatformCompanionAssociation(id=$id, deviceId=$deviceId, displayName=$displayName, deviceProfile=$deviceProfile)"
   }
 }
 
@@ -681,40 +775,50 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCompanionDevice.fromList(it)
+          PlatformBleCompanionFilter.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformScanResult.fromList(it)
+          PlatformCompanionAssociationRequest.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformConnectionStateChange.fromList(it)
+          PlatformCompanionAssociation.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformServiceDiscovered.fromList(it)
+          PlatformScanResult.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristic.fromList(it)
+          PlatformConnectionStateChange.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformMtuChange.fromList(it)
+          PlatformServiceDiscovered.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristicValueChanged.fromList(it)
+          PlatformCharacteristic.fromList(it)
         }
       }
       141.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformMtuChange.fromList(it)
+        }
+      }
+      142.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCharacteristicValueChanged.fromList(it)
+        }
+      }
+      143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformL2CapSocketEvent.fromList(it)
         }
@@ -744,36 +848,44 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(133)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformCompanionDevice -> {
+      is PlatformBleCompanionFilter -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is PlatformScanResult -> {
+      is PlatformCompanionAssociationRequest -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is PlatformConnectionStateChange -> {
+      is PlatformCompanionAssociation -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is PlatformServiceDiscovered -> {
+      is PlatformScanResult -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristic -> {
+      is PlatformConnectionStateChange -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is PlatformMtuChange -> {
+      is PlatformServiceDiscovered -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristicValueChanged -> {
+      is PlatformCharacteristic -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is PlatformL2CapSocketEvent -> {
+      is PlatformMtuChange -> {
         stream.write(141)
+        writeValue(stream, value.toList())
+      }
+      is PlatformCharacteristicValueChanged -> {
+        stream.write(142)
+        writeValue(stream, value.toList())
+      }
+      is PlatformL2CapSocketEvent -> {
+        stream.write(143)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -791,9 +903,10 @@ interface QuickBlueApi {
   fun stopScan()
   fun connect(deviceId: String)
   fun disconnect(deviceId: String)
-  fun companionAssociate(deviceId: String?, serviceUuids: List<String>?, manufacturerData: Map<Long, ByteArray>?, callback: (Result<PlatformCompanionDevice?>) -> Unit)
+  fun isCompanionAssociationSupported(callback: (Result<Boolean>) -> Unit)
+  fun companionAssociate(request: PlatformCompanionAssociationRequest, callback: (Result<PlatformCompanionAssociation?>) -> Unit)
   fun companionDisassociate(associationId: Long)
-  fun getCompanionAssociations(): List<PlatformCompanionDevice>
+  fun getCompanionAssociations(): List<PlatformCompanionAssociation>
   fun discoverServices(deviceId: String)
   fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: PlatformBleInputProperty)
   fun readValue(deviceId: String, service: String, characteristic: String)
@@ -899,14 +1012,30 @@ interface QuickBlueApi {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.quick_blue.QuickBlueApi.isCompanionAssociationSupported$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.isCompanionAssociationSupported{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.quick_blue.QuickBlueApi.companionAssociate$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val deviceIdArg = args[0] as String?
-            val serviceUuidsArg = args[1] as List<String>?
-            val manufacturerDataArg = args[2] as Map<Long, ByteArray>?
-            api.companionAssociate(deviceIdArg, serviceUuidsArg, manufacturerDataArg) { result: Result<PlatformCompanionDevice?> ->
+            val requestArg = args[0] as PlatformCompanionAssociationRequest
+            api.companionAssociate(requestArg) { result: Result<PlatformCompanionAssociation?> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))

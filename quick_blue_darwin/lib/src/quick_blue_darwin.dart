@@ -53,10 +53,12 @@ class QuickBlueDarwin extends QuickBluePlatform {
       '(no CoreBluetooth equivalent for Android CompanionDeviceManager).';
 
   @override
-  Future<CompanionDevice?> companionAssociate({
-    String? deviceId,
-    ScanFilter? scanFilter,
-  }) async {
+  Future<bool> isCompanionAssociationSupported() async => false;
+
+  @override
+  Future<CompanionAssociation?> companionAssociate(
+    CompanionAssociationRequest request,
+  ) async {
     throw UnsupportedError(_companionUnsupported);
   }
 
@@ -66,7 +68,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
   }
 
   @override
-  Future<List<CompanionDevice>?> getCompanionAssociations() async {
+  Future<List<CompanionAssociation>> getCompanionAssociations() async {
     throw UnsupportedError(_companionUnsupported);
   }
 

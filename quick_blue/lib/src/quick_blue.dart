@@ -12,6 +12,8 @@ export 'quick_blue_android.dart';
 QuickBluePlatform get _platform => QuickBluePlatform.instance;
 
 class QuickBlue {
+  static final QuickBlueCompanion companion = QuickBlueCompanion._();
+
   static Future<bool> isBluetoothAvailable() =>
       _platform.isBluetoothAvailable();
 
@@ -54,21 +56,35 @@ class QuickBlue {
   static Future<void> disconnect(String deviceId) =>
       device(deviceId).disconnect();
 
+  @Deprecated('Use QuickBlue.companion.associate() instead.')
   static Future<CompanionDevice?> companionAssociate({
     String? deviceId,
     ScanFilter? scanFilter,
-  }) =>
-      _platform.companionAssociate(deviceId: deviceId, scanFilter: scanFilter);
+  }) async {
+    final association = await companion.associate(
+      CompanionAssociationRequest.ble(
+        filters: _legacyCompanionFilters(
+          deviceId: deviceId,
+          scanFilter: scanFilter,
+        ),
+      ),
+    );
+    return association == null ? null : _toLegacyCompanionDevice(association);
+  }
 
+  @Deprecated('Use QuickBlue.companion.disassociate() instead.')
   static Future<void> companionDisassociate(int associationId) =>
-      _platform.companionDisassociate(associationId);
+      companion.disassociate(associationId);
 
-  @Deprecated('Use QuickBlue.companionDisassociate() instead.')
+  @Deprecated('Use QuickBlue.companion.disassociate() instead.')
   static Future<void> companionDissassociate(int associationId) =>
       companionDisassociate(associationId);
 
-  static Future<List<CompanionDevice>?> getCompanionAssociations() =>
-      _platform.getCompanionAssociations();
+  @Deprecated('Use QuickBlue.companion.associations() instead.')
+  static Future<List<CompanionDevice>?> getCompanionAssociations() async {
+    final associations = await companion.associations();
+    return associations.map(_toLegacyCompanionDevice).toList(growable: false);
+  }
 
   @Deprecated(
     'Listen to QuickBlue.device(deviceId).connectionStateStream instead.',
@@ -129,4 +145,52 @@ class QuickBlue {
 
   static Future<BleL2capSocket> openL2cap(String deviceId, int psm) =>
       device(deviceId).openL2cap(psm);
+}
+
+class QuickBlueCompanion {
+  QuickBlueCompanion._();
+
+  Future<bool> isSupported() => _platform.isCompanionAssociationSupported();
+
+  Future<CompanionAssociation?> associate(CompanionAssociationRequest request) {
+    return _platform.companionAssociate(request);
+  }
+
+  Future<void> disassociate(int associationId) {
+    return _platform.companionDisassociate(associationId);
+  }
+
+  Future<List<CompanionAssociation>> associations() {
+    return _platform.getCompanionAssociations();
+  }
+}
+
+List<BleCompanionFilter> _legacyCompanionFilters({
+  String? deviceId,
+  ScanFilter? scanFilter,
+}) {
+  final hasScanFilter =
+      scanFilter != null &&
+      (scanFilter.serviceUuids.isNotEmpty ||
+          scanFilter.manufacturerData != null);
+  if (deviceId == null && !hasScanFilter) {
+    return const <BleCompanionFilter>[];
+  }
+  return <BleCompanionFilter>[
+    BleCompanionFilter(
+      deviceId: deviceId,
+      serviceUuids: scanFilter?.serviceUuids ?? const <String>[],
+      manufacturerData: scanFilter?.manufacturerData,
+    ),
+  ];
+}
+
+// ignore: deprecated_member_use
+CompanionDevice _toLegacyCompanionDevice(CompanionAssociation association) {
+  // ignore: deprecated_member_use
+  return CompanionDevice(
+    id: association.deviceId ?? '',
+    name: association.displayName ?? '',
+    associationId: association.id,
+  );
 }

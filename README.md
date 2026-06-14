@@ -112,8 +112,10 @@ service UUIDs, service data, or manufacturer data.
 ## Platform Notes
 
 - Android companion-device association is available through
-  `companionAssociate`, `companionDisassociate`, and
-  `getCompanionAssociations`.
+  `QuickBlue.companion`. Use `isSupported()` before showing Android-only
+  association UI, then call `associate()`, `associations()`, and
+  `disassociate()`. The older static companion methods remain as deprecated
+  compatibility wrappers.
 - iOS and macOS use CoreBluetooth. `requestMtu` returns the negotiated MTU
   currently in effect; CoreBluetooth does not let apps request an exact MTU.
 - Linux requires BlueZ.

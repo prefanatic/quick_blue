@@ -6,11 +6,13 @@ import L2CapSocketEventsStreamHandler
 import MtuChangedStreamHandler
 import PigeonEventSink
 import PlatformBleInputProperty
+import PlatformBleCompanionFilter
 import PlatformBleOutputProperty
 import PlatformBluetoothState
 import PlatformCharacteristic
 import PlatformCharacteristicValueChanged
-import PlatformCompanionDevice
+import PlatformCompanionAssociation
+import PlatformCompanionAssociationRequest
 import PlatformConnectionState
 import PlatformConnectionStateChange
 import PlatformGattStatus
@@ -37,7 +39,7 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.companion.AssociationInfo
 import android.companion.AssociationRequest
-import android.companion.BluetoothDeviceFilter
+import android.companion.BluetoothLeDeviceFilter
 import android.companion.CompanionDeviceManager
 import android.content.Context
 import android.content.BroadcastReceiver
@@ -71,6 +73,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
 import java.util.concurrent.Executor
+import java.util.regex.Pattern
 
 private const val SELECT_DEVICE_REQUEST_CODE = 10011
 
@@ -498,60 +501,83 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         cleanConnection(gatt)
     }
 
+    override fun isCompanionAssociationSupported(callback: (Result<Boolean>) -> Unit) {
+        callback(Result.success(isCompanionAssociationSupported()))
+    }
+
     override fun companionAssociate(
-        deviceId: String?,
-        serviceUuids: List<String>?,
-        manufacturerData: Map<Long, ByteArray>?,
-        callback: (Result<PlatformCompanionDevice?>) -> Unit
+        request: PlatformCompanionAssociationRequest,
+        callback: (Result<PlatformCompanionAssociation?>) -> Unit
     ) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            throw FlutterError(
-                "UnsupportedAndroidVersion",
-                "Associating companion devices requires Android API 33 or higher",
-                null
+        if (!isCompanionAssociationSupported()) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "UnsupportedAndroidVersion",
+                        "Associating companion devices requires Android API 33 or higher",
+                        null
+                    )
+                )
             )
+            return
         }
 
-        val deviceFilter: BluetoothDeviceFilter = BluetoothDeviceFilter.Builder().let {
-            if (deviceId != null) {
-                it.setAddress(deviceId)
-            }
-
-            serviceUuids?.map { uuid ->
-                it.addServiceUuid(ParcelUuid.fromString(uuid), null)
-            }
-            it.build()
+        val pairingRequestBuilder = AssociationRequest.Builder()
+            .setSingleDevice(request.singleDevice)
+        val filters = request.filters.flatMap(::buildBleDeviceFilters)
+        if (filters.isEmpty()) {
+            pairingRequestBuilder.addDeviceFilter(BluetoothLeDeviceFilter.Builder().build())
+        } else {
+            filters.forEach { pairingRequestBuilder.addDeviceFilter(it) }
         }
-        val pairingRequest: AssociationRequest = AssociationRequest.Builder()
-            .addDeviceFilter(deviceFilter)
-            .setSingleDevice(true)
-            .build()
+        val pairingRequest = pairingRequestBuilder.build()
+
+        var completed = false
+        fun complete(result: Result<PlatformCompanionAssociation?>) {
+            if (completed) return
+            completed = true
+            callback(result)
+        }
 
         companionDeviceManager.associate(
             pairingRequest,
             executor,
             object : CompanionDeviceManager.Callback() {
                 override fun onAssociationPending(intentSender: IntentSender) {
+                    val currentActivity = activity
+                    if (currentActivity == null) {
+                        complete(
+                            Result.failure(
+                                FlutterError(
+                                    "AssociationFailed",
+                                    "Companion device association requires an attached Activity",
+                                    null
+                                )
+                            )
+                        )
+                        return
+                    }
                     startIntentSenderForResult(
-                        activity!!,
+                        currentActivity,
                         intentSender, SELECT_DEVICE_REQUEST_CODE, null, 0, 0, 0, null
                     )
                 }
 
                 override fun onAssociationCreated(associationInfo: AssociationInfo) {
-                    callback(
+                    complete(
                         Result.success(
-                            PlatformCompanionDevice(
-                                associationInfo.deviceMacAddress.toString(),
-                                associationInfo.displayName.toString(),
-                                associationInfo.id.toLong(),
+                            PlatformCompanionAssociation(
+                                id = associationInfo.id.toLong(),
+                                deviceId = associationInfo.deviceMacAddress?.toString(),
+                                displayName = associationInfo.displayName?.toString(),
+                                deviceProfile = associationInfo.deviceProfile,
                             )
                         )
                     )
                 }
 
                 override fun onFailure(errorMessage: CharSequence?) {
-                    callback(
+                    complete(
                         Result.failure(
                             FlutterError(
                                 "AssociationFailed",
@@ -566,7 +592,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     }
 
     override fun companionDisassociate(associationId: Long) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+        if (!isCompanionAssociationSupported()) {
             throw FlutterError(
                 "UnsupportedAndroidVersion",
                 "Associating companion devices requires Android API 33 or higher",
@@ -576,8 +602,8 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         companionDeviceManager.disassociate(associationId.toInt())
     }
 
-    override fun getCompanionAssociations(): List<PlatformCompanionDevice> {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+    override fun getCompanionAssociations(): List<PlatformCompanionAssociation> {
+        if (!isCompanionAssociationSupported()) {
             throw FlutterError(
                 "UnsupportedAndroidVersion",
                 "Associating companion devices requires Android API 33 or higher",
@@ -586,11 +612,48 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
 
         return companionDeviceManager.myAssociations.map {
-            PlatformCompanionDevice(
-                associationId = it.id.toLong(),
-                id = it.deviceMacAddress.toString(),
-                name = it.displayName.toString(),
+            PlatformCompanionAssociation(
+                id = it.id.toLong(),
+                deviceId = it.deviceMacAddress?.toString(),
+                displayName = it.displayName?.toString(),
+                deviceProfile = it.deviceProfile,
             )
+        }
+    }
+
+    private fun isCompanionAssociationSupported(): Boolean {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_COMPANION_DEVICE_SETUP)
+    }
+
+    private fun buildBleDeviceFilters(
+        filter: PlatformBleCompanionFilter
+    ): List<BluetoothLeDeviceFilter> {
+        val serviceUuids: List<String?> =
+            if (filter.serviceUuids.isEmpty()) listOf(null) else filter.serviceUuids
+        val manufacturerDataFilters =
+            filter.manufacturerData?.entries?.map { it }
+                ?.ifEmpty { listOf(null) }
+                ?: listOf(null)
+
+        return serviceUuids.flatMap { serviceUuid ->
+            manufacturerDataFilters.map { manufacturerDataFilter ->
+                val scanFilterBuilder = ScanFilter.Builder()
+                filter.deviceId?.let { scanFilterBuilder.setDeviceAddress(it) }
+                serviceUuid?.let {
+                    scanFilterBuilder.setServiceUuid(ParcelUuid.fromString(it))
+                }
+                manufacturerDataFilter?.let {
+                    scanFilterBuilder.setManufacturerData(it.key.toInt(), it.value)
+                }
+
+                val deviceFilterBuilder = BluetoothLeDeviceFilter.Builder()
+                    .setScanFilter(scanFilterBuilder.build())
+                filter.namePattern?.let {
+                    deviceFilterBuilder.setNamePattern(Pattern.compile(it))
+                }
+                deviceFilterBuilder.build()
+            }
         }
     }
 

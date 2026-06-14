@@ -113,10 +113,14 @@ void main() {
     ]);
   });
 
-  test('unsupported APIs throw UnsupportedError', () {
+  test('unsupported APIs throw UnsupportedError', () async {
     final platform = QuickBlueWindows();
 
-    expect(platform.companionAssociate(), throwsA(isA<UnsupportedError>()));
+    expect(await platform.isCompanionAssociationSupported(), isFalse);
+    expect(
+      platform.companionAssociate(CompanionAssociationRequest.ble()),
+      throwsA(isA<UnsupportedError>()),
+    );
     expect(
       () => platform.companionDisassociate(42),
       throwsA(isA<UnsupportedError>()),

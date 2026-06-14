@@ -377,6 +377,77 @@ void main() {
     });
   });
 
+  group(BleCompanionFilter, () {
+    test('defensively copies manufacturer data', () {
+      final manufacturerPayload = Uint8List.fromList(<int>[1, 2, 3]);
+      final filter = BleCompanionFilter(
+        deviceId: 'device-a',
+        namePattern: 'Device.*',
+        serviceUuids: const <String>['180d'],
+        manufacturerData: <int, Uint8List>{76: manufacturerPayload},
+      );
+
+      manufacturerPayload[0] = 9;
+      final firstRead = filter.manufacturerData![76]!;
+      firstRead[1] = 8;
+
+      expect(filter.manufacturerData![76], Uint8List.fromList(<int>[1, 2, 3]));
+      expect(filter.toString(), contains('BleCompanionFilter'));
+    });
+  });
+
+  group(CompanionAssociationRequest, () {
+    test('compares by value', () {
+      final first = CompanionAssociationRequest.ble(
+        filters: <BleCompanionFilter>[
+          BleCompanionFilter(
+            deviceId: 'device-a',
+            serviceUuids: const <String>['180d'],
+          ),
+        ],
+      );
+      final equivalent = CompanionAssociationRequest.ble(
+        filters: <BleCompanionFilter>[
+          BleCompanionFilter(
+            deviceId: 'device-a',
+            serviceUuids: const <String>['180d'],
+          ),
+        ],
+      );
+      final different = CompanionAssociationRequest.ble(
+        filters: <BleCompanionFilter>[BleCompanionFilter(deviceId: 'device-b')],
+      );
+
+      expect(first, equivalent);
+      expect(first.hashCode, equivalent.hashCode);
+      expect(first, isNot(different));
+      expect(first.toString(), contains('CompanionAssociationRequest'));
+    });
+  });
+
+  group(CompanionAssociation, () {
+    test('compares by value', () {
+      final first = CompanionAssociation(
+        id: 42,
+        deviceId: 'device-a',
+        displayName: 'Device A',
+        deviceProfile: 'watch',
+      );
+      final equivalent = CompanionAssociation(
+        id: 42,
+        deviceId: 'device-a',
+        displayName: 'Device A',
+        deviceProfile: 'watch',
+      );
+      final different = CompanionAssociation(id: 43);
+
+      expect(first, equivalent);
+      expect(first.hashCode, equivalent.hashCode);
+      expect(first, isNot(different));
+      expect(first.toString(), contains('CompanionAssociation'));
+    });
+  });
+
   group(CompanionDevice, () {
     test('compares by value', () {
       final first = CompanionDevice(

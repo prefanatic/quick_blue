@@ -19,16 +19,42 @@ enum PlatformBluetoothState {
   poweredOn,
 }
 
-class PlatformCompanionDevice {
-  PlatformCompanionDevice({
-    required this.id,
-    required this.name,
-    required this.associationId,
+class PlatformBleCompanionFilter {
+  PlatformBleCompanionFilter({
+    this.deviceId,
+    this.namePattern,
+    required this.serviceUuids,
+    this.manufacturerData,
   });
 
-  final String id;
-  final String name;
-  final int associationId;
+  final String? deviceId;
+  final String? namePattern;
+  final List<String> serviceUuids;
+  final Map<int, Uint8List>? manufacturerData;
+}
+
+class PlatformCompanionAssociationRequest {
+  PlatformCompanionAssociationRequest({
+    required this.filters,
+    required this.singleDevice,
+  });
+
+  final List<PlatformBleCompanionFilter> filters;
+  final bool singleDevice;
+}
+
+class PlatformCompanionAssociation {
+  PlatformCompanionAssociation({
+    required this.id,
+    this.deviceId,
+    this.displayName,
+    this.deviceProfile,
+  });
+
+  final int id;
+  final String? deviceId;
+  final String? displayName;
+  final String? deviceProfile;
 }
 
 @HostApi()
@@ -42,13 +68,13 @@ abstract class QuickBlueApi {
   void connect(String deviceId);
   void disconnect(String deviceId);
   @async
-  PlatformCompanionDevice? companionAssociate({
-    String? deviceId,
-    List<String>? serviceUuids,
-    Map<int, Uint8List>? manufacturerData,
-  });
+  bool isCompanionAssociationSupported();
+  @async
+  PlatformCompanionAssociation? companionAssociate(
+    PlatformCompanionAssociationRequest request,
+  );
   void companionDisassociate(int associationId);
-  List<PlatformCompanionDevice> getCompanionAssociations();
+  List<PlatformCompanionAssociation> getCompanionAssociations();
   void discoverServices(String deviceId);
   void setNotifiable(
     String deviceId,

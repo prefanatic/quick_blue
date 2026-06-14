@@ -953,10 +953,15 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
-  Future<CompanionDevice?> companionAssociate({
-    String? deviceId,
-    ScanFilter? scanFilter,
-  }) async {
+  Future<bool> isCompanionAssociationSupported() async {
+    calls.add('isCompanionAssociationSupported');
+    return false;
+  }
+
+  @override
+  Future<CompanionAssociation?> companionAssociate(
+    CompanionAssociationRequest request,
+  ) async {
     calls.add('companionAssociate');
     return null;
   }
@@ -967,9 +972,9 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
-  Future<List<CompanionDevice>?> getCompanionAssociations() async {
+  Future<List<CompanionAssociation>> getCompanionAssociations() async {
     calls.add('getCompanionAssociations');
-    return const <CompanionDevice>[];
+    return const <CompanionAssociation>[];
   }
 
   @override

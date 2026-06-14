@@ -171,6 +171,90 @@ class ScanFilter {
   }
 }
 
+class CompanionAssociationRequest {
+  CompanionAssociationRequest({
+    List<BleCompanionFilter> filters = const <BleCompanionFilter>[],
+    this.singleDevice = true,
+  }) : filters = List<BleCompanionFilter>.unmodifiable(filters);
+
+  CompanionAssociationRequest.ble({
+    List<BleCompanionFilter> filters = const <BleCompanionFilter>[],
+    bool singleDevice = true,
+  }) : this(filters: filters, singleDevice: singleDevice);
+
+  final List<BleCompanionFilter> filters;
+  final bool singleDevice;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is CompanionAssociationRequest &&
+            _deepEquality.equals(filters, other.filters) &&
+            other.singleDevice == singleDevice;
+  }
+
+  @override
+  int get hashCode => Object.hash(_deepEquality.hash(filters), singleDevice);
+
+  @override
+  String toString() {
+    return 'CompanionAssociationRequest('
+        'filters: $filters, '
+        'singleDevice: $singleDevice'
+        ')';
+  }
+}
+
+class BleCompanionFilter {
+  BleCompanionFilter({
+    this.deviceId,
+    this.namePattern,
+    List<String> serviceUuids = const <String>[],
+    Map<int, Uint8List>? manufacturerData,
+  }) : serviceUuids = List<String>.unmodifiable(serviceUuids),
+       _manufacturerData = _copyManufacturerData(manufacturerData);
+
+  final String? deviceId;
+  final String? namePattern;
+  final List<String> serviceUuids;
+  final Map<int, Uint8List>? _manufacturerData;
+
+  Map<int, Uint8List>? get manufacturerData {
+    final data = _manufacturerData;
+    return data == null ? null : _copyManufacturerData(data);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BleCompanionFilter &&
+            other.deviceId == deviceId &&
+            other.namePattern == namePattern &&
+            _stringListEquality.equals(serviceUuids, other.serviceUuids) &&
+            _deepEquality.equals(_manufacturerData, other._manufacturerData);
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      deviceId,
+      namePattern,
+      _stringListEquality.hash(serviceUuids),
+      _deepEquality.hash(_manufacturerData),
+    );
+  }
+
+  @override
+  String toString() {
+    return 'BleCompanionFilter('
+        'deviceId: $deviceId, '
+        'namePattern: $namePattern, '
+        'serviceUuids: $serviceUuids, '
+        'manufacturerData: ${_intByteMapToString(_manufacturerData)}'
+        ')';
+  }
+}
+
 Uint8List _copyBytes(Object? bytes) {
   if (bytes == null) {
     return Uint8List(0);
@@ -550,6 +634,50 @@ class BleL2CapSocketEventError extends BleL2CapSocketEvent {
   }
 }
 
+class CompanionAssociation {
+  CompanionAssociation({
+    required this.id,
+    this.deviceId,
+    this.displayName,
+    this.deviceProfile,
+  });
+
+  CompanionAssociation.fromMap(Map map)
+    : id = map['id'] as int,
+      deviceId = map['deviceId'] as String?,
+      displayName = map['displayName'] as String?,
+      deviceProfile = map['deviceProfile'] as String?;
+
+  final int id;
+  final String? deviceId;
+  final String? displayName;
+  final String? deviceProfile;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is CompanionAssociation &&
+            other.id == id &&
+            other.deviceId == deviceId &&
+            other.displayName == displayName &&
+            other.deviceProfile == deviceProfile;
+  }
+
+  @override
+  int get hashCode => Object.hash(id, deviceId, displayName, deviceProfile);
+
+  @override
+  String toString() {
+    return 'CompanionAssociation('
+        'id: $id, '
+        'deviceId: $deviceId, '
+        'displayName: $displayName, '
+        'deviceProfile: $deviceProfile'
+        ')';
+  }
+}
+
+@Deprecated('Use CompanionAssociation instead.')
 class CompanionDevice {
   CompanionDevice({
     required this.id,

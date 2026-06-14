@@ -23,6 +23,8 @@
   pending device connection on macOS and Linux.
 - Add broader Dart API, Android wrapper, Darwin wrapper, and model test
   coverage.
+- Add `QuickBlue.companion` with typed companion association requests,
+  associations, and support checks.
 - Add GitHub Actions CI updates and local `act` configuration.
 - Add repository contributor instructions.
 
@@ -53,9 +55,13 @@
   characteristic metadata, and service-scoped values.
 - Bring the Linux implementation up to the current Dart surface with live
   Bluetooth state, scan filters, and service data in scan results.
+- Replace the companion-device platform contract with association-specific
+  models and deprecate the older static companion methods.
 
 ### Fixed
 
+- Apply Android BLE companion association manufacturer-data filters instead of
+  accepting them on Dart and dropping them in Kotlin.
 - Complete Android and Darwin writes after the platform reports the
   characteristic write result.
 - Preserve pending Android and Darwin write failures when a peripheral

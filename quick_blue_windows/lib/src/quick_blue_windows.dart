@@ -45,10 +45,12 @@ class QuickBlueWindows extends QuickBluePlatform {
       'Companion device association is not supported on Windows.';
 
   @override
-  Future<CompanionDevice?> companionAssociate({
-    String? deviceId,
-    ScanFilter? scanFilter,
-  }) async {
+  Future<bool> isCompanionAssociationSupported() async => false;
+
+  @override
+  Future<CompanionAssociation?> companionAssociate(
+    CompanionAssociationRequest request,
+  ) async {
     throw UnsupportedError(_companionUnsupported);
   }
 
@@ -58,7 +60,7 @@ class QuickBlueWindows extends QuickBluePlatform {
   }
 
   @override
-  Future<List<CompanionDevice>?> getCompanionAssociations() async {
+  Future<List<CompanionAssociation>> getCompanionAssociations() async {
     throw UnsupportedError(_companionUnsupported);
   }
 

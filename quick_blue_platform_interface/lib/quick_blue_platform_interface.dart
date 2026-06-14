@@ -138,14 +138,15 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   Future<void> disconnect(String deviceId);
 
-  Future<CompanionDevice?> companionAssociate({
-    String? deviceId,
-    ScanFilter? scanFilter,
-  });
+  Future<bool> isCompanionAssociationSupported();
+
+  Future<CompanionAssociation?> companionAssociate(
+    CompanionAssociationRequest request,
+  );
 
   Future<void> companionDisassociate(int associationId);
 
-  Future<List<CompanionDevice>?> getCompanionAssociations();
+  Future<List<CompanionAssociation>> getCompanionAssociations();
 
   final StreamController<BluetoothConnectionStateChange>
   _connectionStateController =

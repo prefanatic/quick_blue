@@ -59,23 +59,27 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
   }
 
   @override
-  Future<CompanionDevice?> companionAssociate({
-    String? deviceId,
-    ScanFilter? scanFilter,
-  }) async {
+  Future<bool> isCompanionAssociationSupported() async {
+    return Platform.isAndroid;
+  }
+
+  @override
+  Future<CompanionAssociation?> companionAssociate(
+    CompanionAssociationRequest request,
+  ) async {
     if (!Platform.isAndroid) {
       throw UnsupportedError(
         'Companion device association is only supported on Android.',
       );
     }
     final data = await _method.invokeMethod('companionAssociate', {
-      if (scanFilter != null) 'serviceUuids': scanFilter.serviceUuids,
-      if (deviceId != null) 'deviceId': deviceId,
+      'singleDevice': request.singleDevice,
+      'filters': request.filters.map(_bleCompanionFilterToMap).toList(),
     });
     if (data == null) {
       return null;
     }
-    return CompanionDevice.fromMap(data as Map);
+    return CompanionAssociation.fromMap(data as Map);
   }
 
   @override
@@ -91,7 +95,7 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
   }
 
   @override
-  Future<List<CompanionDevice>?> getCompanionAssociations() async {
+  Future<List<CompanionAssociation>> getCompanionAssociations() async {
     if (!Platform.isAndroid) {
       throw UnsupportedError(
         'Companion device association is only supported on Android.',
@@ -99,9 +103,21 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
     }
     final data = await _method.invokeListMethod('companionListAssociations');
     if (data == null) {
-      return null;
+      return const <CompanionAssociation>[];
     }
-    return data.map((item) => CompanionDevice.fromMap(item as Map)).toList();
+    return data
+        .map((item) => CompanionAssociation.fromMap(item as Map))
+        .toList();
+  }
+
+  Map<String, Object?> _bleCompanionFilterToMap(BleCompanionFilter filter) {
+    return <String, Object?>{
+      if (filter.deviceId != null) 'deviceId': filter.deviceId,
+      if (filter.namePattern != null) 'namePattern': filter.namePattern,
+      'serviceUuids': filter.serviceUuids,
+      if (filter.manufacturerData != null)
+        'manufacturerData': filter.manufacturerData,
+    };
   }
 
   @override

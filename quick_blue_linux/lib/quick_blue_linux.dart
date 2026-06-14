@@ -439,20 +439,30 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   @override
-  Future<List<CompanionDevice>?> getCompanionAssociations() async {
-    return const <CompanionDevice>[];
+  Future<bool> isCompanionAssociationSupported() async => false;
+
+  @override
+  Future<List<CompanionAssociation>> getCompanionAssociations() async {
+    throw UnsupportedError(
+      'Companion device association is not supported on Linux.',
+    );
   }
 
   @override
-  Future<CompanionDevice?> companionAssociate({
-    String? deviceId,
-    ScanFilter? scanFilter,
-  }) async {
-    return null;
+  Future<CompanionAssociation?> companionAssociate(
+    CompanionAssociationRequest request,
+  ) async {
+    throw UnsupportedError(
+      'Companion device association is not supported on Linux.',
+    );
   }
 
   @override
-  Future<void> companionDisassociate(int associationId) async {}
+  Future<void> companionDisassociate(int associationId) async {
+    throw UnsupportedError(
+      'Companion device association is not supported on Linux.',
+    );
+  }
 
   BlueZAdapter? _selectPoweredAdapter() {
     return _client.adapters.firstWhereOrNull((adapter) => adapter.powered);

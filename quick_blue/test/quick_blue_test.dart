@@ -218,11 +218,39 @@ void main() {
     expect(platform.calls, <String>['companionDisassociate 42']);
   });
 
+  test('companion isSupported delegates to the platform', () async {
+    expect(await QuickBlue.companion.isSupported(), isTrue);
+
+    expect(platform.calls, <String>['isCompanionAssociationSupported']);
+  });
+
+  test('companion associate delegates to the platform', () async {
+    platform.companionAssociation = CompanionAssociation(
+      id: 42,
+      deviceId: 'device-a',
+      displayName: 'Device A',
+    );
+
+    final association = await QuickBlue.companion.associate(
+      CompanionAssociationRequest.ble(
+        filters: <BleCompanionFilter>[
+          BleCompanionFilter(
+            deviceId: 'device-a',
+            serviceUuids: const <String>['180d'],
+          ),
+        ],
+      ),
+    );
+
+    expect(association, platform.companionAssociation);
+    expect(platform.calls, <String>['companionAssociate device-a [180d]']);
+  });
+
   test('companionAssociate delegates to the platform', () async {
-    platform.companionAssociation = CompanionDevice(
-      id: 'device-a',
-      name: 'Device A',
-      associationId: 42,
+    platform.companionAssociation = CompanionAssociation(
+      id: 42,
+      deviceId: 'device-a',
+      displayName: 'Device A',
     );
 
     final device = await QuickBlue.companionAssociate(
@@ -230,18 +258,30 @@ void main() {
       scanFilter: ScanFilter(serviceUuids: const <String>['180d']),
     );
 
-    expect(device, platform.companionAssociation);
+    expect(
+      device,
+      // ignore: deprecated_member_use
+      CompanionDevice(id: 'device-a', name: 'Device A', associationId: 42),
+    );
     expect(platform.calls, <String>['companionAssociate device-a [180d]']);
   });
 
   test('getCompanionAssociations delegates to the platform', () async {
-    platform.companionAssociations = <CompanionDevice>[
-      CompanionDevice(id: 'device-a', name: 'Device A', associationId: 42),
+    platform.companionAssociations = <CompanionAssociation>[
+      CompanionAssociation(
+        id: 42,
+        deviceId: 'device-a',
+        displayName: 'Device A',
+      ),
     ];
 
     final associations = await QuickBlue.getCompanionAssociations();
 
-    expect(associations, platform.companionAssociations);
+    // ignore: deprecated_member_use
+    expect(associations, <CompanionDevice>[
+      // ignore: deprecated_member_use
+      CompanionDevice(id: 'device-a', name: 'Device A', associationId: 42),
+    ]);
     expect(platform.calls, <String>['getCompanionAssociations']);
   });
 }
@@ -253,8 +293,9 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   var disconnectsImmediately = true;
   var readValueResult = Uint8List(0);
   var discoveredServices = <BluetoothService>[];
-  CompanionDevice? companionAssociation;
-  List<CompanionDevice>? companionAssociations = const <CompanionDevice>[];
+  CompanionAssociation? companionAssociation;
+  List<CompanionAssociation> companionAssociations =
+      const <CompanionAssociation>[];
   final _scanResultController = StreamController<BlueScanResult>.broadcast();
   final _bluetoothStateController =
       StreamController<BlueBluetoothState>.broadcast();
@@ -324,12 +365,19 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
-  Future<CompanionDevice?> companionAssociate({
-    String? deviceId,
-    ScanFilter? scanFilter,
-  }) async {
+  Future<bool> isCompanionAssociationSupported() async {
+    calls.add('isCompanionAssociationSupported');
+    return true;
+  }
+
+  @override
+  Future<CompanionAssociation?> companionAssociate(
+    CompanionAssociationRequest request,
+  ) async {
+    final filter = request.filters.isEmpty ? null : request.filters.first;
     calls.add(
-      'companionAssociate $deviceId ${scanFilter?.serviceUuids ?? <String>[]}',
+      'companionAssociate ${filter?.deviceId} '
+      '${filter?.serviceUuids ?? <String>[]}',
     );
     return companionAssociation;
   }
@@ -340,7 +388,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
-  Future<List<CompanionDevice>?> getCompanionAssociations() async {
+  Future<List<CompanionAssociation>> getCompanionAssociations() async {
     calls.add('getCompanionAssociations');
     return companionAssociations;
   }

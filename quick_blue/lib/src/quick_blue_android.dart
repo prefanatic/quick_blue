@@ -44,23 +44,25 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
-  Future<CompanionDevice?> companionAssociate({
-    String? deviceId,
-    ScanFilter? scanFilter,
-  }) async {
+  Future<bool> isCompanionAssociationSupported() {
     _ensureInitialized();
 
-    final device = await _api.companionAssociate(
-      deviceId: deviceId,
-      serviceUuids: scanFilter?.serviceUuids,
-      manufacturerData: scanFilter?.manufacturerData,
+    return _api.isCompanionAssociationSupported();
+  }
+
+  @override
+  Future<CompanionAssociation?> companionAssociate(
+    CompanionAssociationRequest request,
+  ) async {
+    _ensureInitialized();
+
+    final association = await _api.companionAssociate(
+      messages.PlatformCompanionAssociationRequest(
+        filters: request.filters.map(_toPlatformBleCompanionFilter).toList(),
+        singleDevice: request.singleDevice,
+      ),
     );
-    if (device == null) return null;
-    return CompanionDevice(
-      id: device.id,
-      name: device.name,
-      associationId: device.associationId,
-    );
+    return association == null ? null : _toCompanionAssociation(association);
   }
 
   @override
@@ -92,19 +94,11 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
-  Future<List<CompanionDevice>?> getCompanionAssociations() async {
+  Future<List<CompanionAssociation>> getCompanionAssociations() async {
     _ensureInitialized();
 
     final associations = await _api.getCompanionAssociations();
-    return associations
-        .map((device) {
-          return CompanionDevice(
-            id: device.id,
-            name: device.name,
-            associationId: device.associationId,
-          );
-        })
-        .toList(growable: false);
+    return associations.map(_toCompanionAssociation).toList(growable: false);
   }
 
   @override
@@ -237,6 +231,28 @@ class QuickBlueAndroid extends QuickBluePlatform {
       bleOutputProperty.toPlatformBleOutputProperty(),
     );
   }
+}
+
+messages.PlatformBleCompanionFilter _toPlatformBleCompanionFilter(
+  BleCompanionFilter filter,
+) {
+  return messages.PlatformBleCompanionFilter(
+    deviceId: filter.deviceId,
+    namePattern: filter.namePattern,
+    serviceUuids: filter.serviceUuids,
+    manufacturerData: filter.manufacturerData,
+  );
+}
+
+CompanionAssociation _toCompanionAssociation(
+  messages.PlatformCompanionAssociation association,
+) {
+  return CompanionAssociation(
+    id: association.id,
+    deviceId: association.deviceId,
+    displayName: association.displayName,
+    deviceProfile: association.deviceProfile,
+  );
 }
 
 class _L2capSink implements EventSink<Uint8List> {

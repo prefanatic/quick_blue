@@ -113,10 +113,14 @@ void main() {
     ]);
   });
 
-  test('companion APIs throw UnsupportedError', () {
+  test('companion APIs throw UnsupportedError', () async {
     final platform = QuickBlueDarwin();
 
-    expect(platform.companionAssociate(), throwsA(isA<UnsupportedError>()));
+    expect(await platform.isCompanionAssociationSupported(), isFalse);
+    expect(
+      platform.companionAssociate(CompanionAssociationRequest.ble()),
+      throwsA(isA<UnsupportedError>()),
+    );
     expect(
       () => platform.companionDisassociate(42),
       throwsA(isA<UnsupportedError>()),

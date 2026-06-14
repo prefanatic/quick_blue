@@ -12,6 +12,7 @@ void main() {
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.stopScan',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.connect',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.disconnect',
+    'dev.flutter.pigeon.quick_blue.QuickBlueApi.isCompanionAssociationSupported',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.companionAssociate',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.companionDisassociate',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.getCompanionAssociations',
@@ -123,6 +124,7 @@ void main() {
     test('maps companion host API results', () async {
       final sentMessages = <String, Object?>{};
       for (final name in const <String>[
+        'dev.flutter.pigeon.quick_blue.QuickBlueApi.isCompanionAssociationSupported',
         'dev.flutter.pigeon.quick_blue.QuickBlueApi.companionAssociate',
         'dev.flutter.pigeon.quick_blue.QuickBlueApi.companionDisassociate',
         'dev.flutter.pigeon.quick_blue.QuickBlueApi.getCompanionAssociations',
@@ -140,26 +142,56 @@ void main() {
       }
 
       final platform = QuickBlueAndroid();
-      final filter = ScanFilter(serviceUuids: const <String>['180d']);
+      final filter = BleCompanionFilter(
+        deviceId: 'device-a',
+        serviceUuids: const <String>['180d'],
+        manufacturerData: <int, Uint8List>{
+          76: Uint8List.fromList(<int>[1, 2, 3]),
+        },
+      );
 
+      expect(await platform.isCompanionAssociationSupported(), isTrue);
       expect(
         await platform.companionAssociate(
-          deviceId: 'device-a',
-          scanFilter: filter,
+          CompanionAssociationRequest.ble(
+            filters: <BleCompanionFilter>[filter],
+          ),
         ),
-        CompanionDevice(id: 'device-a', name: 'Device A', associationId: 42),
+        CompanionAssociation(
+          id: 42,
+          deviceId: 'device-a',
+          displayName: 'Device A',
+        ),
       );
       await platform.companionDisassociate(42);
-      expect(await platform.getCompanionAssociations(), <CompanionDevice>[
-        CompanionDevice(id: 'device-a', name: 'Device A', associationId: 42),
+      expect(await platform.getCompanionAssociations(), <CompanionAssociation>[
+        CompanionAssociation(
+          id: 42,
+          deviceId: 'device-a',
+          displayName: 'Device A',
+        ),
       ]);
 
       expect(
+        sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.isCompanionAssociationSupported'],
+        isNull,
+      );
+      expect(
         sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.companionAssociate'],
         <Object?>[
-          'device-a',
-          <String>['180d'],
-          null,
+          messages.PlatformCompanionAssociationRequest(
+            filters: <messages.PlatformBleCompanionFilter>[
+              messages.PlatformBleCompanionFilter(
+                deviceId: 'device-a',
+                namePattern: null,
+                serviceUuids: <String>['180d'],
+                manufacturerData: <int, Uint8List>{
+                  76: Uint8List.fromList(<int>[1, 2, 3]),
+                },
+              ),
+            ],
+            singleDevice: true,
+          ),
         ],
       );
       expect(
@@ -263,22 +295,27 @@ Object _replyFor(String channelName) {
   if (channelName.endsWith('.isBluetoothAvailable')) {
     return <Object?>[true];
   }
+  if (channelName.endsWith('.isCompanionAssociationSupported')) {
+    return <Object?>[true];
+  }
   if (channelName.endsWith('.companionAssociate')) {
     return <Object?>[
-      messages.PlatformCompanionDevice(
-        id: 'device-a',
-        name: 'Device A',
-        associationId: 42,
+      messages.PlatformCompanionAssociation(
+        id: 42,
+        deviceId: 'device-a',
+        displayName: 'Device A',
+        deviceProfile: null,
       ),
     ];
   }
   if (channelName.endsWith('.getCompanionAssociations')) {
     return <Object?>[
-      <messages.PlatformCompanionDevice>[
-        messages.PlatformCompanionDevice(
-          id: 'device-a',
-          name: 'Device A',
-          associationId: 42,
+      <messages.PlatformCompanionAssociation>[
+        messages.PlatformCompanionAssociation(
+          id: 42,
+          deviceId: 'device-a',
+          displayName: 'Device A',
+          deviceProfile: null,
         ),
       ],
     ];
