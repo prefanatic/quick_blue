@@ -41,6 +41,7 @@ example app includes working platform manifests and plist entries.
 | `isBluetoothAvailable` | yes | yes | yes | yes | yes |
 | `bluetoothStateStream` | yes | yes | yes | yes | yes |
 | `scan` / `scanResults` | yes | yes | yes | yes | yes |
+| `connectedDevices` | yes | yes* | yes* | yes | yes |
 | `connect` / `disconnect` | yes | yes | yes | yes | yes |
 | `discoverServices` | yes | yes | yes | yes | yes |
 | `readValue` / `writeValue` | yes | yes | yes | yes | yes |
@@ -49,6 +50,9 @@ example app includes working platform manifests and plist entries.
 
 `bluetoothStateStream` emits live state changes on Android, iOS, and macOS.
 Windows and Linux currently emit an availability snapshot.
+
+* iOS and macOS use CoreBluetooth's connected-peripheral lookup, which requires
+  service UUIDs to find system-connected peripherals.
 
 ## Example Usage
 
@@ -108,6 +112,17 @@ Future<void> readWriteNotify({
 Use `QuickBlue.scan()` when you only need device handles. Use
 `QuickBlue.scanResults()` when you need advertisement fields such as RSSI,
 service UUIDs, service data, or manufacturer data.
+
+Get device handles for peripherals that are already connected:
+
+```dart
+final devices = await QuickBlue.connectedDevices(
+  serviceUuids: ['0000180d-0000-1000-8000-00805f9b34fb'],
+);
+```
+
+Pass service UUIDs when targeting iOS or macOS; CoreBluetooth only returns
+connected peripherals that match the supplied services.
 
 ## Platform Notes
 

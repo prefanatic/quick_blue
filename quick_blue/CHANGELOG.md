@@ -25,6 +25,8 @@
   coverage.
 - Add `QuickBlue.companion` with typed companion association requests,
   associations, and support checks.
+- Add `QuickBlue.connectedDevices()` for retrieving already connected device
+  handles.
 - Add GitHub Actions CI updates and local `act` configuration.
 - Add repository contributor instructions.
 

@@ -63,6 +63,14 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
+  Future<List<BluetoothDevice>> connectedDevices({
+    List<String> serviceUuids = const <String>[],
+  }) async {
+    calls.add('connectedDevices $serviceUuids');
+    return const <BluetoothDevice>[];
+  }
+
+  @override
   Future<void> connect(String deviceId) async {
     calls.add('connect $deviceId');
     final pending =

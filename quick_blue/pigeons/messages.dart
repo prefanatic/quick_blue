@@ -65,6 +65,7 @@ abstract class QuickBlueApi {
     Map<int, Uint8List>? manufacturerData,
   });
   void stopScan();
+  List<String> connectedDeviceIds(List<String> serviceUuids);
   void connect(String deviceId);
   void disconnect(String deviceId);
   @async

@@ -323,6 +323,8 @@ class QuickBlueWindowsPlugin : public flutter::Plugin,
       const EncodableList* service_uuids,
       const EncodableMap* manufacturer_data) override;
   std::optional<FlutterError> StopScan() override;
+  ErrorOr<EncodableList> ConnectedDeviceIds(
+      const EncodableList& service_uuids) override;
   std::optional<FlutterError> Connect(const std::string& device_id) override;
   std::optional<FlutterError> Disconnect(const std::string& device_id) override;
   void DiscoverServices(
@@ -528,6 +530,34 @@ std::optional<FlutterError> QuickBlueWindowsPlugin::StopScan() {
   }
   bluetoothLEWatcher = nullptr;
   return std::nullopt;
+}
+
+ErrorOr<EncodableList> QuickBlueWindowsPlugin::ConnectedDeviceIds(
+    const EncodableList& service_uuids) {
+  std::set<std::string> normalizedServiceUuids;
+  for (const auto& service_uuid : service_uuids) {
+    normalizedServiceUuids.insert(
+        normalize_bluetooth_uuid(std::get<std::string>(service_uuid)));
+  }
+
+  EncodableList deviceIds;
+  for (const auto& device : connectedDevices) {
+    if (!normalizedServiceUuids.empty()) {
+      std::set<std::string> connectedServiceUuids;
+      for (const auto& service : device.second->gattServices) {
+        connectedServiceUuids.insert(service.first);
+      }
+      if (!std::includes(connectedServiceUuids.begin(),
+                         connectedServiceUuids.end(),
+                         normalizedServiceUuids.begin(),
+                         normalizedServiceUuids.end())) {
+        continue;
+      }
+    }
+
+    deviceIds.push_back(EncodableValue(std::to_string(device.first)));
+  }
+  return deviceIds;
 }
 
 std::optional<FlutterError> QuickBlueWindowsPlugin::Connect(
@@ -835,6 +865,7 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::DiscoverServicesAsync(
     }
 
     for (auto s : serviceResult.Services()) {
+      bluetoothDeviceAgent.gattServices.insert_or_assign(to_uuidstr(s.Uuid()), s);
       auto characteristicResult = co_await s.GetCharacteristicsAsync();
       EncodableList characteristics;
       if (characteristicResult.Status() == GattCommunicationStatus::Success) {

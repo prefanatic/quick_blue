@@ -134,6 +134,10 @@ abstract class QuickBluePlatform extends PlatformInterface {
     return BluetoothDevice._(deviceId: deviceId, platform: this);
   }
 
+  Future<List<BluetoothDevice>> connectedDevices({
+    List<String> serviceUuids = const <String>[],
+  });
+
   Future<void> connect(String deviceId);
 
   Future<void> disconnect(String deviceId);

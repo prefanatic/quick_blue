@@ -89,6 +89,23 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
+  test('connectedDevices returns BluetoothDevice objects', () async {
+    final platform = _FakeQuickBluePlatform(
+      connectedDeviceIds: const <String>['device-a', 'device-b'],
+    );
+    addTearDown(platform.dispose);
+
+    final devices = await platform.connectedDevices(
+      serviceUuids: const <String>['180d'],
+    );
+
+    expect(devices.map((device) => device.id), <String>[
+      'device-a',
+      'device-b',
+    ]);
+    expect(platform.calls, <String>['connectedDevices [180d]']);
+  });
+
   test(
     'scanResults starts scanning, emits results, and stops on cancel',
     () async {
@@ -868,6 +885,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   _FakeQuickBluePlatform({
     Uint8List? readValueResult,
     List<BluetoothService> discoveredServices = const <BluetoothService>[],
+    this.connectedDeviceIds = const <String>[],
     List<Completer<void>> startScanCompletions = const <Completer<void>>[],
     List<Completer<void>> setNotifiableCompletions = const <Completer<void>>[],
     this.discoverServicesError,
@@ -886,6 +904,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final List<String> calls = <String>[];
   final Uint8List readValueResult;
   final List<BluetoothService> discoveredServices;
+  final List<String> connectedDeviceIds;
   final List<Completer<void>> startScanCompletions;
   final List<Completer<void>> setNotifiableCompletions;
   final Object? discoverServicesError;
@@ -926,6 +945,14 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> stopScan() async {
     calls.add('stopScan');
+  }
+
+  @override
+  Future<List<BluetoothDevice>> connectedDevices({
+    List<String> serviceUuids = const <String>[],
+  }) async {
+    calls.add('connectedDevices $serviceUuids');
+    return connectedDeviceIds.map(device).toList(growable: false);
   }
 
   @override

@@ -331,6 +331,7 @@ class QuickBlueApi {
     const ::flutter::EncodableList* service_uuids,
     const ::flutter::EncodableMap* manufacturer_data) = 0;
   virtual std::optional<FlutterError> StopScan() = 0;
+  virtual ErrorOr<::flutter::EncodableList> ConnectedDeviceIds(const ::flutter::EncodableList& service_uuids) = 0;
   virtual std::optional<FlutterError> Connect(const std::string& device_id) = 0;
   virtual std::optional<FlutterError> Disconnect(const std::string& device_id) = 0;
   virtual void DiscoverServices(

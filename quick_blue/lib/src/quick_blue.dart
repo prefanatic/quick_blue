@@ -51,6 +51,12 @@ class QuickBlue {
 
   static BluetoothDevice device(String deviceId) => _platform.device(deviceId);
 
+  static Future<List<BluetoothDevice>> connectedDevices({
+    List<String> serviceUuids = const <String>[],
+  }) {
+    return _platform.connectedDevices(serviceUuids: serviceUuids);
+  }
+
   static Future<void> connect(String deviceId) => device(deviceId).connect();
 
   static Future<void> disconnect(String deviceId) =>

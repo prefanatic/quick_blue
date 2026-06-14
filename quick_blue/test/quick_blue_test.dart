@@ -70,6 +70,22 @@ void main() {
     expect(device.id, 'device-a');
   });
 
+  test('connectedDevices delegates to the platform', () async {
+    platform.connectedDeviceIds = <String>['device-a', 'device-b'];
+
+    final devices = await QuickBlue.connectedDevices(
+      serviceUuids: const <String>['0000180d-0000-1000-8000-00805f9b34fb'],
+    );
+
+    expect(devices.map((device) => device.id), <String>[
+      'device-a',
+      'device-b',
+    ]);
+    expect(platform.calls, <String>[
+      'connectedDevices [0000180d-0000-1000-8000-00805f9b34fb]',
+    ]);
+  });
+
   test('disconnect waits for the disconnected state', () async {
     platform.disconnectsImmediately = false;
 
@@ -293,6 +309,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   var disconnectsImmediately = true;
   var readValueResult = Uint8List(0);
   var discoveredServices = <BluetoothService>[];
+  var connectedDeviceIds = <String>[];
   CompanionAssociation? companionAssociation;
   List<CompanionAssociation> companionAssociations =
       const <CompanionAssociation>[];
@@ -338,6 +355,14 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> stopScan() async {
     calls.add('stopScan');
+  }
+
+  @override
+  Future<List<BluetoothDevice>> connectedDevices({
+    List<String> serviceUuids = const <String>[],
+  }) async {
+    calls.add('connectedDevices $serviceUuids');
+    return connectedDeviceIds.map(device).toList(growable: false);
   }
 
   @override

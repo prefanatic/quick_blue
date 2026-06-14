@@ -210,6 +210,30 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   @override
+  Future<List<BluetoothDevice>> connectedDevices({
+    List<String> serviceUuids = const <String>[],
+  }) async {
+    await _ensureInitialized();
+    for (final device in _client.devices) {
+      _devices[device.address] = device;
+    }
+
+    final canonicalServiceUuids = serviceUuids.map(_canonicalizeUuid).toSet();
+    return _devices.values
+        .where((device) => device.connected)
+        .where(
+          (device) =>
+              canonicalServiceUuids.isEmpty ||
+              device.uuids
+                  .map(_bluezUuidToCanonical)
+                  .toSet()
+                  .containsAll(canonicalServiceUuids),
+        )
+        .map((device) => this.device(device.address))
+        .toList(growable: false);
+  }
+
+  @override
   Future<void> connect(String deviceId) async {
     await _ensureInitialized();
     final device = _getDeviceOrThrow(deviceId);

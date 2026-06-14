@@ -13,6 +13,8 @@ void main() {
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.startScan';
   const stopScanChannelName =
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.stopScan';
+  const getConnectedPeripheralsChannelName =
+      'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.getConnectedPeripherals';
   const connectChannelName =
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.connect';
   const disconnectChannelName =
@@ -33,6 +35,7 @@ void main() {
       isBluetoothAvailableChannelName,
       startScanChannelName,
       stopScanChannelName,
+      getConnectedPeripheralsChannelName,
       connectChannelName,
       disconnectChannelName,
       discoverServicesChannelName,
@@ -57,6 +60,7 @@ void main() {
     final sentMessages = <String, Object?>{};
     for (final name in const [
       isBluetoothAvailableChannelName,
+      getConnectedPeripheralsChannelName,
       stopScanChannelName,
       connectChannelName,
       disconnectChannelName,
@@ -75,6 +79,13 @@ void main() {
               if (name == isBluetoothAvailableChannelName) {
                 return <Object?>[true];
               }
+              if (name == getConnectedPeripheralsChannelName) {
+                return <Object?>[
+                  <messages.Peripheral>[
+                    messages.Peripheral(id: 'device-a', name: 'Device A'),
+                  ],
+                ];
+              }
               return <Object?>[null];
             },
           );
@@ -83,6 +94,9 @@ void main() {
     final platform = QuickBlueDarwin();
 
     expect(await platform.isBluetoothAvailable(), isTrue);
+    final connectedDevices = await platform.connectedDevices(
+      serviceUuids: const <String>['180d'],
+    );
     await platform.stopScan();
     await platform.connect('device-a');
     await platform.disconnect('device-a');
@@ -96,6 +110,10 @@ void main() {
     await platform.readValue('device-a', 'service-a', 'characteristic-a');
 
     expect(sentMessages[isBluetoothAvailableChannelName], isNull);
+    expect(sentMessages[getConnectedPeripheralsChannelName], <Object?>[
+      <String>['180d'],
+    ]);
+    expect(connectedDevices.map((device) => device.id), <String>['device-a']);
     expect(sentMessages[stopScanChannelName], isNull);
     expect(sentMessages[connectChannelName], <Object?>['device-a']);
     expect(sentMessages[disconnectChannelName], <Object?>['device-a']);

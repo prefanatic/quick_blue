@@ -84,6 +84,10 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         let peripherals = manager.retrieveConnectedPeripherals(
             withServices: serviceUuids.map { uuid in CBUUID(string: uuid) }
         )
+        for peripheral in peripherals {
+            discoveredPeripherals[peripheral.identifier.uuidString] =
+                peripheral
+        }
         return peripherals.map { peripherals in
             Peripheral(
                 id: peripherals.identifier.uuidString,

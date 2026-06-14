@@ -59,6 +59,17 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
   }
 
   @override
+  Future<List<BluetoothDevice>> connectedDevices({
+    List<String> serviceUuids = const <String>[],
+  }) async {
+    final deviceIds = await _method.invokeListMethod<String>(
+      'connectedDevices',
+      {'serviceUuids': serviceUuids},
+    );
+    return (deviceIds ?? const <String>[]).map(device).toList(growable: false);
+  }
+
+  @override
   Future<bool> isCompanionAssociationSupported() async {
     return Platform.isAndroid;
   }

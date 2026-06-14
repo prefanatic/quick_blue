@@ -14,6 +14,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 | isBluetoothAvailable | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | bluetoothStateStream | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | scan/scanResults | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| connectedDevices | ✔️ | ✔️* | ✔️* | ✔️ | ✔️ |
 | connect/disconnect | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | discoverServices | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | setNotifiable | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
@@ -23,6 +24,9 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 
 `bluetoothStateStream` emits live state changes on Android, iOS, macOS, and
 Linux. Windows currently emits the current availability snapshot.
+
+* iOS and macOS require service UUIDs when looking up already connected
+  peripherals.
 
 > * Windows' APIs are little different on `discoverServices`: https://github.com/woodemi/quick_blue/issues/76
 
@@ -51,6 +55,17 @@ final subscription = QuickBlue.scanResults().listen((result) {
 // ...
 await subscription.cancel();
 ```
+
+Get peripherals that are already connected:
+
+```dart
+final devices = await QuickBlue.connectedDevices(
+  serviceUuids: ['0000180d-0000-1000-8000-00805f9b34fb'],
+);
+```
+
+Pass service UUIDs for iOS and macOS so CoreBluetooth can find matching
+system-connected peripherals.
 
 ## Connect BLE peripheral
 

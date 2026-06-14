@@ -901,6 +901,7 @@ interface QuickBlueApi {
   fun isBluetoothAvailable(): Boolean
   fun startScan(serviceUuids: List<String>?, manufacturerData: Map<Long, ByteArray>?)
   fun stopScan()
+  fun connectedDeviceIds(serviceUuids: List<String>): List<String>
   fun connect(deviceId: String)
   fun disconnect(deviceId: String)
   fun isCompanionAssociationSupported(callback: (Result<Boolean>) -> Unit)
@@ -966,6 +967,23 @@ interface QuickBlueApi {
             val wrapped: List<Any?> = try {
               api.stopScan()
               listOf(null)
+            } catch (exception: Throwable) {
+              MessagesPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.quick_blue.QuickBlueApi.connectedDeviceIds$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val serviceUuidsArg = args[0] as List<String>
+            val wrapped: List<Any?> = try {
+              listOf(api.connectedDeviceIds(serviceUuidsArg))
             } catch (exception: Throwable) {
               MessagesPigeonUtils.wrapError(exception)
             }

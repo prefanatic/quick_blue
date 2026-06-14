@@ -10,6 +10,7 @@ void main() {
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.isBluetoothAvailable',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.startScan',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.stopScan',
+    'dev.flutter.pigeon.quick_blue.QuickBlueApi.connectedDeviceIds',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.connect',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.disconnect',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.isCompanionAssociationSupported',
@@ -66,6 +67,9 @@ void main() {
         ),
       );
       await platform.stopScan();
+      final connectedDevices = await platform.connectedDevices(
+        serviceUuids: const <String>['180d'],
+      );
       await platform.connect('device-a');
       await platform.disconnect('device-a');
       await platform.discoverServices('device-a');
@@ -92,6 +96,13 @@ void main() {
           manufacturerData,
         ],
       );
+      expect(
+        sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.connectedDeviceIds'],
+        <Object?>[
+          <String>['180d'],
+        ],
+      );
+      expect(connectedDevices.map((device) => device.id), <String>['device-a']);
       expect(
         sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.connect'],
         <Object?>['device-a'],
@@ -318,6 +329,11 @@ Object _replyFor(String channelName) {
           deviceProfile: null,
         ),
       ],
+    ];
+  }
+  if (channelName.endsWith('.connectedDeviceIds')) {
+    return <Object?>[
+      <String>['device-a'],
     ];
   }
   if (channelName.endsWith('.requestMtu')) {

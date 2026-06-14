@@ -1073,6 +1073,34 @@ void QuickBlueApi::SetUp(
     }
   }
   {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.connectedDeviceIds" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_service_uuids_arg = args.at(0);
+          if (encodable_service_uuids_arg.IsNull()) {
+            reply(WrapError("service_uuids_arg unexpectedly null."));
+            return;
+          }
+          const auto& service_uuids_arg = std::get<EncodableList>(encodable_service_uuids_arg);
+          ErrorOr<EncodableList> output = api->ConnectedDeviceIds(service_uuids_arg);
+          if (output.has_error()) {
+            reply(WrapError(output.error()));
+            return;
+          }
+          EncodableList wrapped;
+          wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
+          reply(EncodableValue(std::move(wrapped)));
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
+  {
     BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.connect" + prepended_suffix, &GetCodec());
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {

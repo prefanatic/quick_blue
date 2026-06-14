@@ -73,6 +73,18 @@ class QuickBlueDarwin extends QuickBluePlatform {
   }
 
   @override
+  Future<List<BluetoothDevice>> connectedDevices({
+    List<String> serviceUuids = const <String>[],
+  }) async {
+    _ensureInitialized();
+
+    final peripherals = await _api.getConnectedPeripherals(serviceUuids);
+    return peripherals
+        .map((peripheral) => device(peripheral.id))
+        .toList(growable: false);
+  }
+
+  @override
   Future<void> connect(String deviceId) {
     _ensureInitialized();
 

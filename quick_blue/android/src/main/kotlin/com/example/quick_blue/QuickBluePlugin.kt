@@ -32,6 +32,7 @@ import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
@@ -480,6 +481,29 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
 
     override fun stopScan() {
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
+    }
+
+    override fun connectedDeviceIds(serviceUuids: List<String>): List<String> {
+        val connectedDeviceIds = bluetoothManager
+            .getConnectedDevices(BluetoothProfile.GATT)
+            .map { it.address }
+            .toSet()
+
+        if (serviceUuids.isEmpty()) {
+            return connectedDeviceIds.toList()
+        }
+
+        val targetServiceUuids = serviceUuids.map { it.toBluetoothUuid() }.toSet()
+        return synchronized(gattLock) {
+            knownGatts
+                .filter { connectedDeviceIds.contains(it.device.address) }
+                .filter { gatt ->
+                    val serviceUuidsForGatt = gatt.services.map { it.uuid }.toSet()
+                    serviceUuidsForGatt.containsAll(targetServiceUuids)
+                }
+                .map { it.device.address }
+                .distinct()
+        }
     }
 
     override fun connect(deviceId: String) {
@@ -971,6 +995,15 @@ val ScanResult.serviceData: Map<String, ByteArray>
 
 fun Short.toByteArray(byteOrder: ByteOrder = ByteOrder.LITTLE_ENDIAN): ByteArray =
     ByteBuffer.allocate(2 /*Short.SIZE_BYTES*/).order(byteOrder).putShort(this).array()
+
+fun String.toBluetoothUuid(): UUID {
+    val normalized = trim().removePrefix("{").removeSuffix("}").lowercase()
+    return when (normalized.length) {
+        4 -> UUID.fromString("0000$normalized-0000-1000-8000-00805f9b34fb")
+        8 -> UUID.fromString("$normalized-0000-1000-8000-00805f9b34fb")
+        else -> UUID.fromString(normalized)
+    }
+}
 
 fun BluetoothGatt.getCharacteristic(serviceCharacteristic: Pair<String, String>) =
     getService(UUID.fromString(serviceCharacteristic.first)).getCharacteristic(

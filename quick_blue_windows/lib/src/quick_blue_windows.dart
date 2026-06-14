@@ -65,6 +65,15 @@ class QuickBlueWindows extends QuickBluePlatform {
   }
 
   @override
+  Future<List<BluetoothDevice>> connectedDevices({
+    List<String> serviceUuids = const <String>[],
+  }) async {
+    _ensureInitialized();
+    final deviceIds = await _api.connectedDeviceIds(serviceUuids);
+    return deviceIds.map(device).toList(growable: false);
+  }
+
+  @override
   Future<void> connect(String deviceId) {
     _ensureInitialized();
     return _api.connect(deviceId);
