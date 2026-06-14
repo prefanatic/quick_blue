@@ -8,8 +8,9 @@
   discovered services by characteristic UUID.
 - Add lifecycle-managed `scan()` and `scanResults()` streams that start scanning
   on listen and stop scanning on cancel.
-- Add `bluetoothStateStream` with live Android, iOS, and macOS state updates and
-  snapshot fallback behavior for other platforms.
+- Add `bluetoothStateStream` with an initial current-state event, live Android,
+  iOS, macOS, and Linux state updates, and snapshot fallback behavior for other
+  platforms.
 - Add `BlueScanResult.serviceData` and platform support for Android and Darwin.
 - Add characteristic property metadata through
   `BluetoothService.characteristicDetails`.

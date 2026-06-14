@@ -48,8 +48,9 @@ example app includes working platform manifests and plist entries.
 | `setNotifiable` | yes | yes | yes | yes | yes |
 | `requestMtu` | yes | yes | yes | yes | yes |
 
-`bluetoothStateStream` emits live state changes on Android, iOS, and macOS.
-Windows and Linux currently emit an availability snapshot.
+`bluetoothStateStream` emits the current Bluetooth state first. Android, iOS,
+macOS, and Linux then emit live state changes; Windows currently emits only the
+current availability snapshot.
 
 * iOS and macOS use CoreBluetooth's connected-peripheral lookup, which requires
   service UUIDs to find system-connected peripherals.

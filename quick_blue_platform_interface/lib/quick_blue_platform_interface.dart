@@ -40,8 +40,14 @@ abstract class QuickBluePlatform extends PlatformInterface {
     _instance = instance;
   }
 
+  /// Returns whether Bluetooth is currently powered on and usable.
   Future<bool> isBluetoothAvailable();
 
+  /// Emits the current Bluetooth state first, then emits later state changes
+  /// when the platform supports live state updates.
+  ///
+  /// Platforms without live state monitoring may emit only the current
+  /// availability snapshot.
   Stream<BlueBluetoothState> get bluetoothStateStream async* {
     yield await isBluetoothAvailable()
         ? BlueBluetoothState.poweredOn
