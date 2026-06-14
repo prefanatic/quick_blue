@@ -142,24 +142,22 @@ cd quick_blue_darwin && flutter test
 cd quick_blue/example && flutter test
 ```
 
-Run macOS hardware-backed smoke tests from the example app when changing
-Darwin scan, connect, service discovery, or device-switching behavior:
+Run hardware-backed integration tests from the example app when changing scan,
+connect, service discovery, or device-switching behavior:
 
 ```sh
 cd quick_blue/example
 
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
-  flutter test integration_test/macos_ble_smoke_test.dart -d macos
+  flutter test integration_test/ble_smoke_test.dart -d macos
 
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
-  flutter test integration_test/macos_ble_switch_test.dart -d macos
-
-QUICK_BLUE_HIDE_TEST_WINDOW=1 \
-  flutter test integration_test/macos_ble_ui_switch_test.dart -d macos
+  flutter test integration_test/ble_ui_switch_test.dart -d macos
 ```
 
-These tests need macOS Bluetooth permission, powered-on Bluetooth hardware, and
-nearby BLE advertisements. See
+These tests need Bluetooth permission, powered-on Bluetooth hardware, and
+nearby BLE advertisements. `ble_smoke_test.dart` targets all quick_blue
+platforms, and `ble_ui_switch_test.dart` targets macOS and Linux. See
 [`quick_blue/example/README.md`](quick_blue/example/README.md) for optional
 Dart defines that target specific devices.
 
