@@ -11,13 +11,14 @@ environment:
 resolution: workspace
 
 dependencies:
+  quick_blue_platform_interface: ^0.4.0-dev.0
   flutter:
     sdk: flutter
-  
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  pigeon: ^27.1.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -32,6 +33,7 @@ flutter:
     platforms:
       windows:
         pluginClass: QuickBlueWindowsPlugin
+        dartPluginClass: QuickBlueWindows
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:

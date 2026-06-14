@@ -84,12 +84,16 @@ jobs:
 
           (cd quick_blue && dart run pigeon --input pigeons/messages.dart)
           (cd quick_blue_darwin && dart run pigeon --input pigeons/messages.dart)
+          (cd quick_blue_windows && dart run pigeon --input pigeons/messages.dart)
 
           git diff --exit-code -- \
             quick_blue/lib/src/messages.g.dart \
             quick_blue/android/src/main/kotlin/com/example/quick_blue/Messages.g.kt \
             quick_blue_darwin/lib/src/messages.g.dart \
-            quick_blue_darwin/darwin/quick_blue_darwin/Sources/quick_blue_darwin/Messages.g.swift
+            quick_blue_darwin/darwin/quick_blue_darwin/Sources/quick_blue_darwin/Messages.g.swift \
+            quick_blue_windows/lib/src/messages.g.dart \
+            quick_blue_windows/windows/messages.g.cpp \
+            quick_blue_windows/windows/messages.g.h
 
           for package in \
             quick_blue \
@@ -108,6 +112,7 @@ jobs:
             quick_blue \
             quick_blue/example \
             quick_blue_darwin \
+            quick_blue_windows \
             quick_blue_platform_interface
           do
             echo "::group::flutter test $package"
