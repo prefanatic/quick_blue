@@ -116,7 +116,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
 
         val gattsToClose = mutableListOf<BluetoothGatt>()
         synchronized(gattLock) {
-            gattsToClose.addAll(knownGatts)
+            gattsToClose.addAll(knownGatts.values)
             knownGatts.clear()
         }
 
@@ -181,7 +181,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private var activity: Activity? = null
 
     private val executor: Executor = Executor { it.run() }
-    private val knownGatts = mutableListOf<BluetoothGatt>()
+    private val knownGatts = mutableMapOf<String, BluetoothGatt>()
     private val streamDelegates = mutableMapOf<String, L2CapStreamDelegate>()
     private val gattLock = Any()
 
@@ -223,12 +223,12 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private fun connectDevice(bluetoothDevice: BluetoothDevice) {
         val gatt =
             bluetoothDevice.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
-        knownGatts.add(gatt)
+        knownGatts[bluetoothDevice.address] = gatt
     }
 
     private fun cleanConnection(gatt: BluetoothGatt) {
         synchronized(gattLock) {
-            knownGatts.remove(gatt)
+            knownGatts.remove(gatt.device.address)
             val delegate = streamDelegates[gatt.device.address]
             if (delegate != null) {
                 delegate.close()
@@ -293,7 +293,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                 failPendingWrites(gatt.device.address)
                 mainThreadHandler.post {
                     synchronized(gattLock) {
-                        knownGatts.remove(gatt)
+                        knownGatts.remove(gatt.device.address)
                         streamDelegates[gatt.device.address]?.close()
                         streamDelegates.remove(gatt.device.address)
                     }
@@ -495,7 +495,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
 
         val targetServiceUuids = serviceUuids.map { it.toBluetoothUuid() }.toSet()
         return synchronized(gattLock) {
-            knownGatts
+            knownGatts.values
                 .filter { connectedDeviceIds.contains(it.device.address) }
                 .filter { gatt ->
                     val serviceUuidsForGatt = gatt.services.map { it.uuid }.toSet()
@@ -509,7 +509,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     override fun connect(deviceId: String) {
         executor.execute {
             synchronized(gattLock) {
-                if (knownGatts.find { it.device.address == deviceId } != null) {
+                if (knownGatts.containsKey(deviceId)) {
                     // Already connected
                     return@execute
                 }
@@ -520,7 +520,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     }
 
     override fun disconnect(deviceId: String) {
-        val gatt = knownGatts.find { it.device.address == deviceId }
+        val gatt = knownGatts[deviceId]
             ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         cleanConnection(gatt)
     }
@@ -682,7 +682,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     }
 
     override fun discoverServices(deviceId: String) {
-        val gatt = knownGatts.find { it.device.address == deviceId }
+        val gatt = knownGatts[deviceId]
             ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         gatt.discoverServices()
     }
@@ -693,7 +693,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         characteristic: String,
         bleInputProperty: PlatformBleInputProperty
     ) {
-        val gatt = knownGatts.find { it.device.address == deviceId }
+        val gatt = knownGatts[deviceId]
             ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         gatt.setNotifiable(service to characteristic, bleInputProperty)
     }
@@ -703,7 +703,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         service: String,
         characteristic: String
     ) {
-        val gatt = knownGatts.find { it.device.address == deviceId }
+        val gatt = knownGatts[deviceId]
             ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         val readResult = gatt.getCharacteristic(service to characteristic)?.let {
             gatt.readCharacteristic(it)
@@ -725,7 +725,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         // @async: report guard failures through the callback rather than
         // throwing, since the generated dispatcher does not catch synchronous
         // throws for async methods (the reply would never be sent).
-        val gatt = knownGatts.find { it.device.address == deviceId }
+        val gatt = knownGatts[deviceId]
         if (gatt == null) {
             callback(
                 Result.failure(
@@ -782,7 +782,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     }
 
     override fun requestMtu(deviceId: String, expectedMtu: Long): Long {
-        val gatt = knownGatts.find { it.device.address == deviceId }
+        val gatt = knownGatts[deviceId]
             ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         gatt.requestMtu(expectedMtu.toInt())
         return 0
@@ -797,7 +797,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             )
         }
 
-        val gatt = knownGatts.find { it.device.address == deviceId }
+        val gatt = knownGatts[deviceId]
             ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         val socket = gatt.device.createInsecureL2capChannel(psm.toInt())
         val delegate = L2CapStreamDelegate(socket, openedCallback = {
