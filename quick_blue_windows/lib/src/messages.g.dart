@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-  List<Object?>? replyList,
-  String channelName, {
-  required bool isNullValid,
+    List<Object?>? replyList,
+    String channelName, {
+    required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,11 +34,8 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-List<Object?> wrapResponse({
-  Object? result,
-  PlatformException? error,
-  bool empty = false,
-}) {
+
+List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
   if (empty) {
     return <Object?>[];
   }
@@ -47,7 +44,6 @@ List<Object?> wrapResponse({
   }
   return <Object?>[error.code, error.message, error.details];
 }
-
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -60,9 +56,8 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed.every(
-          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
-        );
+        a.indexed
+            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -111,9 +106,17 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-enum PlatformBleInputProperty { disabled, notification, indication }
 
-enum PlatformBleOutputProperty { withResponse, withoutResponse }
+enum PlatformBleInputProperty {
+  disabled,
+  notification,
+  indication,
+}
+
+enum PlatformBleOutputProperty {
+  withResponse,
+  withoutResponse,
+}
 
 enum PlatformConnectionState {
   disconnected,
@@ -123,7 +126,10 @@ enum PlatformConnectionState {
   unknown,
 }
 
-enum PlatformGattStatus { success, failure }
+enum PlatformGattStatus {
+  success,
+  failure,
+}
 
 class PlatformScanResult {
   PlatformScanResult({
@@ -163,8 +169,7 @@ class PlatformScanResult {
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static PlatformScanResult decode(Object result) {
     result as List<Object?>;
@@ -175,8 +180,7 @@ class PlatformScanResult {
       manufacturerData: result[3]! as Uint8List,
       rssi: result[4]! as int,
       serviceUuids: (result[5]! as List<Object?>).cast<String>(),
-      serviceData: (result[6]! as Map<Object?, Object?>)
-          .cast<String, Uint8List>(),
+      serviceData: (result[6]! as Map<Object?, Object?>).cast<String, Uint8List>(),
     );
   }
 
@@ -189,13 +193,7 @@ class PlatformScanResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(name, other.name) &&
-        _deepEquals(deviceId, other.deviceId) &&
-        _deepEquals(manufacturerDataHead, other.manufacturerDataHead) &&
-        _deepEquals(manufacturerData, other.manufacturerData) &&
-        _deepEquals(rssi, other.rssi) &&
-        _deepEquals(serviceUuids, other.serviceUuids) &&
-        _deepEquals(serviceData, other.serviceData);
+    return _deepEquals(name, other.name) && _deepEquals(deviceId, other.deviceId) && _deepEquals(manufacturerDataHead, other.manufacturerDataHead) && _deepEquals(manufacturerData, other.manufacturerData) && _deepEquals(rssi, other.rssi) && _deepEquals(serviceUuids, other.serviceUuids) && _deepEquals(serviceData, other.serviceData);
   }
 
   @override
@@ -222,12 +220,15 @@ class PlatformConnectionStateChange {
   PlatformGattStatus gattStatus;
 
   List<Object?> _toList() {
-    return <Object?>[deviceId, state, gattStatus];
+    return <Object?>[
+      deviceId,
+      state,
+      gattStatus,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static PlatformConnectionStateChange decode(Object result) {
     result as List<Object?>;
@@ -241,16 +242,13 @@ class PlatformConnectionStateChange {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! PlatformConnectionStateChange ||
-        other.runtimeType != runtimeType) {
+    if (other is! PlatformConnectionStateChange || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(deviceId, other.deviceId) &&
-        _deepEquals(state, other.state) &&
-        _deepEquals(gattStatus, other.gattStatus);
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(state, other.state) && _deepEquals(gattStatus, other.gattStatus);
   }
 
   @override
@@ -277,36 +275,35 @@ class PlatformServiceDiscovered {
   List<PlatformCharacteristic> characteristics;
 
   List<Object?> _toList() {
-    return <Object?>[deviceId, serviceUuid, characteristics];
+    return <Object?>[
+      deviceId,
+      serviceUuid,
+      characteristics,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static PlatformServiceDiscovered decode(Object result) {
     result as List<Object?>;
     return PlatformServiceDiscovered(
       deviceId: result[0]! as String,
       serviceUuid: result[1]! as String,
-      characteristics: (result[2]! as List<Object?>)
-          .cast<PlatformCharacteristic>(),
+      characteristics: (result[2]! as List<Object?>).cast<PlatformCharacteristic>(),
     );
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! PlatformServiceDiscovered ||
-        other.runtimeType != runtimeType) {
+    if (other is! PlatformServiceDiscovered || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(deviceId, other.deviceId) &&
-        _deepEquals(serviceUuid, other.serviceUuid) &&
-        _deepEquals(characteristics, other.characteristics);
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(serviceUuid, other.serviceUuid) && _deepEquals(characteristics, other.characteristics);
   }
 
   @override
@@ -353,8 +350,7 @@ class PlatformCharacteristic {
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static PlatformCharacteristic decode(Object result) {
     result as List<Object?>;
@@ -377,12 +373,7 @@ class PlatformCharacteristic {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(uuid, other.uuid) &&
-        _deepEquals(canRead, other.canRead) &&
-        _deepEquals(canWriteWithResponse, other.canWriteWithResponse) &&
-        _deepEquals(canWriteWithoutResponse, other.canWriteWithoutResponse) &&
-        _deepEquals(canNotify, other.canNotify) &&
-        _deepEquals(canIndicate, other.canIndicate);
+    return _deepEquals(uuid, other.uuid) && _deepEquals(canRead, other.canRead) && _deepEquals(canWriteWithResponse, other.canWriteWithResponse) && _deepEquals(canWriteWithoutResponse, other.canWriteWithoutResponse) && _deepEquals(canNotify, other.canNotify) && _deepEquals(canIndicate, other.canIndicate);
   }
 
   @override
@@ -412,12 +403,16 @@ class PlatformCharacteristicValueChanged {
   Uint8List value;
 
   List<Object?> _toList() {
-    return <Object?>[deviceId, serviceUuid, characteristicId, value];
+    return <Object?>[
+      deviceId,
+      serviceUuid,
+      characteristicId,
+      value,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static PlatformCharacteristicValueChanged decode(Object result) {
     result as List<Object?>;
@@ -432,17 +427,13 @@ class PlatformCharacteristicValueChanged {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! PlatformCharacteristicValueChanged ||
-        other.runtimeType != runtimeType) {
+    if (other is! PlatformCharacteristicValueChanged || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(deviceId, other.deviceId) &&
-        _deepEquals(serviceUuid, other.serviceUuid) &&
-        _deepEquals(characteristicId, other.characteristicId) &&
-        _deepEquals(value, other.value);
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(serviceUuid, other.serviceUuid) && _deepEquals(characteristicId, other.characteristicId) && _deepEquals(value, other.value);
   }
 
   @override
@@ -455,6 +446,7 @@ class PlatformCharacteristicValueChanged {
   }
 }
 
+
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -462,31 +454,31 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    } else if (value is PlatformBleInputProperty) {
+    }    else if (value is PlatformBleInputProperty) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    } else if (value is PlatformBleOutputProperty) {
+    }    else if (value is PlatformBleOutputProperty) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    } else if (value is PlatformConnectionState) {
+    }    else if (value is PlatformConnectionState) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    } else if (value is PlatformGattStatus) {
+    }    else if (value is PlatformGattStatus) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    } else if (value is PlatformScanResult) {
+    }    else if (value is PlatformScanResult) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is PlatformConnectionStateChange) {
+    }    else if (value is PlatformConnectionStateChange) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is PlatformServiceDiscovered) {
+    }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is PlatformCharacteristic) {
+    }    else if (value is PlatformCharacteristic) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformCharacteristicValueChanged) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else {
@@ -529,13 +521,9 @@ class QuickBlueApi {
   /// Constructor for [QuickBlueApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  QuickBlueApi({
-    BinaryMessenger? binaryMessenger,
-    String messageChannelSuffix = '',
-  }) : pigeonVar_binaryMessenger = binaryMessenger,
-       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
-           ? '.$messageChannelSuffix'
-           : '';
+  QuickBlueApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -543,8 +531,7 @@ class QuickBlueApi {
   final String pigeonVar_messageChannelSuffix;
 
   Future<bool> isBluetoothAvailable() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.isBluetoothAvailable$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.isBluetoothAvailable$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -554,39 +541,34 @@ class QuickBlueApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as bool;
   }
 
-  Future<void> startScan({
-    List<String>? serviceUuids,
-    Map<int, Uint8List>? manufacturerData,
-  }) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.startScan$pigeonVar_messageChannelSuffix';
+  Future<void> startScan({List<String>? serviceUuids, Map<int, Uint8List>? manufacturerData}) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.startScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[serviceUuids, manufacturerData],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[serviceUuids, manufacturerData]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
   Future<void> stopScan() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.stopScan$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.stopScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -596,186 +578,156 @@ class QuickBlueApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
   Future<List<String>> connectedDeviceIds(List<String> serviceUuids) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.connectedDeviceIds$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.connectedDeviceIds$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[serviceUuids],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[serviceUuids]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
 
   Future<void> connect(String deviceId) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.connect$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.connect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
   Future<void> disconnect(String deviceId) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.disconnect$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.disconnect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
   Future<void> discoverServices(String deviceId) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.discoverServices$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.discoverServices$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
-  Future<void> setNotifiable(
-    String deviceId,
-    String service,
-    String characteristic,
-    PlatformBleInputProperty bleInputProperty,
-  ) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.setNotifiable$pigeonVar_messageChannelSuffix';
+  Future<void> setNotifiable(String deviceId, String service, String characteristic, PlatformBleInputProperty bleInputProperty) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.setNotifiable$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, service, characteristic, bleInputProperty],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, service, characteristic, bleInputProperty]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
-  Future<void> readValue(
-    String deviceId,
-    String service,
-    String characteristic,
-  ) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.readValue$pigeonVar_messageChannelSuffix';
+  Future<void> readValue(String deviceId, String service, String characteristic) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.readValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, service, characteristic],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, service, characteristic]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
-  Future<void> writeValue(
-    String deviceId,
-    String service,
-    String characteristic,
-    Uint8List value,
-    PlatformBleOutputProperty bleOutputProperty,
-  ) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.writeValue$pigeonVar_messageChannelSuffix';
+  Future<void> writeValue(String deviceId, String service, String characteristic, Uint8List value, PlatformBleOutputProperty bleOutputProperty) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.writeValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, service, characteristic, value, bleOutputProperty],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, service, characteristic, value, bleOutputProperty]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.requestMtu$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.requestMtu$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, expectedMtu],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, expectedMtu]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as int;
   }
 }
@@ -789,76 +741,56 @@ abstract class QuickBlueFlutterApi {
 
   void onServiceDiscoveryComplete(String deviceId);
 
-  void onCharacteristicValueChanged(
-    PlatformCharacteristicValueChanged valueChanged,
-  );
+  void onCharacteristicValueChanged(PlatformCharacteristicValueChanged valueChanged);
 
-  static void setUp(
-    QuickBlueFlutterApi? api, {
-    BinaryMessenger? binaryMessenger,
-    String messageChannelSuffix = '',
-  }) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty
-        ? '.$messageChannelSuffix'
-        : '';
+  static void setUp(QuickBlueFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueFlutterApi.onConnectionStateChange$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.quick_blue_windows.QuickBlueFlutterApi.onConnectionStateChange$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final PlatformConnectionStateChange arg_stateChange =
-              args[0]! as PlatformConnectionStateChange;
+          final PlatformConnectionStateChange arg_stateChange = args[0]! as PlatformConnectionStateChange;
           try {
             api.onConnectionStateChange(arg_stateChange);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueFlutterApi.onServiceDiscovered$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.quick_blue_windows.QuickBlueFlutterApi.onServiceDiscovered$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final PlatformServiceDiscovered arg_serviceDiscovered =
-              args[0]! as PlatformServiceDiscovered;
+          final PlatformServiceDiscovered arg_serviceDiscovered = args[0]! as PlatformServiceDiscovered;
           try {
             api.onServiceDiscovered(arg_serviceDiscovered);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueFlutterApi.onServiceDiscoveryComplete$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.quick_blue_windows.QuickBlueFlutterApi.onServiceDiscoveryComplete$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -870,36 +802,29 @@ abstract class QuickBlueFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.quick_blue_windows.QuickBlueFlutterApi.onCharacteristicValueChanged$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.quick_blue_windows.QuickBlueFlutterApi.onCharacteristicValueChanged$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final PlatformCharacteristicValueChanged arg_valueChanged =
-              args[0]! as PlatformCharacteristicValueChanged;
+          final PlatformCharacteristicValueChanged arg_valueChanged = args[0]! as PlatformCharacteristicValueChanged;
           try {
             api.onCharacteristicValueChanged(arg_valueChanged);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
