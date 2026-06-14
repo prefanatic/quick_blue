@@ -1,131 +1,181 @@
-
 # quick_blue
 
-**A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutter**
+`quick_blue` is a federated Flutter plugin for Bluetooth Low Energy on Android,
+iOS, macOS, Windows, and Linux.
 
-> **Note:** This fork is actively maintained here. Please file issues and pull requests in this repository.
+The repository is a Dart workspace:
 
-> **Federated plugin:** Uses a [federated plugin](https://docs.flutter.dev/development/packages-and-plugins/developing-packages#federated-plugins) structure for platform support.
+- `quick_blue/`: app-facing plugin package and Android implementation
+- `quick_blue_darwin/`: iOS and macOS implementation
+- `quick_blue_linux/`: Linux implementation using BlueZ
+- `quick_blue_windows/`: Windows implementation
+- `quick_blue_platform_interface/`: shared APIs, models, and tests
+- `quick_blue/example/`: BLE explorer example app and hardware smoke tests
 
----
+## Install
 
-## Table of Contents
-
-- [Features](#features)
-- [Getting Started](#getting-started)
-- [Usage](#usage)
-- [Platform Notes](#platform-notes)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Features
-
-- Scan, connect, and communicate with Bluetooth LE peripherals
-- Cross-platform: Android, iOS, macOS, Windows, Linux
-- Federated plugin structure for extensibility
-- Data transfer, notifications, MTU requests, and more
-
----
-
-## Getting Started
-
-Add to your `pubspec.yaml`:
+This package is not published on pub.dev yet. Add it from your chosen Git
+source or local checkout:
 
 ```yaml
 dependencies:
-    quick_blue: ^<latest_version>
+  quick_blue:
+    git:
+      url: <repository-url>
+      path: quick_blue
 ```
 
-Import and use in your Dart code:
+Then import it:
 
 ```dart
 import 'package:quick_blue/quick_blue.dart';
 ```
 
-See the [example app](quick_blue/example/README.md) for a full usage demonstration.
+Configure the Bluetooth permissions required by each target platform. The
+example app includes working platform manifests and plist entries.
 
----
+## Platform Support
 
+| API | Android | iOS | macOS | Windows | Linux |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `isBluetoothAvailable` | yes | yes | yes | yes | yes |
+| `bluetoothStateStream` | yes | yes | yes | yes | yes |
+| `scan` / `scanResults` | yes | yes | yes | yes | yes |
+| `connect` / `disconnect` | yes | yes | yes | yes | yes |
+| `discoverServices` | yes | yes | yes | yes | yes |
+| `readValue` / `writeValue` | yes | yes | yes | yes | yes |
+| `setNotifiable` | yes | yes | yes | yes | yes |
+| `requestMtu` | yes | yes | yes | yes | yes |
 
-## Usage
+`bluetoothStateStream` emits live state changes on Android, iOS, and macOS.
+Windows and Linux currently emit an availability snapshot.
 
-- [Scan BLE peripheral](#scan-ble-peripheral)
-- [Connect BLE peripheral](#connect-ble-peripheral)
-- [Discover services of BLE peripheral](#discover-services-of-ble-peripheral)
-- [Transfer data between BLE central & peripheral](#transfer-data-between-ble-central--peripheral)
+## Example Usage
 
-| API                | Android | iOS | macOS | Windows | Linux |
-|--------------------|:-------:|:---:|:-----:|:-------:|:-----:|
-| isBluetoothAvailable |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
-| bluetoothStateStream |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
-| startScan/stopScan   |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
-| connect/disconnect   |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
-| discoverServices     |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
-| setNotifiable        |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
-| readValue            |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
-| writeValue           |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
-| requestMtu           |   ✔️   | ✔️  |  ✔️   |   ✔️    |  ✔️   |
+Scan for nearby peripherals:
 
-`bluetoothStateStream` emits live state changes on Android, iOS, macOS, and
-Linux. Windows currently emits the current availability snapshot.
+```dart
+final scanSubscription = QuickBlue.scanResults().listen((result) {
+  print('${result.deviceId} ${result.name} RSSI=${result.rssi}');
+});
 
----
+// Stop scanning when the UI no longer needs results.
+await scanSubscription.cancel();
+```
 
+Connect, discover services, and interact with a characteristic:
 
----
+```dart
+import 'dart:typed_data';
+
+import 'package:quick_blue/quick_blue.dart';
+
+Future<void> readWriteNotify({
+  required String deviceId,
+  required String serviceId,
+  required String characteristicId,
+}) async {
+  final device = QuickBlue.device(deviceId);
+
+  await device.connect().timeout(const Duration(seconds: 15));
+  try {
+    final services = await device.discoverServices();
+    for (final service in services) {
+      print('${service.uuid}: ${service.characteristics}');
+    }
+
+    final characteristic = device.characteristic(serviceId, characteristicId);
+
+    final notifications = characteristic.notifications().listen((value) {
+      print('notification: $value');
+    });
+
+    final currentValue = await characteristic.read();
+    print('read: $currentValue');
+
+    await characteristic.write(
+      Uint8List.fromList([0x01]),
+      BleOutputProperty.withResponse,
+    );
+
+    await notifications.cancel();
+  } finally {
+    await device.disconnect().timeout(const Duration(seconds: 5));
+  }
+}
+```
+
+Use `QuickBlue.scan()` when you only need device handles. Use
+`QuickBlue.scanResults()` when you need advertisement fields such as RSSI,
+service UUIDs, service data, or manufacturer data.
 
 ## Platform Notes
 
-### Android
-- Ensure you have the correct permissions in your `AndroidManifest.xml` (see [quick_blue/android/src/main/AndroidManifest.xml](quick_blue/android/src/main/AndroidManifest.xml)).
-- Some device-specific quirks may apply (see [issues](https://github.com/prefanatic/quick_blue/issues)).
+- Android companion-device association is available through
+  `companionAssociate`, `companionDisassociate`, and
+  `getCompanionAssociations`.
+- iOS and macOS use CoreBluetooth. `requestMtu` returns the negotiated MTU
+  currently in effect; CoreBluetooth does not let apps request an exact MTU.
+- Linux requires BlueZ.
+- Windows has platform-specific service discovery behavior.
 
-### iOS/macOS
-- Some common service/characteristic UUIDs may be shortened. UUIDs are matched case-insensitively and 16-bit UUIDs are expanded against the Bluetooth base UUID, so either short or full 128-bit form works.
-- `requestMtu` cannot request a specific value — CoreBluetooth negotiates the ATT MTU automatically at connection. The call returns the negotiated MTU currently in effect (`maximumWriteValueLength(for: .withoutResponse) + 3`); the `expectedMtu` argument is advisory.
-- Advertised manufacturer data is surfaced via `BlueScanResult.manufacturerDataHead` (and `manufacturerData`, which falls back to the head when no full payload is available).
-- Companion device association (`companionAssociate`/`getCompanionAssociations`) is Android-only and throws `UnsupportedError` here.
-- See [Apple Bluetooth documentation](https://developer.apple.com/bluetooth/).
+## Development
 
-### Windows
-- See [Microsoft Bluetooth samples](https://docs.microsoft.com/en-us/samples/microsoft/windows-universal-samples/bluetoothle).
-- There may be version restrictions for connection without pairing.
+Set up dependencies from the repository root:
 
-### Linux
-- Uses BlueZ. See [BlueZ documentation](http://www.bluez.org/).
-- Explorer UI switch regression:
+```sh
+flutter pub get
+```
+
+Run the common checks:
+
+```sh
+dart format .
+flutter analyze
+```
+
+Run package-focused tests:
+
+```sh
+cd quick_blue_platform_interface && flutter test
+cd quick_blue_darwin && flutter test
+cd quick_blue/example && flutter test
+```
+
+Run macOS hardware-backed smoke tests from the example app when changing
+Darwin scan, connect, service discovery, or device-switching behavior:
 
 ```sh
 cd quick_blue/example
-flutter test integration_test/ble_ui_switch_test.dart -d linux
+
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/macos_ble_smoke_test.dart -d macos
+
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/macos_ble_switch_test.dart -d macos
+
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/macos_ble_ui_switch_test.dart -d macos
 ```
 
----
+These tests need macOS Bluetooth permission, powered-on Bluetooth hardware, and
+nearby BLE advertisements. See
+[`quick_blue/example/README.md`](quick_blue/example/README.md) for optional
+Dart defines that target specific devices.
 
-## General useful Bluetooth information
+## Generated Code
 
-- [Bluetooth Developer Blog: 4 Essential Tools](https://www.bluetooth.com/blog/4-essential-tools-for-every-bluetooth-low-energy-developer/)
-- [LightBlue app (iOS/macOS)](https://itunes.apple.com/us/app/lightblue-explorer-bluetooth/id557428110)
-- [Nordic nRF Connect app (iOS/Android/Desktop)](https://www.nordicsemi.com/eng/Products/Bluetooth-low-energy/nRF-Connect-for-desktop)
-- [Ellisys sniffers](http://www.ellisys.com/products/btcompare.php), [Teledyne LeCroy](http://teledynelecroy.com/frontline/), [Spanalytics PANalyzr](https://www.spanalytics.com/panalyzr)
-- [TI CC2540 USB dongle sniffer](http://www.ti.com/tool/CC2540EMK-USB), [Nordic nRF sniffer](https://www.nordicsemi.com/Software-and-tools/Development-Tools/nRF-Sniffer-for-Bluetooth-LE), [Ubertooth One](http://ubertooth.sourceforge.net/hardware/one/)
+Pigeon schemas and generated platform bindings must stay in sync. Regenerate
+after changing a Pigeon file:
 
----
+```sh
+cd quick_blue
+dart run pigeon --input pigeons/messages.dart
 
-
-
----
-
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, or open an issue to discuss your ideas or report bugs.
-
-For questions and support, open an [issue](https://github.com/prefanatic/quick_blue/issues) or start a [discussion](https://github.com/prefanatic/quick_blue/discussions).
-
----
+cd ../quick_blue_darwin
+dart run pigeon --input pigeons/messages.dart
+```
 
 ## License
 
-This project is licensed under the terms of the [LICENSE](quick_blue/LICENSE) file.
+This repository is licensed under the terms of [`LICENSE`](LICENSE).
