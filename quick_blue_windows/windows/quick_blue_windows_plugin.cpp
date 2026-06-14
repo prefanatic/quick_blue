@@ -18,12 +18,10 @@
 #include <algorithm>
 #include <cctype>
 #include <functional>
-#include <iomanip>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -77,15 +75,6 @@ IBuffer from_bytevc(const std::vector<uint8_t>& bytes) {
   auto writer = DataWriter();
   writer.WriteBytes(bytes);
   return writer.DetachBuffer();
-}
-
-std::string to_hexstring(const std::vector<uint8_t>& bytes) {
-  auto ss = std::stringstream();
-  for (auto b : bytes) {
-    ss << std::setw(2) << std::setfill('0') << std::hex
-       << static_cast<int>(b);
-  }
-  return ss.str();
 }
 
 std::string to_uuidstr(winrt::guid guid) {
@@ -1007,10 +996,6 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::WriteValueAsync(
                            : GattWriteOption::WriteWithResponse;
     auto writeValueStatus =
         co_await gattCharacteristic.WriteValueAsync(from_bytevc(value), writeOption);
-    OutputDebugString((L"WriteValueAsync " + winrt::to_hstring(characteristic) +
-                       L", " + winrt::to_hstring(to_hexstring(value)) + L", " +
-                       winrt::to_hstring((int32_t)writeValueStatus) + L"\n")
-                          .c_str());
     if (writeValueStatus != GattCommunicationStatus::Success) {
       result(gatt_error("WriteValue", writeValueStatus));
       co_return;
