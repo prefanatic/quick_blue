@@ -36,7 +36,8 @@ class QuickBlueLinux extends QuickBluePlatform {
   StreamSubscription<BlueZDevice>? _deviceRemovedSubscription;
 
   BlueZAdapter? _activeAdapter;
-  ScanFilter _activeScanFilter = ScanFilter.empty;
+  Set<String> _activeScanServiceUuids = const <String>{};
+  Map<int, Uint8List>? _activeScanManufacturerData;
 
   final StreamController<BlueScanResult> _scanResultController =
       StreamController<BlueScanResult>.broadcast();
@@ -162,7 +163,10 @@ class QuickBlueLinux extends QuickBluePlatform {
       throw StateError('No active Bluetooth adapter available');
     }
 
-    _activeScanFilter = scanFilter;
+    _activeScanServiceUuids = scanFilter.serviceUuids
+        .map(_canonicalizeUuid)
+        .toSet();
+    _activeScanManufacturerData = scanFilter.manufacturerData;
     await _setDiscoveryFilter(adapter, scanFilter);
     await adapter.startDiscovery();
     for (final device in _client.devices) {
@@ -178,21 +182,23 @@ class QuickBlueLinux extends QuickBluePlatform {
       return;
     }
     await adapter.stopDiscovery();
-    _activeScanFilter = ScanFilter.empty;
+    _activeScanServiceUuids = const <String>{};
+    _activeScanManufacturerData = null;
   }
 
   void _onDeviceAdd(BlueZDevice device) {
     _devices[device.address] = device;
-    if (!_matchesScanFilter(device, _activeScanFilter)) {
+    if (!_matchesScanFilter(device)) {
       return;
     }
 
+    final manufacturerData = device.advertisedManufacturerData;
     _scanResultController.add(
       BlueScanResult(
         deviceId: device.address,
         name: device.alias.isEmpty ? device.name : device.alias,
-        manufacturerDataHead: device.manufacturerDataHead,
-        manufacturerData: device.manufacturerDataPayload,
+        manufacturerDataHead: manufacturerData.head,
+        manufacturerData: manufacturerData.payload,
         rssi: device.rssi,
         serviceUuids: device.uuids
             .map((uuid) => _formatUuid(uuid))
@@ -508,27 +514,24 @@ class QuickBlueLinux extends QuickBluePlatform {
     );
   }
 
-  bool _matchesScanFilter(BlueZDevice device, ScanFilter scanFilter) {
-    final serviceUuids = scanFilter.serviceUuids;
-    if (serviceUuids.isNotEmpty) {
-      final advertisedServiceUuids = device.uuids
+  bool _matchesScanFilter(BlueZDevice device) {
+    if (_activeScanServiceUuids.isNotEmpty) {
+      final matchesService = device.uuids
           .map(_bluezUuidToCanonical)
-          .toSet();
-      final matchesService = serviceUuids
-          .map(_canonicalizeUuid)
-          .any(advertisedServiceUuids.contains);
+          .any(_activeScanServiceUuids.contains);
       if (!matchesService) {
         return false;
       }
     }
 
-    final manufacturerData = scanFilter.manufacturerData;
+    final manufacturerData = _activeScanManufacturerData;
     if (manufacturerData != null && manufacturerData.isNotEmpty) {
-      final advertisedManufacturerData = device.manufacturerData.map(
-        (id, value) => MapEntry(id.id, value),
-      );
       for (final entry in manufacturerData.entries) {
-        final advertisedData = advertisedManufacturerData[entry.key];
+        final advertisedData = device.manufacturerData.entries
+            .firstWhereOrNull(
+              (advertisedEntry) => advertisedEntry.key.id == entry.key,
+            )
+            ?.value;
         if (advertisedData == null ||
             !_startsWith(advertisedData, entry.value)) {
           return false;
@@ -882,20 +885,35 @@ class _ResolvedCharacteristic {
   final BlueZGattCharacteristic characteristic;
 }
 
-extension BlueZDeviceExtension on BlueZDevice {
-  Uint8List get manufacturerDataHead {
-    if (manufacturerData.isEmpty) return Uint8List(0);
+class _BlueZManufacturerData {
+  _BlueZManufacturerData({required this.head, required this.payload});
+
+  final Uint8List head;
+  final Uint8List payload;
+}
+
+extension _BlueZDeviceExtension on BlueZDevice {
+  _BlueZManufacturerData get advertisedManufacturerData {
+    if (manufacturerData.isEmpty) {
+      return _BlueZManufacturerData(head: Uint8List(0), payload: Uint8List(0));
+    }
 
     final sorted = manufacturerData.entries.toList()
       ..sort((a, b) => a.key.id - b.key.id);
-    return Uint8List.fromList(sorted.first.value);
-  }
+    final payloadLength = sorted.fold<int>(
+      0,
+      (length, entry) => length + entry.value.length,
+    );
+    final payload = Uint8List(payloadLength);
+    var offset = 0;
+    for (final entry in sorted) {
+      payload.setRange(offset, offset + entry.value.length, entry.value);
+      offset += entry.value.length;
+    }
 
-  Uint8List get manufacturerDataPayload {
-    if (manufacturerData.isEmpty) return Uint8List(0);
-
-    final sorted = manufacturerData.entries.toList()
-      ..sort((a, b) => a.key.id - b.key.id);
-    return Uint8List.fromList(sorted.expand((entry) => entry.value).toList());
+    return _BlueZManufacturerData(
+      head: Uint8List.fromList(sorted.first.value),
+      payload: payload,
+    );
   }
 }
