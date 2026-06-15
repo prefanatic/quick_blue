@@ -62,6 +62,7 @@
   Bluetooth state, scan filters, and service data in scan results.
 - Replace the companion-device platform contract with association-specific
   models and deprecate the older static companion methods.
+- Migrate Android Gradle configuration to Flutter's built-in Kotlin support.
 
 ### Fixed
 
