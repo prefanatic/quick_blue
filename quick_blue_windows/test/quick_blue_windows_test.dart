@@ -29,6 +29,7 @@ void main() {
       'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.requestMtu';
   const writeValueChannelName =
       'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.writeValue';
+  const scanResultEventChannelName = 'quick_blue/event.scanResult';
 
   tearDown(() {
     for (final name in const [
@@ -53,7 +54,22 @@ void main() {
             null,
           );
     }
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockStreamHandler(
+          const EventChannel(scanResultEventChannelName),
+          null,
+        );
     messages.QuickBlueFlutterApi.setUp(null);
+  });
+
+  test('registers as platform implementation', () {
+    final previous = QuickBluePlatform.instance;
+    try {
+      QuickBlueWindows.registerWith();
+      expect(QuickBluePlatform.instance, isA<QuickBlueWindows>());
+    } finally {
+      QuickBluePlatform.instance = previous;
+    }
   });
 
   test('forwards core host API calls', () async {
@@ -150,6 +166,109 @@ void main() {
       throwsA(isA<UnsupportedError>()),
     );
   });
+
+  test('maps scan result events', () async {
+    final scanEventChannel = const EventChannel(scanResultEventChannelName);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockStreamHandler(
+          scanEventChannel,
+          MockStreamHandler.inline(
+            onListen: (arguments, events) {
+              events.success(<String, dynamic>{
+                'name': 'device-a',
+                'deviceId': 'device-a',
+                'rssi': -40,
+                'manufacturerDataHead': Uint8List.fromList(<int>[1, 2]),
+                'manufacturerData': Uint8List.fromList(<int>[3, 4]),
+                'serviceUuids': <String>['180d'],
+                'serviceData': {
+                  '180d': Uint8List.fromList(<int>[7, 8]),
+                },
+              });
+            },
+          ),
+        );
+
+    await expectLater(
+      QuickBlueWindows().scanResultStream,
+      emits(
+        isA<BlueScanResult>()
+            .having((result) => result.name, 'name', 'device-a')
+            .having((result) => result.deviceId, 'deviceId', 'device-a')
+            .having((result) => result.rssi, 'rssi', -40)
+            .having(
+              (result) => result.serviceData['180d'],
+              'serviceData',
+              Uint8List.fromList(<int>[7, 8]),
+            ),
+      ),
+    );
+  });
+
+  test(
+    'forwards known connection states and ignores unknown connection states',
+    () async {
+      const channel = BasicMessageChannel<Object?>(
+        isBluetoothAvailableChannelName,
+        messages.QuickBlueApi.pigeonChannelCodec,
+      );
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockDecodedMessageHandler<Object?>(
+            channel,
+            (_) async => <Object?>[true],
+          );
+
+      final platform = QuickBlueWindows();
+      await platform.isBluetoothAvailable();
+
+      final connectionEvents = <BluetoothConnectionStateChange>[];
+      final subscription = platform.connectionStateStream.listen(
+        connectionEvents.add,
+      );
+
+      await _sendFlutterApiMessage(
+        'onConnectionStateChange',
+        messages.PlatformConnectionStateChange(
+          deviceId: 'device-a',
+          state: messages.PlatformConnectionState.connected,
+          gattStatus: messages.PlatformGattStatus.success,
+        ),
+      );
+      await _sendFlutterApiMessage(
+        'onConnectionStateChange',
+        messages.PlatformConnectionStateChange(
+          deviceId: 'device-a',
+          state: messages.PlatformConnectionState.unknown,
+          gattStatus: messages.PlatformGattStatus.failure,
+        ),
+      );
+      await _sendFlutterApiMessage(
+        'onConnectionStateChange',
+        messages.PlatformConnectionStateChange(
+          deviceId: 'device-a',
+          state: messages.PlatformConnectionState.disconnected,
+          gattStatus: messages.PlatformGattStatus.failure,
+        ),
+      );
+
+      await pumpEventQueue();
+
+      expect(connectionEvents, <BluetoothConnectionStateChange>[
+        BluetoothConnectionStateChange(
+          deviceId: 'device-a',
+          state: BlueConnectionState.connected,
+          status: BleStatus.success,
+        ),
+        BluetoothConnectionStateChange(
+          deviceId: 'device-a',
+          state: BlueConnectionState.disconnected,
+          status: BleStatus.failure,
+        ),
+      ]);
+
+      await subscription.cancel();
+    },
+  );
 
   test(
     'startScan forwards non-empty service UUID and manufacturer filters',

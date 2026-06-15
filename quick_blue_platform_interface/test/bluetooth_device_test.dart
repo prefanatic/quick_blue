@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('BlueScanResult exposes advertising manufacturer bytes', () {
     final manufacturerDataHead = Uint8List.fromList(<int>[0x4c, 0x00, 1, 2]);
     final manufacturerData = Uint8List.fromList(<int>[1, 2]);
@@ -87,6 +89,53 @@ void main() {
 
     await subscription.cancel();
     expect(platform.calls, <String>['startScan', 'stopScan']);
+  });
+
+  test('scanResults rethrows startScan errors', () async {
+    final platform = _FakeQuickBluePlatform(
+      startScanError: StateError('scan failed'),
+    );
+    addTearDown(platform.dispose);
+
+    await expectLater(
+      platform.scanResults().drain<void>(),
+      throwsA(isA<StateError>()),
+    );
+    expect(platform.calls, <String>['startScan']);
+  });
+
+  test('bluetoothDeviceStream is scan stream alias', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    final ids = <String>[];
+    final subscription = platform.bluetoothDeviceStream.listen((device) {
+      ids.add(device.id);
+    });
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['startScan']);
+
+    platform.addScanResult('device-a');
+    await pumpEventQueue();
+    expect(ids, <String>['device-a']);
+
+    await subscription.cancel();
+    expect(platform.calls, <String>['startScan', 'stopScan']);
+  });
+
+  test('platform singleton can be swapped for testing', () async {
+    final original = QuickBluePlatform.instance;
+    addTearDown(() {
+      QuickBluePlatform.instance = original;
+    });
+
+    final fake = _FakeQuickBluePlatform();
+    addTearDown(fake.dispose);
+
+    QuickBluePlatform.instance = fake;
+
+    expect(QuickBluePlatform.instance, same(fake));
   });
 
   test('connectedDevices returns BluetoothDevice objects', () async {
@@ -202,6 +251,82 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
+  test(
+    'scanResults rejects another scan with mismatched manufacturer data length',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final firstSubscription = platform
+          .scanResults(
+            scanFilter: ScanFilter(
+              manufacturerData: <int, Uint8List>{
+                76: Uint8List.fromList(<int>[1]),
+              },
+            ),
+          )
+          .listen((_) {});
+      await pumpEventQueue();
+      expect(platform.calls, <String>['startScan']);
+
+      final errors = <Object>[];
+      final secondSubscription = platform
+          .scanResults(
+            scanFilter: ScanFilter(
+              manufacturerData: <int, Uint8List>{
+                76: Uint8List.fromList(<int>[1]),
+                77: Uint8List.fromList(<int>[2]),
+              },
+            ),
+          )
+          .listen((_) {}, onError: errors.add);
+
+      await pumpEventQueue();
+      expect(errors.single, isA<StateError>());
+      expect(platform.calls, <String>['startScan']);
+
+      await firstSubscription.cancel();
+      await secondSubscription.cancel();
+    },
+  );
+
+  test(
+    'scanResults rejects another scan with mismatched manufacturer data values',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final firstSubscription = platform
+          .scanResults(
+            scanFilter: ScanFilter(
+              manufacturerData: <int, Uint8List>{
+                76: Uint8List.fromList(<int>[1]),
+              },
+            ),
+          )
+          .listen((_) {});
+      await pumpEventQueue();
+      expect(platform.calls, <String>['startScan']);
+
+      final errors = <Object>[];
+      final secondSubscription = platform
+          .scanResults(
+            scanFilter: ScanFilter(
+              manufacturerData: <int, Uint8List>{
+                76: Uint8List.fromList(<int>[2]),
+              },
+            ),
+          )
+          .listen((_) {}, onError: errors.add);
+
+      await pumpEventQueue();
+      expect(errors.single, isA<StateError>());
+
+      await firstSubscription.cancel();
+      await secondSubscription.cancel();
+    },
+  );
+
   test('scanResults emits results after startScan completes', () async {
     final startScan = Completer<void>();
     final platform = _FakeQuickBluePlatform(
@@ -282,21 +407,21 @@ void main() {
     await subscription.cancel();
   });
 
-  test('device streams only emit events for that device', () {
+  test('device streams only emit events for that device', () async {
     final platform = _FakeQuickBluePlatform();
     addTearDown(platform.dispose);
 
     final device = platform.device('device-a');
 
-    expectLater(
+    final connection = expectLater(
       device.connectionStateStream.map((event) => event.state),
       emits(BlueConnectionState.connected),
     );
-    expectLater(
+    final service = expectLater(
       device.serviceDiscoveryStream.map((event) => event.uuid),
       emits('service-a'),
     );
-    expectLater(
+    final value = expectLater(
       device.characteristicValueStream.map((event) => event.value),
       emits(Uint8List.fromList(<int>[1, 2, 3])),
     );
@@ -328,6 +453,8 @@ void main() {
       'characteristic-a',
       Uint8List.fromList(<int>[1, 2, 3]),
     );
+
+    await Future.wait(<Future<void>>[connection, service, value]);
   });
 
   test(
@@ -363,6 +490,139 @@ void main() {
         BlueConnectionState.connected,
       );
       expect(legacyConnectionEvents.single.status, BleStatus.success);
+    },
+  );
+
+  test(
+    'default service discovery callback maps raw ids to characteristics',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final services = <BluetoothService>[];
+      final sub = platform.serviceDiscoveryStream.listen(services.add);
+
+      platform.onServiceDiscovered?.call(
+        'device-a',
+        'service-a',
+        const <String>['characteristic-a'],
+      );
+      await pumpEventQueue();
+
+      expect(services, <BluetoothService>[
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-a',
+          characteristics: const <String>['characteristic-a'],
+        ),
+      ]);
+
+      await sub.cancel();
+    },
+  );
+
+  test('custom onServiceDiscovered callback receives callbacks', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    final services = <BluetoothService>[];
+    final customServices = <BluetoothService>[];
+    final sub = platform.serviceDiscoveryStream.listen(services.add);
+
+    platform.onServiceDiscovered = (deviceId, serviceId, characteristicIds) {
+      customServices.add(
+        BluetoothService(
+          deviceId: deviceId,
+          uuid: serviceId,
+          characteristics: characteristicIds,
+        ),
+      );
+    };
+
+    platform.handleServiceDiscovered(
+      'device-a',
+      'service-a',
+      <BluetoothCharacteristicInfo>[
+        BluetoothCharacteristicInfo(uuid: 'characteristic-a'),
+      ],
+    );
+    await pumpEventQueue();
+
+    expect(services, hasLength(1));
+    expect(customServices, hasLength(1));
+    expect(customServices.single.deviceId, 'device-a');
+    expect(customServices.single.uuid, 'service-a');
+    expect(customServices.single.characteristics, ['characteristic-a']);
+
+    await sub.cancel();
+  });
+
+  test('default onValueChanged emits stream events', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    final characteristicValues = <BluetoothCharacteristicValue>[];
+    final sub = platform.characteristicValueStream.listen(
+      characteristicValues.add,
+    );
+
+    final defaultCallback = platform.onValueChanged;
+    defaultCallback?.call(
+      'device-a',
+      'characteristic-a',
+      Uint8List.fromList(<int>[1]),
+    );
+    await pumpEventQueue();
+
+    expect(characteristicValues.single.serviceId, isEmpty);
+    expect(characteristicValues.single.characteristicId, 'characteristic-a');
+    expect(characteristicValues.single.value, Uint8List.fromList(<int>[1]));
+
+    await sub.cancel();
+  });
+
+  test(
+    'custom onValueChanged receives callbacks in addition to stream events',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final events = <BluetoothCharacteristicValue>[];
+      final characteristicValues = <BluetoothCharacteristicValue>[];
+      final sub = platform.characteristicValueStream.listen(
+        characteristicValues.add,
+      );
+
+      platform.onValueChanged = (deviceId, characteristicId, value) {
+        events.add(
+          BluetoothCharacteristicValue(
+            deviceId: deviceId,
+            serviceId: 'custom-service',
+            characteristicId: characteristicId,
+            value: value,
+          ),
+        );
+      };
+
+      platform.handleCharacteristicValueChanged(
+        'device-a',
+        'service-a',
+        'characteristic-a',
+        Uint8List.fromList(<int>[2]),
+      );
+      await pumpEventQueue();
+
+      expect(events, hasLength(1));
+      expect(events.single.deviceId, 'device-a');
+      expect(events.single.serviceId, 'custom-service');
+      expect(events.single.characteristicId, 'characteristic-a');
+      expect(events.single.value, Uint8List.fromList(<int>[2]));
+      expect(characteristicValues, hasLength(1));
+      expect(characteristicValues.single.serviceId, 'service-a');
+      expect(characteristicValues.single.characteristicId, 'characteristic-a');
+      expect(characteristicValues.single.value, Uint8List.fromList(<int>[2]));
+
+      await sub.cancel();
     },
   );
 
@@ -721,6 +981,32 @@ void main() {
     expect(gatt.characteristicInfo('characteristic-a').canRead, isTrue);
   });
 
+  test('BluetoothGatt.characteristic throws with service filter and missing '
+      'characteristic context', () async {
+    final platform = _FakeQuickBluePlatform(
+      discoveredServices: <BluetoothService>[
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-b',
+          characteristics: const <String>['characteristic-a'],
+        ),
+      ],
+    );
+    addTearDown(platform.dispose);
+
+    final gatt = await platform.device('device-a').discoverGatt();
+    expect(
+      () => gatt.characteristic('characteristic-a', service: 'service-a'),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('under service service-a'),
+        ),
+      ),
+    );
+  });
+
   test('BluetoothGatt.characteristic throws when not found', () async {
     final platform = _FakeQuickBluePlatform(
       discoveredServices: <BluetoothService>[
@@ -848,40 +1134,48 @@ void main() {
     ]);
   });
 
-  test('BluetoothDevice.readValue completes with the matching value event', () {
-    final platform = _FakeQuickBluePlatform(
-      readValueResult: Uint8List.fromList(<int>[4, 5, 6]),
-    );
-    addTearDown(platform.dispose);
+  test(
+    'BluetoothDevice.readValue completes with the matching value event',
+    () async {
+      final platform = _FakeQuickBluePlatform(
+        readValueResult: Uint8List.fromList(<int>[4, 5, 6]),
+      );
+      addTearDown(platform.dispose);
 
-    final device = platform.device('device-a');
+      final device = platform.device('device-a');
 
-    expectLater(
-      device.readValue('service-a', 'characteristic-a'),
-      completion(Uint8List.fromList(<int>[4, 5, 6])),
-    );
-  });
+      await expectLater(
+        device.readValue('service-a', 'characteristic-a'),
+        completion(Uint8List.fromList(<int>[4, 5, 6])),
+      );
+    },
+  );
 
-  test('BluetoothCharacteristic.valueStream matches short and full UUIDs', () {
-    final platform = _FakeQuickBluePlatform();
-    addTearDown(platform.dispose);
+  test(
+    'BluetoothCharacteristic.valueStream matches short and full UUIDs',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
 
-    final characteristic = platform
-        .device('device-a')
-        .characteristic('180d', '2a37');
+      final characteristic = platform
+          .device('device-a')
+          .characteristic('180d', '2a37');
 
-    expectLater(
-      characteristic.valueStream,
-      emits(Uint8List.fromList(<int>[1, 2, 3])),
-    );
+      final value = expectLater(
+        characteristic.valueStream,
+        emits(Uint8List.fromList(<int>[1, 2, 3])),
+      );
 
-    platform.handleCharacteristicValueChanged(
-      'device-a',
-      '0000180d-0000-1000-8000-00805f9b34fb',
-      '00002a37-0000-1000-8000-00805f9b34fb',
-      Uint8List.fromList(<int>[1, 2, 3]),
-    );
-  });
+      platform.handleCharacteristicValueChanged(
+        'device-a',
+        '0000180d-0000-1000-8000-00805f9b34fb',
+        '00002a37-0000-1000-8000-00805f9b34fb',
+        Uint8List.fromList(<int>[1, 2, 3]),
+      );
+
+      await value;
+    },
+  );
 
   test('BluetoothDevice.readValue propagates platform errors', () async {
     final error = StateError('read failed');
@@ -1075,6 +1369,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     Uint8List? readValueResult,
     List<BluetoothService> discoveredServices = const <BluetoothService>[],
     this.connectedDeviceIds = const <String>[],
+    this.startScanError,
     List<Completer<void>> startScanCompletions = const <Completer<void>>[],
     List<Completer<void>> setNotifiableCompletions = const <Completer<void>>[],
     this.discoverServicesError,
@@ -1094,6 +1389,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final Uint8List readValueResult;
   final List<BluetoothService> discoveredServices;
   final List<String> connectedDeviceIds;
+  final Object? startScanError;
   final List<Completer<void>> startScanCompletions;
   final List<Completer<void>> setNotifiableCompletions;
   final Object? discoverServicesError;
@@ -1126,6 +1422,13 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) async {
     lastScanFilter = scanFilter;
     calls.add('startScan');
+    final error = startScanError;
+    if (error != null) {
+      if (error is Error) {
+        throw error;
+      }
+      throw StateError(error.toString());
+    }
     if (_startScanCallCount < startScanCompletions.length) {
       await startScanCompletions[_startScanCallCount++].future;
     }

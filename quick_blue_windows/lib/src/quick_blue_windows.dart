@@ -121,7 +121,7 @@ class QuickBlueWindows extends QuickBluePlatform {
   @override
   Stream<BlueScanResult> get scanResultStream => _scanResults
       .receiveBroadcastStream({'name': 'scanResult'})
-      .map((item) => BlueScanResult.fromMap(item));
+      .map(_scanResultFromEvent);
 
   @override
   Future<void> setNotifiable(
@@ -171,6 +171,17 @@ class QuickBlueWindows extends QuickBluePlatform {
       bleOutputProperty.toPlatformBleOutputProperty(),
     );
   }
+}
+
+BlueScanResult _scanResultFromEvent(Object? item) {
+  final map = Map<String, dynamic>.from(item as Map);
+  final serviceData = map['serviceData'];
+  if (serviceData is Map) {
+    map['serviceData'] = serviceData.map(
+      (key, value) => MapEntry(key as String, value as Uint8List),
+    );
+  }
+  return BlueScanResult.fromMap(map);
 }
 
 class _FlutterApi extends messages.QuickBlueFlutterApi {

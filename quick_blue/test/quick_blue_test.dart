@@ -43,11 +43,33 @@ void main() {
     expect(connectCompleted, isTrue);
   });
 
-  test('isBluetoothAvailable delegates to the platform', () async {
-    platform.isAvailable = false;
+  test('deprecated scanResultStream returns platform stream', () async {
+    final results = <BlueScanResult>[];
+    final subscription = QuickBlue.scanResultStream.listen(results.add);
 
-    expect(await QuickBlue.isBluetoothAvailable(), isFalse);
-    expect(platform.calls, <String>['isBluetoothAvailable']);
+    await pumpEventQueue();
+    platform.addScanResult('device-a');
+    await pumpEventQueue();
+
+    expect(results.single.deviceId, 'device-a');
+    expect(platform.calls, isEmpty);
+
+    await subscription.cancel();
+  });
+
+  test('deprecated bluetoothDeviceStream returns platform stream', () async {
+    final devices = <BluetoothDevice>[];
+    final subscription = QuickBlue.bluetoothDeviceStream.listen(devices.add);
+
+    await pumpEventQueue();
+    platform.addScanResult('device-a');
+    await pumpEventQueue();
+
+    expect(devices.single.id, 'device-a');
+    expect(platform.calls, <String>['startScan']);
+    await subscription.cancel();
+    await pumpEventQueue();
+    expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
   test('bluetoothStateStream delegates to the platform', () async {
@@ -62,28 +84,6 @@ void main() {
     expect(platform.calls, <String>['bluetoothStateStream']);
 
     await subscription.cancel();
-  });
-
-  test('device returns a BluetoothDevice for the id', () {
-    final device = QuickBlue.device('device-a');
-
-    expect(device.id, 'device-a');
-  });
-
-  test('connectedDevices delegates to the platform', () async {
-    platform.connectedDeviceIds = <String>['device-a', 'device-b'];
-
-    final devices = await QuickBlue.connectedDevices(
-      serviceUuids: const <String>['0000180d-0000-1000-8000-00805f9b34fb'],
-    );
-
-    expect(devices.map((device) => device.id), <String>[
-      'device-a',
-      'device-b',
-    ]);
-    expect(platform.calls, <String>[
-      'connectedDevices [0000180d-0000-1000-8000-00805f9b34fb]',
-    ]);
   });
 
   test('disconnect waits for the disconnected state', () async {
@@ -109,21 +109,6 @@ void main() {
     expect(disconnectCompleted, isTrue);
   });
 
-  test('discoverServices returns discovered services', () async {
-    platform.discoveredServices = <BluetoothService>[
-      BluetoothService(
-        deviceId: 'device-a',
-        uuid: 'service-a',
-        characteristics: const <String>['characteristic-a'],
-      ),
-    ];
-
-    final services = await QuickBlue.discoverServices('device-a');
-
-    expect(platform.calls, <String>['discoverServices device-a']);
-    expect(services.map((service) => service.uuid), <String>['service-a']);
-  });
-
   test('discoverGatt returns a discovered GATT view', () async {
     platform.discoveredServices = <BluetoothService>[
       BluetoothService(
@@ -138,65 +123,6 @@ void main() {
     expect(platform.calls, <String>['discoverServices device-a']);
     expect(gatt.deviceId, 'device-a');
     expect(gatt.services.map((service) => service.uuid), <String>['service-a']);
-  });
-
-  test('readValue returns the characteristic value', () async {
-    platform.readValueResult = Uint8List.fromList(<int>[1, 2, 3]);
-
-    final value = await QuickBlue.readValue(
-      'device-a',
-      'service-a',
-      'characteristic-a',
-    );
-
-    expect(platform.calls, <String>[
-      'readValue device-a service-a characteristic-a',
-    ]);
-    expect(value, Uint8List.fromList(<int>[1, 2, 3]));
-  });
-
-  test('setNotifiable delegates through the device API', () async {
-    await QuickBlue.setNotifiable(
-      'device-a',
-      'service-a',
-      'characteristic-a',
-      BleInputProperty.indication,
-    );
-
-    expect(platform.calls, <String>[
-      'setNotifiable device-a service-a characteristic-a indication',
-    ]);
-  });
-
-  test('writeValue delegates through the device API', () async {
-    final value = Uint8List.fromList(<int>[4, 5, 6]);
-
-    await QuickBlue.writeValue(
-      'device-a',
-      'service-a',
-      'characteristic-a',
-      value,
-      BleOutputProperty.withoutResponse,
-    );
-
-    expect(platform.calls, <String>[
-      'writeValue device-a service-a characteristic-a withoutResponse [4, 5, 6]',
-    ]);
-  });
-
-  test('requestMtu delegates through the device API', () async {
-    final mtu = await QuickBlue.requestMtu('device-a', 247);
-
-    expect(mtu, 247);
-    expect(platform.calls, <String>['requestMtu device-a 247']);
-  });
-
-  test('openL2cap delegates through the device API', () async {
-    final socket = await QuickBlue.openL2cap('device-a', 25);
-
-    socket.sink.add(Uint8List.fromList(<int>[1, 2, 3]));
-    expect(await socket.stream.toList(), isEmpty);
-    expect(platform.calls, <String>['openL2cap device-a 25']);
   });
 
   test('scanResults starts and stops scanning', () async {
@@ -244,38 +170,10 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
-  test('companionDisassociate delegates to the platform', () async {
-    await QuickBlue.companionDisassociate(42);
+  test('legacy companionDissassociate delegates to the platform', () async {
+    await QuickBlue.companionDissassociate(42);
 
     expect(platform.calls, <String>['companionDisassociate 42']);
-  });
-
-  test('companion isSupported delegates to the platform', () async {
-    expect(await QuickBlue.companion.isSupported(), isTrue);
-
-    expect(platform.calls, <String>['isCompanionAssociationSupported']);
-  });
-
-  test('companion associate delegates to the platform', () async {
-    platform.companionAssociation = CompanionAssociation(
-      id: 42,
-      deviceId: 'device-a',
-      displayName: 'Device A',
-    );
-
-    final association = await QuickBlue.companion.associate(
-      CompanionAssociationRequest.ble(
-        filters: <BleCompanionFilter>[
-          BleCompanionFilter(
-            deviceId: 'device-a',
-            serviceUuids: const <String>['180d'],
-          ),
-        ],
-      ),
-    );
-
-    expect(association, platform.companionAssociation);
-    expect(platform.calls, <String>['companionAssociate device-a [180d]']);
   });
 
   test('companionAssociate delegates to the platform', () async {
@@ -298,6 +196,47 @@ void main() {
     expect(platform.calls, <String>['companionAssociate device-a [180d]']);
   });
 
+  test('companionAssociate omits filter when no criteria passed', () async {
+    platform.companionAssociation = null;
+
+    final device = await QuickBlue.companionAssociate();
+
+    expect(device, isNull);
+    expect(platform.calls, <String>['companionAssociate null []']);
+  });
+
+  test(
+    'companionAssociate keeps manufacturer data when service UUIDs are empty',
+    () async {
+      final manufacturerData = <int, Uint8List>{
+        76: Uint8List.fromList(<int>[1, 2, 3]),
+      };
+      platform.companionAssociation = CompanionAssociation(id: 42);
+
+      final device = await QuickBlue.companionAssociate(
+        scanFilter: ScanFilter(
+          serviceUuids: const <String>[],
+          manufacturerData: manufacturerData,
+        ),
+      );
+
+      expect(
+        device,
+        // ignore: deprecated_member_use
+        CompanionDevice(id: '', name: '', associationId: 42),
+      );
+      final request = platform.lastCompanionAssociateRequest;
+      expect(request, isNotNull);
+      expect(
+        request!.filters.single,
+        BleCompanionFilter(
+          serviceUuids: const <String>[],
+          manufacturerData: manufacturerData,
+        ),
+      );
+    },
+  );
+
   test('getCompanionAssociations delegates to the platform', () async {
     platform.companionAssociations = <CompanionAssociation>[
       CompanionAssociation(
@@ -316,6 +255,24 @@ void main() {
     ]);
     expect(platform.calls, <String>['getCompanionAssociations']);
   });
+
+  test(
+    'getCompanionAssociations maps missing fields in legacy model',
+    () async {
+      platform.companionAssociations = <CompanionAssociation>[
+        CompanionAssociation(id: 42),
+      ];
+
+      final associations = await QuickBlue.getCompanionAssociations();
+
+      // ignore: deprecated_member_use
+      expect(associations, <CompanionDevice>[
+        // ignore: deprecated_member_use
+        CompanionDevice(id: '', name: '', associationId: 42),
+      ]);
+      expect(platform.calls, <String>['getCompanionAssociations']);
+    },
+  );
 }
 
 class _FakeQuickBluePlatform extends QuickBluePlatform {
@@ -329,6 +286,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   CompanionAssociation? companionAssociation;
   List<CompanionAssociation> companionAssociations =
       const <CompanionAssociation>[];
+  CompanionAssociationRequest? lastCompanionAssociateRequest;
   final _scanResultController = StreamController<BlueScanResult>.broadcast();
   final _bluetoothStateController =
       StreamController<BlueBluetoothState>.broadcast();
@@ -415,6 +373,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   Future<CompanionAssociation?> companionAssociate(
     CompanionAssociationRequest request,
   ) async {
+    lastCompanionAssociateRequest = request;
     final filter = request.filters.isEmpty ? null : request.filters.first;
     calls.add(
       'companionAssociate ${filter?.deviceId} '

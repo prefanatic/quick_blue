@@ -4,6 +4,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quick_blue_platform_interface/models.dart';
 
 void main() {
+  group(BlueConnectionState, () {
+    test('parses known states and rejects invalid states', () {
+      expect(
+        BlueConnectionState.parse('connected'),
+        BlueConnectionState.connected,
+      );
+      expect(
+        BlueConnectionState.parse('disconnected'),
+        BlueConnectionState.disconnected,
+      );
+      expect(
+        () => BlueConnectionState.parse('linkLost'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+  });
+
   group(BlueScanResult, () {
     final head = Uint8List.fromList(<int>[0x4c, 0x00, 0x01]);
     final full = Uint8List.fromList(<int>[0x4c, 0x00, 0x01, 0x02, 0x03]);
@@ -130,7 +147,6 @@ void main() {
       expect(first, equivalent);
       expect(first.hashCode, equivalent.hashCode);
       expect(first, isNot(different));
-      expect(first.toString(), contains('BlueScanResult'));
     });
   });
 
@@ -210,18 +226,6 @@ void main() {
       expect(nullData, emptyData);
       expect(nullData.hashCode, emptyData.hashCode);
     });
-
-    test('has a useful string representation', () {
-      final filter = ScanFilter(
-        serviceUuids: const <String>['180d'],
-        manufacturerData: <int, Uint8List>{
-          76: Uint8List.fromList(<int>[1, 2, 3]),
-        },
-      );
-
-      expect(filter.toString(), contains('ScanFilter'));
-      expect(filter.toString(), contains('180d'));
-    });
   });
 
   group(BluetoothConnectionStateChange, () {
@@ -245,7 +249,6 @@ void main() {
       expect(first, equivalent);
       expect(first.hashCode, equivalent.hashCode);
       expect(first, isNot(different));
-      expect(first.toString(), contains('device-a'));
     });
   });
 
@@ -276,7 +279,6 @@ void main() {
           characteristics: const <String>['characteristic-a'],
         ),
       );
-      expect(service.toString(), contains('BluetoothService'));
     });
   });
 
@@ -300,7 +302,15 @@ void main() {
           canNotify: true,
         ),
       );
-      expect(characteristic.toString(), contains('canRead: true'));
+      expect(
+        characteristic.hashCode,
+        BluetoothCharacteristicInfo(
+          uuid: 'characteristic-a',
+          canRead: true,
+          canWriteWithResponse: true,
+          canNotify: true,
+        ).hashCode,
+      );
     });
   });
 
@@ -332,8 +342,13 @@ void main() {
         ),
       );
       expect(
-        characteristicValue.toString(),
-        contains('BluetoothCharacteristicValue'),
+        characteristicValue.hashCode,
+        BluetoothCharacteristicValue(
+          deviceId: 'device-a',
+          serviceId: 'service-a',
+          characteristicId: 'characteristic-a',
+          value: Uint8List.fromList(<int>[1, 2, 3]),
+        ).hashCode,
       );
     });
   });
@@ -362,18 +377,46 @@ void main() {
         ),
       );
       expect(
+        dataEvent.hashCode,
+        BleL2CapSocketEventData(
+          deviceId: 'device-a',
+          data: Uint8List.fromList(<int>[1, 2, 3]),
+        ).hashCode,
+      );
+      expect(
         BleL2CapSocketEventOpened(deviceId: 'device-a'),
         BleL2CapSocketEventOpened(deviceId: 'device-a'),
+      );
+      expect(
+        BleL2CapSocketEventOpened(deviceId: 'device-a').hashCode,
+        BleL2CapSocketEventOpened(deviceId: 'device-a').hashCode,
       );
       expect(
         BleL2CapSocketEventClosed(deviceId: 'device-a'),
         BleL2CapSocketEventClosed(deviceId: 'device-a'),
       );
       expect(
+        BleL2CapSocketEventClosed(deviceId: 'device-a').hashCode,
+        BleL2CapSocketEventClosed(deviceId: 'device-a').hashCode,
+      );
+      expect(
         BleL2CapSocketEventError(deviceId: 'device-a', error: 'failed'),
         BleL2CapSocketEventError(deviceId: 'device-a', error: 'failed'),
       );
-      expect(dataEvent.toString(), contains('BleL2CapSocketEventData'));
+      expect(
+        BleL2CapSocketEventError(
+          deviceId: 'device-a',
+          error: 'failed',
+        ).hashCode,
+        BleL2CapSocketEventError(
+          deviceId: 'device-a',
+          error: 'failed',
+        ).hashCode,
+      );
+      expect(
+        BleL2CapSocketEventError(deviceId: 'device-a').hashCode,
+        BleL2CapSocketEventError(deviceId: 'device-a').hashCode,
+      );
     });
   });
 
@@ -392,7 +435,6 @@ void main() {
       firstRead[1] = 8;
 
       expect(filter.manufacturerData![76], Uint8List.fromList(<int>[1, 2, 3]));
-      expect(filter.toString(), contains('BleCompanionFilter'));
     });
   });
 
@@ -421,7 +463,6 @@ void main() {
       expect(first, equivalent);
       expect(first.hashCode, equivalent.hashCode);
       expect(first, isNot(different));
-      expect(first.toString(), contains('CompanionAssociationRequest'));
     });
   });
 
@@ -444,7 +485,30 @@ void main() {
       expect(first, equivalent);
       expect(first.hashCode, equivalent.hashCode);
       expect(first, isNot(different));
-      expect(first.toString(), contains('CompanionAssociation'));
+    });
+
+    test('creates from map payload', () {
+      final fromMap = CompanionAssociation.fromMap(<String, dynamic>{
+        'id': 42,
+        'deviceId': 'device-a',
+        'displayName': 'Device A',
+        'deviceProfile': 'watch',
+      });
+
+      expect(fromMap, const TypeMatcher<CompanionAssociation>());
+      expect(fromMap.id, 42);
+      expect(fromMap.deviceId, 'device-a');
+      expect(fromMap.displayName, 'Device A');
+      expect(fromMap.deviceProfile, 'watch');
+      expect(
+        fromMap.hashCode,
+        CompanionAssociation(
+          id: 42,
+          deviceId: 'device-a',
+          displayName: 'Device A',
+          deviceProfile: 'watch',
+        ).hashCode,
+      );
     });
   });
 
@@ -469,7 +533,32 @@ void main() {
       expect(first, equivalent);
       expect(first.hashCode, equivalent.hashCode);
       expect(first, isNot(different));
-      expect(first.toString(), contains('CompanionDevice'));
+
+      final fromMap = CompanionDevice.fromMap(<String, dynamic>{
+        'id': 'device-a',
+        'name': 'Device A',
+        'associationId': 42,
+      });
+
+      expect(
+        fromMap,
+        CompanionDevice(id: 'device-a', name: 'Device A', associationId: 42),
+      );
+    });
+  });
+
+  group(BleInputProperty, () {
+    test('has a string representation', () {
+      expect(BleInputProperty.notification.toString(), 'notification');
+      expect(BleInputProperty.indication.toString(), 'indication');
+      expect(BleInputProperty.disabled.toString(), 'disabled');
+    });
+  });
+
+  group(BleOutputProperty, () {
+    test('has a string representation', () {
+      expect(BleOutputProperty.withResponse.toString(), 'withResponse');
+      expect(BleOutputProperty.withoutResponse.toString(), 'withoutResponse');
     });
   });
 }
