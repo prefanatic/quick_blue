@@ -909,7 +909,7 @@ interface QuickBlueApi {
   fun companionDisassociate(associationId: Long)
   fun getCompanionAssociations(): List<PlatformCompanionAssociation>
   fun discoverServices(deviceId: String)
-  fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: PlatformBleInputProperty)
+  fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: PlatformBleInputProperty, callback: (Result<Unit>) -> Unit)
   fun readValue(deviceId: String, service: String, characteristic: String)
   fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: PlatformBleOutputProperty, callback: (Result<Unit>) -> Unit)
   fun requestMtu(deviceId: String, expectedMtu: Long): Long
@@ -1127,13 +1127,14 @@ interface QuickBlueApi {
             val serviceArg = args[1] as String
             val characteristicArg = args[2] as String
             val bleInputPropertyArg = args[3] as PlatformBleInputProperty
-            val wrapped: List<Any?> = try {
-              api.setNotifiable(deviceIdArg, serviceArg, characteristicArg, bleInputPropertyArg)
-              listOf(null)
-            } catch (exception: Throwable) {
-              MessagesPigeonUtils.wrapError(exception)
+            api.setNotifiable(deviceIdArg, serviceArg, characteristicArg, bleInputPropertyArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(MessagesPigeonUtils.wrapResult(null))
+              }
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

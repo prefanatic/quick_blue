@@ -471,12 +471,10 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             descriptor: BluetoothGattDescriptor,
             status: Int
         ) {
-            gattOperationQueue.complete(gatt.device.address, GattOperationKind.WRITE_DESCRIPTOR)
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                Log.e(
-                    "QuickBluePlugin",
-                    "Descriptor write failed for ${descriptor.uuid} with status $status"
-                )
+            val operation =
+                gattOperationQueue.complete(gatt.device.address, GattOperationKind.WRITE_DESCRIPTOR) ?: return
+            mainThreadHandler.post {
+                operation.onComplete(status)
             }
         }
     }
@@ -507,6 +505,8 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         serviceUuids: List<String>?,
         manufacturerData: Map<Long, ByteArray>?
     ) {
+        ensureBluetoothScanPermission()
+
         val manufacturerDataFilter = manufacturerData?.entries?.firstOrNull()
         val filters = if (serviceUuids.isNullOrEmpty()) {
             if (manufacturerDataFilter == null) {
@@ -571,6 +571,8 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     }
 
     override fun connect(deviceId: String) {
+        ensureBluetoothConnectPermission()
+
         executor.execute {
             synchronized(gattLock) {
                 if (knownGatts.containsKey(deviceId)) {
@@ -765,13 +767,42 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         deviceId: String,
         service: String,
         characteristic: String,
-        bleInputProperty: PlatformBleInputProperty
+        bleInputProperty: PlatformBleInputProperty,
+        callback: (Result<Unit>) -> Unit
     ) {
+        // @async: report guard failures through the callback rather than
+        // throwing, since the generated dispatcher does not catch synchronous
+        // throws for async methods (the reply would never be sent).
         val gatt = knownGatts[deviceId]
-            ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
-        val descriptor =
-            gatt.getCharacteristic(service to characteristic)
-                .getDescriptor(DESC__CLIENT_CHAR_CONFIGURATION)
+        if (gatt == null) {
+            callback(
+                Result.failure(
+                    FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
+                )
+            )
+            return
+        }
+        val gattChar = try {
+            gatt.getKnownCharacteristic(service, characteristic)
+        } catch (error: FlutterError) {
+            callback(
+                Result.failure(error)
+            )
+            return
+        }
+        val descriptor = gattChar.getDescriptor(DESC__CLIENT_CHAR_CONFIGURATION)
+        if (descriptor == null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "IllegalArgument",
+                        "Missing client characteristic configuration descriptor for $characteristic",
+                        null
+                    )
+                )
+            )
+            return
+        }
         val (value, enable) = when (bleInputProperty) {
             PlatformBleInputProperty.NOTIFICATION -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE to true
             PlatformBleInputProperty.INDICATION -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE to true
@@ -786,10 +817,41 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                     it.setCharacteristicNotification(descriptor.characteristic, enable) &&
                         it.writeDescriptor(descriptor)
                 },
+                onComplete = { status ->
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
+                        callback(Result.success(Unit))
+                    } else {
+                        callback(
+                            Result.failure(
+                                FlutterError(
+                                    "DescriptorWriteFailed",
+                                    "Descriptor write failed for $characteristic with status $status",
+                                    null
+                                )
+                            )
+                        )
+                    }
+                },
                 onStartFailed = {
-                    Log.e(
-                        "QuickBluePlugin",
-                        "Failed to initiate descriptor write for $characteristic"
+                    callback(
+                        Result.failure(
+                            FlutterError(
+                                "DescriptorWriteFailed",
+                                "Failed to initiate descriptor write for $characteristic",
+                                null
+                            )
+                        )
+                    )
+                },
+                onDisconnected = {
+                    callback(
+                        Result.failure(
+                            FlutterError(
+                                "Disconnected",
+                                "Connection lost before the descriptor write was acknowledged",
+                                null
+                            )
+                        )
                     )
                 },
             )
@@ -803,7 +865,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     ) {
         val gatt = knownGatts[deviceId]
             ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
-        val gattChar = gatt.getCharacteristic(service to characteristic)
+        val gattChar = gatt.getKnownCharacteristic(service, characteristic)
         gattOperationQueue.enqueue(
             GattOperation(
                 deviceId = deviceId,
@@ -839,16 +901,11 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             )
             return
         }
-        val gattChar = gatt.getCharacteristic(service to characteristic)
-        if (gattChar == null) {
+        val gattChar = try {
+            gatt.getKnownCharacteristic(service, characteristic)
+        } catch (error: FlutterError) {
             callback(
-                Result.failure(
-                    FlutterError(
-                        "IllegalArgument",
-                        "Unknown characteristic: $characteristic",
-                        null
-                    )
-                )
+                Result.failure(error)
             )
             return
         }
@@ -990,6 +1047,42 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                 null
             )
         delegate.write(value)
+    }
+
+    private fun ensureBluetoothScanPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return
+        }
+        if (ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        throw FlutterError(
+            "MissingPermission",
+            "Missing Android permission: BLUETOOTH_SCAN",
+            null
+        )
+    }
+
+    private fun ensureBluetoothConnectPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return
+        }
+        if (ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        throw FlutterError(
+            "MissingPermission",
+            "Missing Android permission: BLUETOOTH_CONNECT",
+            null
+        )
     }
 }
 
@@ -1142,10 +1235,25 @@ fun String.toBluetoothUuid(): UUID {
     }
 }
 
-fun BluetoothGatt.getCharacteristic(serviceCharacteristic: Pair<String, String>) =
-    getService(serviceCharacteristic.first.toBluetoothUuid()).getCharacteristic(
-        serviceCharacteristic.second.toBluetoothUuid()
+fun BluetoothGatt.getKnownCharacteristic(
+    service: String,
+    characteristic: String,
+): BluetoothGattCharacteristic {
+    val gattChar = try {
+        getService(service.toBluetoothUuid())?.getCharacteristic(characteristic.toBluetoothUuid())
+    } catch (error: IllegalArgumentException) {
+        throw FlutterError(
+            "IllegalArgument",
+            "Invalid service or characteristic UUID: ${error.message}",
+            null,
+        )
+    }
+    return gattChar ?: throw FlutterError(
+        "IllegalArgument",
+        "Unknown characteristic: $characteristic",
+        null,
     )
+}
 
 private val DESC__CLIENT_CHAR_CONFIGURATION =
     UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")

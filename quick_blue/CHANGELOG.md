@@ -46,6 +46,8 @@
   byte and collection fields.
 - Order notification setup so values are forwarded only after notification
   enabling succeeds.
+- Complete Android `setNotifiable` calls only after the descriptor write is
+  acknowledged.
 - Await connection and disconnection state events in the device API.
 - Tighten operation error handling for connection, disconnection, service
   discovery, reads, writes, and notifications.
@@ -72,6 +74,8 @@
   accepting them on Dart and dropping them in Kotlin.
 - Complete Android and Darwin writes after the platform reports the
   characteristic write result.
+- Surface Android descriptor write failures and missing BLE scan/connect
+  permissions as Flutter errors.
 - Preserve pending Android and Darwin write failures when a peripheral
   disconnects before acknowledgement.
 - Fix example connection switching so abandoning a pending connection does not

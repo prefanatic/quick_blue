@@ -77,6 +77,9 @@ abstract class QuickBlueApi {
   void companionDisassociate(int associationId);
   List<PlatformCompanionAssociation> getCompanionAssociations();
   void discoverServices(String deviceId);
+  // Async so the reply can be deferred until the CCCD descriptor write
+  // completes (onDescriptorWrite) rather than when the write is merely queued.
+  @async
   void setNotifiable(
     String deviceId,
     String service,

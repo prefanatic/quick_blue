@@ -170,6 +170,53 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
+  test(
+    'notifications waits for setNotifiable before emitting values',
+    () async {
+      final setNotifiable = Completer<void>();
+      platform.nextSetNotifiable = setNotifiable;
+      final values = <Uint8List>[];
+      final errors = <Object>[];
+      final characteristic = QuickBlue.device(
+        'device-a',
+      ).characteristic('service-a', 'characteristic-a');
+
+      final subscription = characteristic.notifications().listen(
+        values.add,
+        onError: errors.add,
+      );
+      await pumpEventQueue();
+
+      platform.handleCharacteristicValueChanged(
+        'device-a',
+        'service-a',
+        'characteristic-a',
+        Uint8List.fromList(<int>[1, 2, 3]),
+      );
+      await pumpEventQueue();
+
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+      ]);
+      expect(values, isEmpty);
+      expect(errors, isEmpty);
+
+      setNotifiable.complete();
+      await pumpEventQueue();
+
+      expect(values, <Uint8List>[
+        Uint8List.fromList(<int>[1, 2, 3]),
+      ]);
+      expect(errors, isEmpty);
+
+      await subscription.cancel();
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+        'setNotifiable device-a service-a characteristic-a disabled',
+      ]);
+    },
+  );
+
   test('legacy companionDissassociate delegates to the platform', () async {
     await QuickBlue.companionDissassociate(42);
 
@@ -283,6 +330,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   var readValueResult = Uint8List(0);
   var discoveredServices = <BluetoothService>[];
   var connectedDeviceIds = <String>[];
+  Completer<void>? nextSetNotifiable;
   CompanionAssociation? companionAssociation;
   List<CompanionAssociation> companionAssociations =
       const <CompanionAssociation>[];
@@ -416,6 +464,11 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     calls.add(
       'setNotifiable $deviceId $service $characteristic ${bleInputProperty.value}',
     );
+    final completer = nextSetNotifiable;
+    if (completer != null) {
+      nextSetNotifiable = null;
+      await completer.future;
+    }
   }
 
   @override

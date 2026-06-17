@@ -194,6 +194,12 @@ Characteristic value events are scoped by device, service, and characteristic.
 This matters for peripherals that reuse a characteristic UUID under multiple
 services.
 
+`notifications()` enables notifications before forwarding values and disables
+them when the subscription is canceled. On Android, GATT operations for a device
+are serialized and `setNotifiable` completes after the client characteristic
+configuration descriptor write is acknowledged; descriptor write failures are
+reported through the returned `Future` or notification stream error.
+
 - Write data from the device object:
 
 ```dart
