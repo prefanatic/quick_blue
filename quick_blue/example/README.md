@@ -5,11 +5,12 @@ Demonstrates how to use the quick_blue plugin.
 ## BLE smoke test
 
 The integration smoke test scans for nearby BLE advertisements, tries to connect
-to matching devices, discovers services, and disconnects. It is headless: no
-manual device picker is shown. Set `QUICK_BLUE_HIDE_TEST_WINDOW=1` for desktop
-agent runs that should not show a visible app window. Run it against any
-supported Flutter target with Bluetooth LE hardware and permissions; for
-example:
+to matching devices, discovers services, reads a discovered readable
+characteristic, optionally writes a caller-provided characteristic, and
+disconnects. It is headless: no manual device picker is shown. Set
+`QUICK_BLUE_HIDE_TEST_WINDOW=1` for desktop agent runs that should not show a
+visible app window. Run it against any supported Flutter target with Bluetooth
+LE hardware and permissions; for example:
 
 ```sh
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
@@ -29,6 +30,24 @@ Useful Dart defines:
 - `QUICK_BLUE_SMOKE_NAME_PATTERN`: case-insensitive regular expression matched
   against advertised device names.
 - `QUICK_BLUE_SMOKE_SERVICE_UUIDS`: comma-separated service UUID scan filter.
+- `QUICK_BLUE_SMOKE_READ_TIMEOUT_SECONDS`: readable characteristic timeout.
+  Defaults to `8`.
+- `QUICK_BLUE_SMOKE_WRITE_TIMEOUT_SECONDS`: opt-in write timeout. Defaults to
+  `8`.
+- `QUICK_BLUE_SMOKE_WRITE_SERVICE_UUID`: service UUID for opt-in write smoke
+  testing.
+- `QUICK_BLUE_SMOKE_WRITE_CHARACTERISTIC_UUID`: characteristic UUID for opt-in
+  write smoke testing.
+- `QUICK_BLUE_SMOKE_WRITE_HEX`: hex bytes to write. Separators such as spaces,
+  colons, underscores, and dashes are allowed.
+- `QUICK_BLUE_SMOKE_WRITE_WITHOUT_RESPONSE`: set to `true` to use write without
+  response. Defaults to write with response.
+
+Read smoke testing prefers common readable standard characteristics such as
+Generic Access Device Name (`1800/2A00`) and Battery Level (`180F/2A19`) before
+falling back to the first discovered readable characteristic. Write smoke
+testing is opt-in because there is no universally safe writable BLE
+characteristic; provide all write defines only for a known test peripheral.
 
 Example targeted run:
 
@@ -36,6 +55,16 @@ Example targeted run:
 flutter test integration_test/ble_smoke_test.dart -d macos \
   --dart-define=QUICK_BLUE_SMOKE_NAME_PATTERN='sensor|heart' \
   --dart-define=QUICK_BLUE_SMOKE_MAX_CONNECT_ATTEMPTS=5
+```
+
+Example targeted write run:
+
+```sh
+flutter test integration_test/ble_smoke_test.dart -d macos \
+  --dart-define=QUICK_BLUE_SMOKE_DEVICE_ID='DEVICE_ID' \
+  --dart-define=QUICK_BLUE_SMOKE_WRITE_SERVICE_UUID='12345678-1234-5678-1234-56789abcdef0' \
+  --dart-define=QUICK_BLUE_SMOKE_WRITE_CHARACTERISTIC_UUID='12345678-1234-5678-1234-56789abcdef1' \
+  --dart-define=QUICK_BLUE_SMOKE_WRITE_HEX='01 02 03'
 ```
 
 ## Device-switch regressions

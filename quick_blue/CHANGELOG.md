@@ -18,6 +18,8 @@
   events are scoped by device, service, and characteristic.
 - Add cross-platform hardware smoke testing for scan/connect/service discovery
   flows.
+- Add hardware smoke-test coverage for reading discovered characteristics and
+  opt-in writes against known test peripherals.
 - Add `QUICK_BLUE_HIDE_TEST_WINDOW` desktop runner support for agent-friendly
   integration test runs.
 - Add macOS regression tests for switching devices while a connection attempt is

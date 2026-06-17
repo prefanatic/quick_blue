@@ -194,7 +194,8 @@ QUICK_BLUE_HIDE_TEST_WINDOW=1 \
 
 These tests need Bluetooth permission, powered-on Bluetooth hardware, and
 nearby BLE advertisements. `ble_smoke_test.dart` targets all quick_blue
-platforms, and `ble_ui_switch_test.dart` targets macOS and Linux. See
+platforms and includes read coverage plus opt-in write coverage for known
+test peripherals. `ble_ui_switch_test.dart` targets macOS and Linux. See
 [`quick_blue/example/README.md`](quick_blue/example/README.md) for optional
 Dart defines that target specific devices.
 

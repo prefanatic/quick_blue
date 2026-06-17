@@ -15,6 +15,14 @@ const _serviceTimeoutSeconds = int.fromEnvironment(
   'QUICK_BLUE_SMOKE_SERVICE_TIMEOUT_SECONDS',
   defaultValue: 15,
 );
+const _readTimeoutSeconds = int.fromEnvironment(
+  'QUICK_BLUE_SMOKE_READ_TIMEOUT_SECONDS',
+  defaultValue: 8,
+);
+const _writeTimeoutSeconds = int.fromEnvironment(
+  'QUICK_BLUE_SMOKE_WRITE_TIMEOUT_SECONDS',
+  defaultValue: 8,
+);
 const _disconnectTimeoutSeconds = int.fromEnvironment(
   'QUICK_BLUE_SMOKE_DISCONNECT_TIMEOUT_SECONDS',
   defaultValue: 8,
@@ -34,12 +42,22 @@ const _targetNamePattern = String.fromEnvironment(
 const _serviceUuidCsv = String.fromEnvironment(
   'QUICK_BLUE_SMOKE_SERVICE_UUIDS',
 );
+const _writeServiceUuid = String.fromEnvironment(
+  'QUICK_BLUE_SMOKE_WRITE_SERVICE_UUID',
+);
+const _writeCharacteristicUuid = String.fromEnvironment(
+  'QUICK_BLUE_SMOKE_WRITE_CHARACTERISTIC_UUID',
+);
+const _writeValueHex = String.fromEnvironment('QUICK_BLUE_SMOKE_WRITE_HEX');
+const _writeWithoutResponse = bool.fromEnvironment(
+  'QUICK_BLUE_SMOKE_WRITE_WITHOUT_RESPONSE',
+);
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'BLE explorer scans, connects, discovers services, and disconnects',
+    'BLE explorer scans, connects, discovers services, reads, optionally writes, and disconnects',
     (_) async {
       if (!_supportsBleSmoke(defaultTargetPlatform)) {
         markTestSkipped(
@@ -56,6 +74,7 @@ void main() {
         return;
       }
 
+      final writeRequest = _writeRequest();
       final serviceUuids = _csv(_serviceUuidCsv);
       final candidates = await _scanForCandidates(
         scanFilter: ScanFilter(serviceUuids: serviceUuids),
@@ -70,7 +89,8 @@ void main() {
       final explicitTarget =
           _targetDeviceId.isNotEmpty ||
           _targetNamePattern.isNotEmpty ||
-          serviceUuids.isNotEmpty;
+          serviceUuids.isNotEmpty ||
+          writeRequest != null;
       final failures = <String>[];
 
       for (final result in candidates.take(_positive(_maxConnectAttempts, 1))) {
@@ -79,9 +99,20 @@ void main() {
         try {
           await device.connect().timeout(_seconds(_connectTimeoutSeconds, 12));
 
-          await device.discoverServices().timeout(
+          final services = await device.discoverServices().timeout(
             _seconds(_serviceTimeoutSeconds, 15),
           );
+          await _readSmokeCharacteristic(
+            device,
+            services,
+          ).timeout(_seconds(_readTimeoutSeconds, 8));
+          if (writeRequest != null) {
+            await _writeSmokeCharacteristic(
+              device,
+              services,
+              writeRequest,
+            ).timeout(_seconds(_writeTimeoutSeconds, 8));
+          }
           await device.disconnect().timeout(
             _seconds(_disconnectTimeoutSeconds, 8),
           );
@@ -96,14 +127,14 @@ void main() {
       final failureSummary = failures.join('\n');
       if (explicitTarget) {
         fail(
-          'No targeted BLE device completed the connect/discover/disconnect '
+          'No targeted BLE device completed the connect/discover/read/write/disconnect '
           'smoke flow.\n$failureSummary',
         );
       }
 
       markTestSkipped(
         'Found ${candidates.length} BLE advertisements, but none completed the '
-        'connect/discover/disconnect smoke flow. Set '
+        'connect/discover/read/write/disconnect smoke flow. Set '
         'QUICK_BLUE_SMOKE_DEVICE_ID, QUICK_BLUE_SMOKE_NAME_PATTERN, or '
         'QUICK_BLUE_SMOKE_SERVICE_UUIDS to make this a required target.\n'
         '$failureSummary',
@@ -174,12 +205,168 @@ Future<List<BlueScanResult>> _scanForCandidates({
   return results;
 }
 
+Future<void> _readSmokeCharacteristic(
+  BluetoothDevice device,
+  List<BluetoothService> services,
+) async {
+  final readable = _readableSmokeCharacteristic(services);
+  if (readable == null) {
+    throw StateError('No readable characteristic was discovered.');
+  }
+
+  await device.readValue(readable.service.uuid, readable.characteristic.uuid);
+}
+
+Future<void> _writeSmokeCharacteristic(
+  BluetoothDevice device,
+  List<BluetoothService> services,
+  _WriteRequest request,
+) async {
+  final target = _findCharacteristic(
+    services,
+    request.serviceUuid,
+    request.characteristicUuid,
+  );
+  if (target == null) {
+    throw StateError(
+      'Requested write characteristic ${request.serviceUuid}/'
+      '${request.characteristicUuid} was not discovered.',
+    );
+  }
+  if (!target.characteristic.canWrite) {
+    throw StateError(
+      'Requested write characteristic ${request.serviceUuid}/'
+      '${request.characteristicUuid} is not writable.',
+    );
+  }
+  if (request.bleOutputProperty == BleOutputProperty.withResponse &&
+      !target.characteristic.canWriteWithResponse) {
+    throw StateError(
+      'Requested write characteristic ${request.serviceUuid}/'
+      '${request.characteristicUuid} does not support write with response.',
+    );
+  }
+  if (request.bleOutputProperty == BleOutputProperty.withoutResponse &&
+      !target.characteristic.canWriteWithoutResponse) {
+    throw StateError(
+      'Requested write characteristic ${request.serviceUuid}/'
+      '${request.characteristicUuid} does not support write without response.',
+    );
+  }
+
+  await device.writeValue(
+    target.service.uuid,
+    target.characteristic.uuid,
+    request.value,
+    request.bleOutputProperty,
+  );
+}
+
 Future<void> _bestEffortDisconnect(BluetoothDevice device) async {
   try {
     await device.disconnect().timeout(_seconds(_disconnectTimeoutSeconds, 8));
   } catch (_) {
     // The candidate may never have connected, or it may already have dropped.
   }
+}
+
+_CharacteristicTarget? _readableSmokeCharacteristic(
+  List<BluetoothService> services,
+) {
+  const preferred = <_CharacteristicId>[
+    _CharacteristicId('1800', '2a00'),
+    _CharacteristicId('1800', '2a01'),
+    _CharacteristicId('180f', '2a19'),
+    _CharacteristicId('180a', '2a29'),
+    _CharacteristicId('180a', '2a24'),
+    _CharacteristicId('180a', '2a26'),
+  ];
+
+  for (final id in preferred) {
+    final target = _findCharacteristic(services, id.service, id.characteristic);
+    if (target != null && target.characteristic.canRead) {
+      return target;
+    }
+  }
+
+  for (final service in services) {
+    for (final characteristic in service.characteristicDetails) {
+      if (characteristic.canRead) {
+        return _CharacteristicTarget(service, characteristic);
+      }
+    }
+  }
+
+  return null;
+}
+
+_CharacteristicTarget? _findCharacteristic(
+  List<BluetoothService> services,
+  String serviceUuid,
+  String characteristicUuid,
+) {
+  for (final service in services) {
+    if (!_matchesBluetoothUuid(service.uuid, serviceUuid)) {
+      continue;
+    }
+    for (final characteristic in service.characteristicDetails) {
+      if (_matchesBluetoothUuid(characteristic.uuid, characteristicUuid)) {
+        return _CharacteristicTarget(service, characteristic);
+      }
+    }
+  }
+  return null;
+}
+
+_WriteRequest? _writeRequest() {
+  final anyWriteDefine =
+      _writeServiceUuid.isNotEmpty ||
+      _writeCharacteristicUuid.isNotEmpty ||
+      _writeValueHex.isNotEmpty;
+  if (!anyWriteDefine) {
+    return null;
+  }
+
+  final missing = <String>[
+    if (_writeServiceUuid.isEmpty) 'QUICK_BLUE_SMOKE_WRITE_SERVICE_UUID',
+    if (_writeCharacteristicUuid.isEmpty)
+      'QUICK_BLUE_SMOKE_WRITE_CHARACTERISTIC_UUID',
+    if (_writeValueHex.isEmpty) 'QUICK_BLUE_SMOKE_WRITE_HEX',
+  ];
+  if (missing.isNotEmpty) {
+    throw ArgumentError(
+      'Write smoke testing requires all write defines. Missing: '
+      '${missing.join(', ')}.',
+    );
+  }
+
+  return _WriteRequest(
+    serviceUuid: _writeServiceUuid,
+    characteristicUuid: _writeCharacteristicUuid,
+    value: _hexBytes(_writeValueHex),
+    bleOutputProperty: _writeWithoutResponse
+        ? BleOutputProperty.withoutResponse
+        : BleOutputProperty.withResponse,
+  );
+}
+
+Uint8List _hexBytes(String value) {
+  final cleaned = value.replaceAll(RegExp(r'[\s:_-]'), '');
+  if (cleaned.isEmpty || cleaned.length.isOdd) {
+    throw ArgumentError('QUICK_BLUE_SMOKE_WRITE_HEX must contain hex bytes.');
+  }
+
+  final bytes = Uint8List(cleaned.length ~/ 2);
+  for (var index = 0; index < cleaned.length; index += 2) {
+    final byte = int.tryParse(cleaned.substring(index, index + 2), radix: 16);
+    if (byte == null) {
+      throw ArgumentError(
+        'QUICK_BLUE_SMOKE_WRITE_HEX contains non-hex characters.',
+      );
+    }
+    bytes[index ~/ 2] = byte;
+  }
+  return bytes;
 }
 
 List<String> _csv(String value) {
@@ -202,7 +389,54 @@ int _isNamed(BlueScanResult result) {
   return result.name.trim().isEmpty ? 0 : 1;
 }
 
+bool _matchesBluetoothUuid(String left, String right) {
+  final normalizedLeft = _normalizeBluetoothUuid(left);
+  final normalizedRight = _normalizeBluetoothUuid(right);
+  return normalizedLeft != null &&
+      normalizedRight != null &&
+      normalizedLeft == normalizedRight;
+}
+
+String? _normalizeBluetoothUuid(String uuid) {
+  final cleaned = uuid.replaceAll('-', '').toLowerCase();
+  if (cleaned.length == 4) {
+    return '0000${cleaned}00001000800000805f9b34fb';
+  }
+  if (cleaned.length == 32) {
+    return cleaned;
+  }
+  return null;
+}
+
 String _describeScanResult(BlueScanResult result) {
   final name = result.name.trim().isEmpty ? '<unnamed>' : result.name.trim();
   return '$name (${result.deviceId}, RSSI ${result.rssi})';
+}
+
+class _CharacteristicId {
+  const _CharacteristicId(this.service, this.characteristic);
+
+  final String service;
+  final String characteristic;
+}
+
+class _CharacteristicTarget {
+  _CharacteristicTarget(this.service, this.characteristic);
+
+  final BluetoothService service;
+  final BluetoothCharacteristicInfo characteristic;
+}
+
+class _WriteRequest {
+  _WriteRequest({
+    required this.serviceUuid,
+    required this.characteristicUuid,
+    required this.value,
+    required this.bleOutputProperty,
+  });
+
+  final String serviceUuid;
+  final String characteristicUuid;
+  final Uint8List value;
+  final BleOutputProperty bleOutputProperty;
 }
