@@ -83,6 +83,8 @@
 - Reset pending example device actions when selecting a different device.
 - Preserve stable example discovery ordering and the last non-empty advertised
   device name as scan results update.
+- Replay known Linux BlueZ devices after scan startup so repeated scans surface
+  nearby advertisers that BlueZ already discovered.
 - Remove redundant manual Bluetooth status refresh from the example; the example
   now relies on `bluetoothStateStream`.
 - Fix example `ExpansionTile` / `ListTile` material wrapping assertions.

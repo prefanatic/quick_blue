@@ -11,7 +11,20 @@ import 'src/l2cap_channel.dart';
 import 'src/native_libraries.dart';
 
 class QuickBlueLinux extends QuickBluePlatform {
-  QuickBlueLinux();
+  QuickBlueLinux() {
+    _scanResultController = StreamController<BlueScanResult>.broadcast(
+      onListen: _emitKnownScanResults,
+    );
+  }
+
+  static const _scanResultProperties = <String>{
+    'Alias',
+    'ManufacturerData',
+    'Name',
+    'RSSI',
+    'ServiceData',
+    'UUIDs',
+  };
 
   static void registerWith() {
     QuickBluePlatform.instance = QuickBlueLinux();
@@ -30,6 +43,9 @@ class QuickBlueLinux extends QuickBluePlatform {
   final Map<String, Map<String, StreamSubscription<List<String>>>>
   _notificationSubscriptions =
       <String, Map<String, StreamSubscription<List<String>>>>{};
+  final Map<String, StreamSubscription<List<String>>>
+  _scanDevicePropertySubscriptions =
+      <String, StreamSubscription<List<String>>>{};
   final Map<String, bool> _lastConnectionState = <String, bool>{};
 
   StreamSubscription<BlueZDevice>? _deviceAddedSubscription;
@@ -38,9 +54,9 @@ class QuickBlueLinux extends QuickBluePlatform {
   BlueZAdapter? _activeAdapter;
   Set<String> _activeScanServiceUuids = const <String>{};
   Map<int, Uint8List>? _activeScanManufacturerData;
+  var _isScanning = false;
 
-  final StreamController<BlueScanResult> _scanResultController =
-      StreamController<BlueScanResult>.broadcast();
+  late final StreamController<BlueScanResult> _scanResultController;
 
   @override
   Stream<BlueScanResult> get scanResultStream => _scanResultController.stream;
@@ -169,25 +185,57 @@ class QuickBlueLinux extends QuickBluePlatform {
     _activeScanManufacturerData = scanFilter.manufacturerData;
     await _setDiscoveryFilter(adapter, scanFilter);
     await adapter.startDiscovery();
-    for (final device in _client.devices) {
-      _onDeviceAdd(device);
-    }
+    _isScanning = true;
   }
 
   @override
   Future<void> stopScan() async {
     await _ensureInitialized();
+    _isScanning = false;
+
     final adapter = _activeAdapter;
     if (adapter == null) {
+      await _clearScanDevicePropertySubscriptions();
+      _activeScanServiceUuids = const <String>{};
+      _activeScanManufacturerData = null;
       return;
     }
-    await adapter.stopDiscovery();
-    _activeScanServiceUuids = const <String>{};
-    _activeScanManufacturerData = null;
+    try {
+      await adapter.stopDiscovery();
+    } finally {
+      await _clearScanDevicePropertySubscriptions();
+      _activeScanServiceUuids = const <String>{};
+      _activeScanManufacturerData = null;
+    }
+  }
+
+  void _emitKnownScanResults() {
+    if (!_isScanning) {
+      return;
+    }
+
+    for (final device in _client.devices) {
+      _trackDevice(device);
+      _emitScanResult(device);
+    }
   }
 
   void _onDeviceAdd(BlueZDevice device) {
+    _trackDevice(device);
+    _emitScanResult(device);
+  }
+
+  void _trackDevice(BlueZDevice device) {
     _devices[device.address] = device;
+    if (_isScanning) {
+      _watchScanDeviceProperties(device);
+    }
+  }
+
+  void _emitScanResult(BlueZDevice device) {
+    if (!_isScanning) {
+      return;
+    }
     if (!_matchesScanFilter(device)) {
       return;
     }
@@ -213,6 +261,29 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   void _onDeviceRemoved(BlueZDevice device) {
     unawaited(_clearDeviceState(device.address, removeDevice: true));
+  }
+
+  void _watchScanDeviceProperties(BlueZDevice device) {
+    final deviceId = device.address;
+    if (_scanDevicePropertySubscriptions.containsKey(deviceId)) {
+      return;
+    }
+
+    _scanDevicePropertySubscriptions[deviceId] = device.propertiesChanged
+        .listen(
+          (properties) {
+            if (properties.any(_scanResultProperties.contains)) {
+              _emitScanResult(device);
+            }
+          },
+          onError: (error, stackTrace) {
+            _logger.warning(
+              'Scan property stream error for $deviceId',
+              error,
+              stackTrace,
+            );
+          },
+        );
   }
 
   @override
@@ -804,8 +875,21 @@ class QuickBlueLinux extends QuickBluePlatform {
 
     await _clearNotificationSubscriptions(deviceId);
 
+    final scanSubscription = _scanDevicePropertySubscriptions.remove(deviceId);
+    if (scanSubscription != null) {
+      await scanSubscription.cancel();
+    }
+
     final subscription = _devicePropertySubscriptions.remove(deviceId);
     if (subscription != null) {
+      await subscription.cancel();
+    }
+  }
+
+  Future<void> _clearScanDevicePropertySubscriptions() async {
+    final subscriptions = _scanDevicePropertySubscriptions.values.toList();
+    _scanDevicePropertySubscriptions.clear();
+    for (final subscription in subscriptions) {
       await subscription.cancel();
     }
   }
