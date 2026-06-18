@@ -24,25 +24,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
 
   void _ensureInitialized() {
     if (_flutterApi != null) return;
-    _flutterApi = _FlutterApi(
-      onConnectionChangedCallback: (deviceId, state, status) {
-        onConnectionChanged?.call(deviceId, state, status);
-      },
-      onServiceDiscoveredCallback: (deviceId, serviceId, characteristics) {
-        handleServiceDiscovered(deviceId, serviceId, characteristics);
-      },
-      onServiceDiscoveryCompleteCallback: (deviceId) {
-        onServiceDiscoveryComplete(deviceId);
-      },
-      onValueChangedCallback: (deviceId, serviceId, characteristicId, value) {
-        handleCharacteristicValueChanged(
-          deviceId,
-          serviceId,
-          characteristicId,
-          value,
-        );
-      },
-    );
+    _flutterApi = _FlutterApi(this);
     messages.QuickBlueFlutterApi.setUp(_flutterApi);
   }
 
@@ -269,34 +251,15 @@ class _L2capSink implements EventSink<Uint8List> {
 }
 
 class _FlutterApi extends messages.QuickBlueFlutterApi {
-  _FlutterApi({
-    required this.onConnectionChangedCallback,
-    required this.onServiceDiscoveredCallback,
-    required this.onServiceDiscoveryCompleteCallback,
-    required this.onValueChangedCallback,
-  });
+  _FlutterApi(this.platform);
 
-  final OnConnectionChanged onConnectionChangedCallback;
-  final void Function(
-    String deviceId,
-    String serviceId,
-    List<BluetoothCharacteristicInfo> characteristics,
-  )
-  onServiceDiscoveredCallback;
-  final OnServiceDiscoveryComplete onServiceDiscoveryCompleteCallback;
-  final void Function(
-    String deviceId,
-    String serviceId,
-    String characteristicId,
-    Uint8List value,
-  )
-  onValueChangedCallback;
+  final QuickBlueDarwin platform;
 
   @override
   void onCharacteristicValueChanged(
     messages.PlatformCharacteristicValueChanged valueChanged,
   ) {
-    onValueChangedCallback.call(
+    platform.handleCharacteristicValueChanged(
       valueChanged.deviceId,
       valueChanged.serviceUuid,
       valueChanged.characteristicId,
@@ -317,7 +280,7 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
     };
     if (state == null) return;
 
-    onConnectionChangedCallback.call(
+    platform.onConnectionChanged?.call(
       stateChange.deviceId,
       state,
       stateChange.gattStatus.toBleStatus(),
@@ -328,7 +291,7 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
   void onServiceDiscovered(
     messages.PlatformServiceDiscovered serviceDiscovered,
   ) {
-    onServiceDiscoveredCallback.call(
+    platform.handleServiceDiscovered(
       serviceDiscovered.deviceId,
       serviceDiscovered.serviceUuid,
       serviceDiscovered.characteristics
@@ -341,7 +304,7 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
 
   @override
   void onServiceDiscoveryComplete(String deviceId) {
-    onServiceDiscoveryCompleteCallback.call(deviceId);
+    platform.onServiceDiscoveryComplete(deviceId);
   }
 }
 
