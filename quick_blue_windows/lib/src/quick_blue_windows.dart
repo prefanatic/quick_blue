@@ -175,53 +175,66 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
   void onCharacteristicValueChanged(
     messages.PlatformCharacteristicValueChanged valueChanged,
   ) {
-    platform.handleCharacteristicValueChanged(
-      valueChanged.deviceId,
-      valueChanged.serviceUuid,
-      valueChanged.characteristicId,
-      valueChanged.value,
-    );
+    _handleCharacteristicValueChanged(platform, valueChanged);
   }
 
   @override
   void onConnectionStateChange(
     messages.PlatformConnectionStateChange stateChange,
   ) {
-    final state = switch (stateChange.state) {
-      messages.PlatformConnectionState.disconnected =>
-        BlueConnectionState.disconnected,
-      messages.PlatformConnectionState.connected =>
-        BlueConnectionState.connected,
-      _ => null,
-    };
-    if (state == null) return;
-
-    platform.onConnectionChanged?.call(
-      stateChange.deviceId,
-      state,
-      stateChange.gattStatus.toBleStatus(),
-    );
+    _handleConnectionStateChange(platform, stateChange);
   }
 
   @override
   void onServiceDiscovered(
     messages.PlatformServiceDiscovered serviceDiscovered,
   ) {
-    platform.handleServiceDiscovered(
-      serviceDiscovered.deviceId,
-      serviceDiscovered.serviceUuid,
-      serviceDiscovered.characteristics
-          .map(
-            (characteristic) => characteristic.toBluetoothCharacteristicInfo(),
-          )
-          .toList(growable: false),
-    );
+    _handleServiceDiscovered(platform, serviceDiscovered);
   }
 
   @override
   void onServiceDiscoveryComplete(String deviceId) {
     platform.onServiceDiscoveryComplete(deviceId);
   }
+}
+
+void _handleCharacteristicValueChanged(
+  QuickBluePlatform platform,
+  messages.PlatformCharacteristicValueChanged valueChanged,
+) {
+  platform.handleCharacteristicValueChanged(
+    valueChanged.deviceId,
+    valueChanged.serviceUuid,
+    valueChanged.characteristicId,
+    valueChanged.value,
+  );
+}
+
+void _handleConnectionStateChange(
+  QuickBluePlatform platform,
+  messages.PlatformConnectionStateChange stateChange,
+) {
+  final state = stateChange.state.toBlueConnectionState();
+  if (state == null) return;
+
+  platform.onConnectionChanged?.call(
+    stateChange.deviceId,
+    state,
+    stateChange.gattStatus.toBleStatus(),
+  );
+}
+
+void _handleServiceDiscovered(
+  QuickBluePlatform platform,
+  messages.PlatformServiceDiscovered serviceDiscovered,
+) {
+  platform.handleServiceDiscovered(
+    serviceDiscovered.deviceId,
+    serviceDiscovered.serviceUuid,
+    serviceDiscovered.characteristics
+        .map((characteristic) => characteristic.toBluetoothCharacteristicInfo())
+        .toList(growable: false),
+  );
 }
 
 extension _PlatformCharacteristicExtension on messages.PlatformCharacteristic {
@@ -267,6 +280,19 @@ extension _BleStatusExtension on messages.PlatformGattStatus {
     return switch (this) {
       messages.PlatformGattStatus.success => BleStatus.success,
       messages.PlatformGattStatus.failure => BleStatus.failure,
+    };
+  }
+}
+
+extension _PlatformConnectionStateExtension
+    on messages.PlatformConnectionState {
+  BlueConnectionState? toBlueConnectionState() {
+    return switch (this) {
+      messages.PlatformConnectionState.disconnected =>
+        BlueConnectionState.disconnected,
+      messages.PlatformConnectionState.connected =>
+        BlueConnectionState.connected,
+      _ => null,
     };
   }
 }

@@ -118,25 +118,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
       sink: _L2capSink(api: _api, deviceId: deviceId),
       stream: _l2CapEventStream
           .where((event) => event.deviceId == deviceId)
-          .map((e) {
-            if (e.data != null) {
-              return BleL2CapSocketEventData(
-                deviceId: e.deviceId,
-                data: e.data!,
-              );
-            } else if (e.error != null) {
-              return BleL2CapSocketEventError(
-                deviceId: e.deviceId,
-                error: e.error,
-              );
-            } else if (e.opened == true) {
-              return BleL2CapSocketEventOpened(deviceId: e.deviceId);
-            } else if (e.closed == true) {
-              return BleL2CapSocketEventClosed(deviceId: e.deviceId);
-            }
-
-            throw Exception('Unknown L2CAP event: $e');
-          }),
+          .map(_l2capEventFromPlatformEvent),
     );
   }
 
@@ -159,17 +141,8 @@ class QuickBlueDarwin extends QuickBluePlatform {
   }
 
   @override
-  Stream<BlueScanResult> get scanResultStream => messages.scanResults().map(
-    (item) => BlueScanResult(
-      deviceId: item.deviceId,
-      name: item.name,
-      rssi: item.rssi,
-      serviceUuids: item.serviceUuids,
-      manufacturerDataHead: item.manufacturerDataHead,
-      manufacturerData: item.manufacturerData,
-      serviceData: item.serviceData,
-    ),
-  );
+  Stream<BlueScanResult> get scanResultStream =>
+      messages.scanResults().map(_scanResultFromPlatformResult);
 
   @override
   Future<void> setNotifiable(
@@ -232,6 +205,39 @@ class QuickBlueDarwin extends QuickBluePlatform {
   }
 }
 
+BlueScanResult _scanResultFromPlatformResult(
+  messages.PlatformScanResult result,
+) {
+  return BlueScanResult(
+    deviceId: result.deviceId,
+    name: result.name,
+    rssi: result.rssi,
+    serviceUuids: result.serviceUuids,
+    manufacturerDataHead: result.manufacturerDataHead,
+    manufacturerData: result.manufacturerData,
+    serviceData: result.serviceData,
+  );
+}
+
+BleL2CapSocketEvent _l2capEventFromPlatformEvent(
+  messages.PlatformL2CapSocketEvent event,
+) {
+  if (event.data != null) {
+    return BleL2CapSocketEventData(deviceId: event.deviceId, data: event.data!);
+  } else if (event.error != null) {
+    return BleL2CapSocketEventError(
+      deviceId: event.deviceId,
+      error: event.error,
+    );
+  } else if (event.opened == true) {
+    return BleL2CapSocketEventOpened(deviceId: event.deviceId);
+  } else if (event.closed == true) {
+    return BleL2CapSocketEventClosed(deviceId: event.deviceId);
+  }
+
+  throw Exception('Unknown L2CAP event: $event');
+}
+
 class _L2capSink implements EventSink<Uint8List> {
   _L2capSink({required this.api, required this.deviceId});
 
@@ -259,53 +265,66 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
   void onCharacteristicValueChanged(
     messages.PlatformCharacteristicValueChanged valueChanged,
   ) {
-    platform.handleCharacteristicValueChanged(
-      valueChanged.deviceId,
-      valueChanged.serviceUuid,
-      valueChanged.characteristicId,
-      valueChanged.value,
-    );
+    _handleCharacteristicValueChanged(platform, valueChanged);
   }
 
   @override
   void onConnectionStateChange(
     messages.PlatformConnectionStateChange stateChange,
   ) {
-    final state = switch (stateChange.state) {
-      messages.PlatformConnectionState.disconnected =>
-        BlueConnectionState.disconnected,
-      messages.PlatformConnectionState.connected =>
-        BlueConnectionState.connected,
-      _ => null,
-    };
-    if (state == null) return;
-
-    platform.onConnectionChanged?.call(
-      stateChange.deviceId,
-      state,
-      stateChange.gattStatus.toBleStatus(),
-    );
+    _handleConnectionStateChange(platform, stateChange);
   }
 
   @override
   void onServiceDiscovered(
     messages.PlatformServiceDiscovered serviceDiscovered,
   ) {
-    platform.handleServiceDiscovered(
-      serviceDiscovered.deviceId,
-      serviceDiscovered.serviceUuid,
-      serviceDiscovered.characteristics
-          .map(
-            (characteristic) => characteristic.toBluetoothCharacteristicInfo(),
-          )
-          .toList(growable: false),
-    );
+    _handleServiceDiscovered(platform, serviceDiscovered);
   }
 
   @override
   void onServiceDiscoveryComplete(String deviceId) {
     platform.onServiceDiscoveryComplete(deviceId);
   }
+}
+
+void _handleCharacteristicValueChanged(
+  QuickBluePlatform platform,
+  messages.PlatformCharacteristicValueChanged valueChanged,
+) {
+  platform.handleCharacteristicValueChanged(
+    valueChanged.deviceId,
+    valueChanged.serviceUuid,
+    valueChanged.characteristicId,
+    valueChanged.value,
+  );
+}
+
+void _handleConnectionStateChange(
+  QuickBluePlatform platform,
+  messages.PlatformConnectionStateChange stateChange,
+) {
+  final state = stateChange.state.toBlueConnectionState();
+  if (state == null) return;
+
+  platform.onConnectionChanged?.call(
+    stateChange.deviceId,
+    state,
+    stateChange.gattStatus.toBleStatus(),
+  );
+}
+
+void _handleServiceDiscovered(
+  QuickBluePlatform platform,
+  messages.PlatformServiceDiscovered serviceDiscovered,
+) {
+  platform.handleServiceDiscovered(
+    serviceDiscovered.deviceId,
+    serviceDiscovered.serviceUuid,
+    serviceDiscovered.characteristics
+        .map((characteristic) => characteristic.toBluetoothCharacteristicInfo())
+        .toList(growable: false),
+  );
 }
 
 extension _PlatformCharacteristicExtension on messages.PlatformCharacteristic {
@@ -323,54 +342,62 @@ extension _PlatformCharacteristicExtension on messages.PlatformCharacteristic {
 
 extension _BleInputPropertyExtension on BleInputProperty {
   messages.PlatformBleInputProperty toPlatformBleInputProperty() {
-    if (this == BleInputProperty.disabled) {
-      return messages.PlatformBleInputProperty.disabled;
-    } else if (this == BleInputProperty.notification) {
-      return messages.PlatformBleInputProperty.notification;
-    } else if (this == BleInputProperty.indication) {
-      return messages.PlatformBleInputProperty.indication;
-    } else {
-      throw ArgumentError('Unknown BleInputProperty: $this');
-    }
+    return switch (this) {
+      BleInputProperty.disabled => messages.PlatformBleInputProperty.disabled,
+      BleInputProperty.notification =>
+        messages.PlatformBleInputProperty.notification,
+      BleInputProperty.indication =>
+        messages.PlatformBleInputProperty.indication,
+      _ => throw ArgumentError('Unknown BleInputProperty: $this'),
+    };
   }
 }
 
 extension _BleOutputPropertyExtension on BleOutputProperty {
   messages.PlatformBleOutputProperty toPlatformBleOutputProperty() {
-    if (this == BleOutputProperty.withResponse) {
-      return messages.PlatformBleOutputProperty.withResponse;
-    } else if (this == BleOutputProperty.withoutResponse) {
-      return messages.PlatformBleOutputProperty.withoutResponse;
-    } else {
-      throw ArgumentError('Unknown BleOutputProperty: $this');
-    }
+    return switch (this) {
+      BleOutputProperty.withResponse =>
+        messages.PlatformBleOutputProperty.withResponse,
+      BleOutputProperty.withoutResponse =>
+        messages.PlatformBleOutputProperty.withoutResponse,
+      _ => throw ArgumentError('Unknown BleOutputProperty: $this'),
+    };
   }
 }
 
 extension _BleStatusExtension on messages.PlatformGattStatus {
   BleStatus toBleStatus() {
-    switch (this) {
-      case messages.PlatformGattStatus.success:
-        return BleStatus.success;
-      case messages.PlatformGattStatus.failure:
-        return BleStatus.failure;
-    }
+    return switch (this) {
+      messages.PlatformGattStatus.success => BleStatus.success,
+      messages.PlatformGattStatus.failure => BleStatus.failure,
+    };
+  }
+}
+
+extension _PlatformConnectionStateExtension
+    on messages.PlatformConnectionState {
+  BlueConnectionState? toBlueConnectionState() {
+    return switch (this) {
+      messages.PlatformConnectionState.disconnected =>
+        BlueConnectionState.disconnected,
+      messages.PlatformConnectionState.connected =>
+        BlueConnectionState.connected,
+      _ => null,
+    };
   }
 }
 
 extension _BluetoothStateExtension on messages.PlatformBluetoothState {
   BlueBluetoothState toBlueBluetoothState() {
-    switch (this) {
-      case messages.PlatformBluetoothState.unknown:
-        return BlueBluetoothState.unknown;
-      case messages.PlatformBluetoothState.unavailable:
-        return BlueBluetoothState.unavailable;
-      case messages.PlatformBluetoothState.unauthorized:
-        return BlueBluetoothState.unauthorized;
-      case messages.PlatformBluetoothState.poweredOff:
-        return BlueBluetoothState.poweredOff;
-      case messages.PlatformBluetoothState.poweredOn:
-        return BlueBluetoothState.poweredOn;
-    }
+    return switch (this) {
+      messages.PlatformBluetoothState.unknown => BlueBluetoothState.unknown,
+      messages.PlatformBluetoothState.unavailable =>
+        BlueBluetoothState.unavailable,
+      messages.PlatformBluetoothState.unauthorized =>
+        BlueBluetoothState.unauthorized,
+      messages.PlatformBluetoothState.poweredOff =>
+        BlueBluetoothState.poweredOff,
+      messages.PlatformBluetoothState.poweredOn => BlueBluetoothState.poweredOn,
+    };
   }
 }
