@@ -665,10 +665,7 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   Future<void> _watchDeviceProperties(BlueZDevice device) async {
     final deviceId = device.address;
-    final existing = _devicePropertySubscriptions.remove(deviceId);
-    if (existing != null) {
-      await existing.cancel();
-    }
+    await _cancelMappedSubscription(_devicePropertySubscriptions, deviceId);
 
     final subscription = device.propertiesChanged.listen(
       (properties) {
@@ -748,39 +745,33 @@ class QuickBlueLinux extends QuickBluePlatform {
     BlueZDevice device, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    if (device.connected) {
-      return;
-    }
-
-    final completer = Completer<void>();
-    late final StreamSubscription<List<String>> subscription;
-    subscription = device.propertiesChanged.listen(
-      (properties) {
-        if (properties.contains('Connected') &&
-            device.connected &&
-            !completer.isCompleted) {
-          completer.complete();
-        }
-      },
-      onError: (error, stackTrace) {
-        if (!completer.isCompleted) {
-          completer.completeError(error, stackTrace);
-        }
-      },
+    return _waitForDeviceProperty(
+      device,
+      propertyName: 'Connected',
+      isReady: () => device.connected,
+      timeout: timeout,
     );
-
-    try {
-      await completer.future.timeout(timeout);
-    } finally {
-      await subscription.cancel();
-    }
   }
 
   Future<void> _waitForServicesResolved(
     BlueZDevice device, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    if (device.servicesResolved) {
+    return _waitForDeviceProperty(
+      device,
+      propertyName: 'ServicesResolved',
+      isReady: () => device.servicesResolved,
+      timeout: timeout,
+    );
+  }
+
+  Future<void> _waitForDeviceProperty(
+    BlueZDevice device, {
+    required String propertyName,
+    required bool Function() isReady,
+    required Duration timeout,
+  }) async {
+    if (isReady()) {
       return;
     }
 
@@ -788,8 +779,8 @@ class QuickBlueLinux extends QuickBluePlatform {
     late final StreamSubscription<List<String>> subscription;
     subscription = device.propertiesChanged.listen(
       (properties) {
-        if (properties.contains('ServicesResolved') &&
-            device.servicesResolved &&
+        if (properties.contains(propertyName) &&
+            isReady() &&
             !completer.isCompleted) {
           completer.complete();
         }
@@ -891,24 +882,12 @@ class QuickBlueLinux extends QuickBluePlatform {
     _serviceDiscoveryEmits.remove(deviceId);
 
     await _clearNotificationSubscriptions(deviceId);
-
-    final scanSubscription = _scanDevicePropertySubscriptions.remove(deviceId);
-    if (scanSubscription != null) {
-      await scanSubscription.cancel();
-    }
-
-    final subscription = _devicePropertySubscriptions.remove(deviceId);
-    if (subscription != null) {
-      await subscription.cancel();
-    }
+    await _cancelMappedSubscription(_scanDevicePropertySubscriptions, deviceId);
+    await _cancelMappedSubscription(_devicePropertySubscriptions, deviceId);
   }
 
   Future<void> _clearScanDevicePropertySubscriptions() async {
-    final subscriptions = _scanDevicePropertySubscriptions.values.toList();
-    _scanDevicePropertySubscriptions.clear();
-    for (final subscription in subscriptions) {
-      await subscription.cancel();
-    }
+    await _clearSubscriptions(_scanDevicePropertySubscriptions);
   }
 
   Future<void> _clearNotificationSubscriptions(String deviceId) async {
@@ -916,9 +895,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     if (subscriptions == null) {
       return;
     }
-    for (final subscription in subscriptions.values) {
-      await subscription.cancel();
-    }
+    await _cancelSubscriptions(subscriptions.values);
   }
 
   Future<void> _removeNotificationSubscription(
@@ -929,13 +906,40 @@ class QuickBlueLinux extends QuickBluePlatform {
     if (subscriptions == null) {
       return;
     }
-    final subscription = subscriptions.remove(key);
-    if (subscription != null) {
-      await subscription.cancel();
-    }
+    await _cancelMappedSubscription(subscriptions, key);
     if (subscriptions.isEmpty) {
       _notificationSubscriptions.remove(deviceId);
     }
+  }
+
+  Future<void> _cancelMappedSubscription<T>(
+    Map<String, StreamSubscription<T>> subscriptions,
+    String key,
+  ) async {
+    final subscription = subscriptions.remove(key);
+    await _cancelSubscription(subscription);
+  }
+
+  Future<void> _clearSubscriptions<T>(
+    Map<String, StreamSubscription<T>> subscriptions,
+  ) async {
+    final removedSubscriptions = subscriptions.values.toList();
+    subscriptions.clear();
+    await _cancelSubscriptions(removedSubscriptions);
+  }
+
+  Future<void> _cancelSubscriptions<T>(
+    Iterable<StreamSubscription<T>> subscriptions,
+  ) async {
+    for (final subscription in subscriptions) {
+      await subscription.cancel();
+    }
+  }
+
+  Future<void> _cancelSubscription<T>(
+    StreamSubscription<T>? subscription,
+  ) async {
+    await subscription?.cancel();
   }
 
   String _characteristicKey(String serviceId, String characteristicId) {
