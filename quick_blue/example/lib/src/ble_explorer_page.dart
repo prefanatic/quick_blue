@@ -602,19 +602,24 @@ class _DevicePane extends StatelessWidget {
                 children: [
                   FilledButton.tonalIcon(
                     key: const ValueKey('ble_connect_button'),
-                    onPressed: connecting || _connected ? null : onConnect,
+                    onPressed: connecting
+                        ? null
+                        : _connected
+                        ? onDisconnect
+                        : onConnect,
                     icon: connecting
                         ? const SizedBox.square(
                             dimension: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.link),
-                    label: const Text('Connect'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _connected ? onDisconnect : null,
-                    icon: const Icon(Icons.link_off),
-                    label: const Text('Disconnect'),
+                        : Icon(_connected ? Icons.link_off : Icons.link),
+                    label: Text(
+                      connecting
+                          ? 'Connecting'
+                          : _connected
+                          ? 'Disconnect'
+                          : 'Connect',
+                    ),
                   ),
                   OutlinedButton.icon(
                     onPressed: _connected && !discovering
