@@ -61,7 +61,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   Stream<BlueScanResult> get scanResultStream;
 
-  _ScanFilterKey? _activeScanFilter;
+  ScanFilter? _activeScanFilter;
   var _activeScanListeners = 0;
   var _activeScanStarted = false;
   Future<void> _scanLifecycle = Future<void>.value();
@@ -69,7 +69,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
   Stream<BlueScanResult> scanResults({
     ScanFilter scanFilter = ScanFilter.empty,
   }) async* {
-    final filter = _ScanFilterKey.from(scanFilter);
+    final filter = _copyScanFilter(scanFilter);
 
     await _acquireScan(filter);
     try {
@@ -79,19 +79,19 @@ abstract class QuickBluePlatform extends PlatformInterface {
     }
   }
 
-  Future<void> _acquireScan(_ScanFilterKey filter) {
+  Future<void> _acquireScan(ScanFilter filter) {
     return _queueScanLifecycle(() async {
       final activeFilter = _activeScanFilter;
       if (_activeScanListeners == 0) {
         _activeScanFilter = filter;
         try {
-          await startScan(scanFilter: filter.toScanFilter());
+          await startScan(scanFilter: filter);
           _activeScanStarted = true;
         } catch (_) {
           _activeScanFilter = null;
           rethrow;
         }
-      } else if (activeFilter == null || !activeFilter.equals(filter)) {
+      } else if (activeFilter == null || activeFilter != filter) {
         throw StateError(
           'Cannot start scanning with a different ScanFilter while another '
           'scanResults stream is active.',
@@ -100,6 +100,13 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
       _activeScanListeners++;
     });
+  }
+
+  ScanFilter _copyScanFilter(ScanFilter scanFilter) {
+    return ScanFilter(
+      serviceUuids: scanFilter.serviceUuids,
+      manufacturerData: scanFilter.manufacturerData,
+    );
   }
 
   Future<void> _releaseScan() {
@@ -345,105 +352,6 @@ abstract class QuickBluePlatform extends PlatformInterface {
     Uint8List value,
   ) {
     _handleValueChanged(deviceId, serviceId, characteristicId, value);
-  }
-}
-
-class _ScanFilterKey {
-  _ScanFilterKey._({
-    required this.serviceUuids,
-    required this.manufacturerData,
-  });
-
-  factory _ScanFilterKey.from(ScanFilter scanFilter) {
-    final manufacturerData = scanFilter.manufacturerData;
-
-    return _ScanFilterKey._(
-      serviceUuids: List<String>.unmodifiable(scanFilter.serviceUuids),
-      manufacturerData: manufacturerData == null || manufacturerData.isEmpty
-          ? null
-          : Map<int, Uint8List>.unmodifiable(
-              manufacturerData.map(
-                (manufacturerId, data) =>
-                    MapEntry(manufacturerId, Uint8List.fromList(data)),
-              ),
-            ),
-    );
-  }
-
-  final List<String> serviceUuids;
-  final Map<int, Uint8List>? manufacturerData;
-
-  ScanFilter toScanFilter() {
-    final data = manufacturerData;
-
-    return ScanFilter(
-      serviceUuids: List<String>.unmodifiable(serviceUuids),
-      manufacturerData: data == null
-          ? null
-          : Map<int, Uint8List>.unmodifiable(
-              data.map(
-                (manufacturerId, value) =>
-                    MapEntry(manufacturerId, Uint8List.fromList(value)),
-              ),
-            ),
-    );
-  }
-
-  bool equals(_ScanFilterKey other) {
-    return _stringListsEqual(serviceUuids, other.serviceUuids) &&
-        _manufacturerDataEqual(manufacturerData, other.manufacturerData);
-  }
-
-  bool _stringListsEqual(List<String> left, List<String> right) {
-    if (left.length != right.length) {
-      return false;
-    }
-
-    for (var index = 0; index < left.length; index++) {
-      if (left[index] != right[index]) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  bool _manufacturerDataEqual(
-    Map<int, Uint8List>? left,
-    Map<int, Uint8List>? right,
-  ) {
-    if (left == null || right == null) {
-      return left == right;
-    }
-    if (left.length != right.length) {
-      return false;
-    }
-
-    for (final key in left.keys) {
-      final leftValue = left[key];
-      final rightValue = right[key];
-      if (leftValue == null ||
-          rightValue == null ||
-          !_uint8ListsEqual(leftValue, rightValue)) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  bool _uint8ListsEqual(Uint8List left, Uint8List right) {
-    if (left.length != right.length) {
-      return false;
-    }
-
-    for (var index = 0; index < left.length; index++) {
-      if (left[index] != right[index]) {
-        return false;
-      }
-    }
-
-    return true;
   }
 }
 
