@@ -521,6 +521,29 @@ void main() {
     },
   );
 
+  test('service discovery stream delivery remains asynchronous', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    final services = <BluetoothService>[];
+    final sub = platform.serviceDiscoveryStream.listen(services.add);
+
+    platform.handleServiceDiscovered(
+      'device-a',
+      'service-a',
+      <BluetoothCharacteristicInfo>[
+        BluetoothCharacteristicInfo(uuid: 'characteristic-a'),
+      ],
+    );
+
+    expect(services, isEmpty);
+
+    await pumpEventQueue();
+    expect(services.map((service) => service.uuid), <String>['service-a']);
+
+    await sub.cancel();
+  });
+
   test('custom onServiceDiscovered callback receives callbacks', () async {
     final platform = _FakeQuickBluePlatform();
     addTearDown(platform.dispose);
@@ -872,6 +895,11 @@ void main() {
             uuid: 'service-b',
             characteristics: const <String>['characteristic-b'],
           ),
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: 'service-c',
+            characteristics: const <String>['characteristic-c'],
+          ),
         ],
       );
       addTearDown(platform.dispose);
@@ -881,6 +909,7 @@ void main() {
       expect(services.map((service) => service.uuid), <String>[
         'service-a',
         'service-b',
+        'service-c',
       ]);
     },
   );

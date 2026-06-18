@@ -42,6 +42,9 @@ const _targetNamePattern = String.fromEnvironment(
 const _serviceUuidCsv = String.fromEnvironment(
   'QUICK_BLUE_SMOKE_SERVICE_UUIDS',
 );
+const _expectedServiceUuidCsv = String.fromEnvironment(
+  'QUICK_BLUE_SMOKE_EXPECTED_SERVICE_UUIDS',
+);
 const _writeServiceUuid = String.fromEnvironment(
   'QUICK_BLUE_SMOKE_WRITE_SERVICE_UUID',
 );
@@ -76,7 +79,8 @@ void main() {
 
       final writeRequest = _writeRequest();
       final serviceUuids = _csv(_serviceUuidCsv);
-      final candidates = await _scanForCandidates(
+      final expectedServiceUuids = _csv(_expectedServiceUuidCsv);
+      final candidates = await _smokeCandidates(
         scanFilter: ScanFilter(serviceUuids: serviceUuids),
       );
       if (candidates.isEmpty) {
@@ -90,17 +94,29 @@ void main() {
           _targetDeviceId.isNotEmpty ||
           _targetNamePattern.isNotEmpty ||
           serviceUuids.isNotEmpty ||
+          expectedServiceUuids.isNotEmpty ||
           writeRequest != null;
       final failures = <String>[];
 
-      for (final result in candidates.take(_positive(_maxConnectAttempts, 1))) {
-        final device = QuickBlue.device(result.deviceId);
+      for (final candidate in candidates.take(
+        _positive(_maxConnectAttempts, 1),
+      )) {
+        final device = candidate.device;
 
         try {
-          await device.connect().timeout(_seconds(_connectTimeoutSeconds, 12));
+          if (candidate.shouldConnect) {
+            await device.connect().timeout(
+              _seconds(_connectTimeoutSeconds, 12),
+            );
+          }
 
           final services = await device.discoverServices().timeout(
             _seconds(_serviceTimeoutSeconds, 15),
+          );
+          _expectDiscoveredServices(
+            device.deviceId,
+            services,
+            expectedServiceUuids,
           );
           await _readSmokeCharacteristic(
             device,
@@ -113,14 +129,18 @@ void main() {
               writeRequest,
             ).timeout(_seconds(_writeTimeoutSeconds, 8));
           }
-          await device.disconnect().timeout(
-            _seconds(_disconnectTimeoutSeconds, 8),
-          );
+          if (candidate.shouldDisconnect) {
+            await device.disconnect().timeout(
+              _seconds(_disconnectTimeoutSeconds, 8),
+            );
+          }
 
           return;
         } catch (error) {
-          failures.add('${_describeScanResult(result)}: $error');
-          await _bestEffortDisconnect(device);
+          failures.add('${candidate.description}: $error');
+          if (candidate.shouldDisconnect) {
+            await _bestEffortDisconnect(device);
+          }
         }
       }
 
@@ -136,7 +156,9 @@ void main() {
         'Found ${candidates.length} BLE advertisements, but none completed the '
         'connect/discover/read/write/disconnect smoke flow. Set '
         'QUICK_BLUE_SMOKE_DEVICE_ID, QUICK_BLUE_SMOKE_NAME_PATTERN, or '
-        'QUICK_BLUE_SMOKE_SERVICE_UUIDS to make this a required target.\n'
+        'QUICK_BLUE_SMOKE_SERVICE_UUIDS to make this a required target. '
+        'Use QUICK_BLUE_SMOKE_EXPECTED_SERVICE_UUIDS to assert a known GATT '
+        'service set.\n'
         '$failureSummary',
       );
     },
@@ -179,7 +201,8 @@ Future<List<BlueScanResult>> _scanForCandidates({
   final subscription = QuickBlue.scanResults(scanFilter: scanFilter).listen((
     result,
   ) {
-    if (_targetDeviceId.isNotEmpty && result.deviceId != _targetDeviceId) {
+    if (_targetDeviceId.isNotEmpty &&
+        !_matchesDeviceId(result.deviceId, _targetDeviceId)) {
       return;
     }
     if (namePattern != null && !namePattern.hasMatch(result.name)) {
@@ -203,6 +226,79 @@ Future<List<BlueScanResult>> _scanForCandidates({
     });
 
   return results;
+}
+
+Future<List<_SmokeCandidate>> _smokeCandidates({
+  required ScanFilter scanFilter,
+}) async {
+  final connectedTarget = await _connectedTarget();
+  if (connectedTarget != null) {
+    return <_SmokeCandidate>[
+      _SmokeCandidate(
+        device: connectedTarget,
+        description: 'already-connected device ${connectedTarget.deviceId}',
+        shouldConnect: false,
+        shouldDisconnect: false,
+      ),
+    ];
+  }
+
+  final scanResults = await _scanForCandidates(scanFilter: scanFilter);
+  return scanResults
+      .map(
+        (result) => _SmokeCandidate(
+          device: QuickBlue.device(result.deviceId),
+          description: _describeScanResult(result),
+          shouldConnect: true,
+          shouldDisconnect: true,
+        ),
+      )
+      .toList(growable: false);
+}
+
+Future<BluetoothDevice?> _connectedTarget() async {
+  if (_targetDeviceId.isEmpty) {
+    return null;
+  }
+
+  final connectedDevices = await QuickBlue.connectedDevices();
+  for (final device in connectedDevices) {
+    if (_matchesDeviceId(device.deviceId, _targetDeviceId)) {
+      return device;
+    }
+  }
+  return null;
+}
+
+void _expectDiscoveredServices(
+  String deviceId,
+  List<BluetoothService> services,
+  List<String> expectedServiceUuids,
+) {
+  if (expectedServiceUuids.isEmpty) {
+    return;
+  }
+
+  final serviceUuids = services
+      .map((service) => service.uuid)
+      .toList(growable: false);
+  final missing = expectedServiceUuids
+      .where(
+        (expected) => !serviceUuids.any(
+          (actual) => _matchesBluetoothUuid(actual, expected),
+        ),
+      )
+      .toList(growable: false);
+
+  if (missing.isEmpty) {
+    return;
+  }
+
+  throw StateError(
+    'Expected $deviceId to expose ${expectedServiceUuids.join(', ')}. '
+    'Missing: ${missing.join(', ')}. '
+    'Discovered services: ${serviceUuids.join(', ')}.',
+  );
 }
 
 Future<void> _readSmokeCharacteristic(
@@ -389,6 +485,9 @@ int _isNamed(BlueScanResult result) {
   return result.name.trim().isEmpty ? 0 : 1;
 }
 
+bool _matchesDeviceId(String left, String right) =>
+    left.toLowerCase() == right.toLowerCase();
+
 bool _matchesBluetoothUuid(String left, String right) {
   final normalizedLeft = _normalizeBluetoothUuid(left);
   final normalizedRight = _normalizeBluetoothUuid(right);
@@ -401,6 +500,9 @@ String? _normalizeBluetoothUuid(String uuid) {
   final cleaned = uuid.replaceAll('-', '').toLowerCase();
   if (cleaned.length == 4) {
     return '0000${cleaned}00001000800000805f9b34fb';
+  }
+  if (cleaned.length == 8) {
+    return '${cleaned}00001000800000805f9b34fb';
   }
   if (cleaned.length == 32) {
     return cleaned;
@@ -425,6 +527,20 @@ class _CharacteristicTarget {
 
   final BluetoothService service;
   final BluetoothCharacteristicInfo characteristic;
+}
+
+class _SmokeCandidate {
+  _SmokeCandidate({
+    required this.device,
+    required this.description,
+    required this.shouldConnect,
+    required this.shouldDisconnect,
+  });
+
+  final BluetoothDevice device;
+  final String description;
+  final bool shouldConnect;
+  final bool shouldDisconnect;
 }
 
 class _WriteRequest {

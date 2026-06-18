@@ -46,6 +46,8 @@ class QuickBlueLinux extends QuickBluePlatform {
   final Map<String, StreamSubscription<List<String>>>
   _scanDevicePropertySubscriptions =
       <String, StreamSubscription<List<String>>>{};
+  final Map<String, Future<void>> _serviceDiscoveryEmits =
+      <String, Future<void>>{};
   final Map<String, bool> _lastConnectionState = <String, bool>{};
 
   StreamSubscription<BlueZDevice>? _deviceAddedSubscription;
@@ -361,8 +363,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     final device = _getDeviceOrThrow(deviceId);
 
     await _ensureConnectedDevice(device);
-    await _waitForServicesResolved(device);
-    _emitServiceDiscovery(device);
+    await _emitServiceDiscovery(device);
   }
 
   @override
@@ -680,11 +681,6 @@ class QuickBlueLinux extends QuickBluePlatform {
             unawaited(_clearNotificationSubscriptions(deviceId));
           }
         }
-
-        if (properties.contains('ServicesResolved') &&
-            device.servicesResolved) {
-          _emitServiceDiscovery(device);
-        }
       },
       onError: (error, stackTrace) {
         _logger.warning(
@@ -698,7 +694,27 @@ class QuickBlueLinux extends QuickBluePlatform {
     _devicePropertySubscriptions[deviceId] = subscription;
   }
 
-  void _emitServiceDiscovery(BlueZDevice device) {
+  Future<void> _emitServiceDiscovery(BlueZDevice device) async {
+    final existing = _serviceDiscoveryEmits[device.address];
+    if (existing != null) {
+      return existing;
+    }
+
+    final emit = () async {
+      await _waitForServicesResolved(device);
+      _emitResolvedServices(device);
+    }();
+    _serviceDiscoveryEmits[device.address] = emit;
+    try {
+      await emit;
+    } finally {
+      if (identical(_serviceDiscoveryEmits[device.address], emit)) {
+        _serviceDiscoveryEmits.remove(device.address);
+      }
+    }
+  }
+
+  void _emitResolvedServices(BlueZDevice device) {
     for (final service in device.gattServices) {
       final serviceId = _formatUuid(service.uuid);
       final characteristics = service.characteristics
@@ -872,6 +888,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     }
 
     _lastConnectionState.remove(deviceId);
+    _serviceDiscoveryEmits.remove(deviceId);
 
     await _clearNotificationSubscriptions(deviceId);
 

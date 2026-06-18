@@ -30,6 +30,8 @@ Useful Dart defines:
 - `QUICK_BLUE_SMOKE_NAME_PATTERN`: case-insensitive regular expression matched
   against advertised device names.
 - `QUICK_BLUE_SMOKE_SERVICE_UUIDS`: comma-separated service UUID scan filter.
+- `QUICK_BLUE_SMOKE_EXPECTED_SERVICE_UUIDS`: comma-separated GATT service UUIDs
+  that must be discovered on the connected target.
 - `QUICK_BLUE_SMOKE_READ_TIMEOUT_SECONDS`: readable characteristic timeout.
   Defaults to `8`.
 - `QUICK_BLUE_SMOKE_WRITE_TIMEOUT_SECONDS`: opt-in write timeout. Defaults to
@@ -55,6 +57,15 @@ Example targeted run:
 flutter test integration_test/ble_smoke_test.dart -d macos \
   --dart-define=QUICK_BLUE_SMOKE_NAME_PATTERN='sensor|heart' \
   --dart-define=QUICK_BLUE_SMOKE_MAX_CONNECT_ATTEMPTS=5
+```
+
+Example targeted GATT service run:
+
+```sh
+flutter test integration_test/ble_smoke_test.dart -d linux \
+  --dart-define=QUICK_BLUE_SMOKE_DEVICE_ID='CB:48:BE:B2:AC:69' \
+  --dart-define=QUICK_BLUE_SMOKE_EXPECTED_SERVICE_UUIDS='1800,1801,180a' \
+  --dart-define=QUICK_BLUE_SMOKE_CONNECT_TIMEOUT_SECONDS=30
 ```
 
 Example targeted write run:

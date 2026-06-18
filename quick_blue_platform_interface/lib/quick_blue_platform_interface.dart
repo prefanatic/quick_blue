@@ -3,6 +3,7 @@ library quick_blue_platform_interface;
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:async/async.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:quick_blue_platform_interface/method_channel_quick_blue.dart';
 
@@ -180,6 +181,8 @@ abstract class QuickBluePlatform extends PlatformInterface {
       StreamController<BluetoothService>.broadcast();
   final StreamController<String> _serviceDiscoveryCompleteController =
       StreamController<String>.broadcast();
+  final _serviceDiscoveryEventController =
+      StreamController<_ServiceDiscoveryEvent>.broadcast();
 
   Stream<BluetoothService> get serviceDiscoveryStream {
     return _serviceDiscoveryController.stream;
@@ -276,19 +279,31 @@ abstract class QuickBluePlatform extends PlatformInterface {
         characteristicIds
             .map((uuid) => BluetoothCharacteristicInfo(uuid: uuid))
             .toList(growable: false);
-    _serviceDiscoveryController.add(
-      BluetoothService(
-        deviceId: deviceId,
-        uuid: serviceId,
-        characteristics: characteristicIds,
-        characteristicDetails: details,
-      ),
+    final service = BluetoothService(
+      deviceId: deviceId,
+      uuid: serviceId,
+      characteristics: characteristicIds,
+      characteristicDetails: details,
     );
+
+    _serviceDiscoveryEventController.add(
+      _ServiceDiscoveredEvent(deviceId, service),
+    );
+    _serviceDiscoveryController.add(service);
     _onServiceDiscovered?.call(deviceId, serviceId, characteristicIds);
   }
 
   void _handleServiceDiscoveryComplete(String deviceId) {
+    _serviceDiscoveryEventController.add(
+      _ServiceDiscoveryCompleteEvent(deviceId),
+    );
     _serviceDiscoveryCompleteController.add(deviceId);
+  }
+
+  Stream<_ServiceDiscoveryEvent> _serviceDiscoveryEvents(String deviceId) {
+    return _serviceDiscoveryEventController.stream.where(
+      (event) => event.deviceId == deviceId,
+    );
   }
 
   void _handleValueChanged(
@@ -432,6 +447,22 @@ class _ScanFilterKey {
   }
 }
 
+abstract class _ServiceDiscoveryEvent {
+  const _ServiceDiscoveryEvent(this.deviceId);
+
+  final String deviceId;
+}
+
+class _ServiceDiscoveredEvent extends _ServiceDiscoveryEvent {
+  const _ServiceDiscoveredEvent(super.deviceId, this.service);
+
+  final BluetoothService service;
+}
+
+class _ServiceDiscoveryCompleteEvent extends _ServiceDiscoveryEvent {
+  const _ServiceDiscoveryCompleteEvent(super.deviceId);
+}
+
 class BluetoothDevice {
   BluetoothDevice._({
     required this.deviceId,
@@ -503,23 +534,28 @@ class BluetoothDevice {
 
   Future<List<BluetoothService>> discoverServices() async {
     final services = <BluetoothService>[];
-    final subscription = serviceDiscoveryStream.listen((service) {
-      services.add(service);
-    });
-    final completeEvents = StreamIterator(
-      _platform.serviceDiscoveryCompleteStream.where(
-        (completedDeviceId) => completedDeviceId == deviceId,
-      ),
+    final events = StreamQueue<_ServiceDiscoveryEvent>(
+      _platform._serviceDiscoveryEvents(deviceId),
     );
 
     try {
-      final complete = completeEvents.moveNext();
       await _platform.discoverServices(deviceId);
-      await complete;
-      return List<BluetoothService>.unmodifiable(services);
+
+      while (await events.hasNext) {
+        switch (await events.next) {
+          case _ServiceDiscoveredEvent(:final service):
+            services.add(service);
+          case _ServiceDiscoveryCompleteEvent():
+            return List<BluetoothService>.unmodifiable(services);
+        }
+      }
+
+      throw StateError(
+        'Service discovery ended before completion for Bluetooth device '
+        '$deviceId.',
+      );
     } finally {
-      await subscription.cancel();
-      await completeEvents.cancel();
+      await events.cancel();
     }
   }
 

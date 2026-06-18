@@ -85,6 +85,8 @@
   device name as scan results update.
 - Replay known Linux BlueZ devices after scan startup so repeated scans surface
   nearby advertisers that BlueZ already discovered.
+- Collect service discovery events before completion so Linux service discovery
+  returns the full resolved BlueZ service list.
 - Remove redundant manual Bluetooth status refresh from the example; the example
   now relies on `bluetoothStateStream`.
 - Fix example `ExpansionTile` / `ListTile` material wrapping assertions.
