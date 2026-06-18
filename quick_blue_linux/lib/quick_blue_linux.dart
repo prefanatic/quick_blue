@@ -10,6 +10,10 @@ import 'generated_bindings.dart';
 import 'src/l2cap_channel.dart';
 import 'src/native_libraries.dart';
 
+typedef _BlueZPropertySubscription = StreamSubscription<List<String>>;
+typedef _DevicePropertySubscriptions = Map<String, _BlueZPropertySubscription>;
+typedef _NotificationSubscriptions = Map<String, _DevicePropertySubscriptions>;
+
 class QuickBlueLinux extends QuickBluePlatform {
   QuickBlueLinux() {
     _scanResultController = StreamController<BlueScanResult>.broadcast(
@@ -32,20 +36,20 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   bool isInitialized = false;
 
+  // Platform clients.
   final BlueZClient _client = BlueZClient();
   final Logger _logger = Logger('QuickBlueLinux');
   late final Libc _libc = Libc();
   LibBluetooth? _libBluetooth;
 
+  // Cached BlueZ objects and active subscriptions.
   final Map<String, BlueZDevice> _devices = <String, BlueZDevice>{};
-  final Map<String, StreamSubscription<List<String>>>
-  _devicePropertySubscriptions = <String, StreamSubscription<List<String>>>{};
-  final Map<String, Map<String, StreamSubscription<List<String>>>>
-  _notificationSubscriptions =
-      <String, Map<String, StreamSubscription<List<String>>>>{};
-  final Map<String, StreamSubscription<List<String>>>
-  _scanDevicePropertySubscriptions =
-      <String, StreamSubscription<List<String>>>{};
+  final _DevicePropertySubscriptions _devicePropertySubscriptions =
+      <String, _BlueZPropertySubscription>{};
+  final _NotificationSubscriptions _notificationSubscriptions =
+      <String, _DevicePropertySubscriptions>{};
+  final _DevicePropertySubscriptions _scanDevicePropertySubscriptions =
+      <String, _BlueZPropertySubscription>{};
   final Map<String, Future<void>> _serviceDiscoveryEmits =
       <String, Future<void>>{};
   final Map<String, bool> _lastConnectionState = <String, bool>{};
@@ -53,6 +57,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   StreamSubscription<BlueZDevice>? _deviceAddedSubscription;
   StreamSubscription<BlueZDevice>? _deviceRemovedSubscription;
 
+  // Active scan state.
   BlueZAdapter? _activeAdapter;
   Set<String> _activeScanServiceUuids = const <String>{};
   Map<int, Uint8List>? _activeScanManufacturerData;
@@ -435,7 +440,7 @@ class QuickBlueLinux extends QuickBluePlatform {
 
     final deviceSubscriptions = _notificationSubscriptions.putIfAbsent(
       deviceId,
-      () => <String, StreamSubscription<List<String>>>{},
+      () => <String, _BlueZPropertySubscription>{},
     );
     deviceSubscriptions[key] = subscription;
 
