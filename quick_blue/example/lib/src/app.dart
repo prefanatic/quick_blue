@@ -9,46 +9,55 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Quick Blue',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2563EB),
-          surface: const Color(0xFFFCFCFD),
-        ),
-        useMaterial3: true,
-        visualDensity: VisualDensity.compact,
-        scaffoldBackgroundColor: const Color(0xFFFCFCFD),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFFCFCFD),
-          foregroundColor: Color(0xFF111827),
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: false,
-        ),
-        dividerTheme: const DividerThemeData(
-          color: Color(0xFFE5E7EB),
-          space: 1,
-          thickness: 1,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: Color(0xFF2563EB)),
-          ),
-        ),
-        listTileTheme: const ListTileThemeData(
-          dense: true,
-          minLeadingWidth: 0,
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        ),
-      ),
+      theme: _theme(Brightness.light),
+      darkTheme: _theme(Brightness.dark),
+      themeMode: ThemeMode.system,
       home: const BleExplorerPage(),
     );
   }
+}
+
+ThemeData _theme(Brightness brightness) {
+  final colorScheme = ColorScheme.fromSeed(
+    seedColor: const Color(0xFF2563EB),
+    brightness: brightness,
+  );
+  final radius = BorderRadius.circular(6);
+
+  return ThemeData(
+    colorScheme: colorScheme,
+    useMaterial3: true,
+    visualDensity: VisualDensity.compact,
+    scaffoldBackgroundColor: colorScheme.surface,
+    appBarTheme: AppBarTheme(
+      backgroundColor: colorScheme.surface,
+      foregroundColor: colorScheme.onSurface,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+    ),
+    dividerTheme: DividerThemeData(
+      color: colorScheme.outlineVariant,
+      space: 1,
+      thickness: 1,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      border: OutlineInputBorder(borderRadius: radius),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: colorScheme.outlineVariant),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: colorScheme.primary),
+      ),
+    ),
+    listTileTheme: const ListTileThemeData(
+      dense: true,
+      minLeadingWidth: 0,
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    ),
+  );
 }

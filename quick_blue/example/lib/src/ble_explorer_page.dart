@@ -660,7 +660,7 @@ class _DevicePane extends StatelessWidget {
                   icon: Icons.account_tree_outlined,
                   title: _connected ? 'No services yet' : 'Not connected',
                   message: _connected
-                      ? 'Run service discovery to inspect characteristics.'
+                      ? 'Use Discover to refresh services.'
                       : 'Connect before discovering services.',
                 )
               : ListView.builder(
@@ -712,15 +712,16 @@ class _ServiceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final characteristicCount = service.characteristicDetails.length;
+    final dividerColor = Theme.of(context).dividerTheme.color;
     return Material(
       color: Colors.transparent,
-      shape: const Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+      shape: Border(bottom: BorderSide(color: dividerColor ?? Colors.grey)),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16),
           childrenPadding: const EdgeInsets.only(bottom: 8),
-          initiallyExpanded: service.characteristicDetails.length <= 4,
+          initiallyExpanded: false,
           title: SelectableText(
             service.uuid,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -792,6 +793,7 @@ class _CharacteristicRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dividerColor = Theme.of(context).dividerTheme.color;
     final utf8Preview = value == null ? null : formatUtf8Preview(value!);
     final characteristicId = characteristic.uuid;
     final valuePreview = _ValuePreview(
@@ -814,8 +816,8 @@ class _CharacteristicRow extends StatelessWidget {
         : null;
 
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFF3F4F6))),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: dividerColor ?? Colors.grey)),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -908,10 +910,11 @@ class _WriteDisclosure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.white,
+      color: colorScheme.surface,
       shape: RoundedRectangleBorder(
-        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        side: BorderSide(color: colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(6),
       ),
       clipBehavior: Clip.antiAlias,
@@ -1003,33 +1006,35 @@ class _ValuePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final style = Theme.of(context).textTheme.bodySmall?.copyWith(
       fontFamily: 'monospace',
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      color: colorScheme.onSurfaceVariant,
     );
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        border: Border.all(color: colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Last read',
-              style: Theme.of(
-                context,
-              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+            Icon(
+              Icons.download_done,
+              size: 16,
+              color: colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 8),
-            SelectableText(
-              utf8Preview == null
-                  ? 'hex  $hex'
-                  : 'hex  $hex\nutf8 "$utf8Preview"',
-              style: style,
+            const SizedBox(width: 8),
+            Expanded(
+              child: SelectableText(
+                utf8Preview == null
+                    ? 'hex  $hex'
+                    : 'hex  $hex\nutf8 "$utf8Preview"',
+                style: style,
+              ),
             ),
           ],
         ),
@@ -1136,18 +1141,19 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final colors = switch (tone) {
       _StatusTone.neutral => (
-        background: const Color(0xFFF3F4F6),
-        foreground: const Color(0xFF374151),
+        background: colorScheme.surfaceContainerHighest,
+        foreground: colorScheme.onSurfaceVariant,
       ),
       _StatusTone.success => (
-        background: const Color(0xFFECFDF5),
-        foreground: const Color(0xFF047857),
+        background: colorScheme.primaryContainer,
+        foreground: colorScheme.onPrimaryContainer,
       ),
       _StatusTone.warning => (
-        background: const Color(0xFFFFF7ED),
-        foreground: const Color(0xFFC2410C),
+        background: colorScheme.tertiaryContainer,
+        foreground: colorScheme.onTertiaryContainer,
       ),
     };
     return DecoratedBox(

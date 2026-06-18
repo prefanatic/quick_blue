@@ -220,6 +220,12 @@ class BleExplorerController extends ChangeNotifier {
       if (event.status == BleStatus.failure) {
         throw StateError('Failed to connect to Bluetooth device $deviceId.');
       }
+      if (_isCurrentConnectionAttempt(deviceId, attempt)) {
+        _mutate(() {
+          connecting = false;
+        });
+        await _discoverServices(deviceId);
+      }
     } on TimeoutException {
       if (_isCurrentConnectionAttempt(deviceId, attempt)) {
         _mutate(() {
@@ -264,6 +270,14 @@ class BleExplorerController extends ChangeNotifier {
   Future<void> discoverServices() async {
     final deviceId = selectedDeviceId;
     if (deviceId == null || !connected || discovering) {
+      return;
+    }
+
+    await _discoverServices(deviceId);
+  }
+
+  Future<void> _discoverServices(String deviceId) async {
+    if (discovering) {
       return;
     }
 

@@ -273,4 +273,24 @@ void main() {
       contains('Connect timed out for device-a.'),
     );
   });
+
+  test('connect automatically discovers services', () async {
+    final controller = BleExplorerController();
+    addTearDown(controller.dispose);
+    await controller.initialBluetoothCheck;
+
+    await controller.selectDevice('device-a');
+    await controller.connectSelected();
+
+    expect(
+      platform.calls,
+      containsAllInOrder(<String>[
+        'connect device-a',
+        'discoverServices device-a',
+      ]),
+    );
+    expect(controller.connecting, isFalse);
+    expect(controller.discovering, isFalse);
+    expect(controller.status, 'Found 0 service(s).');
+  });
 }
