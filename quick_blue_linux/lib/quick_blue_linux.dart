@@ -61,6 +61,8 @@ class QuickBlueLinux extends QuickBluePlatform {
   BlueZAdapter? _activeAdapter;
   Set<String> _activeScanServiceUuids = const <String>{};
   Map<int, Uint8List>? _activeScanManufacturerData;
+  int? _activeScanRssi;
+  LinuxScanOptions _activeScanOptions = const LinuxScanOptions();
   var _isScanning = false;
 
   late final StreamController<BlueScanResult> _scanResultController;
@@ -177,7 +179,10 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) async {
+  Future<void> startScan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  }) async {
     await _ensureInitialized();
 
     _activeAdapter = _selectPoweredAdapter();
@@ -190,7 +195,9 @@ class QuickBlueLinux extends QuickBluePlatform {
         .map(_canonicalizeUuid)
         .toSet();
     _activeScanManufacturerData = scanFilter.manufacturerData;
-    await _setDiscoveryFilter(adapter, scanFilter);
+    _activeScanRssi = scanFilter.rssi ?? scanOptions.linux.rssi;
+    _activeScanOptions = scanOptions.linux;
+    await _setDiscoveryFilter(adapter, scanFilter, scanOptions);
     await adapter.startDiscovery();
     _isScanning = true;
   }
@@ -205,6 +212,8 @@ class QuickBlueLinux extends QuickBluePlatform {
       await _clearScanDevicePropertySubscriptions();
       _activeScanServiceUuids = const <String>{};
       _activeScanManufacturerData = null;
+      _activeScanRssi = null;
+      _activeScanOptions = const LinuxScanOptions();
       return;
     }
     try {
@@ -213,6 +222,8 @@ class QuickBlueLinux extends QuickBluePlatform {
       await _clearScanDevicePropertySubscriptions();
       _activeScanServiceUuids = const <String>{};
       _activeScanManufacturerData = null;
+      _activeScanRssi = null;
+      _activeScanOptions = const LinuxScanOptions();
     }
   }
 
@@ -578,16 +589,23 @@ class QuickBlueLinux extends QuickBluePlatform {
   Future<void> _setDiscoveryFilter(
     BlueZAdapter adapter,
     ScanFilter scanFilter,
+    ScanOptions scanOptions,
   ) {
     final serviceUuids = scanFilter.serviceUuids
         .map(_canonicalizeUuid)
         .map(_canonicalToDashed)
         .toList(growable: false);
 
+    final linuxOptions = scanOptions.linux;
     return adapter.setDiscoveryFilter(
       uuids: serviceUuids.isEmpty ? null : serviceUuids,
-      transport: 'le',
-      duplicateData: false,
+      rssi: scanFilter.rssi ?? linuxOptions.rssi,
+      pathloss: linuxOptions.pathloss,
+      transport: linuxOptions.transport.bluezValue,
+      duplicateData:
+          linuxOptions.duplicateData ?? scanOptions.allowDuplicates ?? false,
+      discoverable: linuxOptions.discoverable,
+      pattern: linuxOptions.pattern,
     );
   }
 
@@ -614,6 +632,27 @@ class QuickBlueLinux extends QuickBluePlatform {
           return false;
         }
       }
+    }
+
+    final scanOptions = _activeScanOptions;
+    final rssi = _activeScanRssi;
+    if (rssi != null && device.rssi <= rssi) {
+      return false;
+    }
+
+    final pathloss = scanOptions.pathloss;
+    if (pathloss != null && device.txPower != 0) {
+      final computedPathloss = device.txPower - device.rssi;
+      if (computedPathloss >= pathloss) {
+        return false;
+      }
+    }
+
+    final pattern = scanOptions.pattern;
+    if (pattern != null &&
+        !device.address.startsWith(pattern) &&
+        !device.name.startsWith(pattern)) {
+      return false;
     }
 
     return true;
@@ -1000,6 +1039,16 @@ class _BlueZManufacturerData {
 
   final Uint8List head;
   final Uint8List payload;
+}
+
+extension _LinuxScanTransportExtension on LinuxScanTransport {
+  String get bluezValue {
+    return switch (this) {
+      LinuxScanTransport.auto => 'auto',
+      LinuxScanTransport.bredr => 'bredr',
+      LinuxScanTransport.le => 'le',
+    };
+  }
 }
 
 extension _BlueZDeviceExtension on BlueZDevice {

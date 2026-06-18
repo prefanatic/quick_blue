@@ -295,12 +295,75 @@ void main() {
         ),
       );
 
-      expect(sentMessage, <Object?>[
-        <String>['180d'],
-        manufacturerData,
-      ]);
+      final message = sentMessage as List<Object?>;
+      expect(message[0], <String>['180d']);
+      expect(message[1], manufacturerData);
+      expect(message[2], isNull);
+      final options = message[3] as messages.PlatformWindowsScanOptions;
+      expect(options.scanningMode, isNull);
+      expect(options.signalStrengthFilter, isNull);
     },
   );
+
+  test('startScan forwards Windows scan options', () async {
+    Object? sentMessage;
+    const channel = BasicMessageChannel<Object?>(
+      startScanChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(channel, (message) async {
+          sentMessage = message;
+          return <Object?>[];
+        });
+
+    await QuickBlueWindows().startScan(
+      scanOptions: const ScanOptions(
+        windows: WindowsScanOptions(
+          scanningMode: WindowsScanMode.active,
+          signalStrengthFilter: WindowsSignalStrengthFilter(
+            inRangeThresholdInDBm: -65,
+            outOfRangeThresholdInDBm: -75,
+            outOfRangeTimeout: Duration(seconds: 3),
+            samplingInterval: Duration(milliseconds: 500),
+          ),
+        ),
+      ),
+    );
+
+    final message = sentMessage as List<Object?>;
+    expect(message[2], isNull);
+    final options = message[3] as messages.PlatformWindowsScanOptions;
+    expect(options.scanningMode, messages.PlatformWindowsScanMode.active);
+    expect(options.signalStrengthFilter!.inRangeThresholdInDBm, -65);
+    expect(options.signalStrengthFilter!.outOfRangeThresholdInDBm, -75);
+    expect(options.signalStrengthFilter!.outOfRangeTimeoutMillis, 3000);
+    expect(options.signalStrengthFilter!.samplingIntervalMillis, 500);
+  });
+
+  test('startScan maps common scan options for Windows', () async {
+    Object? sentMessage;
+    const channel = BasicMessageChannel<Object?>(
+      startScanChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(channel, (message) async {
+          sentMessage = message;
+          return <Object?>[];
+        });
+
+    await QuickBlueWindows().startScan(
+      scanFilter: ScanFilter(rssi: -70),
+      scanOptions: const ScanOptions(scanMode: ScanMode.lowLatency),
+    );
+
+    final message = sentMessage as List<Object?>;
+    expect(message[2], -70);
+    final options = message[3] as messages.PlatformWindowsScanOptions;
+    expect(options.scanningMode, messages.PlatformWindowsScanMode.active);
+    expect(options.signalStrengthFilter!.inRangeThresholdInDBm, -70);
+  });
 
   test(
     'requestMtu forwards the device and returns the negotiated MTU',

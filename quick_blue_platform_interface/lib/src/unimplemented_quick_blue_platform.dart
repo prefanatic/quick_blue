@@ -15,7 +15,10 @@ class UnimplementedQuickBluePlatform extends QuickBluePlatform {
   Future<bool> isBluetoothAvailable() => Future<bool>.error(_unsupported());
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) {
+  Future<void> startScan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  }) {
     return Future<void>.error(_unsupported());
   }
 

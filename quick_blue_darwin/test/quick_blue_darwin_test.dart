@@ -246,7 +246,13 @@ void main() {
 
     await QuickBlueDarwin().startScan();
 
-    expect(sentMessage, <Object?>[null, null]);
+    final message = sentMessage as List<Object?>;
+    expect(message[0], isNull);
+    expect(message[1], isNull);
+    expect(message[2], isNull);
+    final options = message[3] as messages.PlatformDarwinScanOptions;
+    expect(options.allowDuplicates, isTrue);
+    expect(options.solicitedServiceUuids, isEmpty);
   });
 
   test(
@@ -274,12 +280,43 @@ void main() {
         ),
       );
 
-      expect(sentMessage, <Object?>[
-        <String>['180d'],
-        manufacturerData,
-      ]);
+      final message = sentMessage as List<Object?>;
+      expect(message[0], <String>['180d']);
+      expect(message[1], manufacturerData);
+      expect(message[2], isNull);
+      final options = message[3] as messages.PlatformDarwinScanOptions;
+      expect(options.allowDuplicates, isTrue);
+      expect(options.solicitedServiceUuids, isEmpty);
     },
   );
+
+  test('startScan forwards Darwin scan options', () async {
+    Object? sentMessage;
+    const channel = BasicMessageChannel<Object?>(
+      startScanChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(channel, (message) async {
+          sentMessage = message;
+          return <Object?>[];
+        });
+
+    await QuickBlueDarwin().startScan(
+      scanOptions: ScanOptions(
+        allowDuplicates: false,
+        darwin: DarwinScanOptions(
+          solicitedServiceUuids: const <String>['180f'],
+        ),
+      ),
+    );
+
+    final message = sentMessage as List<Object?>;
+    expect(message[2], isNull);
+    final options = message[3] as messages.PlatformDarwinScanOptions;
+    expect(options.allowDuplicates, isFalse);
+    expect(options.solicitedServiceUuids, <String>['180f']);
+  });
 
   test(
     'requestMtu forwards the device and returns the negotiated MTU',

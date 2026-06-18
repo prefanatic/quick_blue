@@ -237,6 +237,51 @@ void main() {
     },
   );
 
+  test('scanResults filters results below the RSSI threshold', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+    final results = <String>[];
+
+    final subscription = platform
+        .scanResults(scanFilter: ScanFilter(rssi: -70))
+        .listen((result) => results.add(result.deviceId));
+
+    await pumpEventQueue();
+    platform
+      ..addScanResult('device-a', rssi: -80)
+      ..addScanResult('device-b', rssi: -60);
+    await pumpEventQueue();
+
+    expect(results, <String>['device-b']);
+    expect(platform.lastScanFilter!.rssi, -70);
+
+    await subscription.cancel();
+  });
+
+  test(
+    'scanResults drops duplicate devices when duplicates are disabled',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+      final results = <String>[];
+
+      final subscription = platform
+          .scanResults(scanOptions: const ScanOptions(allowDuplicates: false))
+          .listen((result) => results.add(result.deviceId));
+
+      await pumpEventQueue();
+      platform
+        ..addScanResult('device-a')
+        ..addScanResult('device-a')
+        ..addScanResult('device-b');
+      await pumpEventQueue();
+
+      expect(results, <String>['device-a', 'device-b']);
+
+      await subscription.cancel();
+    },
+  );
+
   test('scanResults rejects a different filter while scanning', () async {
     final platform = _FakeQuickBluePlatform();
     addTearDown(platform.dispose);
@@ -419,6 +464,63 @@ void main() {
 
     await subscription.cancel();
   });
+
+  test('scan forwards scan options to startScan', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    final solicitedServiceUuids = <String>['180d'];
+    final options = ScanOptions(
+      darwin: DarwinScanOptions(
+        allowDuplicates: false,
+        solicitedServiceUuids: solicitedServiceUuids,
+      ),
+      linux: const LinuxScanOptions(rssi: -80),
+    );
+
+    final subscription = platform.scan(scanOptions: options).listen((_) {});
+    solicitedServiceUuids.add('180f');
+
+    await pumpEventQueue();
+    expect(platform.lastScanOptions, isNot(same(options)));
+    expect(platform.lastScanOptions!.darwin.allowDuplicates, isFalse);
+    expect(platform.lastScanOptions!.darwin.solicitedServiceUuids, <String>[
+      '180d',
+    ]);
+    expect(platform.lastScanOptions!.linux.rssi, -80);
+
+    await subscription.cancel();
+  });
+
+  test(
+    'scanResults rejects another scan with mismatched scan options',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final firstSubscription = platform
+          .scanResults(
+            scanOptions: const ScanOptions(linux: LinuxScanOptions(rssi: -80)),
+          )
+          .listen((_) {});
+
+      await pumpEventQueue();
+      expect(platform.calls, <String>['startScan']);
+
+      final error = await platform
+          .scanResults(
+            scanOptions: const ScanOptions(linux: LinuxScanOptions(rssi: -70)),
+          )
+          .drain<void>()
+          .then<Object?>((_) => null, onError: (Object error) => error);
+
+      expect(error, isA<StateError>());
+      expect(platform.calls, <String>['startScan']);
+
+      await firstSubscription.cancel();
+      expect(platform.calls, <String>['startScan', 'stopScan']);
+    },
+  );
 
   test('device streams only emit events for that device', () async {
     final platform = _FakeQuickBluePlatform();
@@ -1441,12 +1543,13 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final bool connectsImmediately;
   final bool disconnectsImmediately;
   ScanFilter? lastScanFilter;
+  ScanOptions? lastScanOptions;
   int _startScanCallCount = 0;
   int _setNotifiableCallCount = 0;
 
-  void addScanResult(String deviceId) {
+  void addScanResult(String deviceId, {int rssi = -40}) {
     _scanResultController.add(
-      BlueScanResult(name: 'Device $deviceId', deviceId: deviceId, rssi: -40),
+      BlueScanResult(name: 'Device $deviceId', deviceId: deviceId, rssi: rssi),
     );
   }
 
@@ -1461,8 +1564,12 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   Future<bool> isBluetoothAvailable() async => true;
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) async {
+  Future<void> startScan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  }) async {
     lastScanFilter = scanFilter;
+    lastScanOptions = scanOptions;
     calls.add('startScan');
     final error = startScanError;
     if (error != null) {

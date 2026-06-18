@@ -68,6 +68,24 @@ final scanSubscription = QuickBlue.scanResults().listen((result) {
 await scanSubscription.cancel();
 ```
 
+Use common filters and scan options when they fit your scanner behavior:
+
+```dart
+final scanSubscription = QuickBlue.scanResults(
+  scanFilter: ScanFilter(serviceUuids: ['180d'], rssi: -80),
+  scanOptions: const ScanOptions(
+    allowDuplicates: false,
+    scanMode: ScanMode.balanced,
+  ),
+).listen((result) {
+  print('${result.deviceId} ${result.name} RSSI=${result.rssi}');
+});
+```
+
+Platform-specific scan options are also available when you need native scanner
+controls such as Android PHY, CoreBluetooth solicited services, BlueZ pathloss,
+or Windows signal-strength timing.
+
 Connect, discover services, and interact with a characteristic:
 
 ```dart
@@ -131,7 +149,10 @@ final characteristic = gatt.characteristic(
 
 Use `QuickBlue.scan()` when you only need device handles. Use
 `QuickBlue.scanResults()` when you need advertisement fields such as RSSI,
-service UUIDs, service data, or manufacturer data.
+service UUIDs, service data, or manufacturer data. `ScanFilter.rssi` and common
+`ScanOptions` fields are applied consistently by the Dart lifecycle APIs and
+mapped to native filters where the platform supports them. Omitted common
+options preserve Quick Blue's existing platform defaults.
 
 Get device handles for peripherals that are already connected:
 

@@ -319,6 +319,268 @@ std::string PigeonInternalToString(const ::flutter::EncodableValue& v) {
 }
 
 }  // namespace
+// PlatformWindowsSignalStrengthFilter
+
+PlatformWindowsSignalStrengthFilter::PlatformWindowsSignalStrengthFilter() {}
+
+PlatformWindowsSignalStrengthFilter::PlatformWindowsSignalStrengthFilter(
+  const int64_t* in_range_threshold_in_d_bm,
+  const int64_t* out_of_range_threshold_in_d_bm,
+  const int64_t* out_of_range_timeout_millis,
+  const int64_t* sampling_interval_millis)
+ : in_range_threshold_in_d_bm_(in_range_threshold_in_d_bm ? std::optional<int64_t>(*in_range_threshold_in_d_bm) : std::nullopt),
+    out_of_range_threshold_in_d_bm_(out_of_range_threshold_in_d_bm ? std::optional<int64_t>(*out_of_range_threshold_in_d_bm) : std::nullopt),
+    out_of_range_timeout_millis_(out_of_range_timeout_millis ? std::optional<int64_t>(*out_of_range_timeout_millis) : std::nullopt),
+    sampling_interval_millis_(sampling_interval_millis ? std::optional<int64_t>(*sampling_interval_millis) : std::nullopt) {}
+
+const int64_t* PlatformWindowsSignalStrengthFilter::in_range_threshold_in_d_bm() const {
+  return in_range_threshold_in_d_bm_ ? &(*in_range_threshold_in_d_bm_) : nullptr;
+}
+
+void PlatformWindowsSignalStrengthFilter::set_in_range_threshold_in_d_bm(const int64_t* value_arg) {
+  in_range_threshold_in_d_bm_ = value_arg ? std::optional<int64_t>(*value_arg) : std::nullopt;
+}
+
+void PlatformWindowsSignalStrengthFilter::set_in_range_threshold_in_d_bm(int64_t value_arg) {
+  in_range_threshold_in_d_bm_ = value_arg;
+}
+
+
+const int64_t* PlatformWindowsSignalStrengthFilter::out_of_range_threshold_in_d_bm() const {
+  return out_of_range_threshold_in_d_bm_ ? &(*out_of_range_threshold_in_d_bm_) : nullptr;
+}
+
+void PlatformWindowsSignalStrengthFilter::set_out_of_range_threshold_in_d_bm(const int64_t* value_arg) {
+  out_of_range_threshold_in_d_bm_ = value_arg ? std::optional<int64_t>(*value_arg) : std::nullopt;
+}
+
+void PlatformWindowsSignalStrengthFilter::set_out_of_range_threshold_in_d_bm(int64_t value_arg) {
+  out_of_range_threshold_in_d_bm_ = value_arg;
+}
+
+
+const int64_t* PlatformWindowsSignalStrengthFilter::out_of_range_timeout_millis() const {
+  return out_of_range_timeout_millis_ ? &(*out_of_range_timeout_millis_) : nullptr;
+}
+
+void PlatformWindowsSignalStrengthFilter::set_out_of_range_timeout_millis(const int64_t* value_arg) {
+  out_of_range_timeout_millis_ = value_arg ? std::optional<int64_t>(*value_arg) : std::nullopt;
+}
+
+void PlatformWindowsSignalStrengthFilter::set_out_of_range_timeout_millis(int64_t value_arg) {
+  out_of_range_timeout_millis_ = value_arg;
+}
+
+
+const int64_t* PlatformWindowsSignalStrengthFilter::sampling_interval_millis() const {
+  return sampling_interval_millis_ ? &(*sampling_interval_millis_) : nullptr;
+}
+
+void PlatformWindowsSignalStrengthFilter::set_sampling_interval_millis(const int64_t* value_arg) {
+  sampling_interval_millis_ = value_arg ? std::optional<int64_t>(*value_arg) : std::nullopt;
+}
+
+void PlatformWindowsSignalStrengthFilter::set_sampling_interval_millis(int64_t value_arg) {
+  sampling_interval_millis_ = value_arg;
+}
+
+
+EncodableList PlatformWindowsSignalStrengthFilter::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(4);
+  list.push_back(in_range_threshold_in_d_bm_ ? EncodableValue(*in_range_threshold_in_d_bm_) : EncodableValue());
+  list.push_back(out_of_range_threshold_in_d_bm_ ? EncodableValue(*out_of_range_threshold_in_d_bm_) : EncodableValue());
+  list.push_back(out_of_range_timeout_millis_ ? EncodableValue(*out_of_range_timeout_millis_) : EncodableValue());
+  list.push_back(sampling_interval_millis_ ? EncodableValue(*sampling_interval_millis_) : EncodableValue());
+  return list;
+}
+
+PlatformWindowsSignalStrengthFilter PlatformWindowsSignalStrengthFilter::FromEncodableList(const EncodableList& list) {
+  PlatformWindowsSignalStrengthFilter decoded;
+  auto& encodable_in_range_threshold_in_d_bm = list[0];
+  if (!encodable_in_range_threshold_in_d_bm.IsNull()) {
+    decoded.set_in_range_threshold_in_d_bm(std::get<int64_t>(encodable_in_range_threshold_in_d_bm));
+  }
+  auto& encodable_out_of_range_threshold_in_d_bm = list[1];
+  if (!encodable_out_of_range_threshold_in_d_bm.IsNull()) {
+    decoded.set_out_of_range_threshold_in_d_bm(std::get<int64_t>(encodable_out_of_range_threshold_in_d_bm));
+  }
+  auto& encodable_out_of_range_timeout_millis = list[2];
+  if (!encodable_out_of_range_timeout_millis.IsNull()) {
+    decoded.set_out_of_range_timeout_millis(std::get<int64_t>(encodable_out_of_range_timeout_millis));
+  }
+  auto& encodable_sampling_interval_millis = list[3];
+  if (!encodable_sampling_interval_millis.IsNull()) {
+    decoded.set_sampling_interval_millis(std::get<int64_t>(encodable_sampling_interval_millis));
+  }
+  return decoded;
+}
+
+bool PlatformWindowsSignalStrengthFilter::operator==(const PlatformWindowsSignalStrengthFilter& other) const {
+  return PigeonInternalDeepEquals(in_range_threshold_in_d_bm_, other.in_range_threshold_in_d_bm_) && PigeonInternalDeepEquals(out_of_range_threshold_in_d_bm_, other.out_of_range_threshold_in_d_bm_) && PigeonInternalDeepEquals(out_of_range_timeout_millis_, other.out_of_range_timeout_millis_) && PigeonInternalDeepEquals(sampling_interval_millis_, other.sampling_interval_millis_);
+}
+
+bool PlatformWindowsSignalStrengthFilter::operator!=(const PlatformWindowsSignalStrengthFilter& other) const {
+  return !(*this == other);
+}
+
+size_t PlatformWindowsSignalStrengthFilter::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(in_range_threshold_in_d_bm_);
+  result = result * 31 + PigeonInternalDeepHash(out_of_range_threshold_in_d_bm_);
+  result = result * 31 + PigeonInternalDeepHash(out_of_range_timeout_millis_);
+  result = result * 31 + PigeonInternalDeepHash(sampling_interval_millis_);
+  return result;
+}
+
+std::ostream& operator<<(
+  std::ostream& os,
+  const PlatformWindowsSignalStrengthFilter& obj) {
+  os << "PlatformWindowsSignalStrengthFilter(";
+  os << "in_range_threshold_in_d_bm: ";
+  if (obj.in_range_threshold_in_d_bm_) {
+    os << PigeonInternalToString(*obj.in_range_threshold_in_d_bm_);
+  }
+  else {
+    os << "null";
+  }
+  os << ", out_of_range_threshold_in_d_bm: ";
+  if (obj.out_of_range_threshold_in_d_bm_) {
+    os << PigeonInternalToString(*obj.out_of_range_threshold_in_d_bm_);
+  }
+  else {
+    os << "null";
+  }
+  os << ", out_of_range_timeout_millis: ";
+  if (obj.out_of_range_timeout_millis_) {
+    os << PigeonInternalToString(*obj.out_of_range_timeout_millis_);
+  }
+  else {
+    os << "null";
+  }
+  os << ", sampling_interval_millis: ";
+  if (obj.sampling_interval_millis_) {
+    os << PigeonInternalToString(*obj.sampling_interval_millis_);
+  }
+  else {
+    os << "null";
+  }
+  os << ")";
+  return os;
+}
+
+size_t PigeonInternalDeepHash(const PlatformWindowsSignalStrengthFilter& v) {
+  return v.Hash();
+}
+
+// PlatformWindowsScanOptions
+
+PlatformWindowsScanOptions::PlatformWindowsScanOptions() {}
+
+PlatformWindowsScanOptions::PlatformWindowsScanOptions(
+  const PlatformWindowsScanMode* scanning_mode,
+  const PlatformWindowsSignalStrengthFilter* signal_strength_filter)
+ : scanning_mode_(scanning_mode ? std::optional<PlatformWindowsScanMode>(*scanning_mode) : std::nullopt),
+    signal_strength_filter_(signal_strength_filter ? std::make_unique<PlatformWindowsSignalStrengthFilter>(*signal_strength_filter) : nullptr) {}
+
+PlatformWindowsScanOptions::PlatformWindowsScanOptions(const PlatformWindowsScanOptions& other)
+ : scanning_mode_(other.scanning_mode_ ? std::optional<PlatformWindowsScanMode>(*other.scanning_mode_) : std::nullopt),
+    signal_strength_filter_(other.signal_strength_filter_ ? std::make_unique<PlatformWindowsSignalStrengthFilter>(*other.signal_strength_filter_) : nullptr) {}
+
+PlatformWindowsScanOptions& PlatformWindowsScanOptions::operator=(const PlatformWindowsScanOptions& other) {
+  scanning_mode_ = other.scanning_mode_;
+  signal_strength_filter_ = other.signal_strength_filter_ ? std::make_unique<PlatformWindowsSignalStrengthFilter>(*other.signal_strength_filter_) : nullptr;
+  return *this;
+}
+
+const PlatformWindowsScanMode* PlatformWindowsScanOptions::scanning_mode() const {
+  return scanning_mode_ ? &(*scanning_mode_) : nullptr;
+}
+
+void PlatformWindowsScanOptions::set_scanning_mode(const PlatformWindowsScanMode* value_arg) {
+  scanning_mode_ = value_arg ? std::optional<PlatformWindowsScanMode>(*value_arg) : std::nullopt;
+}
+
+void PlatformWindowsScanOptions::set_scanning_mode(const PlatformWindowsScanMode& value_arg) {
+  scanning_mode_ = value_arg;
+}
+
+
+const PlatformWindowsSignalStrengthFilter* PlatformWindowsScanOptions::signal_strength_filter() const {
+  return signal_strength_filter_.get();
+}
+
+void PlatformWindowsScanOptions::set_signal_strength_filter(const PlatformWindowsSignalStrengthFilter* value_arg) {
+  signal_strength_filter_ = value_arg ? std::make_unique<PlatformWindowsSignalStrengthFilter>(*value_arg) : nullptr;
+}
+
+void PlatformWindowsScanOptions::set_signal_strength_filter(const PlatformWindowsSignalStrengthFilter& value_arg) {
+  signal_strength_filter_ = std::make_unique<PlatformWindowsSignalStrengthFilter>(value_arg);
+}
+
+
+EncodableList PlatformWindowsScanOptions::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(2);
+  list.push_back(scanning_mode_ ? CustomEncodableValue(*scanning_mode_) : EncodableValue());
+  list.push_back(signal_strength_filter_ ? CustomEncodableValue(*signal_strength_filter_) : EncodableValue());
+  return list;
+}
+
+PlatformWindowsScanOptions PlatformWindowsScanOptions::FromEncodableList(const EncodableList& list) {
+  PlatformWindowsScanOptions decoded;
+  auto& encodable_scanning_mode = list[0];
+  if (!encodable_scanning_mode.IsNull()) {
+    decoded.set_scanning_mode(std::any_cast<const PlatformWindowsScanMode&>(std::get<CustomEncodableValue>(encodable_scanning_mode)));
+  }
+  auto& encodable_signal_strength_filter = list[1];
+  if (!encodable_signal_strength_filter.IsNull()) {
+    decoded.set_signal_strength_filter(std::any_cast<const PlatformWindowsSignalStrengthFilter&>(std::get<CustomEncodableValue>(encodable_signal_strength_filter)));
+  }
+  return decoded;
+}
+
+bool PlatformWindowsScanOptions::operator==(const PlatformWindowsScanOptions& other) const {
+  return PigeonInternalDeepEquals(scanning_mode_, other.scanning_mode_) && PigeonInternalDeepEquals(signal_strength_filter_, other.signal_strength_filter_);
+}
+
+bool PlatformWindowsScanOptions::operator!=(const PlatformWindowsScanOptions& other) const {
+  return !(*this == other);
+}
+
+size_t PlatformWindowsScanOptions::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(scanning_mode_);
+  result = result * 31 + PigeonInternalDeepHash(signal_strength_filter_);
+  return result;
+}
+
+std::ostream& operator<<(
+  std::ostream& os,
+  const PlatformWindowsScanOptions& obj) {
+  os << "PlatformWindowsScanOptions(";
+  os << "scanning_mode: ";
+  if (obj.scanning_mode_) {
+    os << PigeonInternalToString(*obj.scanning_mode_);
+  }
+  else {
+    os << "null";
+  }
+  os << ", signal_strength_filter: ";
+  if (obj.signal_strength_filter_) {
+    os << *obj.signal_strength_filter_;
+  }
+  else {
+    os << "null";
+  }
+  os << ")";
+  return os;
+}
+
+size_t PigeonInternalDeepHash(const PlatformWindowsScanOptions& v) {
+  return v.Hash();
+}
+
 // PlatformScanResult
 
 PlatformScanResult::PlatformScanResult(
@@ -907,26 +1169,37 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
     case 131: {
         const auto& encodable_enum_arg = ReadValue(stream);
         const int64_t enum_arg_value = encodable_enum_arg.IsNull() ? 0 : encodable_enum_arg.LongValue();
-        return encodable_enum_arg.IsNull() ? EncodableValue() : CustomEncodableValue(static_cast<PlatformConnectionState>(enum_arg_value));
+        return encodable_enum_arg.IsNull() ? EncodableValue() : CustomEncodableValue(static_cast<PlatformWindowsScanMode>(enum_arg_value));
       }
     case 132: {
         const auto& encodable_enum_arg = ReadValue(stream);
         const int64_t enum_arg_value = encodable_enum_arg.IsNull() ? 0 : encodable_enum_arg.LongValue();
-        return encodable_enum_arg.IsNull() ? EncodableValue() : CustomEncodableValue(static_cast<PlatformGattStatus>(enum_arg_value));
+        return encodable_enum_arg.IsNull() ? EncodableValue() : CustomEncodableValue(static_cast<PlatformConnectionState>(enum_arg_value));
       }
     case 133: {
-        return CustomEncodableValue(PlatformScanResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        const auto& encodable_enum_arg = ReadValue(stream);
+        const int64_t enum_arg_value = encodable_enum_arg.IsNull() ? 0 : encodable_enum_arg.LongValue();
+        return encodable_enum_arg.IsNull() ? EncodableValue() : CustomEncodableValue(static_cast<PlatformGattStatus>(enum_arg_value));
       }
     case 134: {
-        return CustomEncodableValue(PlatformConnectionStateChange::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PlatformWindowsSignalStrengthFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 135: {
-        return CustomEncodableValue(PlatformServiceDiscovered::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PlatformWindowsScanOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 136: {
-        return CustomEncodableValue(PlatformCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PlatformScanResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 137: {
+        return CustomEncodableValue(PlatformConnectionStateChange::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 138: {
+        return CustomEncodableValue(PlatformServiceDiscovered::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 139: {
+        return CustomEncodableValue(PlatformCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 140: {
         return CustomEncodableValue(PlatformCharacteristicValueChanged::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
@@ -948,38 +1221,53 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(static_cast<int>(std::any_cast<PlatformBleOutputProperty>(*custom_value))), stream);
       return;
     }
-    if (custom_value->type() == typeid(PlatformConnectionState)) {
+    if (custom_value->type() == typeid(PlatformWindowsScanMode)) {
       stream->WriteByte(131);
+      WriteValue(EncodableValue(static_cast<int>(std::any_cast<PlatformWindowsScanMode>(*custom_value))), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(PlatformConnectionState)) {
+      stream->WriteByte(132);
       WriteValue(EncodableValue(static_cast<int>(std::any_cast<PlatformConnectionState>(*custom_value))), stream);
       return;
     }
     if (custom_value->type() == typeid(PlatformGattStatus)) {
-      stream->WriteByte(132);
+      stream->WriteByte(133);
       WriteValue(EncodableValue(static_cast<int>(std::any_cast<PlatformGattStatus>(*custom_value))), stream);
       return;
     }
+    if (custom_value->type() == typeid(PlatformWindowsSignalStrengthFilter)) {
+      stream->WriteByte(134);
+      WriteValue(EncodableValue(std::any_cast<PlatformWindowsSignalStrengthFilter>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(PlatformWindowsScanOptions)) {
+      stream->WriteByte(135);
+      WriteValue(EncodableValue(std::any_cast<PlatformWindowsScanOptions>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
     if (custom_value->type() == typeid(PlatformScanResult)) {
-      stream->WriteByte(133);
+      stream->WriteByte(136);
       WriteValue(EncodableValue(std::any_cast<PlatformScanResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PlatformConnectionStateChange)) {
-      stream->WriteByte(134);
+      stream->WriteByte(137);
       WriteValue(EncodableValue(std::any_cast<PlatformConnectionStateChange>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PlatformServiceDiscovered)) {
-      stream->WriteByte(135);
+      stream->WriteByte(138);
       WriteValue(EncodableValue(std::any_cast<PlatformServiceDiscovered>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PlatformCharacteristic)) {
-      stream->WriteByte(136);
+      stream->WriteByte(139);
       WriteValue(EncodableValue(std::any_cast<PlatformCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PlatformCharacteristicValueChanged)) {
-      stream->WriteByte(137);
+      stream->WriteByte(140);
       WriteValue(EncodableValue(std::any_cast<PlatformCharacteristicValueChanged>(*custom_value).ToEncodableList()), stream);
       return;
     }
@@ -1035,7 +1323,11 @@ void QuickBlueApi::SetUp(
           const auto* service_uuids_arg = std::get_if<EncodableList>(&encodable_service_uuids_arg);
           const auto& encodable_manufacturer_data_arg = args.at(1);
           const auto* manufacturer_data_arg = std::get_if<EncodableMap>(&encodable_manufacturer_data_arg);
-          std::optional<FlutterError> output = api->StartScan(service_uuids_arg, manufacturer_data_arg);
+          const auto& encodable_rssi_arg = args.at(2);
+          const auto* rssi_arg = std::get_if<int64_t>(&encodable_rssi_arg);
+          const auto& encodable_options_arg = args.at(3);
+          const auto* options_arg = encodable_options_arg.IsNull() ? nullptr : &(std::any_cast<const PlatformWindowsScanOptions&>(std::get<CustomEncodableValue>(encodable_options_arg)));
+          std::optional<FlutterError> output = api->StartScan(service_uuids_arg, manufacturer_data_arg, rssi_arg, options_arg);
           if (output.has_value()) {
             reply(WrapError(output.value()));
             return;

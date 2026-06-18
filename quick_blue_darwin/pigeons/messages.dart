@@ -21,6 +21,16 @@ enum PlatformBluetoothState {
   poweredOn,
 }
 
+class PlatformDarwinScanOptions {
+  PlatformDarwinScanOptions({
+    required this.allowDuplicates,
+    required this.solicitedServiceUuids,
+  });
+
+  final bool allowDuplicates;
+  final List<String> solicitedServiceUuids;
+}
+
 class Peripheral {
   Peripheral({required this.id, required this.name});
 
@@ -35,6 +45,8 @@ abstract class QuickBlueApi {
   void startScan({
     List<String>? serviceUuids,
     Map<int, Uint8List>? manufacturerData,
+    int? rssi,
+    PlatformDarwinScanOptions? options,
   });
   void stopScan();
   void connect(String deviceId);

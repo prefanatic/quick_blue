@@ -139,6 +139,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var pendingWrites: [String: [(Result<Void, Error>) -> Void]] = [:]
 
     private var targetManufacturerData: Data?
+    private var targetRssi: Int64?
 
     private func writeKey(_ deviceId: String, _ characteristicId: String)
         -> String
@@ -168,7 +169,9 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
 
     func startScan(
         serviceUuids: [String]?,
-        manufacturerData: [Int64: FlutterStandardTypedData]?
+        manufacturerData: [Int64: FlutterStandardTypedData]?,
+        rssi: Int64?,
+        options: PlatformDarwinScanOptions?
     ) throws {
         let withServices: [CBUUID]?
         if let serviceUuids = serviceUuids, !serviceUuids.isEmpty {
@@ -177,6 +180,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             withServices = nil
         }
         targetManufacturerData = nil
+        targetRssi = rssi
 
         // Handle manufacturer data if provided
         if let manufacturerData = manufacturerData,
@@ -193,13 +197,32 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             targetManufacturerData = givenManufacturerData
         }
 
+        let scanOptions =
+            options
+            ?? PlatformDarwinScanOptions(
+                allowDuplicates: true,
+                solicitedServiceUuids: []
+            )
+        var nativeOptions: [String: Any] = [
+            CBCentralManagerScanOptionAllowDuplicatesKey: scanOptions
+                .allowDuplicates
+        ]
+        if !scanOptions.solicitedServiceUuids.isEmpty {
+            nativeOptions[
+                CBCentralManagerScanOptionSolicitedServiceUUIDsKey
+            ] = scanOptions.solicitedServiceUuids.map { uuid in
+                CBUUID(string: uuid)
+            }
+        }
+
         manager.scanForPeripherals(
             withServices: withServices,
-            options: [CBCentralManagerScanOptionAllowDuplicatesKey: true]
+            options: nativeOptions
         )
     }
 
     func stopScan() throws {
+        targetRssi = nil
         manager.stopScan()
     }
 
@@ -488,6 +511,9 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
     ) {
         stateQueue.sync {
             discoveredPeripherals[peripheral.identifier.uuidString] = peripheral
+            if let targetRssi = targetRssi, RSSI.int64Value < targetRssi {
+                return
+            }
 
             let manufacturerData =
                 advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data

@@ -8,6 +8,12 @@ import PigeonEventSink
 import PlatformBleInputProperty
 import PlatformBleCompanionFilter
 import PlatformBleOutputProperty
+import PlatformAndroidScanCallbackType
+import PlatformAndroidScanMatchMode
+import PlatformAndroidScanMode
+import PlatformAndroidScanNumOfMatches
+import PlatformAndroidScanOptions
+import PlatformAndroidScanPhy
 import PlatformBluetoothState
 import PlatformCharacteristic
 import PlatformCharacteristicValueChanged
@@ -177,6 +183,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private lateinit var bluetoothManager: BluetoothManager
     private lateinit var companionDeviceManager: CompanionDeviceManager
     private var quickBlueFlutterApi: QuickBlueFlutterApi? = null
+    private var activeScanRssi: Long? = null
 
     private var activity: Activity? = null
 
@@ -308,6 +315,11 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
 
         override fun onScanResult(callbackType: Int, result: ScanResult) {
+            activeScanRssi?.let {
+                if (result.rssi < it) {
+                    return
+                }
+            }
             scanResultListener.onScanResult(
                 PlatformScanResult(
                     name = result.scanRecord?.deviceName ?: "",
@@ -503,9 +515,12 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
 
     override fun startScan(
         serviceUuids: List<String>?,
-        manufacturerData: Map<Long, ByteArray>?
+        manufacturerData: Map<Long, ByteArray>?,
+        rssi: Long?,
+        options: PlatformAndroidScanOptions?
     ) {
         ensureBluetoothScanPermission()
+        activeScanRssi = rssi
 
         val manufacturerDataFilter = manufacturerData?.entries?.firstOrNull()
         val filters = if (serviceUuids.isNullOrEmpty()) {
@@ -534,16 +549,32 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                 builder.build()
             }
         }
-        val settings = ScanSettings.Builder()
-            .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-            .setMatchMode(ScanSettings.MATCH_MODE_STICKY)
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-            .setReportDelay(0L)
-            .build()
+        val scanOptions = options ?: PlatformAndroidScanOptions(
+            scanMode = PlatformAndroidScanMode.LOW_LATENCY,
+            callbackType = PlatformAndroidScanCallbackType.ALL_MATCHES,
+            matchMode = PlatformAndroidScanMatchMode.STICKY,
+            reportDelayMillis = 0L
+        )
+        val settingsBuilder = ScanSettings.Builder()
+            .setCallbackType(scanOptions.callbackType.toAndroidScanCallbackType())
+            .setMatchMode(scanOptions.matchMode.toAndroidScanMatchMode())
+            .setScanMode(scanOptions.scanMode.toAndroidScanMode())
+            .setReportDelay(scanOptions.reportDelayMillis)
+
+        scanOptions.numOfMatches?.let {
+            settingsBuilder.setNumOfMatches(it.toAndroidScanNumOfMatches())
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            scanOptions.legacy?.let { settingsBuilder.setLegacy(it) }
+            scanOptions.phy?.let { settingsBuilder.setPhy(it.toAndroidScanPhy()) }
+        }
+
+        val settings = settingsBuilder.build()
         bluetoothManager.adapter.bluetoothLeScanner?.startScan(filters, settings, scanCallback)
     }
 
     override fun stopScan() {
+        activeScanRssi = null
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
     }
 
@@ -1352,6 +1383,48 @@ private fun BluetoothGattCharacteristic.toPlatformCharacteristic(): PlatformChar
         canNotify = props and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0,
         canIndicate = props and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0,
     )
+}
+
+private fun PlatformAndroidScanMode.toAndroidScanMode(): Int {
+    return when (this) {
+        PlatformAndroidScanMode.OPPORTUNISTIC -> ScanSettings.SCAN_MODE_OPPORTUNISTIC
+        PlatformAndroidScanMode.LOW_POWER -> ScanSettings.SCAN_MODE_LOW_POWER
+        PlatformAndroidScanMode.BALANCED -> ScanSettings.SCAN_MODE_BALANCED
+        PlatformAndroidScanMode.LOW_LATENCY -> ScanSettings.SCAN_MODE_LOW_LATENCY
+    }
+}
+
+private fun PlatformAndroidScanCallbackType.toAndroidScanCallbackType(): Int {
+    return when (this) {
+        PlatformAndroidScanCallbackType.ALL_MATCHES -> ScanSettings.CALLBACK_TYPE_ALL_MATCHES
+        PlatformAndroidScanCallbackType.FIRST_MATCH -> ScanSettings.CALLBACK_TYPE_FIRST_MATCH
+        PlatformAndroidScanCallbackType.MATCH_LOST -> ScanSettings.CALLBACK_TYPE_MATCH_LOST
+        PlatformAndroidScanCallbackType.FIRST_MATCH_AND_MATCH_LOST ->
+            ScanSettings.CALLBACK_TYPE_FIRST_MATCH or ScanSettings.CALLBACK_TYPE_MATCH_LOST
+    }
+}
+
+private fun PlatformAndroidScanMatchMode.toAndroidScanMatchMode(): Int {
+    return when (this) {
+        PlatformAndroidScanMatchMode.AGGRESSIVE -> ScanSettings.MATCH_MODE_AGGRESSIVE
+        PlatformAndroidScanMatchMode.STICKY -> ScanSettings.MATCH_MODE_STICKY
+    }
+}
+
+private fun PlatformAndroidScanNumOfMatches.toAndroidScanNumOfMatches(): Int {
+    return when (this) {
+        PlatformAndroidScanNumOfMatches.ONE -> ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT
+        PlatformAndroidScanNumOfMatches.FEW -> ScanSettings.MATCH_NUM_FEW_ADVERTISEMENT
+        PlatformAndroidScanNumOfMatches.MAX -> ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT
+    }
+}
+
+private fun PlatformAndroidScanPhy.toAndroidScanPhy(): Int {
+    return when (this) {
+        PlatformAndroidScanPhy.LE1M -> BluetoothDevice.PHY_LE_1M
+        PlatformAndroidScanPhy.LE_CODED -> BluetoothDevice.PHY_LE_CODED
+        PlatformAndroidScanPhy.ALL_SUPPORTED -> ScanSettings.PHY_LE_ALL_SUPPORTED
+    }
 }
 
 class ScanResultListener : ScanResultsStreamHandler() {

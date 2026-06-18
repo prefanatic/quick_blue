@@ -118,6 +118,12 @@ enum PlatformBleOutputProperty {
   withoutResponse,
 }
 
+enum PlatformWindowsScanMode {
+  passive,
+  active,
+  none,
+}
+
 enum PlatformConnectionState {
   disconnected,
   connecting,
@@ -129,6 +135,116 @@ enum PlatformConnectionState {
 enum PlatformGattStatus {
   success,
   failure,
+}
+
+class PlatformWindowsSignalStrengthFilter {
+  PlatformWindowsSignalStrengthFilter({
+    this.inRangeThresholdInDBm,
+    this.outOfRangeThresholdInDBm,
+    this.outOfRangeTimeoutMillis,
+    this.samplingIntervalMillis,
+  });
+
+  int? inRangeThresholdInDBm;
+
+  int? outOfRangeThresholdInDBm;
+
+  int? outOfRangeTimeoutMillis;
+
+  int? samplingIntervalMillis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      inRangeThresholdInDBm,
+      outOfRangeThresholdInDBm,
+      outOfRangeTimeoutMillis,
+      samplingIntervalMillis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformWindowsSignalStrengthFilter decode(Object result) {
+    result as List<Object?>;
+    return PlatformWindowsSignalStrengthFilter(
+      inRangeThresholdInDBm: result[0] as int?,
+      outOfRangeThresholdInDBm: result[1] as int?,
+      outOfRangeTimeoutMillis: result[2] as int?,
+      samplingIntervalMillis: result[3] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformWindowsSignalStrengthFilter || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(inRangeThresholdInDBm, other.inRangeThresholdInDBm) && _deepEquals(outOfRangeThresholdInDBm, other.outOfRangeThresholdInDBm) && _deepEquals(outOfRangeTimeoutMillis, other.outOfRangeTimeoutMillis) && _deepEquals(samplingIntervalMillis, other.samplingIntervalMillis);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformWindowsSignalStrengthFilter(inRangeThresholdInDBm: $inRangeThresholdInDBm, outOfRangeThresholdInDBm: $outOfRangeThresholdInDBm, outOfRangeTimeoutMillis: $outOfRangeTimeoutMillis, samplingIntervalMillis: $samplingIntervalMillis)';
+  }
+}
+
+class PlatformWindowsScanOptions {
+  PlatformWindowsScanOptions({
+    this.scanningMode,
+    this.signalStrengthFilter,
+  });
+
+  PlatformWindowsScanMode? scanningMode;
+
+  PlatformWindowsSignalStrengthFilter? signalStrengthFilter;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      scanningMode,
+      signalStrengthFilter,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformWindowsScanOptions decode(Object result) {
+    result as List<Object?>;
+    return PlatformWindowsScanOptions(
+      scanningMode: result[0] as PlatformWindowsScanMode?,
+      signalStrengthFilter: result[1] as PlatformWindowsSignalStrengthFilter?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformWindowsScanOptions || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(scanningMode, other.scanningMode) && _deepEquals(signalStrengthFilter, other.signalStrengthFilter);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformWindowsScanOptions(scanningMode: $scanningMode, signalStrengthFilter: $signalStrengthFilter)';
+  }
 }
 
 class PlatformScanResult {
@@ -460,26 +576,35 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformBleOutputProperty) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformConnectionState) {
+    }    else if (value is PlatformWindowsScanMode) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformGattStatus) {
+    }    else if (value is PlatformConnectionState) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformScanResult) {
+    }    else if (value is PlatformGattStatus) {
       buffer.putUint8(133);
-      writeValue(buffer, value.encode());
-    }    else if (value is PlatformConnectionStateChange) {
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformWindowsSignalStrengthFilter) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformServiceDiscovered) {
+    }    else if (value is PlatformWindowsScanOptions) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristic) {
+    }    else if (value is PlatformScanResult) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformConnectionStateChange) {
       buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformServiceDiscovered) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformCharacteristic) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformCharacteristicValueChanged) {
+      buffer.putUint8(140);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -497,19 +622,26 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : PlatformBleOutputProperty.values[value];
       case 131:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlatformConnectionState.values[value];
+        return value == null ? null : PlatformWindowsScanMode.values[value];
       case 132:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlatformGattStatus.values[value];
+        return value == null ? null : PlatformConnectionState.values[value];
       case 133:
-        return PlatformScanResult.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformGattStatus.values[value];
       case 134:
-        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+        return PlatformWindowsSignalStrengthFilter.decode(readValue(buffer)!);
       case 135:
-        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+        return PlatformWindowsScanOptions.decode(readValue(buffer)!);
       case 136:
-        return PlatformCharacteristic.decode(readValue(buffer)!);
+        return PlatformScanResult.decode(readValue(buffer)!);
       case 137:
+        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+      case 138:
+        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+      case 139:
+        return PlatformCharacteristic.decode(readValue(buffer)!);
+      case 140:
         return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -549,14 +681,14 @@ class QuickBlueApi {
     return pigeonVar_replyValue! as bool;
   }
 
-  Future<void> startScan({List<String>? serviceUuids, Map<int, Uint8List>? manufacturerData}) async {
+  Future<void> startScan({List<String>? serviceUuids, Map<int, Uint8List>? manufacturerData, int? rssi, PlatformWindowsScanOptions? options, }) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_windows.QuickBlueApi.startScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[serviceUuids, manufacturerData]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[serviceUuids, manufacturerData, rssi, options]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

@@ -14,6 +14,7 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   var discoveredServices = <BluetoothService>[];
   var connectedDeviceIds = <String>[];
   ScanFilter? lastScanFilter;
+  ScanOptions? lastScanOptions;
   Completer<void>? nextSetNotifiable;
   Completer<void>? pendingConnect;
   final pendingConnects = <String, Completer<void>>{};
@@ -75,8 +76,12 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   Stream<BlueScanResult> get scanResultStream => _scanResultController.stream;
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) async {
+  Future<void> startScan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  }) async {
     lastScanFilter = scanFilter;
+    lastScanOptions = scanOptions;
     calls.add('startScan');
   }
 

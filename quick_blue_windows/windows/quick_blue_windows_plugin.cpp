@@ -16,6 +16,7 @@
 #include <flutter/standard_method_codec.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cctype>
 #include <functional>
 #include <map>
@@ -56,6 +57,9 @@ using quick_blue_windows::PlatformConnectionState;
 using quick_blue_windows::PlatformConnectionStateChange;
 using quick_blue_windows::PlatformGattStatus;
 using quick_blue_windows::PlatformServiceDiscovered;
+using quick_blue_windows::PlatformWindowsScanMode;
+using quick_blue_windows::PlatformWindowsScanOptions;
+using quick_blue_windows::PlatformWindowsSignalStrengthFilter;
 using quick_blue_windows::QuickBlueApi;
 using quick_blue_windows::QuickBlueFlutterApi;
 
@@ -125,6 +129,55 @@ PlatformCharacteristic to_characteristic_info(GattCharacteristic characteristic)
       has_property(properties, GattCharacteristicProperties::WriteWithoutResponse),
       has_property(properties, GattCharacteristicProperties::Notify),
       has_property(properties, GattCharacteristicProperties::Indicate));
+}
+
+BluetoothLEScanningMode to_bluetooth_le_scanning_mode(
+    PlatformWindowsScanMode mode) {
+  switch (mode) {
+    case PlatformWindowsScanMode::kPassive:
+      return BluetoothLEScanningMode::Passive;
+    case PlatformWindowsScanMode::kActive:
+      return BluetoothLEScanningMode::Active;
+    case PlatformWindowsScanMode::kNone:
+      return BluetoothLEScanningMode::None;
+  }
+  return BluetoothLEScanningMode::Passive;
+}
+
+TimeSpan milliseconds_to_timespan(int64_t milliseconds) {
+  return std::chrono::milliseconds(milliseconds);
+}
+
+void apply_signal_strength_filter(
+    BluetoothLEAdvertisementWatcher watcher,
+    const PlatformWindowsSignalStrengthFilter& filter) {
+  auto native_filter = BluetoothSignalStrengthFilter();
+  if (const auto* value = filter.in_range_threshold_in_d_bm()) {
+    native_filter.InRangeThresholdInDBm(static_cast<int16_t>(*value));
+  }
+  if (const auto* value = filter.out_of_range_threshold_in_d_bm()) {
+    native_filter.OutOfRangeThresholdInDBm(static_cast<int16_t>(*value));
+  }
+  if (const auto* value = filter.out_of_range_timeout_millis()) {
+    native_filter.OutOfRangeTimeout(milliseconds_to_timespan(*value));
+  }
+  if (const auto* value = filter.sampling_interval_millis()) {
+    native_filter.SamplingInterval(milliseconds_to_timespan(*value));
+  }
+  watcher.SignalStrengthFilter(native_filter);
+}
+
+void apply_scan_options(BluetoothLEAdvertisementWatcher watcher,
+                        const PlatformWindowsScanOptions* options) {
+  if (!options) {
+    return;
+  }
+  if (const auto* scanning_mode = options->scanning_mode()) {
+    watcher.ScanningMode(to_bluetooth_le_scanning_mode(*scanning_mode));
+  }
+  if (const auto* signal_strength_filter = options->signal_strength_filter()) {
+    apply_signal_strength_filter(watcher, *signal_strength_filter);
+  }
 }
 
 std::string characteristic_cache_key(const std::string& service,
@@ -310,7 +363,9 @@ class QuickBlueWindowsPlugin : public flutter::Plugin,
   ErrorOr<bool> IsBluetoothAvailable() override;
   std::optional<FlutterError> StartScan(
       const EncodableList* service_uuids,
-      const EncodableMap* manufacturer_data) override;
+      const EncodableMap* manufacturer_data,
+      const int64_t* rssi,
+      const PlatformWindowsScanOptions* options) override;
   std::optional<FlutterError> StopScan() override;
   ErrorOr<EncodableList> ConnectedDeviceIds(
       const EncodableList& service_uuids) override;
@@ -358,6 +413,7 @@ class QuickBlueWindowsPlugin : public flutter::Plugin,
   winrt::event_token bluetoothLEWatcherReceivedToken;
   std::set<std::string> serviceUuidFilter;
   std::map<uint16_t, std::vector<uint8_t>> manufacturerDataFilter;
+  std::optional<int64_t> rssiFilter;
   void BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender,
                                    BluetoothLEAdvertisementReceivedEventArgs args);
   bool MatchesScanFilters(BluetoothLEAdvertisementReceivedEventArgs args);
@@ -468,11 +524,14 @@ ErrorOr<bool> QuickBlueWindowsPlugin::IsBluetoothAvailable() {
 
 std::optional<FlutterError> QuickBlueWindowsPlugin::StartScan(
     const EncodableList* service_uuids,
-    const EncodableMap* manufacturer_data) {
+    const EncodableMap* manufacturer_data,
+    const int64_t* rssi,
+    const PlatformWindowsScanOptions* options) {
   StopScan();
 
   serviceUuidFilter.clear();
   manufacturerDataFilter.clear();
+  rssiFilter = rssi ? std::optional<int64_t>(*rssi) : std::nullopt;
 
   if (service_uuids) {
     for (const auto& service_uuid : *service_uuids) {
@@ -497,6 +556,7 @@ std::optional<FlutterError> QuickBlueWindowsPlugin::StartScan(
   }
 
   bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
+  apply_scan_options(bluetoothLEWatcher, options);
   for (const auto& filter : manufacturerDataFilter) {
     std::vector<uint8_t> pattern;
     pattern.push_back(static_cast<uint8_t>(filter.first & 0xff));
@@ -518,6 +578,7 @@ std::optional<FlutterError> QuickBlueWindowsPlugin::StopScan() {
     bluetoothLEWatcher.Received(bluetoothLEWatcherReceivedToken);
   }
   bluetoothLEWatcher = nullptr;
+  rssiFilter = std::nullopt;
   return std::nullopt;
 }
 
@@ -674,6 +735,10 @@ void QuickBlueWindowsPlugin::RequestMtu(
 
 bool QuickBlueWindowsPlugin::MatchesScanFilters(
     BluetoothLEAdvertisementReceivedEventArgs args) {
+  if (rssiFilter && args.RawSignalStrengthInDBm() < *rssiFilter) {
+    return false;
+  }
+
   if (!serviceUuidFilter.empty()) {
     bool matched = false;
     for (const auto& service_uuid : args.Advertisement().ServiceUuids()) {

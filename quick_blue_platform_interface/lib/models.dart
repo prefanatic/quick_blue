@@ -129,17 +129,20 @@ class ScanFilter {
   ScanFilter({
     List<String> serviceUuids = const [],
     Map<int, Uint8List>? manufacturerData,
+    this.rssi,
   }) : serviceUuids = List<String>.unmodifiable(serviceUuids),
        _manufacturerData = _copyManufacturerData(manufacturerData);
 
   const ScanFilter._empty()
     : serviceUuids = const <String>[],
-      _manufacturerData = null;
+      _manufacturerData = null,
+      rssi = null;
 
   static const empty = ScanFilter._empty();
 
   final List<String> serviceUuids;
   final Map<int, Uint8List>? _manufacturerData;
+  final int? rssi;
 
   Map<int, Uint8List>? get manufacturerData {
     final data = _manufacturerData;
@@ -151,7 +154,8 @@ class ScanFilter {
     return identical(this, other) ||
         other is ScanFilter &&
             _stringListEquality.equals(serviceUuids, other.serviceUuids) &&
-            _deepEquality.equals(_manufacturerData, other._manufacturerData);
+            _deepEquality.equals(_manufacturerData, other._manufacturerData) &&
+            other.rssi == rssi;
   }
 
   @override
@@ -159,6 +163,7 @@ class ScanFilter {
     return Object.hash(
       _stringListEquality.hash(serviceUuids),
       _deepEquality.hash(_manufacturerData),
+      rssi,
     );
   }
 
@@ -166,7 +171,317 @@ class ScanFilter {
   String toString() {
     return 'ScanFilter('
         'serviceUuids: $serviceUuids, '
-        'manufacturerData: ${_intByteMapToString(_manufacturerData)}'
+        'manufacturerData: ${_intByteMapToString(_manufacturerData)}, '
+        'rssi: $rssi'
+        ')';
+  }
+}
+
+enum ScanMode { lowPower, balanced, lowLatency }
+
+class ScanOptions {
+  const ScanOptions({
+    this.allowDuplicates,
+    this.scanMode,
+    this.android = const AndroidScanOptions(),
+    this.darwin = DarwinScanOptions.defaults,
+    this.linux = const LinuxScanOptions(),
+    this.windows = const WindowsScanOptions(),
+  });
+
+  static const defaults = ScanOptions();
+
+  final bool? allowDuplicates;
+  final ScanMode? scanMode;
+  final AndroidScanOptions android;
+  final DarwinScanOptions darwin;
+  final LinuxScanOptions linux;
+  final WindowsScanOptions windows;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is ScanOptions &&
+            other.allowDuplicates == allowDuplicates &&
+            other.scanMode == scanMode &&
+            other.android == android &&
+            other.darwin == darwin &&
+            other.linux == linux &&
+            other.windows == windows;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      allowDuplicates,
+      scanMode,
+      android,
+      darwin,
+      linux,
+      windows,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'ScanOptions('
+        'allowDuplicates: $allowDuplicates, '
+        'scanMode: $scanMode, '
+        'android: $android, '
+        'darwin: $darwin, '
+        'linux: $linux, '
+        'windows: $windows'
+        ')';
+  }
+}
+
+enum AndroidScanMode { opportunistic, lowPower, balanced, lowLatency }
+
+enum AndroidScanCallbackType {
+  allMatches,
+  firstMatch,
+  matchLost,
+  firstMatchAndMatchLost,
+}
+
+enum AndroidScanMatchMode { aggressive, sticky }
+
+enum AndroidScanNumOfMatches { one, few, max }
+
+enum AndroidScanPhy { le1m, leCoded, allSupported }
+
+class AndroidScanOptions {
+  const AndroidScanOptions({
+    this.scanMode,
+    this.callbackType = AndroidScanCallbackType.allMatches,
+    this.matchMode = AndroidScanMatchMode.sticky,
+    this.numOfMatches,
+    this.reportDelay = Duration.zero,
+    this.legacy,
+    this.phy,
+  });
+
+  final AndroidScanMode? scanMode;
+  final AndroidScanCallbackType callbackType;
+  final AndroidScanMatchMode matchMode;
+  final AndroidScanNumOfMatches? numOfMatches;
+  final Duration reportDelay;
+  final bool? legacy;
+  final AndroidScanPhy? phy;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is AndroidScanOptions &&
+            other.scanMode == scanMode &&
+            other.callbackType == callbackType &&
+            other.matchMode == matchMode &&
+            other.numOfMatches == numOfMatches &&
+            other.reportDelay == reportDelay &&
+            other.legacy == legacy &&
+            other.phy == phy;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      scanMode,
+      callbackType,
+      matchMode,
+      numOfMatches,
+      reportDelay,
+      legacy,
+      phy,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'AndroidScanOptions('
+        'scanMode: $scanMode, '
+        'callbackType: $callbackType, '
+        'matchMode: $matchMode, '
+        'numOfMatches: $numOfMatches, '
+        'reportDelay: $reportDelay, '
+        'legacy: $legacy, '
+        'phy: $phy'
+        ')';
+  }
+}
+
+class DarwinScanOptions {
+  factory DarwinScanOptions({
+    bool? allowDuplicates,
+    List<String> solicitedServiceUuids = const <String>[],
+  }) {
+    return DarwinScanOptions._(
+      allowDuplicates: allowDuplicates,
+      solicitedServiceUuids: List<String>.unmodifiable(solicitedServiceUuids),
+    );
+  }
+
+  const DarwinScanOptions._({
+    this.allowDuplicates,
+    this.solicitedServiceUuids = const <String>[],
+  });
+
+  static const defaults = DarwinScanOptions._();
+
+  final bool? allowDuplicates;
+  final List<String> solicitedServiceUuids;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is DarwinScanOptions &&
+            other.allowDuplicates == allowDuplicates &&
+            _stringListEquality.equals(
+              solicitedServiceUuids,
+              other.solicitedServiceUuids,
+            );
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      allowDuplicates,
+      _stringListEquality.hash(solicitedServiceUuids),
+    );
+  }
+
+  @override
+  String toString() {
+    return 'DarwinScanOptions('
+        'allowDuplicates: $allowDuplicates, '
+        'solicitedServiceUuids: $solicitedServiceUuids'
+        ')';
+  }
+}
+
+enum LinuxScanTransport { auto, bredr, le }
+
+class LinuxScanOptions {
+  const LinuxScanOptions({
+    this.rssi,
+    this.pathloss,
+    this.transport = LinuxScanTransport.le,
+    this.duplicateData,
+    this.discoverable,
+    this.pattern,
+  });
+
+  final int? rssi;
+  final int? pathloss;
+  final LinuxScanTransport transport;
+  final bool? duplicateData;
+  final bool? discoverable;
+  final String? pattern;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is LinuxScanOptions &&
+            other.rssi == rssi &&
+            other.pathloss == pathloss &&
+            other.transport == transport &&
+            other.duplicateData == duplicateData &&
+            other.discoverable == discoverable &&
+            other.pattern == pattern;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      rssi,
+      pathloss,
+      transport,
+      duplicateData,
+      discoverable,
+      pattern,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'LinuxScanOptions('
+        'rssi: $rssi, '
+        'pathloss: $pathloss, '
+        'transport: $transport, '
+        'duplicateData: $duplicateData, '
+        'discoverable: $discoverable, '
+        'pattern: $pattern'
+        ')';
+  }
+}
+
+enum WindowsScanMode { passive, active, none }
+
+class WindowsSignalStrengthFilter {
+  const WindowsSignalStrengthFilter({
+    this.inRangeThresholdInDBm,
+    this.outOfRangeThresholdInDBm,
+    this.outOfRangeTimeout,
+    this.samplingInterval,
+  });
+
+  final int? inRangeThresholdInDBm;
+  final int? outOfRangeThresholdInDBm;
+  final Duration? outOfRangeTimeout;
+  final Duration? samplingInterval;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is WindowsSignalStrengthFilter &&
+            other.inRangeThresholdInDBm == inRangeThresholdInDBm &&
+            other.outOfRangeThresholdInDBm == outOfRangeThresholdInDBm &&
+            other.outOfRangeTimeout == outOfRangeTimeout &&
+            other.samplingInterval == samplingInterval;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      inRangeThresholdInDBm,
+      outOfRangeThresholdInDBm,
+      outOfRangeTimeout,
+      samplingInterval,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'WindowsSignalStrengthFilter('
+        'inRangeThresholdInDBm: $inRangeThresholdInDBm, '
+        'outOfRangeThresholdInDBm: $outOfRangeThresholdInDBm, '
+        'outOfRangeTimeout: $outOfRangeTimeout, '
+        'samplingInterval: $samplingInterval'
+        ')';
+  }
+}
+
+class WindowsScanOptions {
+  const WindowsScanOptions({this.scanningMode, this.signalStrengthFilter});
+
+  final WindowsScanMode? scanningMode;
+  final WindowsSignalStrengthFilter? signalStrengthFilter;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is WindowsScanOptions &&
+            other.scanningMode == scanningMode &&
+            other.signalStrengthFilter == signalStrengthFilter;
+  }
+
+  @override
+  int get hashCode => Object.hash(scanningMode, signalStrengthFilter);
+
+  @override
+  String toString() {
+    return 'WindowsScanOptions('
+        'scanningMode: $scanningMode, '
+        'signalStrengthFilter: $signalStrengthFilter'
         ')';
   }
 }

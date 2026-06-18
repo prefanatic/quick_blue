@@ -221,6 +221,46 @@ enum PlatformGattStatus: Int, CaseIterable {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct PlatformDarwinScanOptions: Hashable, CustomStringConvertible {
+  var allowDuplicates: Bool
+  var solicitedServiceUuids: [String]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformDarwinScanOptions? {
+    let allowDuplicates = pigeonVar_list[0] as! Bool
+    let solicitedServiceUuids = pigeonVar_list[1] as! [String]
+
+    return PlatformDarwinScanOptions(
+      allowDuplicates: allowDuplicates,
+      solicitedServiceUuids: solicitedServiceUuids
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      allowDuplicates,
+      solicitedServiceUuids,
+    ]
+  }
+  static func == (lhs: PlatformDarwinScanOptions, rhs: PlatformDarwinScanOptions) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.allowDuplicates, rhs.allowDuplicates) && MessagesPigeonInternal.deepEquals(lhs.solicitedServiceUuids, rhs.solicitedServiceUuids)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformDarwinScanOptions")
+    MessagesPigeonInternal.deepHash(value: allowDuplicates, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: solicitedServiceUuids, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformDarwinScanOptions(allowDuplicates: \(String(describing: allowDuplicates)), solicitedServiceUuids: \(String(describing: solicitedServiceUuids)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct Peripheral: Hashable, CustomStringConvertible {
   var id: String
   var name: String
@@ -614,18 +654,20 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 134:
-      return Peripheral.fromList(self.readValue() as! [Any?])
+      return PlatformDarwinScanOptions.fromList(self.readValue() as! [Any?])
     case 135:
-      return PlatformScanResult.fromList(self.readValue() as! [Any?])
+      return Peripheral.fromList(self.readValue() as! [Any?])
     case 136:
-      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
+      return PlatformScanResult.fromList(self.readValue() as! [Any?])
     case 137:
-      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
+      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
     case 138:
-      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
+      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
     case 139:
-      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
     case 140:
+      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+    case 141:
       return PlatformL2CapSocketEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -650,26 +692,29 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PlatformGattStatus {
       super.writeByte(133)
       super.writeValue(value.rawValue)
-    } else if let value = value as? Peripheral {
+    } else if let value = value as? PlatformDarwinScanOptions {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformScanResult {
+    } else if let value = value as? Peripheral {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformConnectionStateChange {
+    } else if let value = value as? PlatformScanResult {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformServiceDiscovered {
+    } else if let value = value as? PlatformConnectionStateChange {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristic {
+    } else if let value = value as? PlatformServiceDiscovered {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristicValueChanged {
+    } else if let value = value as? PlatformCharacteristic {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformL2CapSocketEvent {
+    } else if let value = value as? PlatformCharacteristicValueChanged {
       super.writeByte(140)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformL2CapSocketEvent {
+      super.writeByte(141)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -698,7 +743,7 @@ var messagesPigeonMethodCodec = FlutterStandardMethodCodec(readerWriter: Message
 protocol QuickBlueApi {
   func getConnectedPeripherals(serviceUuids: [String]) throws -> [Peripheral]
   func isBluetoothAvailable() throws -> Bool
-  func startScan(serviceUuids: [String]?, manufacturerData: [Int64: FlutterStandardTypedData]?) throws
+  func startScan(serviceUuids: [String]?, manufacturerData: [Int64: FlutterStandardTypedData]?, rssi: Int64?, options: PlatformDarwinScanOptions?) throws
   func stopScan() throws
   func connect(deviceId: String) throws
   func disconnect(deviceId: String) throws
@@ -752,8 +797,10 @@ class QuickBlueApiSetup {
         let args = message as! [Any?]
         let serviceUuidsArg: [String]? = nilOrValue(args[0])
         let manufacturerDataArg: [Int64: FlutterStandardTypedData]? = nilOrValue(args[1])
+        let rssiArg: Int64? = nilOrValue(args[2])
+        let optionsArg: PlatformDarwinScanOptions? = nilOrValue(args[3])
         do {
-          try api.startScan(serviceUuids: serviceUuidsArg, manufacturerData: manufacturerDataArg)
+          try api.startScan(serviceUuids: serviceUuidsArg, manufacturerData: manufacturerDataArg, rssi: rssiArg, options: optionsArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))

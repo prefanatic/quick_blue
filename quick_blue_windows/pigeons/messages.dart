@@ -14,6 +14,32 @@ enum PlatformBleInputProperty { disabled, notification, indication }
 
 enum PlatformBleOutputProperty { withResponse, withoutResponse }
 
+enum PlatformWindowsScanMode { passive, active, none }
+
+class PlatformWindowsSignalStrengthFilter {
+  PlatformWindowsSignalStrengthFilter({
+    this.inRangeThresholdInDBm,
+    this.outOfRangeThresholdInDBm,
+    this.outOfRangeTimeoutMillis,
+    this.samplingIntervalMillis,
+  });
+
+  final int? inRangeThresholdInDBm;
+  final int? outOfRangeThresholdInDBm;
+  final int? outOfRangeTimeoutMillis;
+  final int? samplingIntervalMillis;
+}
+
+class PlatformWindowsScanOptions {
+  PlatformWindowsScanOptions({
+    this.scanningMode,
+    this.signalStrengthFilter,
+  });
+
+  final PlatformWindowsScanMode? scanningMode;
+  final PlatformWindowsSignalStrengthFilter? signalStrengthFilter;
+}
+
 class PlatformScanResult {
   PlatformScanResult({
     required this.name,
@@ -106,6 +132,8 @@ abstract class QuickBlueApi {
   void startScan({
     List<String>? serviceUuids,
     Map<int, Uint8List>? manufacturerData,
+    int? rssi,
+    PlatformWindowsScanOptions? options,
   });
   void stopScan();
   List<String> connectedDeviceIds(List<String> serviceUuids);

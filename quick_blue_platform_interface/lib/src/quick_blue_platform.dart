@@ -38,45 +38,78 @@ abstract class QuickBluePlatform extends PlatformInterface {
         : BlueBluetoothState.poweredOff;
   }
 
-  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty});
+  Future<void> startScan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  });
 
   Future<void> stopScan();
 
   Stream<BlueScanResult> get scanResultStream;
 
-  ScanFilter? _activeScanFilter;
+  _ScanConfiguration? _activeScanConfiguration;
   var _activeScanListeners = 0;
   var _activeScanStarted = false;
   Future<void> _scanLifecycle = Future<void>.value();
 
   Stream<BlueScanResult> scanResults({
     ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
   }) async* {
-    final filter = _copyScanFilter(scanFilter);
+    final configuration = _ScanConfiguration(
+      scanFilter: _copyScanFilter(scanFilter),
+      scanOptions: _copyScanOptions(scanOptions),
+    );
 
-    await _acquireScan(filter);
+    await _acquireScan(configuration);
     try {
-      yield* scanResultStream;
+      final seenDeviceIds = <String>{};
+      yield* scanResultStream.where(
+        (result) =>
+            _matchesScanConfiguration(result, configuration, seenDeviceIds),
+      );
     } finally {
       await _releaseScan();
     }
   }
 
-  Future<void> _acquireScan(ScanFilter filter) {
+  bool _matchesScanConfiguration(
+    BlueScanResult result,
+    _ScanConfiguration configuration,
+    Set<String> seenDeviceIds,
+  ) {
+    final rssi = configuration.scanFilter.rssi;
+    if (rssi != null && result.rssi < rssi) {
+      return false;
+    }
+
+    if (configuration.scanOptions.allowDuplicates == false &&
+        !seenDeviceIds.add(result.deviceId)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  Future<void> _acquireScan(_ScanConfiguration configuration) {
     return _queueScanLifecycle(() async {
-      final activeFilter = _activeScanFilter;
+      final activeConfiguration = _activeScanConfiguration;
       if (_activeScanListeners == 0) {
-        _activeScanFilter = filter;
+        _activeScanConfiguration = configuration;
         try {
-          await startScan(scanFilter: filter);
+          await startScan(
+            scanFilter: configuration.scanFilter,
+            scanOptions: configuration.scanOptions,
+          );
           _activeScanStarted = true;
         } catch (_) {
-          _activeScanFilter = null;
+          _activeScanConfiguration = null;
           rethrow;
         }
-      } else if (activeFilter == null || activeFilter != filter) {
+      } else if (activeConfiguration == null ||
+          activeConfiguration != configuration) {
         throw StateError(
-          'Cannot start scanning with a different ScanFilter while another '
+          'Cannot start scanning with a different scan configuration while another '
           'scanResults stream is active.',
         );
       }
@@ -89,6 +122,21 @@ abstract class QuickBluePlatform extends PlatformInterface {
     return ScanFilter(
       serviceUuids: scanFilter.serviceUuids,
       manufacturerData: scanFilter.manufacturerData,
+      rssi: scanFilter.rssi,
+    );
+  }
+
+  ScanOptions _copyScanOptions(ScanOptions scanOptions) {
+    return ScanOptions(
+      allowDuplicates: scanOptions.allowDuplicates,
+      scanMode: scanOptions.scanMode,
+      android: scanOptions.android,
+      darwin: DarwinScanOptions(
+        allowDuplicates: scanOptions.darwin.allowDuplicates,
+        solicitedServiceUuids: scanOptions.darwin.solicitedServiceUuids,
+      ),
+      linux: scanOptions.linux,
+      windows: scanOptions.windows,
     );
   }
 
@@ -103,7 +151,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
         return;
       }
 
-      _activeScanFilter = null;
+      _activeScanConfiguration = null;
       if (_activeScanStarted) {
         _activeScanStarted = false;
         await stopScan();
@@ -117,9 +165,13 @@ abstract class QuickBluePlatform extends PlatformInterface {
     return next;
   }
 
-  Stream<BluetoothDevice> scan({ScanFilter scanFilter = ScanFilter.empty}) {
+  Stream<BluetoothDevice> scan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  }) {
     return scanResults(
       scanFilter: scanFilter,
+      scanOptions: scanOptions,
     ).map((result) => device(result.deviceId));
   }
 
@@ -367,4 +419,25 @@ abstract class QuickBluePlatform extends PlatformInterface {
   ) {
     _handleValueChanged(deviceId, serviceId, characteristicId, value);
   }
+}
+
+class _ScanConfiguration {
+  const _ScanConfiguration({
+    required this.scanFilter,
+    required this.scanOptions,
+  });
+
+  final ScanFilter scanFilter;
+  final ScanOptions scanOptions;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is _ScanConfiguration &&
+            other.scanFilter == scanFilter &&
+            other.scanOptions == scanOptions;
+  }
+
+  @override
+  int get hashCode => Object.hash(scanFilter, scanOptions);
 }

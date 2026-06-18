@@ -231,6 +231,67 @@ enum class PlatformBluetoothState(val raw: Int) {
   }
 }
 
+enum class PlatformAndroidScanMode(val raw: Int) {
+  OPPORTUNISTIC(0),
+  LOW_POWER(1),
+  BALANCED(2),
+  LOW_LATENCY(3);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformAndroidScanMode? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+enum class PlatformAndroidScanCallbackType(val raw: Int) {
+  ALL_MATCHES(0),
+  FIRST_MATCH(1),
+  MATCH_LOST(2),
+  FIRST_MATCH_AND_MATCH_LOST(3);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformAndroidScanCallbackType? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+enum class PlatformAndroidScanMatchMode(val raw: Int) {
+  AGGRESSIVE(0),
+  STICKY(1);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformAndroidScanMatchMode? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+enum class PlatformAndroidScanNumOfMatches(val raw: Int) {
+  ONE(0),
+  FEW(1),
+  MAX(2);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformAndroidScanNumOfMatches? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+enum class PlatformAndroidScanPhy(val raw: Int) {
+  LE1M(0),
+  LE_CODED(1),
+  ALL_SUPPORTED(2);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformAndroidScanPhy? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 enum class PlatformConnectionState(val raw: Int) {
   DISCONNECTED(0),
   CONNECTING(1),
@@ -253,6 +314,67 @@ enum class PlatformGattStatus(val raw: Int) {
     fun ofRaw(raw: Int): PlatformGattStatus? {
       return values().firstOrNull { it.raw == raw }
     }
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformAndroidScanOptions (
+  val scanMode: PlatformAndroidScanMode,
+  val callbackType: PlatformAndroidScanCallbackType,
+  val matchMode: PlatformAndroidScanMatchMode,
+  val numOfMatches: PlatformAndroidScanNumOfMatches? = null,
+  val reportDelayMillis: Long,
+  val legacy: Boolean? = null,
+  val phy: PlatformAndroidScanPhy? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformAndroidScanOptions {
+      val scanMode = pigeonVar_list[0] as PlatformAndroidScanMode
+      val callbackType = pigeonVar_list[1] as PlatformAndroidScanCallbackType
+      val matchMode = pigeonVar_list[2] as PlatformAndroidScanMatchMode
+      val numOfMatches = pigeonVar_list[3] as PlatformAndroidScanNumOfMatches?
+      val reportDelayMillis = pigeonVar_list[4] as Long
+      val legacy = pigeonVar_list[5] as Boolean?
+      val phy = pigeonVar_list[6] as PlatformAndroidScanPhy?
+      return PlatformAndroidScanOptions(scanMode, callbackType, matchMode, numOfMatches, reportDelayMillis, legacy, phy)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      scanMode,
+      callbackType,
+      matchMode,
+      numOfMatches,
+      reportDelayMillis,
+      legacy,
+      phy,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformAndroidScanOptions
+    return MessagesPigeonUtils.deepEquals(this.scanMode, other.scanMode) && MessagesPigeonUtils.deepEquals(this.callbackType, other.callbackType) && MessagesPigeonUtils.deepEquals(this.matchMode, other.matchMode) && MessagesPigeonUtils.deepEquals(this.numOfMatches, other.numOfMatches) && MessagesPigeonUtils.deepEquals(this.reportDelayMillis, other.reportDelayMillis) && MessagesPigeonUtils.deepEquals(this.legacy, other.legacy) && MessagesPigeonUtils.deepEquals(this.phy, other.phy)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.scanMode)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.callbackType)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.matchMode)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.numOfMatches)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.reportDelayMillis)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.legacy)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.phy)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformAndroidScanOptions(scanMode=$scanMode, callbackType=$callbackType, matchMode=$matchMode, numOfMatches=$numOfMatches, reportDelayMillis=$reportDelayMillis, legacy=$legacy, phy=$phy)"
   }
 }
 
@@ -765,60 +887,90 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       132.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformConnectionState.ofRaw(it.toInt())
+          PlatformAndroidScanMode.ofRaw(it.toInt())
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformGattStatus.ofRaw(it.toInt())
+          PlatformAndroidScanCallbackType.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformBleCompanionFilter.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformAndroidScanMatchMode.ofRaw(it.toInt())
         }
       }
       135.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCompanionAssociationRequest.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformAndroidScanNumOfMatches.ofRaw(it.toInt())
         }
       }
       136.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCompanionAssociation.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformAndroidScanPhy.ofRaw(it.toInt())
         }
       }
       137.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformScanResult.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformConnectionState.ofRaw(it.toInt())
         }
       }
       138.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformConnectionStateChange.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformGattStatus.ofRaw(it.toInt())
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformServiceDiscovered.fromList(it)
+          PlatformAndroidScanOptions.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristic.fromList(it)
+          PlatformBleCompanionFilter.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformMtuChange.fromList(it)
+          PlatformCompanionAssociationRequest.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristicValueChanged.fromList(it)
+          PlatformCompanionAssociation.fromList(it)
         }
       }
       143.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformScanResult.fromList(it)
+        }
+      }
+      144.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformConnectionStateChange.fromList(it)
+        }
+      }
+      145.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformServiceDiscovered.fromList(it)
+        }
+      }
+      146.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCharacteristic.fromList(it)
+        }
+      }
+      147.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformMtuChange.fromList(it)
+        }
+      }
+      148.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCharacteristicValueChanged.fromList(it)
+        }
+      }
+      149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformL2CapSocketEvent.fromList(it)
         }
@@ -840,52 +992,76 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformConnectionState -> {
+      is PlatformAndroidScanMode -> {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformGattStatus -> {
+      is PlatformAndroidScanCallbackType -> {
         stream.write(133)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformBleCompanionFilter -> {
+      is PlatformAndroidScanMatchMode -> {
         stream.write(134)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformCompanionAssociationRequest -> {
+      is PlatformAndroidScanNumOfMatches -> {
         stream.write(135)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformCompanionAssociation -> {
+      is PlatformAndroidScanPhy -> {
         stream.write(136)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformScanResult -> {
+      is PlatformConnectionState -> {
         stream.write(137)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformConnectionStateChange -> {
+      is PlatformGattStatus -> {
         stream.write(138)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformServiceDiscovered -> {
+      is PlatformAndroidScanOptions -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristic -> {
+      is PlatformBleCompanionFilter -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is PlatformMtuChange -> {
+      is PlatformCompanionAssociationRequest -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristicValueChanged -> {
+      is PlatformCompanionAssociation -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is PlatformL2CapSocketEvent -> {
+      is PlatformScanResult -> {
         stream.write(143)
+        writeValue(stream, value.toList())
+      }
+      is PlatformConnectionStateChange -> {
+        stream.write(144)
+        writeValue(stream, value.toList())
+      }
+      is PlatformServiceDiscovered -> {
+        stream.write(145)
+        writeValue(stream, value.toList())
+      }
+      is PlatformCharacteristic -> {
+        stream.write(146)
+        writeValue(stream, value.toList())
+      }
+      is PlatformMtuChange -> {
+        stream.write(147)
+        writeValue(stream, value.toList())
+      }
+      is PlatformCharacteristicValueChanged -> {
+        stream.write(148)
+        writeValue(stream, value.toList())
+      }
+      is PlatformL2CapSocketEvent -> {
+        stream.write(149)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -899,7 +1075,7 @@ val MessagesPigeonMethodCodec = StandardMethodCodec(MessagesPigeonCodec())
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface QuickBlueApi {
   fun isBluetoothAvailable(): Boolean
-  fun startScan(serviceUuids: List<String>?, manufacturerData: Map<Long, ByteArray>?)
+  fun startScan(serviceUuids: List<String>?, manufacturerData: Map<Long, ByteArray>?, rssi: Long?, options: PlatformAndroidScanOptions?)
   fun stopScan()
   fun connectedDeviceIds(serviceUuids: List<String>): List<String>
   fun connect(deviceId: String)
@@ -948,8 +1124,10 @@ interface QuickBlueApi {
             val args = message as List<Any?>
             val serviceUuidsArg = args[0] as List<String>?
             val manufacturerDataArg = args[1] as Map<Long, ByteArray>?
+            val rssiArg = args[2] as Long?
+            val optionsArg = args[3] as PlatformAndroidScanOptions?
             val wrapped: List<Any?> = try {
-              api.startScan(serviceUuidsArg, manufacturerDataArg)
+              api.startScan(serviceUuidsArg, manufacturerDataArg, rssiArg, optionsArg)
               listOf(null)
             } catch (exception: Throwable) {
               MessagesPigeonUtils.wrapError(exception)

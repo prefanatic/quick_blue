@@ -122,11 +122,16 @@ class QuickBlueWindows extends QuickBluePlatform {
   }
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) {
+  Future<void> startScan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  }) {
     _ensureInitialized();
     return _api.startScan(
       serviceUuids: scanFilter.serviceUuids,
       manufacturerData: scanFilter.manufacturerData,
+      rssi: scanFilter.rssi,
+      options: scanOptions.toPlatformWindowsScanOptions(scanFilter: scanFilter),
     );
   }
 
@@ -151,6 +156,62 @@ class QuickBlueWindows extends QuickBluePlatform {
       characteristic,
       value,
       bleOutputProperty.toPlatformBleOutputProperty(),
+    );
+  }
+}
+
+extension on ScanOptions {
+  messages.PlatformWindowsScanOptions toPlatformWindowsScanOptions({
+    required ScanFilter scanFilter,
+  }) {
+    return messages.PlatformWindowsScanOptions(
+      scanningMode: (windows.scanningMode ?? scanMode?.toWindowsScanMode())
+          ?.toPlatformWindowsScanMode(),
+      signalStrengthFilter:
+          windows.signalStrengthFilter
+              ?.toPlatformWindowsSignalStrengthFilter() ??
+          scanFilter.rssi?.toPlatformWindowsSignalStrengthFilter(),
+    );
+  }
+}
+
+extension on ScanMode {
+  WindowsScanMode toWindowsScanMode() {
+    return switch (this) {
+      ScanMode.lowPower => WindowsScanMode.passive,
+      ScanMode.balanced => WindowsScanMode.passive,
+      ScanMode.lowLatency => WindowsScanMode.active,
+    };
+  }
+}
+
+extension on WindowsScanMode {
+  messages.PlatformWindowsScanMode toPlatformWindowsScanMode() {
+    return switch (this) {
+      WindowsScanMode.passive => messages.PlatformWindowsScanMode.passive,
+      WindowsScanMode.active => messages.PlatformWindowsScanMode.active,
+      WindowsScanMode.none => messages.PlatformWindowsScanMode.none,
+    };
+  }
+}
+
+extension on WindowsSignalStrengthFilter {
+  messages.PlatformWindowsSignalStrengthFilter
+  toPlatformWindowsSignalStrengthFilter() {
+    return messages.PlatformWindowsSignalStrengthFilter(
+      inRangeThresholdInDBm: inRangeThresholdInDBm,
+      outOfRangeThresholdInDBm: outOfRangeThresholdInDBm,
+      outOfRangeTimeoutMillis: outOfRangeTimeout?.inMilliseconds,
+      samplingIntervalMillis: samplingInterval?.inMilliseconds,
+    );
+  }
+}
+
+extension on int {
+  messages.PlatformWindowsSignalStrengthFilter
+  toPlatformWindowsSignalStrengthFilter() {
+    return messages.PlatformWindowsSignalStrengthFilter(
+      inRangeThresholdInDBm: this,
     );
   }
 }

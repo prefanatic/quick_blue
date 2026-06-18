@@ -21,8 +21,10 @@ class QuickBlue {
       _platform.bluetoothStateStream;
 
   @Deprecated('Use QuickBlue.scanResults() instead.')
-  static Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) =>
-      _platform.startScan(scanFilter: scanFilter);
+  static Future<void> startScan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  }) => _platform.startScan(scanFilter: scanFilter, scanOptions: scanOptions);
 
   @Deprecated('Use QuickBlue.scanResults() instead.')
   static Future<void> stopScan() => _platform.stopScan();
@@ -34,14 +36,19 @@ class QuickBlue {
 
   static Stream<BlueScanResult> scanResults({
     ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
   }) {
-    return _platform.scanResults(scanFilter: scanFilter);
+    return _platform.scanResults(
+      scanFilter: scanFilter,
+      scanOptions: scanOptions,
+    );
   }
 
   static Stream<BluetoothDevice> scan({
     ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
   }) {
-    return _platform.scan(scanFilter: scanFilter);
+    return _platform.scan(scanFilter: scanFilter, scanOptions: scanOptions);
   }
 
   @Deprecated('Use QuickBlue.scan() instead.')

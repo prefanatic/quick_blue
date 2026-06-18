@@ -19,6 +19,41 @@ enum PlatformBluetoothState {
   poweredOn,
 }
 
+enum PlatformAndroidScanMode { opportunistic, lowPower, balanced, lowLatency }
+
+enum PlatformAndroidScanCallbackType {
+  allMatches,
+  firstMatch,
+  matchLost,
+  firstMatchAndMatchLost,
+}
+
+enum PlatformAndroidScanMatchMode { aggressive, sticky }
+
+enum PlatformAndroidScanNumOfMatches { one, few, max }
+
+enum PlatformAndroidScanPhy { le1m, leCoded, allSupported }
+
+class PlatformAndroidScanOptions {
+  PlatformAndroidScanOptions({
+    required this.scanMode,
+    required this.callbackType,
+    required this.matchMode,
+    this.numOfMatches,
+    required this.reportDelayMillis,
+    this.legacy,
+    this.phy,
+  });
+
+  final PlatformAndroidScanMode scanMode;
+  final PlatformAndroidScanCallbackType callbackType;
+  final PlatformAndroidScanMatchMode matchMode;
+  final PlatformAndroidScanNumOfMatches? numOfMatches;
+  final int reportDelayMillis;
+  final bool? legacy;
+  final PlatformAndroidScanPhy? phy;
+}
+
 class PlatformBleCompanionFilter {
   PlatformBleCompanionFilter({
     this.deviceId,
@@ -63,6 +98,8 @@ abstract class QuickBlueApi {
   void startScan({
     List<String>? serviceUuids,
     Map<int, Uint8List>? manufacturerData,
+    int? rssi,
+    PlatformAndroidScanOptions? options,
   });
   void stopScan();
   List<String> connectedDeviceIds(List<String> serviceUuids);

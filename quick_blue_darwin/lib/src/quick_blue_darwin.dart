@@ -162,7 +162,10 @@ class QuickBlueDarwin extends QuickBluePlatform {
   }
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) {
+  Future<void> startScan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  }) {
     _ensureInitialized();
 
     final serviceUuids = scanFilter.serviceUuids.isEmpty
@@ -175,6 +178,8 @@ class QuickBlueDarwin extends QuickBluePlatform {
     return _api.startScan(
       serviceUuids: serviceUuids,
       manufacturerData: manufacturerData,
+      rssi: scanFilter.rssi,
+      options: scanOptions.toPlatformDarwinScanOptions(),
     );
   }
 
@@ -201,6 +206,15 @@ class QuickBlueDarwin extends QuickBluePlatform {
       characteristic,
       value,
       bleOutputProperty.toPlatformBleOutputProperty(),
+    );
+  }
+}
+
+extension on ScanOptions {
+  messages.PlatformDarwinScanOptions toPlatformDarwinScanOptions() {
+    return messages.PlatformDarwinScanOptions(
+      allowDuplicates: darwin.allowDuplicates ?? allowDuplicates ?? true,
+      solicitedServiceUuids: darwin.solicitedServiceUuids,
     );
   }
 }

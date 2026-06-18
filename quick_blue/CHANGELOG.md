@@ -30,6 +30,8 @@
   coverage.
 - Add `QuickBlue.companion` with typed companion association requests,
   associations, and support checks.
+- Add `ScanFilter.rssi` and `ScanOptions` for common and platform-specific scan
+  settings on Android, Darwin, Linux, and Windows.
 - Add `QuickBlue.connectedDevices()` for retrieving already connected device
   handles.
 - Add GitHub Actions CI updates and local `act` configuration.

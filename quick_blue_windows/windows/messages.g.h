@@ -69,6 +69,12 @@ enum class PlatformBleOutputProperty {
   kWithoutResponse = 1
 };
 
+enum class PlatformWindowsScanMode {
+  kPassive = 0,
+  kActive = 1,
+  kNone = 2
+};
+
 enum class PlatformConnectionState {
   kDisconnected = 0,
   kConnecting = 1,
@@ -80,6 +86,96 @@ enum class PlatformConnectionState {
 enum class PlatformGattStatus {
   kSuccess = 0,
   kFailure = 1
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
+class PlatformWindowsSignalStrengthFilter {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  PlatformWindowsSignalStrengthFilter();
+
+  // Constructs an object setting all fields.
+  explicit PlatformWindowsSignalStrengthFilter(
+    const int64_t* in_range_threshold_in_d_bm,
+    const int64_t* out_of_range_threshold_in_d_bm,
+    const int64_t* out_of_range_timeout_millis,
+    const int64_t* sampling_interval_millis);
+
+  const int64_t* in_range_threshold_in_d_bm() const;
+  void set_in_range_threshold_in_d_bm(const int64_t* value_arg);
+  void set_in_range_threshold_in_d_bm(int64_t value_arg);
+
+  const int64_t* out_of_range_threshold_in_d_bm() const;
+  void set_out_of_range_threshold_in_d_bm(const int64_t* value_arg);
+  void set_out_of_range_threshold_in_d_bm(int64_t value_arg);
+
+  const int64_t* out_of_range_timeout_millis() const;
+  void set_out_of_range_timeout_millis(const int64_t* value_arg);
+  void set_out_of_range_timeout_millis(int64_t value_arg);
+
+  const int64_t* sampling_interval_millis() const;
+  void set_sampling_interval_millis(const int64_t* value_arg);
+  void set_sampling_interval_millis(int64_t value_arg);
+
+  bool operator==(const PlatformWindowsSignalStrengthFilter& other) const;
+  bool operator!=(const PlatformWindowsSignalStrengthFilter& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+  /// Stream output operator for formatted string representation.
+  friend std::ostream& operator<<(std::ostream& os, const PlatformWindowsSignalStrengthFilter& obj);
+ private:
+  static PlatformWindowsSignalStrengthFilter FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class PlatformWindowsScanOptions;
+  friend class QuickBlueApi;
+  friend class QuickBlueFlutterApi;
+  friend class PigeonInternalCodecSerializer;
+  std::optional<int64_t> in_range_threshold_in_d_bm_;
+  std::optional<int64_t> out_of_range_threshold_in_d_bm_;
+  std::optional<int64_t> out_of_range_timeout_millis_;
+  std::optional<int64_t> sampling_interval_millis_;
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
+class PlatformWindowsScanOptions {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  PlatformWindowsScanOptions();
+
+  // Constructs an object setting all fields.
+  explicit PlatformWindowsScanOptions(
+    const PlatformWindowsScanMode* scanning_mode,
+    const PlatformWindowsSignalStrengthFilter* signal_strength_filter);
+
+  ~PlatformWindowsScanOptions() = default;
+  PlatformWindowsScanOptions(const PlatformWindowsScanOptions& other);
+  PlatformWindowsScanOptions& operator=(const PlatformWindowsScanOptions& other);
+  PlatformWindowsScanOptions(PlatformWindowsScanOptions&& other) = default;
+  PlatformWindowsScanOptions& operator=(PlatformWindowsScanOptions&& other) noexcept = default;
+  const PlatformWindowsScanMode* scanning_mode() const;
+  void set_scanning_mode(const PlatformWindowsScanMode* value_arg);
+  void set_scanning_mode(const PlatformWindowsScanMode& value_arg);
+
+  const PlatformWindowsSignalStrengthFilter* signal_strength_filter() const;
+  void set_signal_strength_filter(const PlatformWindowsSignalStrengthFilter* value_arg);
+  void set_signal_strength_filter(const PlatformWindowsSignalStrengthFilter& value_arg);
+
+  bool operator==(const PlatformWindowsScanOptions& other) const;
+  bool operator!=(const PlatformWindowsScanOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+  /// Stream output operator for formatted string representation.
+  friend std::ostream& operator<<(std::ostream& os, const PlatformWindowsScanOptions& obj);
+ private:
+  static PlatformWindowsScanOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class QuickBlueApi;
+  friend class QuickBlueFlutterApi;
+  friend class PigeonInternalCodecSerializer;
+  std::optional<PlatformWindowsScanMode> scanning_mode_;
+  std::unique_ptr<PlatformWindowsSignalStrengthFilter> signal_strength_filter_;
 };
 
 
@@ -329,7 +425,9 @@ class QuickBlueApi {
   virtual ErrorOr<bool> IsBluetoothAvailable() = 0;
   virtual std::optional<FlutterError> StartScan(
     const ::flutter::EncodableList* service_uuids,
-    const ::flutter::EncodableMap* manufacturer_data) = 0;
+    const ::flutter::EncodableMap* manufacturer_data,
+    const int64_t* rssi,
+    const PlatformWindowsScanOptions* options) = 0;
   virtual std::optional<FlutterError> StopScan() = 0;
   virtual ErrorOr<::flutter::EncodableList> ConnectedDeviceIds(const ::flutter::EncodableList& service_uuids) = 0;
   virtual std::optional<FlutterError> Connect(const std::string& device_id) = 0;

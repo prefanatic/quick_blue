@@ -218,6 +218,11 @@ void main() {
       expect(first, isNot(differentBytes));
     });
 
+    test('compares RSSI thresholds by value', () {
+      expect(ScanFilter(rssi: -80), ScanFilter(rssi: -80));
+      expect(ScanFilter(rssi: -80), isNot(ScanFilter(rssi: -70)));
+    });
+
     test('treats null and empty manufacturer data consistently', () {
       final nullData = ScanFilter();
       final emptyData = ScanFilter(manufacturerData: <int, Uint8List>{});
@@ -435,6 +440,91 @@ void main() {
       firstRead[1] = 8;
 
       expect(filter.manufacturerData![76], Uint8List.fromList(<int>[1, 2, 3]));
+    });
+  });
+
+  group(ScanOptions, () {
+    test('compares nested platform options by value', () {
+      const first = ScanOptions(
+        allowDuplicates: false,
+        scanMode: ScanMode.balanced,
+        android: AndroidScanOptions(
+          scanMode: AndroidScanMode.balanced,
+          callbackType: AndroidScanCallbackType.firstMatch,
+          matchMode: AndroidScanMatchMode.aggressive,
+          numOfMatches: AndroidScanNumOfMatches.few,
+          reportDelay: Duration(seconds: 1),
+          legacy: true,
+          phy: AndroidScanPhy.leCoded,
+        ),
+        linux: LinuxScanOptions(
+          rssi: -80,
+          pathloss: 10,
+          transport: LinuxScanTransport.auto,
+          duplicateData: true,
+          discoverable: true,
+          pattern: 'AA:BB',
+        ),
+        windows: WindowsScanOptions(
+          scanningMode: WindowsScanMode.active,
+          signalStrengthFilter: WindowsSignalStrengthFilter(
+            inRangeThresholdInDBm: -65,
+            outOfRangeThresholdInDBm: -75,
+            outOfRangeTimeout: Duration(seconds: 3),
+            samplingInterval: Duration(milliseconds: 500),
+          ),
+        ),
+      );
+      const equivalent = ScanOptions(
+        allowDuplicates: false,
+        scanMode: ScanMode.balanced,
+        android: AndroidScanOptions(
+          scanMode: AndroidScanMode.balanced,
+          callbackType: AndroidScanCallbackType.firstMatch,
+          matchMode: AndroidScanMatchMode.aggressive,
+          numOfMatches: AndroidScanNumOfMatches.few,
+          reportDelay: Duration(seconds: 1),
+          legacy: true,
+          phy: AndroidScanPhy.leCoded,
+        ),
+        linux: LinuxScanOptions(
+          rssi: -80,
+          pathloss: 10,
+          transport: LinuxScanTransport.auto,
+          duplicateData: true,
+          discoverable: true,
+          pattern: 'AA:BB',
+        ),
+        windows: WindowsScanOptions(
+          scanningMode: WindowsScanMode.active,
+          signalStrengthFilter: WindowsSignalStrengthFilter(
+            inRangeThresholdInDBm: -65,
+            outOfRangeThresholdInDBm: -75,
+            outOfRangeTimeout: Duration(seconds: 3),
+            samplingInterval: Duration(milliseconds: 500),
+          ),
+        ),
+      );
+      const different = ScanOptions(scanMode: ScanMode.lowPower);
+
+      expect(first, equivalent);
+      expect(first.hashCode, equivalent.hashCode);
+      expect(first, isNot(different));
+    });
+
+    test('defensively copies Darwin solicited service UUIDs', () {
+      final solicitedServiceUuids = <String>['180d'];
+      final options = DarwinScanOptions(
+        solicitedServiceUuids: solicitedServiceUuids,
+      );
+
+      solicitedServiceUuids.add('180f');
+
+      expect(options.solicitedServiceUuids, <String>['180d']);
+      expect(
+        () => options.solicitedServiceUuids.add('180f'),
+        throwsUnsupportedError,
+      );
     });
   });
 

@@ -139,6 +139,56 @@ enum PlatformGattStatus {
   failure,
 }
 
+class PlatformDarwinScanOptions {
+  PlatformDarwinScanOptions({
+    required this.allowDuplicates,
+    required this.solicitedServiceUuids,
+  });
+
+  bool allowDuplicates;
+
+  List<String> solicitedServiceUuids;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      allowDuplicates,
+      solicitedServiceUuids,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformDarwinScanOptions decode(Object result) {
+    result as List<Object?>;
+    return PlatformDarwinScanOptions(
+      allowDuplicates: result[0]! as bool,
+      solicitedServiceUuids: (result[1]! as List<Object?>).cast<String>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformDarwinScanOptions || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(allowDuplicates, other.allowDuplicates) && _deepEquals(solicitedServiceUuids, other.solicitedServiceUuids);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformDarwinScanOptions(allowDuplicates: $allowDuplicates, solicitedServiceUuids: $solicitedServiceUuids)';
+  }
+}
+
 class Peripheral {
   Peripheral({
     required this.id,
@@ -592,26 +642,29 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformGattStatus) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is Peripheral) {
+    }    else if (value is PlatformDarwinScanOptions) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformScanResult) {
+    }    else if (value is Peripheral) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformConnectionStateChange) {
+    }    else if (value is PlatformScanResult) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformServiceDiscovered) {
+    }    else if (value is PlatformConnectionStateChange) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristic) {
+    }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformCharacteristic) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformL2CapSocketEvent) {
+    }    else if (value is PlatformCharacteristicValueChanged) {
       buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformL2CapSocketEvent) {
+      buffer.putUint8(141);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -637,18 +690,20 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : PlatformGattStatus.values[value];
       case 134:
-        return Peripheral.decode(readValue(buffer)!);
+        return PlatformDarwinScanOptions.decode(readValue(buffer)!);
       case 135:
-        return PlatformScanResult.decode(readValue(buffer)!);
+        return Peripheral.decode(readValue(buffer)!);
       case 136:
-        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+        return PlatformScanResult.decode(readValue(buffer)!);
       case 137:
-        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+        return PlatformConnectionStateChange.decode(readValue(buffer)!);
       case 138:
-        return PlatformCharacteristic.decode(readValue(buffer)!);
+        return PlatformServiceDiscovered.decode(readValue(buffer)!);
       case 139:
-        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+        return PlatformCharacteristic.decode(readValue(buffer)!);
       case 140:
+        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+      case 141:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -709,14 +764,14 @@ class QuickBlueApi {
     return pigeonVar_replyValue! as bool;
   }
 
-  Future<void> startScan({List<String>? serviceUuids, Map<int, Uint8List>? manufacturerData}) async {
+  Future<void> startScan({List<String>? serviceUuids, Map<int, Uint8List>? manufacturerData, int? rssi, PlatformDarwinScanOptions? options, }) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.startScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[serviceUuids, manufacturerData]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[serviceUuids, manufacturerData, rssi, options]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

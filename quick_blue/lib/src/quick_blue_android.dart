@@ -162,12 +162,17 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
-  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) {
+  Future<void> startScan({
+    ScanFilter scanFilter = ScanFilter.empty,
+    ScanOptions scanOptions = ScanOptions.defaults,
+  }) {
     _ensureInitialized();
 
     return _api.startScan(
       serviceUuids: scanFilter.serviceUuids,
       manufacturerData: scanFilter.manufacturerData,
+      rssi: scanFilter.rssi,
+      options: scanOptions.toPlatformAndroidScanOptions(),
     );
   }
 
@@ -195,6 +200,96 @@ class QuickBlueAndroid extends QuickBluePlatform {
       value,
       bleOutputProperty.toPlatformBleOutputProperty(),
     );
+  }
+}
+
+extension on ScanOptions {
+  messages.PlatformAndroidScanOptions toPlatformAndroidScanOptions() {
+    return messages.PlatformAndroidScanOptions(
+      scanMode:
+          (android.scanMode ??
+                  scanMode?.toAndroidScanMode() ??
+                  AndroidScanMode.lowLatency)
+              .toPlatformAndroidScanMode(),
+      callbackType: android.callbackType.toPlatformAndroidScanCallbackType(),
+      matchMode: android.matchMode.toPlatformAndroidScanMatchMode(),
+      numOfMatches: android.numOfMatches?.toPlatformAndroidScanNumOfMatches(),
+      reportDelayMillis: android.reportDelay.inMilliseconds,
+      legacy: android.legacy,
+      phy: android.phy?.toPlatformAndroidScanPhy(),
+    );
+  }
+}
+
+extension on ScanMode {
+  AndroidScanMode toAndroidScanMode() {
+    return switch (this) {
+      ScanMode.lowPower => AndroidScanMode.lowPower,
+      ScanMode.balanced => AndroidScanMode.balanced,
+      ScanMode.lowLatency => AndroidScanMode.lowLatency,
+    };
+  }
+}
+
+extension on AndroidScanMode {
+  messages.PlatformAndroidScanMode toPlatformAndroidScanMode() {
+    return switch (this) {
+      AndroidScanMode.opportunistic =>
+        messages.PlatformAndroidScanMode.opportunistic,
+      AndroidScanMode.lowPower => messages.PlatformAndroidScanMode.lowPower,
+      AndroidScanMode.balanced => messages.PlatformAndroidScanMode.balanced,
+      AndroidScanMode.lowLatency => messages.PlatformAndroidScanMode.lowLatency,
+    };
+  }
+}
+
+extension on AndroidScanCallbackType {
+  messages.PlatformAndroidScanCallbackType toPlatformAndroidScanCallbackType() {
+    return switch (this) {
+      AndroidScanCallbackType.allMatches =>
+        messages.PlatformAndroidScanCallbackType.allMatches,
+      AndroidScanCallbackType.firstMatch =>
+        messages.PlatformAndroidScanCallbackType.firstMatch,
+      AndroidScanCallbackType.matchLost =>
+        messages.PlatformAndroidScanCallbackType.matchLost,
+      AndroidScanCallbackType.firstMatchAndMatchLost =>
+        messages.PlatformAndroidScanCallbackType.firstMatchAndMatchLost,
+    };
+  }
+}
+
+extension on AndroidScanMatchMode {
+  messages.PlatformAndroidScanMatchMode toPlatformAndroidScanMatchMode() {
+    return switch (this) {
+      AndroidScanMatchMode.aggressive =>
+        messages.PlatformAndroidScanMatchMode.aggressive,
+      AndroidScanMatchMode.sticky =>
+        messages.PlatformAndroidScanMatchMode.sticky,
+    };
+  }
+}
+
+extension on AndroidScanNumOfMatches {
+  messages.PlatformAndroidScanNumOfMatches toPlatformAndroidScanNumOfMatches() {
+    return switch (this) {
+      AndroidScanNumOfMatches.one =>
+        messages.PlatformAndroidScanNumOfMatches.one,
+      AndroidScanNumOfMatches.few =>
+        messages.PlatformAndroidScanNumOfMatches.few,
+      AndroidScanNumOfMatches.max =>
+        messages.PlatformAndroidScanNumOfMatches.max,
+    };
+  }
+}
+
+extension on AndroidScanPhy {
+  messages.PlatformAndroidScanPhy toPlatformAndroidScanPhy() {
+    return switch (this) {
+      AndroidScanPhy.le1m => messages.PlatformAndroidScanPhy.le1m,
+      AndroidScanPhy.leCoded => messages.PlatformAndroidScanPhy.leCoded,
+      AndroidScanPhy.allSupported =>
+        messages.PlatformAndroidScanPhy.allSupported,
+    };
   }
 }
 

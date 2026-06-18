@@ -143,6 +143,18 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
+  test('scanResults forwards scan options', () async {
+    final subscription = QuickBlue.scanResults(
+      scanOptions: const ScanOptions(scanMode: ScanMode.balanced),
+    ).listen((_) {});
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['startScan']);
+    expect(platform.lastScanOptions!.scanMode, ScanMode.balanced);
+
+    await subscription.cancel();
+  });
+
   test('scan emits BluetoothDevice objects', () async {
     final devices = <BluetoothDevice>[];
     final subscription = QuickBlue.scan().listen(devices.add);

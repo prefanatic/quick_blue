@@ -113,13 +113,24 @@ void main() {
       );
       expect(await platform.requestMtu('device-a', 512), 247);
 
+      final startScanMessage =
+          sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.startScan']
+              as List<Object?>;
+      expect(startScanMessage[0], <String>['180d']);
+      expect(startScanMessage[1], manufacturerData);
+      expect(startScanMessage[2], isNull);
+      final scanOptions =
+          startScanMessage[3] as messages.PlatformAndroidScanOptions;
+      expect(scanOptions.scanMode, messages.PlatformAndroidScanMode.lowLatency);
       expect(
-        sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.startScan'],
-        <Object?>[
-          <String>['180d'],
-          manufacturerData,
-        ],
+        scanOptions.callbackType,
+        messages.PlatformAndroidScanCallbackType.allMatches,
       );
+      expect(
+        scanOptions.matchMode,
+        messages.PlatformAndroidScanMatchMode.sticky,
+      );
+      expect(scanOptions.reportDelayMillis, 0);
       expect(
         sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.connectedDeviceIds'],
         <Object?>[
@@ -154,6 +165,55 @@ void main() {
         sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.requestMtu'],
         <Object?>['device-a', 512],
       );
+    });
+
+    test('startScan forwards Android scan options', () async {
+      Object? sentMessage;
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.startScan',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (message) async {
+          sentMessage = message;
+          return <Object?>[];
+        },
+      );
+
+      await QuickBlueAndroid().startScan(
+        scanFilter: ScanFilter(rssi: -70),
+        scanOptions: const ScanOptions(
+          scanMode: ScanMode.balanced,
+          android: AndroidScanOptions(
+            callbackType: AndroidScanCallbackType.firstMatchAndMatchLost,
+            matchMode: AndroidScanMatchMode.aggressive,
+            numOfMatches: AndroidScanNumOfMatches.few,
+            reportDelay: Duration(seconds: 2),
+            legacy: true,
+            phy: AndroidScanPhy.leCoded,
+          ),
+        ),
+      );
+
+      final message = sentMessage as List<Object?>;
+      expect(message[2], -70);
+      final options = message[3] as messages.PlatformAndroidScanOptions;
+      expect(options.scanMode, messages.PlatformAndroidScanMode.balanced);
+      expect(
+        options.callbackType,
+        messages.PlatformAndroidScanCallbackType.firstMatchAndMatchLost,
+      );
+      expect(
+        options.matchMode,
+        messages.PlatformAndroidScanMatchMode.aggressive,
+      );
+      expect(
+        options.numOfMatches,
+        messages.PlatformAndroidScanNumOfMatches.few,
+      );
+      expect(options.reportDelayMillis, 2000);
+      expect(options.legacy, isTrue);
+      expect(options.phy, messages.PlatformAndroidScanPhy.leCoded);
     });
 
     test('maps bluetooth state events', () async {
