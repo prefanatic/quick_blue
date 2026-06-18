@@ -71,6 +71,19 @@ void main() {
     },
   );
 
+  test('default platform reports missing implementation', () async {
+    await expectLater(
+      QuickBluePlatform.instance.isBluetoothAvailable(),
+      throwsA(
+        isA<UnsupportedError>().having(
+          (error) => error.message,
+          'message',
+          'No QuickBlue platform implementation has been registered.',
+        ),
+      ),
+    );
+  });
+
   test('scan starts scanning, emits devices, and stops on cancel', () async {
     final platform = _FakeQuickBluePlatform();
     addTearDown(platform.dispose);
