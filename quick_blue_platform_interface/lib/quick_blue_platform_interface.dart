@@ -513,7 +513,7 @@ class BluetoothDevice {
     required String failureMessage,
     required Future<void> Function() operation,
   }) async {
-    final stateEvents = StreamIterator(
+    final stateEvents = StreamQueue(
       connectionStateStream.where(
         (event) =>
             event.status == BleStatus.failure || event.state == targetState,
@@ -521,10 +521,9 @@ class BluetoothDevice {
     );
 
     try {
-      final stateChanged = stateEvents.moveNext();
       await operation();
-      await stateChanged;
-      if (stateEvents.current.status == BleStatus.failure) {
+      final state = await stateEvents.next;
+      if (state.status == BleStatus.failure) {
         throw StateError(failureMessage);
       }
     } finally {
@@ -786,13 +785,11 @@ class BluetoothCharacteristic {
   }
 
   Future<Uint8List> read() async {
-    final values = StreamIterator(valueStream);
+    final values = StreamQueue(valueStream);
 
     try {
-      final value = values.moveNext();
       await _platform.readValue(deviceId, serviceId, characteristicId);
-      await value;
-      return values.current;
+      return await values.next;
     } finally {
       await values.cancel();
     }
