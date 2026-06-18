@@ -5,15 +5,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quick_blue/quick_blue.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
+import 'test_support/fake_quick_blue_platform.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late QuickBluePlatform previousPlatform;
-  late _FakeQuickBluePlatform platform;
+  late FakeQuickBluePlatform platform;
 
   setUp(() {
     previousPlatform = QuickBluePlatform.instance;
-    platform = _FakeQuickBluePlatform();
+    platform = FakeQuickBluePlatform();
     QuickBluePlatform.instance = platform;
   });
 
@@ -320,209 +322,4 @@ void main() {
       expect(platform.calls, <String>['getCompanionAssociations']);
     },
   );
-}
-
-class _FakeQuickBluePlatform extends QuickBluePlatform {
-  final List<String> calls = <String>[];
-  var isAvailable = true;
-  var connectsImmediately = true;
-  var disconnectsImmediately = true;
-  var readValueResult = Uint8List(0);
-  var discoveredServices = <BluetoothService>[];
-  var connectedDeviceIds = <String>[];
-  Completer<void>? nextSetNotifiable;
-  CompanionAssociation? companionAssociation;
-  List<CompanionAssociation> companionAssociations =
-      const <CompanionAssociation>[];
-  CompanionAssociationRequest? lastCompanionAssociateRequest;
-  final _scanResultController = StreamController<BlueScanResult>.broadcast();
-  final _bluetoothStateController =
-      StreamController<BlueBluetoothState>.broadcast();
-
-  Future<void> dispose() async {
-    await _scanResultController.close();
-    await _bluetoothStateController.close();
-  }
-
-  void addScanResult(String deviceId) {
-    _scanResultController.add(
-      BlueScanResult(name: 'Device $deviceId', deviceId: deviceId, rssi: -40),
-    );
-  }
-
-  void addBluetoothState(BlueBluetoothState state) {
-    _bluetoothStateController.add(state);
-  }
-
-  @override
-  Future<bool> isBluetoothAvailable() async {
-    calls.add('isBluetoothAvailable');
-    return isAvailable;
-  }
-
-  @override
-  Stream<BlueBluetoothState> get bluetoothStateStream {
-    calls.add('bluetoothStateStream');
-    return _bluetoothStateController.stream;
-  }
-
-  @override
-  Stream<BlueScanResult> get scanResultStream => _scanResultController.stream;
-
-  @override
-  Future<void> startScan({ScanFilter scanFilter = ScanFilter.empty}) async {
-    calls.add('startScan');
-  }
-
-  @override
-  Future<void> stopScan() async {
-    calls.add('stopScan');
-  }
-
-  @override
-  Future<List<BluetoothDevice>> connectedDevices({
-    List<String> serviceUuids = const <String>[],
-  }) async {
-    calls.add('connectedDevices $serviceUuids');
-    return connectedDeviceIds.map(device).toList(growable: false);
-  }
-
-  @override
-  Future<void> connect(String deviceId) async {
-    calls.add('connect $deviceId');
-    if (connectsImmediately) {
-      onConnectionChanged!(
-        deviceId,
-        BlueConnectionState.connected,
-        BleStatus.success,
-      );
-    }
-  }
-
-  @override
-  Future<void> disconnect(String deviceId) async {
-    calls.add('disconnect $deviceId');
-    if (disconnectsImmediately) {
-      onConnectionChanged!(
-        deviceId,
-        BlueConnectionState.disconnected,
-        BleStatus.success,
-      );
-    }
-  }
-
-  @override
-  Future<bool> isCompanionAssociationSupported() async {
-    calls.add('isCompanionAssociationSupported');
-    return true;
-  }
-
-  @override
-  Future<CompanionAssociation?> companionAssociate(
-    CompanionAssociationRequest request,
-  ) async {
-    lastCompanionAssociateRequest = request;
-    final filter = request.filters.isEmpty ? null : request.filters.first;
-    calls.add(
-      'companionAssociate ${filter?.deviceId} '
-      '${filter?.serviceUuids ?? <String>[]}',
-    );
-    return companionAssociation;
-  }
-
-  @override
-  Future<void> companionDisassociate(int associationId) async {
-    calls.add('companionDisassociate $associationId');
-  }
-
-  @override
-  Future<List<CompanionAssociation>> getCompanionAssociations() async {
-    calls.add('getCompanionAssociations');
-    return companionAssociations;
-  }
-
-  @override
-  Future<void> discoverServices(String deviceId) async {
-    calls.add('discoverServices $deviceId');
-    for (final service in discoveredServices) {
-      handleServiceDiscovered(
-        deviceId,
-        service.uuid,
-        service.characteristicDetails,
-      );
-    }
-    onServiceDiscoveryComplete(deviceId);
-  }
-
-  @override
-  Future<void> setNotifiable(
-    String deviceId,
-    String service,
-    String characteristic,
-    BleInputProperty bleInputProperty,
-  ) async {
-    calls.add(
-      'setNotifiable $deviceId $service $characteristic ${bleInputProperty.value}',
-    );
-    final completer = nextSetNotifiable;
-    if (completer != null) {
-      nextSetNotifiable = null;
-      await completer.future;
-    }
-  }
-
-  @override
-  Future<void> readValue(
-    String deviceId,
-    String service,
-    String characteristic,
-  ) async {
-    calls.add('readValue $deviceId $service $characteristic');
-    handleCharacteristicValueChanged(
-      deviceId,
-      service,
-      characteristic,
-      readValueResult,
-    );
-  }
-
-  @override
-  Future<void> writeValue(
-    String deviceId,
-    String service,
-    String characteristic,
-    Uint8List value,
-    BleOutputProperty bleOutputProperty,
-  ) async {
-    calls.add(
-      'writeValue $deviceId $service $characteristic '
-      '${bleOutputProperty.value} ${value.toList()}',
-    );
-  }
-
-  @override
-  Future<int> requestMtu(String deviceId, int expectedMtu) async {
-    calls.add('requestMtu $deviceId $expectedMtu');
-    return expectedMtu;
-  }
-
-  @override
-  Future<BleL2capSocket> openL2cap(String deviceId, int psm) async {
-    calls.add('openL2cap $deviceId $psm');
-    return BleL2capSocket(
-      sink: _NoopSink(),
-      stream: const Stream<BleL2CapSocketEvent>.empty(),
-    );
-  }
-}
-
-class _NoopSink implements EventSink<Uint8List> {
-  @override
-  void add(Uint8List event) {}
-
-  @override
-  void addError(Object error, [StackTrace? stackTrace]) {}
-
-  @override
-  void close() {}
 }
