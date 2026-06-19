@@ -18,6 +18,16 @@ typedef WriteModeChangedCallback =
     void Function(String characteristicKey, bool withoutResponse);
 typedef NullableBoolChangedCallback = void Function(bool? value);
 
+const _defaultEventLogHeight = 148.0;
+const _minEventLogHeight = 88.0;
+const _maxEventLogHeightFraction = 0.6;
+const _eventLogHeaderHeight = 36.0;
+const _defaultScanPaneWidth = 360.0;
+const _minScanPaneWidth = 280.0;
+const _maxScanPaneWidth = 560.0;
+const _minDetailPaneWidth = 360.0;
+const _resizeHandleExtent = 12.0;
+
 class BleExplorerPage extends StatefulWidget {
   const BleExplorerPage({super.key});
 
@@ -27,6 +37,9 @@ class BleExplorerPage extends StatefulWidget {
 
 class _BleExplorerPageState extends State<BleExplorerPage> {
   late final BleExplorerController _controller;
+  var _eventLogExpanded = false;
+  var _eventLogHeight = _defaultEventLogHeight;
+  var _scanPaneWidth = _defaultScanPaneWidth;
 
   @override
   void initState() {
@@ -99,7 +112,14 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
                     ),
                   ),
                   body: SafeArea(
-                    child: _buildDetailSurface(showEventLog: true),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return _buildDetailSurface(
+                          showEventLog: true,
+                          maxHeight: constraints.maxHeight,
+                        );
+                      },
+                    ),
                   ),
                 );
               },
@@ -116,6 +136,68 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
             ),
           );
         });
+  }
+
+  void _resizeEventLog(double deltaDy, double maxHeight) {
+    setState(() {
+      _eventLogExpanded = true;
+      _eventLogHeight = (_eventLogHeight - deltaDy)
+          .clamp(_minEventLogHeight, _maxEventLogHeight(maxHeight))
+          .toDouble();
+    });
+  }
+
+  void _resizeScanPane(double deltaDx, double maxWidth) {
+    setState(() {
+      _scanPaneWidth = (_scanPaneWidth + deltaDx)
+          .clamp(_minScanPaneWidth, _maxScanPaneWidthFor(maxWidth))
+          .toDouble();
+    });
+  }
+
+  void _toggleEventLogExpanded() {
+    setState(() {
+      _eventLogExpanded = !_eventLogExpanded;
+    });
+  }
+
+  double _maxEventLogHeight(double maxHeight) {
+    return (maxHeight * _maxEventLogHeightFraction)
+        .clamp(_minEventLogHeight, double.infinity)
+        .toDouble();
+  }
+
+  double _maxScanPaneWidthFor(double maxWidth) {
+    final availableWidth = maxWidth - _resizeHandleExtent - _minDetailPaneWidth;
+    return availableWidth
+        .clamp(_minScanPaneWidth, _maxScanPaneWidth)
+        .toDouble();
+  }
+
+  Widget _buildResizableEventLog({required double maxHeight}) {
+    final eventLogHeight = _eventLogHeight
+        .clamp(_minEventLogHeight, _maxEventLogHeight(maxHeight))
+        .toDouble();
+    return Column(
+      children: [
+        if (_eventLogExpanded)
+          _ResizeHandle(
+            key: const ValueKey('ble_events_resize_handle'),
+            axis: Axis.vertical,
+            onDragUpdate: (delta) => _resizeEventLog(delta, maxHeight),
+          ),
+        SizedBox(
+          key: const ValueKey('ble_events_panel'),
+          height: _eventLogExpanded ? eventLogHeight : _eventLogHeaderHeight,
+          child: _EventLogPanel(
+            events: _controller.events,
+            expanded: _eventLogExpanded,
+            onToggleExpanded: _toggleEventLogExpanded,
+            onClear: _controller.clearEvents,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildScanSurface({required bool openDetailOnSelect}) {
@@ -175,7 +257,7 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
     );
   }
 
-  Widget _buildDetailSurface({required bool showEventLog}) {
+  Widget _buildDetailSurface({required bool showEventLog, double? maxHeight}) {
     final selectedDeviceId = _controller.selectedDeviceId;
     final detailPane = _DevicePane(
       deviceId: selectedDeviceId,
@@ -204,14 +286,11 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
       return detailPane;
     }
 
+    assert(maxHeight != null);
     return Column(
       children: [
         Expanded(child: detailPane),
-        const Divider(height: 1),
-        _EventLogPanel(
-          events: _controller.events,
-          onClear: _controller.clearEvents,
-        ),
+        _buildResizableEventLog(maxHeight: maxHeight!),
       ],
     );
   }
@@ -222,7 +301,6 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
       animation: _controller,
       builder: (context, _) {
         return Scaffold(
-          appBar: AppBar(title: const Text('quick_blue example')),
           body: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -233,36 +311,40 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
                       Expanded(
                         child: _buildScanSurface(openDetailOnSelect: true),
                       ),
-                      const Divider(height: 1),
-                      _EventLogPanel(
-                        events: _controller.events,
-                        onClear: _controller.clearEvents,
-                      ),
+                      _buildResizableEventLog(maxHeight: constraints.maxHeight),
                     ],
                   );
                 }
 
+                final scanPaneWidth = _scanPaneWidth
+                    .clamp(
+                      _minScanPaneWidth,
+                      _maxScanPaneWidthFor(constraints.maxWidth),
+                    )
+                    .toDouble();
                 return Column(
                   children: [
                     Expanded(
                       child: Row(
                         children: [
                           SizedBox(
-                            width: 360,
+                            key: const ValueKey('ble_scan_pane'),
+                            width: scanPaneWidth,
                             child: _buildScanSurface(openDetailOnSelect: false),
                           ),
-                          const VerticalDivider(width: 1),
+                          _ResizeHandle(
+                            key: const ValueKey('ble_scan_resize_handle'),
+                            axis: Axis.horizontal,
+                            onDragUpdate: (delta) =>
+                                _resizeScanPane(delta, constraints.maxWidth),
+                          ),
                           Expanded(
                             child: _buildDetailSurface(showEventLog: false),
                           ),
                         ],
                       ),
                     ),
-                    const Divider(height: 1),
-                    _EventLogPanel(
-                      events: _controller.events,
-                      onClear: _controller.clearEvents,
-                    ),
+                    _buildResizableEventLog(maxHeight: constraints.maxHeight),
                   ],
                 );
               },
@@ -372,115 +454,123 @@ class _ScanPane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scanEnabled = availabilityChecked && bluetoothAvailable;
-    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+        SliverFloatingHeader(
+          key: const ValueKey('ble_scan_header'),
+          animationStyle: AnimationStyle.noAnimation,
+          child: Material(
+            color: colorScheme.surface,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: colorScheme.outlineVariant),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            'Devices',
-                            style: textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              _StatusBadge(
+                                _statusText,
+                                tone: bluetoothAvailable
+                                    ? _StatusTone.neutral
+                                    : _StatusTone.warning,
+                              ),
+                            ],
                           ),
-                          _StatusBadge(
-                            _statusText,
-                            tone: bluetoothAvailable
-                                ? _StatusTone.neutral
-                                : _StatusTone.warning,
+                        ),
+                        FilledButton.tonalIcon(
+                          key: const ValueKey('ble_scan_button'),
+                          onPressed: scanEnabled ? onToggleScan : null,
+                          icon: Icon(
+                            scanning ? Icons.stop : Icons.bluetooth_searching,
                           ),
-                        ],
+                          label: Text(scanning ? 'Stop' : 'Scan 10s'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: serviceFilterController,
+                      enabled: !scanning,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        prefixIcon: Icon(Icons.filter_list),
+                        labelText: 'Filter services',
+                        hintText:
+                            '180d, 180f, f000aa00-0451-4000-b000-000000000000',
                       ),
                     ),
-                    FilledButton.tonalIcon(
-                      key: const ValueKey('ble_scan_button'),
-                      onPressed: scanEnabled ? onToggleScan : null,
-                      icon: Icon(
-                        scanning ? Icons.stop : Icons.bluetooth_searching,
-                      ),
-                      label: Text(scanning ? 'Stop' : 'Scan 10s'),
+                    const SizedBox(height: 8),
+                    _ScanOptionsPanel(
+                      enabled: !scanning,
+                      androidReportDelayMillisController:
+                          androidReportDelayMillisController,
+                      darwinSolicitedServiceUuidsController:
+                          darwinSolicitedServiceUuidsController,
+                      linuxRssiController: linuxRssiController,
+                      linuxPathlossController: linuxPathlossController,
+                      linuxPatternController: linuxPatternController,
+                      windowsInRangeThresholdController:
+                          windowsInRangeThresholdController,
+                      windowsOutOfRangeThresholdController:
+                          windowsOutOfRangeThresholdController,
+                      windowsOutOfRangeTimeoutMillisController:
+                          windowsOutOfRangeTimeoutMillisController,
+                      windowsSamplingIntervalMillisController:
+                          windowsSamplingIntervalMillisController,
+                      scanAllowDuplicates: scanAllowDuplicates,
+                      scanMode: scanMode,
+                      androidScanMode: androidScanMode,
+                      androidCallbackType: androidCallbackType,
+                      androidMatchMode: androidMatchMode,
+                      androidNumOfMatches: androidNumOfMatches,
+                      androidLegacy: androidLegacy,
+                      androidPhy: androidPhy,
+                      darwinAllowDuplicates: darwinAllowDuplicates,
+                      linuxTransport: linuxTransport,
+                      linuxDuplicateData: linuxDuplicateData,
+                      linuxDiscoverable: linuxDiscoverable,
+                      windowsScanMode: windowsScanMode,
+                      onScanAllowDuplicatesChanged:
+                          onScanAllowDuplicatesChanged,
+                      onScanModeChanged: onScanModeChanged,
+                      onAndroidScanModeChanged: onAndroidScanModeChanged,
+                      onAndroidCallbackTypeChanged:
+                          onAndroidCallbackTypeChanged,
+                      onAndroidMatchModeChanged: onAndroidMatchModeChanged,
+                      onAndroidNumOfMatchesChanged:
+                          onAndroidNumOfMatchesChanged,
+                      onAndroidLegacyChanged: onAndroidLegacyChanged,
+                      onAndroidPhyChanged: onAndroidPhyChanged,
+                      onDarwinAllowDuplicatesChanged:
+                          onDarwinAllowDuplicatesChanged,
+                      onLinuxTransportChanged: onLinuxTransportChanged,
+                      onLinuxDuplicateDataChanged: onLinuxDuplicateDataChanged,
+                      onLinuxDiscoverableChanged: onLinuxDiscoverableChanged,
+                      onWindowsScanModeChanged: onWindowsScanModeChanged,
                     ),
+                    if (scanning) ...[
+                      const SizedBox(height: 10),
+                      LinearProgressIndicator(value: _scanProgress),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: serviceFilterController,
-                  enabled: !scanning,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    prefixIcon: Icon(Icons.filter_list),
-                    labelText: 'Filter services',
-                    hintText:
-                        '180d, 180f, f000aa00-0451-4000-b000-000000000000',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _ScanOptionsPanel(
-                  enabled: !scanning,
-                  androidReportDelayMillisController:
-                      androidReportDelayMillisController,
-                  darwinSolicitedServiceUuidsController:
-                      darwinSolicitedServiceUuidsController,
-                  linuxRssiController: linuxRssiController,
-                  linuxPathlossController: linuxPathlossController,
-                  linuxPatternController: linuxPatternController,
-                  windowsInRangeThresholdController:
-                      windowsInRangeThresholdController,
-                  windowsOutOfRangeThresholdController:
-                      windowsOutOfRangeThresholdController,
-                  windowsOutOfRangeTimeoutMillisController:
-                      windowsOutOfRangeTimeoutMillisController,
-                  windowsSamplingIntervalMillisController:
-                      windowsSamplingIntervalMillisController,
-                  scanAllowDuplicates: scanAllowDuplicates,
-                  scanMode: scanMode,
-                  androidScanMode: androidScanMode,
-                  androidCallbackType: androidCallbackType,
-                  androidMatchMode: androidMatchMode,
-                  androidNumOfMatches: androidNumOfMatches,
-                  androidLegacy: androidLegacy,
-                  androidPhy: androidPhy,
-                  darwinAllowDuplicates: darwinAllowDuplicates,
-                  linuxTransport: linuxTransport,
-                  linuxDuplicateData: linuxDuplicateData,
-                  linuxDiscoverable: linuxDiscoverable,
-                  windowsScanMode: windowsScanMode,
-                  onScanAllowDuplicatesChanged: onScanAllowDuplicatesChanged,
-                  onScanModeChanged: onScanModeChanged,
-                  onAndroidScanModeChanged: onAndroidScanModeChanged,
-                  onAndroidCallbackTypeChanged: onAndroidCallbackTypeChanged,
-                  onAndroidMatchModeChanged: onAndroidMatchModeChanged,
-                  onAndroidNumOfMatchesChanged: onAndroidNumOfMatchesChanged,
-                  onAndroidLegacyChanged: onAndroidLegacyChanged,
-                  onAndroidPhyChanged: onAndroidPhyChanged,
-                  onDarwinAllowDuplicatesChanged:
-                      onDarwinAllowDuplicatesChanged,
-                  onLinuxTransportChanged: onLinuxTransportChanged,
-                  onLinuxDuplicateDataChanged: onLinuxDuplicateDataChanged,
-                  onLinuxDiscoverableChanged: onLinuxDiscoverableChanged,
-                  onWindowsScanModeChanged: onWindowsScanModeChanged,
-                ),
-                if (scanning) ...[
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(value: _scanProgress),
-                ],
-              ],
+              ),
             ),
           ),
         ),
-        const SliverToBoxAdapter(child: Divider(height: 1)),
         if (devices.isEmpty)
           SliverFillRemaining(
             hasScrollBody: false,
@@ -493,13 +583,14 @@ class _ScanPane extends StatelessWidget {
             ),
           )
         else
-          SliverList.separated(
+          SliverPrototypeExtentList.builder(
             key: const ValueKey('ble_devices_list'),
+            prototypeItem: _DeviceResultTile.prototype(),
             itemCount: devices.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final result = devices[index];
               return _DeviceResultTile(
+                key: ValueKey(result.deviceId),
                 result: result,
                 selected: result.deviceId == selectedDeviceId,
                 onTap: () => onSelectDevice(result.deviceId),
@@ -1172,10 +1263,28 @@ class _TextOptionDialogState extends State<_TextOptionDialog> {
 
 class _DeviceResultTile extends StatelessWidget {
   const _DeviceResultTile({
+    super.key,
     required this.result,
     required this.selected,
     required this.onTap,
   });
+
+  factory _DeviceResultTile.prototype() {
+    return _DeviceResultTile(
+      result: BlueScanResult(
+        name: 'Prototype device',
+        deviceId: '00:00:00:00:00:00',
+        rssi: -100,
+        manufacturerData: Uint8List(8),
+        serviceUuids: const [
+          '0000180d-0000-1000-8000-00805f9b34fb',
+          '0000180f-0000-1000-8000-00805f9b34fb',
+        ],
+      ),
+      selected: false,
+      onTap: () {},
+    );
+  }
 
   final BlueScanResult result;
   final bool selected;
@@ -1191,62 +1300,71 @@ class _DeviceResultTile extends StatelessWidget {
       color: selected
           ? colorScheme.primaryContainer.withValues(alpha: 0.35)
           : Colors.transparent,
-      child: InkWell(
-        key: ValueKey('ble_device_row_name_${result.name}'),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name.isEmpty ? 'Unnamed device' : name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+        ),
+        child: InkWell(
+          key: ValueKey('ble_device_row_name_${result.name}'),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name.isEmpty ? 'Unnamed device' : name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          '${result.rssi} dBm',
-                          style: textTheme.labelMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
+                          const SizedBox(width: 12),
+                          Text(
+                            '${result.rssi} dBm',
+                            style: textTheme.labelMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        result.deviceId,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(
+                          fontFamily: 'monospace',
+                          color: colorScheme.onSurfaceVariant,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    SelectableText(
-                      result.deviceId,
-                      style: textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                        color: colorScheme.onSurfaceVariant,
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _deviceMetadata(result, manufacturerData.length),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 6),
+                      Text(
+                        _deviceMetadata(result, manufacturerData.length),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
-            ],
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
+              ],
+            ),
           ),
         ),
       ),
@@ -1837,41 +1955,107 @@ class _ValuePreview extends StatelessWidget {
   }
 }
 
+class _ResizeHandle extends StatelessWidget {
+  const _ResizeHandle({
+    super.key,
+    required this.axis,
+    required this.onDragUpdate,
+  });
+
+  final Axis axis;
+  final ValueChanged<double> onDragUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final resizingWidth = axis == Axis.horizontal;
+    return MouseRegion(
+      cursor: resizingWidth
+          ? SystemMouseCursors.resizeLeftRight
+          : SystemMouseCursors.resizeUpDown,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragUpdate: resizingWidth
+            ? (details) => onDragUpdate(details.delta.dx)
+            : null,
+        onVerticalDragUpdate: resizingWidth
+            ? null
+            : (details) => onDragUpdate(details.delta.dy),
+        child: SizedBox(
+          width: resizingWidth ? _resizeHandleExtent : double.infinity,
+          height: resizingWidth ? double.infinity : _resizeHandleExtent,
+          child: Center(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: SizedBox(
+                width: resizingWidth ? 2 : 48,
+                height: resizingWidth ? 48 : 2,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EventLogPanel extends StatelessWidget {
-  const _EventLogPanel({required this.events, required this.onClear});
+  const _EventLogPanel({
+    required this.events,
+    required this.expanded,
+    required this.onToggleExpanded,
+    required this.onClear,
+  });
 
   final List<BleEvent> events;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
   final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 148,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            height: 36,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Events (${events.length})',
-                      style: Theme.of(context).textTheme.labelLarge,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: _eventLogHeaderHeight,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: const ValueKey('ble_events_header'),
+              onTap: onToggleExpanded,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      expanded
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_up,
                     ),
-                  ),
-                  if (events.isNotEmpty)
-                    IconButton(
-                      tooltip: 'Clear events',
-                      onPressed: onClear,
-                      icon: const Icon(Icons.clear_all),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'Events (${events.length})',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
                     ),
-                ],
+                    if (events.isNotEmpty)
+                      IconButton(
+                        tooltip: 'Clear events',
+                        onPressed: onClear,
+                        icon: const Icon(Icons.clear_all),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
+        ),
+        if (expanded) ...[
           const Divider(height: 1),
           Expanded(
             child: events.isEmpty
@@ -1922,7 +2106,7 @@ class _EventLogPanel extends StatelessWidget {
                   ),
           ),
         ],
-      ),
+      ],
     );
   }
 }

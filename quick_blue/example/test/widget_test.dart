@@ -27,8 +27,8 @@ void main() {
     await tester.pumpWidget(const MyApp());
     await tester.pump();
 
-    expect(find.text('quick_blue example'), findsOneWidget);
-    expect(find.text('Devices'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ble_scan_header')), findsOneWidget);
+    expect(find.text('Scan 10s'), findsOneWidget);
     expect(find.text('Events (1)'), findsOneWidget);
   });
 
@@ -125,5 +125,80 @@ void main() {
 
     expect(find.text('Android mode'), findsOneWidget);
     expect(find.text('Scan mode'), findsNothing);
+  });
+
+  testWidgets('starts with events collapsed and toggles from its header', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pump();
+
+    final panel = find.byKey(const ValueKey('ble_events_panel'));
+    final collapsedHeight = tester.getSize(panel).height;
+    expect(collapsedHeight, lessThan(60));
+    expect(
+      find.byKey(const ValueKey('ble_events_resize_handle')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('ble_events_header')));
+    await tester.pump();
+
+    expect(tester.getSize(panel).height, greaterThan(collapsedHeight));
+    expect(
+      find.byKey(const ValueKey('ble_events_resize_handle')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('ble_events_header')));
+    await tester.pump();
+
+    expect(tester.getSize(panel).height, collapsedHeight);
+    expect(
+      find.byKey(const ValueKey('ble_events_resize_handle')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('resizes the expanded events panel by dragging its handle', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('ble_events_header')));
+    await tester.pump();
+
+    final panel = find.byKey(const ValueKey('ble_events_panel'));
+    final before = tester.getSize(panel).height;
+    await tester.drag(
+      find.byKey(const ValueKey('ble_events_resize_handle')),
+      const Offset(0, -48),
+    );
+    await tester.pump();
+
+    expect(tester.getSize(panel).height, greaterThan(before));
+  });
+
+  testWidgets('resizes the wide scan pane by dragging its handle', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MyApp());
+    await tester.pump();
+
+    final panel = find.byKey(const ValueKey('ble_scan_pane'));
+    final before = tester.getSize(panel).width;
+    await tester.drag(
+      find.byKey(const ValueKey('ble_scan_resize_handle')),
+      const Offset(80, 0),
+    );
+    await tester.pump();
+
+    expect(tester.getSize(panel).width, greaterThan(before));
   });
 }
