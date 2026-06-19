@@ -78,6 +78,33 @@ flutter test integration_test/ble_smoke_test.dart -d macos \
   --dart-define=QUICK_BLUE_SMOKE_WRITE_HEX='01 02 03'
 ```
 
+Run the same smoke test on Windows through a Dockur Windows VM from the
+repository root:
+
+```sh
+QUICK_BLUE_WINDOWS_USB_VENDOR_ID=0x0a12 \
+QUICK_BLUE_WINDOWS_USB_PRODUCT_ID=0x0001 \
+QUICK_BLUE_SMOKE_NAME_PATTERN='sensor|heart' \
+  scripts/windows-integration-test.sh
+```
+
+The USB vendor and product IDs should identify a Bluetooth adapter that can be
+passed through to the Windows guest. The script writes the guest test log to
+`.dart_tool/dockur_windows/logs/windows-integration-test.log`. The first
+successful setup registers a Windows logon task, so later runs reuse the same
+VM and execute the latest generated test script from the shared folder. The
+guest keeps a synced NTFS checkout at `C:\quick_blue_workspace\quick_blue` so
+Flutter can reuse `.dart_tool` and `build` output between runs. Set
+`QUICK_BLUE_WINDOWS_CLEAN_WORKTREE=1` to recreate that checkout without
+reinstalling Windows. Without a passed-through or virtualized Bluetooth
+adapter, the smoke test fails because Bluetooth is unavailable.
+
+When USB passthrough is requested, Bluetooth availability is required. If the
+host USB device node is not writable by the user running Dockur, the script
+fails before booting Windows and prints the temporary `setfacl` command needed
+for that device. Device node permissions are reset when the adapter is
+replugged.
+
 ## Device-switch regressions
 
 The example also includes regression tests for switching devices while a

@@ -61,16 +61,33 @@ cd quick_blue_darwin && flutter test
 cd quick_blue/example && flutter test
 ```
 
-macOS BLE smoke test, for changes touching Darwin scan/connect/service
-discovery behavior or when explicitly validating hardware-backed behavior:
+Hardware-backed BLE smoke test, for changes touching scan/connect/service
+discovery behavior or when explicitly validating platform Bluetooth behavior:
 
 ```sh
 cd quick_blue/example
-QUICK_BLUE_HIDE_TEST_WINDOW=1 flutter test integration_test/macos_ble_smoke_test.dart -d macos
+QUICK_BLUE_HIDE_TEST_WINDOW=1 flutter test integration_test/ble_smoke_test.dart -d macos
 ```
 
-This test needs macOS Bluetooth permission, powered-on Bluetooth hardware, and
-nearby BLE advertisements or explicit smoke-test Dart defines.
+Windows BLE smoke test through Dockur, for Windows platform work or USB
+Bluetooth passthrough verification:
+
+```sh
+QUICK_BLUE_WINDOWS_USB_VENDOR_ID=0x0bda \
+QUICK_BLUE_WINDOWS_USB_PRODUCT_ID=0x8771 \
+  scripts/windows-integration-test.sh
+```
+
+The Dockur VM state is persisted under `.dart_tool/dockur_windows/`. The guest
+reuses `C:\quick_blue_workspace\quick_blue` so Flutter can keep `.dart_tool`
+and build caches. Use `QUICK_BLUE_WINDOWS_CLEAN_WORKTREE=1` to refresh the
+guest checkout without reinstalling Windows, and `QUICK_BLUE_WINDOWS_RESET=1`
+only when the VM disk itself needs to be rebuilt.
+
+These tests need Bluetooth permission, powered-on Bluetooth hardware, and nearby
+BLE advertisements or explicit smoke-test Dart defines. If Bluetooth is
+unavailable on a supported target, `ble_smoke_test.dart` should fail rather
+than skip.
 
 Use platform builds or the example app for Android, iOS, macOS, Windows, and
 Linux behavior that unit tests cannot cover.

@@ -71,10 +71,9 @@ void main() {
 
       final bluetoothAvailable = await _waitForBluetoothAvailable();
       if (!bluetoothAvailable) {
-        markTestSkipped(
+        fail(
           'Bluetooth is not powered on, unavailable, or permission was denied.',
         );
-        return;
       }
 
       final writeRequest = _writeRequest();

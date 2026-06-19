@@ -220,6 +220,26 @@ test peripherals. `ble_ui_switch_test.dart` targets macOS and Linux. See
 [`quick_blue/example/README.md`](quick_blue/example/README.md) for optional
 Dart defines that target specific devices.
 
+Run the Windows smoke test in a Dockur Windows VM from the repository root:
+
+```sh
+QUICK_BLUE_WINDOWS_USB_VENDOR_ID=0x0a12 \
+QUICK_BLUE_WINDOWS_USB_PRODUCT_ID=0x0001 \
+  scripts/windows-integration-test.sh
+```
+
+The script starts `dockurr/windows`, mounts this checkout into the guest, and
+runs `quick_blue/example/integration_test/ble_smoke_test.dart` on the Windows
+Flutter target. Pass the same `QUICK_BLUE_SMOKE_*` environment variables shown
+in the example README to target a known BLE device. The first run installs
+Windows, Visual Studio Build Tools, Git, and Flutter into persistent state under
+`.dart_tool/dockur_windows/`. During that install it also registers a Windows
+logon task so later runs reuse the same VM and execute the latest generated
+test script from the shared folder. The guest keeps a synced NTFS checkout at
+`C:\quick_blue_workspace\quick_blue` so Flutter can reuse `.dart_tool` and
+`build` output between runs. Set `QUICK_BLUE_WINDOWS_CLEAN_WORKTREE=1` to
+recreate that checkout without reinstalling Windows.
+
 ## Generated Code
 
 Pigeon schemas and generated platform bindings must stay in sync. Regenerate
