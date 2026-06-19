@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:quick_blue_example/main.dart';
+import 'package:quick_blue_example/src/ble_explorer_page.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 import 'fake_quick_blue_platform.dart';
@@ -42,5 +43,87 @@ void main() {
     expect(app.darkTheme, isNotNull);
     expect(app.theme!.brightness, Brightness.light);
     expect(app.darkTheme!.brightness, Brightness.dark);
+  });
+
+  testWidgets('shows only current platform-specific scan options', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.linux),
+        home: const BleExplorerPage(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('ble_scan_options_panel')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Allow duplicates'), findsOneWidget);
+    expect(find.text('RSSI'), findsOneWidget);
+    expect(find.text('Transport'), findsOneWidget);
+    expect(find.text('Android mode'), findsNothing);
+    expect(find.text('Solicited services'), findsNothing);
+    expect(find.text('In range dBm'), findsNothing);
+  });
+
+  testWidgets('cancels report delay input without errors', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.android),
+        home: const BleExplorerPage(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('ble_scan_options_panel')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Report delay ms'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shows concrete default scan option values', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.android),
+        home: const BleExplorerPage(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('ble_scan_options_panel')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Default (Low latency)'), findsOneWidget);
+    expect(find.text('Default (0 ms)'), findsOneWidget);
+    expect(find.text('Default'), findsNothing);
+  });
+
+  testWidgets('uses one scan mode tile for Android', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.android),
+        home: const BleExplorerPage(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('ble_scan_options_panel')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Android mode'), findsOneWidget);
+    expect(find.text('Scan mode'), findsNothing);
   });
 }

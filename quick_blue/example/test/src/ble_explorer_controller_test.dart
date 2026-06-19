@@ -174,6 +174,90 @@ void main() {
     expect(platform.lastScanFilter?.serviceUuids, <String>['180d', '180f']);
   });
 
+  test('startScan passes scan options to the platform', () async {
+    final controller = BleExplorerController();
+    addTearDown(controller.dispose);
+    await controller.initialBluetoothCheck;
+
+    controller
+      ..setScanAllowDuplicates(true)
+      ..setScanMode(ScanMode.balanced)
+      ..setAndroidScanMode(AndroidScanMode.lowPower)
+      ..setAndroidCallbackType(AndroidScanCallbackType.firstMatch)
+      ..setAndroidMatchMode(AndroidScanMatchMode.aggressive)
+      ..setAndroidNumOfMatches(AndroidScanNumOfMatches.few)
+      ..setAndroidLegacy(false)
+      ..setAndroidPhy(AndroidScanPhy.leCoded)
+      ..setDarwinAllowDuplicates(false)
+      ..setLinuxTransport(LinuxScanTransport.auto)
+      ..setLinuxDuplicateData(true)
+      ..setLinuxDiscoverable(false)
+      ..setWindowsScanMode(WindowsScanMode.active);
+    controller.androidReportDelayMillisController.text = '250';
+    controller.darwinSolicitedServiceUuidsController.text = '180d, 180f';
+    controller.linuxRssiController.text = '-70';
+    controller.linuxPathlossController.text = '42';
+    controller.linuxPatternController.text = 'Sensor';
+    controller.windowsInRangeThresholdController.text = '-65';
+    controller.windowsOutOfRangeThresholdController.text = '-80';
+    controller.windowsOutOfRangeTimeoutMillisController.text = '5000';
+    controller.windowsSamplingIntervalMillisController.text = '1000';
+
+    await controller.startScan();
+    await pumpEventQueue();
+
+    final options = platform.lastScanOptions;
+    expect(options?.allowDuplicates, isTrue);
+    expect(options?.scanMode, ScanMode.balanced);
+    expect(options?.android.scanMode, AndroidScanMode.lowPower);
+    expect(options?.android.callbackType, AndroidScanCallbackType.firstMatch);
+    expect(options?.android.matchMode, AndroidScanMatchMode.aggressive);
+    expect(options?.android.numOfMatches, AndroidScanNumOfMatches.few);
+    expect(options?.android.reportDelay, const Duration(milliseconds: 250));
+    expect(options?.android.legacy, isFalse);
+    expect(options?.android.phy, AndroidScanPhy.leCoded);
+    expect(options?.darwin.allowDuplicates, isFalse);
+    expect(options?.darwin.solicitedServiceUuids, <String>['180d', '180f']);
+    expect(options?.linux.rssi, -70);
+    expect(options?.linux.pathloss, 42);
+    expect(options?.linux.transport, LinuxScanTransport.auto);
+    expect(options?.linux.duplicateData, isTrue);
+    expect(options?.linux.discoverable, isFalse);
+    expect(options?.linux.pattern, 'Sensor');
+    expect(options?.windows.scanningMode, WindowsScanMode.active);
+    expect(options?.windows.signalStrengthFilter?.inRangeThresholdInDBm, -65);
+    expect(
+      options?.windows.signalStrengthFilter?.outOfRangeThresholdInDBm,
+      -80,
+    );
+    expect(
+      options?.windows.signalStrengthFilter?.outOfRangeTimeout,
+      const Duration(milliseconds: 5000),
+    );
+    expect(
+      options?.windows.signalStrengthFilter?.samplingInterval,
+      const Duration(milliseconds: 1000),
+    );
+  });
+
+  test('startScan rejects invalid numeric scan options', () async {
+    final controller = BleExplorerController();
+    addTearDown(controller.dispose);
+    await controller.initialBluetoothCheck;
+
+    controller.linuxRssiController.text = 'loud';
+
+    await controller.startScan();
+    await pumpEventQueue();
+
+    expect(controller.scanning, isFalse);
+    expect(platform.calls, isNot(contains('startScan')));
+    expect(
+      controller.message,
+      'Invalid scan option: Linux RSSI must be an integer.',
+    );
+  });
+
   test('selecting a different device clears discovered GATT state', () async {
     final controller = BleExplorerController();
     addTearDown(controller.dispose);

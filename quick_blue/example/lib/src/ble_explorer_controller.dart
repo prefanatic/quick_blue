@@ -42,6 +42,15 @@ class BleExplorerController extends ChangeNotifier {
 
   late final Future<void> initialBluetoothCheck;
   final serviceFilterController = TextEditingController();
+  final androidReportDelayMillisController = TextEditingController();
+  final darwinSolicitedServiceUuidsController = TextEditingController();
+  final linuxRssiController = TextEditingController();
+  final linuxPathlossController = TextEditingController();
+  final linuxPatternController = TextEditingController();
+  final windowsInRangeThresholdController = TextEditingController();
+  final windowsOutOfRangeThresholdController = TextEditingController();
+  final windowsOutOfRangeTimeoutMillisController = TextEditingController();
+  final windowsSamplingIntervalMillisController = TextEditingController();
 
   final _writeControllers = <String, TextEditingController>{};
   final _writeWithoutResponseKeys = <String>{};
@@ -65,8 +74,23 @@ class BleExplorerController extends ChangeNotifier {
   String? selectedDeviceId;
   BlueConnectionState connectionState = BlueConnectionState.disconnected;
   String? status;
+  bool? scanAllowDuplicates;
+  ScanMode? scanMode;
+  AndroidScanMode? androidScanMode;
+  AndroidScanCallbackType androidCallbackType =
+      AndroidScanCallbackType.allMatches;
+  AndroidScanMatchMode androidMatchMode = AndroidScanMatchMode.sticky;
+  AndroidScanNumOfMatches? androidNumOfMatches;
+  bool? androidLegacy;
+  AndroidScanPhy? androidPhy;
+  bool? darwinAllowDuplicates;
+  LinuxScanTransport linuxTransport = LinuxScanTransport.le;
+  bool? linuxDuplicateData;
+  bool? linuxDiscoverable;
+  WindowsScanMode? windowsScanMode;
 
   bool _disposed = false;
+  bool _scanOptionParseFailed = false;
 
   Set<String> get notificationKeys => _notificationSubscriptions.keys.toSet();
 
@@ -88,6 +112,10 @@ class BleExplorerController extends ChangeNotifier {
     await _cancelScanSubscription();
     _scanTimer?.cancel();
     final scanFilter = _scanFilter();
+    final scanOptions = _scanOptions();
+    if (scanOptions == null) {
+      return;
+    }
 
     _mutate(() {
       devices.clear();
@@ -100,34 +128,41 @@ class BleExplorerController extends ChangeNotifier {
             : 'Scan started for ${scanFilter.serviceUuids.join(', ')}.',
         BleEventSeverity.info,
       );
+      if (scanOptions != ScanOptions.defaults) {
+        _log('Scan options: $scanOptions.', BleEventSeverity.info);
+      }
     });
     _startScanCountdown();
 
-    _scanSubscription = QuickBlue.scanResults(scanFilter: scanFilter).listen(
-      (result) => _mutate(() {
-        final firstSeen = !devices.containsKey(result.deviceId);
-        devices[result.deviceId] = _mergeScanResult(
-          previous: devices[result.deviceId],
-          latest: result,
+    _scanSubscription =
+        QuickBlue.scanResults(
+          scanFilter: scanFilter,
+          scanOptions: scanOptions,
+        ).listen(
+          (result) => _mutate(() {
+            final firstSeen = !devices.containsKey(result.deviceId);
+            devices[result.deviceId] = _mergeScanResult(
+              previous: devices[result.deviceId],
+              latest: result,
+            );
+            if (firstSeen) {
+              _log('Found ${_deviceLabel(result)}.', BleEventSeverity.info);
+            }
+          }),
+          onError: (Object error) {
+            _scanTimer?.cancel();
+            _setError('Scan failed', error);
+            _mutate(() {
+              scanning = false;
+              scanRemaining = Duration.zero;
+            });
+          },
+          onDone: () => _mutate(() {
+            _scanTimer?.cancel();
+            scanning = false;
+            scanRemaining = Duration.zero;
+          }),
         );
-        if (firstSeen) {
-          _log('Found ${_deviceLabel(result)}.', BleEventSeverity.info);
-        }
-      }),
-      onError: (Object error) {
-        _scanTimer?.cancel();
-        _setError('Scan failed', error);
-        _mutate(() {
-          scanning = false;
-          scanRemaining = Duration.zero;
-        });
-      },
-      onDone: () => _mutate(() {
-        _scanTimer?.cancel();
-        scanning = false;
-        scanRemaining = Duration.zero;
-      }),
-    );
   }
 
   Future<void> stopScan({String statusMessage = 'Scan stopped.'}) async {
@@ -486,6 +521,84 @@ class BleExplorerController extends ChangeNotifier {
     });
   }
 
+  void setScanAllowDuplicates(bool? value) {
+    _mutate(() {
+      scanAllowDuplicates = value;
+    });
+  }
+
+  void setScanMode(ScanMode? value) {
+    _mutate(() {
+      scanMode = value;
+    });
+  }
+
+  void setAndroidScanMode(AndroidScanMode? value) {
+    _mutate(() {
+      androidScanMode = value;
+    });
+  }
+
+  void setAndroidCallbackType(AndroidScanCallbackType value) {
+    _mutate(() {
+      androidCallbackType = value;
+    });
+  }
+
+  void setAndroidMatchMode(AndroidScanMatchMode value) {
+    _mutate(() {
+      androidMatchMode = value;
+    });
+  }
+
+  void setAndroidNumOfMatches(AndroidScanNumOfMatches? value) {
+    _mutate(() {
+      androidNumOfMatches = value;
+    });
+  }
+
+  void setAndroidLegacy(bool? value) {
+    _mutate(() {
+      androidLegacy = value;
+    });
+  }
+
+  void setAndroidPhy(AndroidScanPhy? value) {
+    _mutate(() {
+      androidPhy = value;
+    });
+  }
+
+  void setDarwinAllowDuplicates(bool? value) {
+    _mutate(() {
+      darwinAllowDuplicates = value;
+    });
+  }
+
+  void setLinuxTransport(LinuxScanTransport value) {
+    _mutate(() {
+      linuxTransport = value;
+    });
+  }
+
+  void setLinuxDuplicateData(bool? value) {
+    _mutate(() {
+      linuxDuplicateData = value;
+    });
+  }
+
+  void setLinuxDiscoverable(bool? value) {
+    _mutate(() {
+      linuxDiscoverable = value;
+    });
+  }
+
+  void setWindowsScanMode(WindowsScanMode? value) {
+    _mutate(() {
+      windowsScanMode = value;
+    });
+  }
+
   String deviceTitle(String deviceId) {
     final name = devices[deviceId]?.name.trim();
     return name == null || name.isEmpty ? deviceId : name;
@@ -528,14 +641,137 @@ class BleExplorerController extends ChangeNotifier {
   }
 
   ScanFilter _scanFilter() {
-    final serviceUuids = serviceFilterController.text
+    final serviceUuids = _splitUuidText(serviceFilterController.text);
+    return serviceUuids.isEmpty
+        ? ScanFilter.empty
+        : ScanFilter(serviceUuids: serviceUuids);
+  }
+
+  ScanOptions? _scanOptions() {
+    _scanOptionParseFailed = false;
+    final androidReportDelayMillis = _optionalInt(
+      androidReportDelayMillisController.text,
+      'Android report delay',
+    );
+    final linuxRssi = _optionalInt(linuxRssiController.text, 'Linux RSSI');
+    final linuxPathloss = _optionalInt(
+      linuxPathlossController.text,
+      'Linux pathloss',
+    );
+    final windowsInRangeThreshold = _optionalInt(
+      windowsInRangeThresholdController.text,
+      'Windows in-range threshold',
+    );
+    final windowsOutOfRangeThreshold = _optionalInt(
+      windowsOutOfRangeThresholdController.text,
+      'Windows out-of-range threshold',
+    );
+    final windowsOutOfRangeTimeoutMillis = _optionalInt(
+      windowsOutOfRangeTimeoutMillisController.text,
+      'Windows out-of-range timeout',
+    );
+    final windowsSamplingIntervalMillis = _optionalInt(
+      windowsSamplingIntervalMillisController.text,
+      'Windows sampling interval',
+    );
+    if (_scanOptionParseFailed) {
+      return null;
+    }
+
+    return ScanOptions(
+      allowDuplicates: scanAllowDuplicates,
+      scanMode: scanMode,
+      android: AndroidScanOptions(
+        scanMode: androidScanMode,
+        callbackType: androidCallbackType,
+        matchMode: androidMatchMode,
+        numOfMatches: androidNumOfMatches,
+        reportDelay: Duration(milliseconds: androidReportDelayMillis ?? 0),
+        legacy: androidLegacy,
+        phy: androidPhy,
+      ),
+      darwin: DarwinScanOptions(
+        allowDuplicates: darwinAllowDuplicates,
+        solicitedServiceUuids: _splitUuidText(
+          darwinSolicitedServiceUuidsController.text,
+        ),
+      ),
+      linux: LinuxScanOptions(
+        rssi: linuxRssi,
+        pathloss: linuxPathloss,
+        transport: linuxTransport,
+        duplicateData: linuxDuplicateData,
+        discoverable: linuxDiscoverable,
+        pattern: _optionalText(linuxPatternController.text),
+      ),
+      windows: WindowsScanOptions(
+        scanningMode: windowsScanMode,
+        signalStrengthFilter: _windowsSignalStrengthFilter(
+          inRangeThresholdInDBm: windowsInRangeThreshold,
+          outOfRangeThresholdInDBm: windowsOutOfRangeThreshold,
+          outOfRangeTimeoutMillis: windowsOutOfRangeTimeoutMillis,
+          samplingIntervalMillis: windowsSamplingIntervalMillis,
+        ),
+      ),
+    );
+  }
+
+  int? _optionalInt(String text, String label) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final value = int.tryParse(trimmed);
+    if (value == null) {
+      _setScanOptionError('$label must be an integer.');
+    }
+    return value;
+  }
+
+  String? _optionalText(String text) {
+    final trimmed = text.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  List<String> _splitUuidText(String text) {
+    return text
         .split(RegExp(r'[\s,]+'))
         .map((uuid) => uuid.trim())
         .where((uuid) => uuid.isNotEmpty)
         .toList();
-    return serviceUuids.isEmpty
-        ? ScanFilter.empty
-        : ScanFilter(serviceUuids: serviceUuids);
+  }
+
+  WindowsSignalStrengthFilter? _windowsSignalStrengthFilter({
+    required int? inRangeThresholdInDBm,
+    required int? outOfRangeThresholdInDBm,
+    required int? outOfRangeTimeoutMillis,
+    required int? samplingIntervalMillis,
+  }) {
+    if (inRangeThresholdInDBm == null &&
+        outOfRangeThresholdInDBm == null &&
+        outOfRangeTimeoutMillis == null &&
+        samplingIntervalMillis == null) {
+      return null;
+    }
+    return WindowsSignalStrengthFilter(
+      inRangeThresholdInDBm: inRangeThresholdInDBm,
+      outOfRangeThresholdInDBm: outOfRangeThresholdInDBm,
+      outOfRangeTimeout: outOfRangeTimeoutMillis == null
+          ? null
+          : Duration(milliseconds: outOfRangeTimeoutMillis),
+      samplingInterval: samplingIntervalMillis == null
+          ? null
+          : Duration(milliseconds: samplingIntervalMillis),
+    );
+  }
+
+  void _setScanOptionError(String text) {
+    _scanOptionParseFailed = true;
+    _mutate(() {
+      message = 'Invalid scan option: $text';
+      status = 'Invalid scan option.';
+      _log(message!, BleEventSeverity.error);
+    });
   }
 
   BlueScanResult _mergeScanResult({
@@ -770,6 +1006,15 @@ class BleExplorerController extends ChangeNotifier {
     );
     _disposeWriteControllers();
     serviceFilterController.dispose();
+    androidReportDelayMillisController.dispose();
+    darwinSolicitedServiceUuidsController.dispose();
+    linuxRssiController.dispose();
+    linuxPathlossController.dispose();
+    linuxPatternController.dispose();
+    windowsInRangeThresholdController.dispose();
+    windowsOutOfRangeThresholdController.dispose();
+    windowsOutOfRangeTimeoutMillisController.dispose();
+    windowsSamplingIntervalMillisController.dispose();
     super.dispose();
   }
 }
