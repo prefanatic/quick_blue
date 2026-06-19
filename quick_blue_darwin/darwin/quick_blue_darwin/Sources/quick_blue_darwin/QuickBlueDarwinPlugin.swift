@@ -81,7 +81,7 @@ extension CBManagerState {
 public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     func getConnectedPeripherals(serviceUuids: [String]) throws -> [Peripheral]
     {
-        let peripherals = manager.retrieveConnectedPeripherals(
+        let peripherals = getManager().retrieveConnectedPeripherals(
             withServices: serviceUuids.map { uuid in CBUUID(string: uuid) }
         )
         for peripheral in peripherals {
@@ -127,7 +127,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var scanResultListener: ScanResultListener
     private var l2CapSocketEventsListener: L2CapSocketEventsListener
 
-    private var manager: CBCentralManager!
+    private var manager: CBCentralManager?
     private var discoveredPeripherals: [String: CBPeripheral]!
     private var streamDelegates: [String: L2CapStreamDelegate]!
     private var pendingServiceDiscovery: [String: Set<String>]!
@@ -154,17 +154,25 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         self.l2CapSocketEventsListener = L2CapSocketEventsListener()
 
         super.init()
-        manager = CBCentralManager(delegate: self, queue: nil)
         bluetoothStateListener.currentStateProvider = { [weak self] in
-            self?.manager.state.platformBluetoothState ?? .unknown
+            self?.getManager().state.platformBluetoothState ?? .unknown
         }
         discoveredPeripherals = Dictionary()
         streamDelegates = Dictionary()
         pendingServiceDiscovery = Dictionary()
     }
 
+    private func getManager() -> CBCentralManager {
+        if let manager = manager {
+            return manager
+        }
+        let manager = CBCentralManager(delegate: self, queue: nil)
+        self.manager = manager
+        return manager
+    }
+
     func isBluetoothAvailable() throws -> Bool {
-        return manager.state == .poweredOn
+        return getManager().state == .poweredOn
     }
 
     func startScan(
@@ -215,7 +223,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             }
         }
 
-        manager.scanForPeripherals(
+        getManager().scanForPeripherals(
             withServices: withServices,
             options: nativeOptions
         )
@@ -223,7 +231,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
 
     func stopScan() throws {
         targetRssi = nil
-        manager.stopScan()
+        manager?.stopScan()
     }
 
     func connect(deviceId: String) throws {
@@ -240,7 +248,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                 return
             }
             peripheral.delegate = self
-            manager.connect(peripheral)
+            getManager().connect(peripheral)
         }
     }
 
@@ -450,7 +458,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
 
     public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
         // Stop scanning
-        manager.stopScan()
+        manager?.stopScan()
         bluetoothStateListener.onEventsDone()
 
         // Disconnect all active devices
@@ -466,7 +474,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             delegate.close()
             streamDelegates.removeValue(forKey: peripheral.identifier.uuidString)
         }
-        manager.cancelPeripheralConnection(peripheral)
+        manager?.cancelPeripheralConnection(peripheral)
     }
 
     /// Fails any write-with-response completions still awaiting acknowledgement
