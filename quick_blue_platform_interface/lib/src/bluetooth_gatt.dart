@@ -4,6 +4,7 @@ import '../models.dart';
 import 'bluetooth_characteristic.dart';
 import 'bluetooth_device.dart';
 import 'bluetooth_uuid.dart';
+import 'quick_blue_exception.dart';
 
 /// A discovered GATT view for one Bluetooth LE device.
 ///
@@ -29,8 +30,8 @@ class BluetoothGatt {
   /// Resolves a characteristic and returns a handle for it.
   ///
   /// Pass [service] when the characteristic UUID appears under multiple
-  /// services. Throws [StateError] when the characteristic is missing or
-  /// ambiguous.
+  /// services. Throws [QuickBlueException] when the characteristic is missing
+  /// or ambiguous.
   BluetoothCharacteristic characteristic(
     String characteristic, {
     String? service,
@@ -45,8 +46,8 @@ class BluetoothGatt {
   /// Resolves metadata for a discovered characteristic.
   ///
   /// Pass [service] when the characteristic UUID appears under multiple
-  /// services. Throws [StateError] when the characteristic is missing or
-  /// ambiguous.
+  /// services. Throws [QuickBlueException] when the characteristic is missing
+  /// or ambiguous.
   BluetoothCharacteristicInfo characteristicInfo(
     String characteristic, {
     String? service,
@@ -85,9 +86,15 @@ class BluetoothGatt {
 
     if (matches.isEmpty) {
       final serviceContext = service == null ? '' : ' under service $service';
-      throw StateError(
-        'Characteristic $characteristic not found$serviceContext on '
-        'Bluetooth device $deviceId.',
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.notFound,
+        operation: 'resolveCharacteristic',
+        deviceId: deviceId,
+        serviceId: service,
+        characteristicId: characteristic,
+        message:
+            'Characteristic $characteristic not found$serviceContext on '
+            'Bluetooth device $deviceId.',
       );
     }
     if (matches.length > 1) {
@@ -95,9 +102,15 @@ class BluetoothGatt {
           .map((match) => match.service.uuid)
           .toSet()
           .join(', ');
-      throw StateError(
-        'Characteristic $characteristic was found under multiple services on '
-        'Bluetooth device $deviceId: $services. Specify a service UUID.',
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.ambiguous,
+        operation: 'resolveCharacteristic',
+        deviceId: deviceId,
+        characteristicId: characteristic,
+        details: services,
+        message:
+            'Characteristic $characteristic was found under multiple services '
+            'on Bluetooth device $deviceId: $services. Specify a service UUID.',
       );
     }
 

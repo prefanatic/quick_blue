@@ -33,17 +33,29 @@ class QuickBlueWindows extends QuickBluePlatform {
   Future<CompanionAssociation?> companionAssociate(
     CompanionAssociationRequest request,
   ) async {
-    throw UnsupportedError(_companionUnsupported);
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'companionAssociate',
+      message: _companionUnsupported,
+    );
   }
 
   @override
   Future<void> companionDisassociate(int associationId) {
-    throw UnsupportedError(_companionUnsupported);
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'companionDisassociate',
+      message: _companionUnsupported,
+    );
   }
 
   @override
   Future<List<CompanionAssociation>> getCompanionAssociations() async {
-    throw UnsupportedError(_companionUnsupported);
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'getCompanionAssociations',
+      message: _companionUnsupported,
+    );
   }
 
   @override
@@ -81,7 +93,11 @@ class QuickBlueWindows extends QuickBluePlatform {
 
   @override
   Future<BleL2capSocket> openL2cap(String deviceId, int psm) {
-    throw UnsupportedError('L2CAP sockets are not supported on Windows.');
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'openL2cap',
+      message: 'L2CAP sockets are not supported on Windows.',
+    );
   }
 
   @override

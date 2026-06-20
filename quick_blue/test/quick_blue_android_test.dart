@@ -617,11 +617,17 @@ void main() {
       await expectLater(
         socket.stream,
         emitsError(
-          isA<Exception>().having(
-            (error) => error.toString(),
-            'message',
-            contains('Unknown L2CAP event'),
-          ),
+          isA<QuickBlueException>()
+              .having(
+                (error) => error.code,
+                'code',
+                QuickBlueErrorCode.invalidState,
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                'Unknown L2CAP event.',
+              ),
         ),
       );
     });

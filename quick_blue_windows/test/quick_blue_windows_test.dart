@@ -145,25 +145,49 @@ void main() {
     ]);
   });
 
-  test('unsupported APIs throw UnsupportedError', () async {
+  test('unsupported APIs throw QuickBlueException', () async {
     final platform = QuickBlueWindows();
 
     expect(await platform.isCompanionAssociationSupported(), isFalse);
     expect(
       platform.companionAssociate(CompanionAssociationRequest.ble()),
-      throwsA(isA<UnsupportedError>()),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
     );
     expect(
       () => platform.companionDisassociate(42),
-      throwsA(isA<UnsupportedError>()),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
     );
     expect(
       platform.getCompanionAssociations(),
-      throwsA(isA<UnsupportedError>()),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
     );
     expect(
       () => platform.openL2cap('device-a', 25),
-      throwsA(isA<UnsupportedError>()),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
     );
   });
 

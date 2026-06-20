@@ -14,4 +14,40 @@ void main() {
       QuickBluePlatform.instance = previous;
     }
   });
+
+  test('companion APIs throw QuickBlueException', () async {
+    final platform = QuickBlueLinux();
+
+    expect(await platform.isCompanionAssociationSupported(), isFalse);
+    expect(
+      platform.companionAssociate(CompanionAssociationRequest.ble()),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
+    );
+    expect(
+      () => platform.companionDisassociate(42),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
+    );
+    expect(
+      platform.getCompanionAssociations(),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
+    );
+  });
 }

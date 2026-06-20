@@ -1,9 +1,32 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:quick_blue_platform_interface/models.dart';
+import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 void main() {
+  group(QuickBlueException, () {
+    test('exposes structured context and a readable string', () {
+      const error = QuickBlueException(
+        code: QuickBlueErrorCode.notFound,
+        operation: 'resolveCharacteristic',
+        deviceId: 'device-a',
+        serviceId: 'service-a',
+        characteristicId: 'characteristic-a',
+        details: 'extra',
+        message: 'Characteristic not found.',
+      );
+
+      expect(error.code, QuickBlueErrorCode.notFound);
+      expect(error.operation, 'resolveCharacteristic');
+      expect(error.deviceId, 'device-a');
+      expect(error.serviceId, 'service-a');
+      expect(error.characteristicId, 'characteristic-a');
+      expect(error.details, 'extra');
+      expect(error.toString(), contains('notFound'));
+      expect(error.toString(), contains('Characteristic not found.'));
+    });
+  });
+
   group(BlueConnectionState, () {
     test('parses known states and rejects invalid states', () {
       expect(

@@ -7,6 +7,7 @@ import '../models.dart';
 import 'bluetooth_characteristic.dart';
 import 'bluetooth_gatt.dart';
 import 'quick_blue_platform.dart';
+import 'quick_blue_exception.dart';
 
 /// A handle for a Bluetooth LE device.
 ///
@@ -64,6 +65,7 @@ class BluetoothDevice {
   /// Timeouts are left to callers with normal `Future.timeout` composition.
   Future<void> connect() async {
     await _runConnectionOperation(
+      operationName: 'connect',
       targetState: BlueConnectionState.connected,
       failureMessage: 'Failed to connect to Bluetooth device $deviceId.',
       operation: () => _platform.connect(deviceId),
@@ -75,6 +77,7 @@ class BluetoothDevice {
   /// Timeouts are left to callers with normal `Future.timeout` composition.
   Future<void> disconnect() async {
     await _runConnectionOperation(
+      operationName: 'disconnect',
       targetState: BlueConnectionState.disconnected,
       failureMessage: 'Failed to disconnect Bluetooth device $deviceId.',
       operation: () => _platform.disconnect(deviceId),
@@ -82,6 +85,7 @@ class BluetoothDevice {
   }
 
   Future<void> _runConnectionOperation({
+    required String operationName,
     required BlueConnectionState targetState,
     required String failureMessage,
     required Future<void> Function() operation,
@@ -97,7 +101,13 @@ class BluetoothDevice {
       await operation();
       final state = await stateEvents.next;
       if (state.status == BleStatus.failure) {
-        throw StateError(failureMessage);
+        throw QuickBlueException(
+          code: QuickBlueErrorCode.operationFailed,
+          operation: operationName,
+          deviceId: deviceId,
+          details: state.status,
+          message: failureMessage,
+        );
       }
     } finally {
       await stateEvents.cancel();

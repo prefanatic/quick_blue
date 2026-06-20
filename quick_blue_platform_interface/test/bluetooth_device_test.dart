@@ -75,11 +75,22 @@ void main() {
     await expectLater(
       QuickBluePlatform.instance.isBluetoothAvailable(),
       throwsA(
-        isA<UnsupportedError>().having(
-          (error) => error.message,
-          'message',
-          'No QuickBlue platform implementation has been registered.',
-        ),
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.unsupported,
+            )
+            .having(
+              (error) => error.operation,
+              'operation',
+              'isBluetoothAvailable',
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              'No QuickBlue platform implementation has been registered.',
+            ),
       ),
     );
   });
@@ -300,7 +311,14 @@ void main() {
 
     await pumpEventQueue();
 
-    expect(errors.single, isA<StateError>());
+    expect(
+      errors.single,
+      isA<QuickBlueException>().having(
+        (error) => error.code,
+        'code',
+        QuickBlueErrorCode.invalidState,
+      ),
+    );
     expect(platform.calls, <String>['startScan']);
 
     await firstSubscription.cancel();
@@ -340,7 +358,14 @@ void main() {
           .listen((_) {}, onError: errors.add);
 
       await pumpEventQueue();
-      expect(errors.single, isA<StateError>());
+      expect(
+        errors.single,
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.invalidState,
+        ),
+      );
       expect(platform.calls, <String>['startScan']);
 
       await firstSubscription.cancel();
@@ -378,7 +403,14 @@ void main() {
           .listen((_) {}, onError: errors.add);
 
       await pumpEventQueue();
-      expect(errors.single, isA<StateError>());
+      expect(
+        errors.single,
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.invalidState,
+        ),
+      );
 
       await firstSubscription.cancel();
       await secondSubscription.cancel();
@@ -514,7 +546,14 @@ void main() {
           .drain<void>()
           .then<Object?>((_) => null, onError: (Object error) => error);
 
-      expect(error, isA<StateError>());
+      expect(
+        error,
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.invalidState,
+        ),
+      );
       expect(platform.calls, <String>['startScan']);
 
       await firstSubscription.cancel();
@@ -837,11 +876,18 @@ void main() {
     final connectExpectation = expectLater(
       connect,
       throwsA(
-        isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          'Failed to connect to Bluetooth device device-a.',
-        ),
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.operationFailed,
+            )
+            .having((error) => error.operation, 'operation', 'connect')
+            .having(
+              (error) => error.message,
+              'message',
+              'Failed to connect to Bluetooth device device-a.',
+            ),
       ),
     );
 
@@ -935,11 +981,18 @@ void main() {
       final disconnectExpectation = expectLater(
         disconnect,
         throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            'Failed to disconnect Bluetooth device device-a.',
-          ),
+          isA<QuickBlueException>()
+              .having(
+                (error) => error.code,
+                'code',
+                QuickBlueErrorCode.operationFailed,
+              )
+              .having((error) => error.operation, 'operation', 'disconnect')
+              .having(
+                (error) => error.message,
+                'message',
+                'Failed to disconnect Bluetooth device device-a.',
+              ),
         ),
       );
 
@@ -1142,11 +1195,13 @@ void main() {
     expect(
       () => gatt.characteristic('characteristic-a', service: 'service-a'),
       throwsA(
-        isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          contains('under service service-a'),
-        ),
+        isA<QuickBlueException>()
+            .having((error) => error.code, 'code', QuickBlueErrorCode.notFound)
+            .having(
+              (error) => error.message,
+              'message',
+              contains('under service service-a'),
+            ),
       ),
     );
   });
@@ -1168,11 +1223,13 @@ void main() {
     expect(
       () => gatt.characteristic('missing-characteristic'),
       throwsA(
-        isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          contains('Characteristic missing-characteristic not found'),
-        ),
+        isA<QuickBlueException>()
+            .having((error) => error.code, 'code', QuickBlueErrorCode.notFound)
+            .having(
+              (error) => error.message,
+              'message',
+              contains('Characteristic missing-characteristic not found'),
+            ),
       ),
     );
   });
@@ -1201,11 +1258,17 @@ void main() {
       expect(
         () => gatt.characteristic('characteristic-a'),
         throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            allOf(contains('multiple services'), contains('service-a')),
-          ),
+          isA<QuickBlueException>()
+              .having(
+                (error) => error.code,
+                'code',
+                QuickBlueErrorCode.ambiguous,
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                allOf(contains('multiple services'), contains('service-a')),
+              ),
         ),
       );
     },

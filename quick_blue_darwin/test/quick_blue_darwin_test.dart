@@ -161,21 +161,39 @@ void main() {
     ]);
   });
 
-  test('companion APIs throw UnsupportedError', () async {
+  test('companion APIs throw QuickBlueException', () async {
     final platform = QuickBlueDarwin();
 
     expect(await platform.isCompanionAssociationSupported(), isFalse);
     expect(
       platform.companionAssociate(CompanionAssociationRequest.ble()),
-      throwsA(isA<UnsupportedError>()),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
     );
     expect(
       () => platform.companionDisassociate(42),
-      throwsA(isA<UnsupportedError>()),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
     );
     expect(
       platform.getCompanionAssociations(),
-      throwsA(isA<UnsupportedError>()),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
     );
   });
 
@@ -502,11 +520,17 @@ void main() {
     await expectLater(
       socket.stream.skip(1),
       emitsError(
-        isA<Exception>().having(
-          (error) => error.toString(),
-          'message',
-          contains('Unknown L2CAP event'),
-        ),
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.invalidState,
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              'Unknown L2CAP event.',
+            ),
       ),
     );
   });

@@ -345,7 +345,13 @@ BleL2CapSocketEvent _l2capEventFromPlatformEvent(
     return BleL2CapSocketEventClosed(deviceId: event.deviceId);
   }
 
-  throw Exception('Unknown L2CAP event: $event');
+  throw QuickBlueException(
+    code: QuickBlueErrorCode.invalidState,
+    operation: 'openL2cap',
+    deviceId: event.deviceId,
+    details: event,
+    message: 'Unknown L2CAP event.',
+  );
 }
 
 class _L2capSink implements EventSink<Uint8List> {

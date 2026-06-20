@@ -7,6 +7,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import '../models.dart';
 import 'bluetooth_device.dart';
 import 'callbacks.dart';
+import 'quick_blue_exception.dart';
 import 'service_discovery_event.dart';
 import 'unimplemented_quick_blue_platform.dart';
 
@@ -127,9 +128,12 @@ abstract class QuickBluePlatform extends PlatformInterface {
         }
       } else if (activeConfiguration == null ||
           activeConfiguration != configuration) {
-        throw StateError(
-          'Cannot start scanning with a different scan configuration while another '
-          'scanResults stream is active.',
+        throw QuickBlueException(
+          code: QuickBlueErrorCode.invalidState,
+          operation: 'scanResults',
+          message:
+              'Cannot start scanning with a different scan configuration while '
+              'another scanResults stream is active.',
         );
       }
 
@@ -429,9 +433,13 @@ abstract class QuickBluePlatform extends PlatformInterface {
         }
       }
 
-      throw StateError(
-        'Service discovery ended before completion for Bluetooth device '
-        '$deviceId.',
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.operationFailed,
+        operation: 'discoverServices',
+        deviceId: deviceId,
+        message:
+            'Service discovery ended before completion for Bluetooth device '
+            '$deviceId.',
       );
     } finally {
       await events.cancel();

@@ -5,7 +5,12 @@ import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
 
 export 'package:quick_blue_platform_interface/models.dart';
 export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart'
-    show BluetoothCharacteristic, BluetoothDevice, BluetoothGatt;
+    show
+        BluetoothCharacteristic,
+        BluetoothDevice,
+        BluetoothGatt,
+        QuickBlueErrorCode,
+        QuickBlueException;
 
 export 'quick_blue_android.dart';
 
@@ -217,7 +222,8 @@ class QuickBlue {
 /// Android companion-device association API.
 ///
 /// Unsupported platforms report [isSupported] as false and throw
-/// [UnsupportedError] for association operations.
+/// [QuickBlueException] with [QuickBlueErrorCode.unsupported] for association
+/// operations.
 class QuickBlueCompanion {
   QuickBlueCompanion._();
 

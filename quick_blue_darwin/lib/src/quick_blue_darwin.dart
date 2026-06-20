@@ -41,17 +41,29 @@ class QuickBlueDarwin extends QuickBluePlatform {
   Future<CompanionAssociation?> companionAssociate(
     CompanionAssociationRequest request,
   ) async {
-    throw UnsupportedError(_companionUnsupported);
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'companionAssociate',
+      message: _companionUnsupported,
+    );
   }
 
   @override
   Future<void> companionDisassociate(int associationId) {
-    throw UnsupportedError(_companionUnsupported);
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'companionDisassociate',
+      message: _companionUnsupported,
+    );
   }
 
   @override
   Future<List<CompanionAssociation>> getCompanionAssociations() async {
-    throw UnsupportedError(_companionUnsupported);
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'getCompanionAssociations',
+      message: _companionUnsupported,
+    );
   }
 
   @override
@@ -249,7 +261,13 @@ BleL2CapSocketEvent _l2capEventFromPlatformEvent(
     return BleL2CapSocketEventClosed(deviceId: event.deviceId);
   }
 
-  throw Exception('Unknown L2CAP event: $event');
+  throw QuickBlueException(
+    code: QuickBlueErrorCode.invalidState,
+    operation: 'openL2cap',
+    deviceId: event.deviceId,
+    details: event,
+    message: 'Unknown L2CAP event.',
+  );
 }
 
 class _L2capSink implements EventSink<Uint8List> {

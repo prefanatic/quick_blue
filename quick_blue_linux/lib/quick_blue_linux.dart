@@ -188,7 +188,11 @@ class QuickBlueLinux extends QuickBluePlatform {
     _activeAdapter = _selectPoweredAdapter();
     final adapter = _activeAdapter;
     if (adapter == null) {
-      throw StateError('No active Bluetooth adapter available');
+      throw const QuickBlueException(
+        code: QuickBlueErrorCode.unavailable,
+        operation: 'startScan',
+        message: 'No active Bluetooth adapter available.',
+      );
     }
 
     _activeScanServiceUuids = scanFilter.serviceUuids
@@ -412,8 +416,15 @@ class QuickBlueLinux extends QuickBluePlatform {
         ? BlueZGattCharacteristicFlag.indicate
         : BlueZGattCharacteristicFlag.notify;
     if (!targetCharacteristic.flags.contains(requiredFlag)) {
-      throw StateError(
-        'Characteristic $characteristic on $service does not support ${bleInputProperty.value}',
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.unsupported,
+        operation: 'setNotifiable',
+        deviceId: deviceId,
+        serviceId: service,
+        characteristicId: characteristic,
+        message:
+            'Characteristic $characteristic on $service does not support '
+            '${bleInputProperty.value}.',
       );
     }
 
@@ -528,7 +539,12 @@ class QuickBlueLinux extends QuickBluePlatform {
         _client.devices.firstWhereOrNull((d) => d.address == deviceId);
 
     if (device == null) {
-      throw ArgumentError.value(deviceId, 'deviceId', 'Device not known');
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.notFound,
+        operation: 'openL2cap',
+        deviceId: deviceId,
+        message: 'Bluetooth device $deviceId is not known.',
+      );
     }
 
     _devices[deviceId] = device;
@@ -561,8 +577,10 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   @override
   Future<List<CompanionAssociation>> getCompanionAssociations() async {
-    throw UnsupportedError(
-      'Companion device association is not supported on Linux.',
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'getCompanionAssociations',
+      message: 'Companion device association is not supported on Linux.',
     );
   }
 
@@ -570,15 +588,19 @@ class QuickBlueLinux extends QuickBluePlatform {
   Future<CompanionAssociation?> companionAssociate(
     CompanionAssociationRequest request,
   ) async {
-    throw UnsupportedError(
-      'Companion device association is not supported on Linux.',
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'companionAssociate',
+      message: 'Companion device association is not supported on Linux.',
     );
   }
 
   @override
   Future<void> companionDisassociate(int associationId) async {
-    throw UnsupportedError(
-      'Companion device association is not supported on Linux.',
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'companionDisassociate',
+      message: 'Companion device association is not supported on Linux.',
     );
   }
 
@@ -683,7 +705,11 @@ class QuickBlueLinux extends QuickBluePlatform {
         _devices[deviceId] ??
         _client.devices.firstWhereOrNull((d) => d.address == deviceId);
     if (device == null) {
-      throw ArgumentError.value(deviceId, 'deviceId', 'Device not found');
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.notFound,
+        deviceId: deviceId,
+        message: 'Bluetooth device $deviceId was not found.',
+      );
     }
     _devices[deviceId] = device;
     return device;
@@ -859,7 +885,13 @@ class QuickBlueLinux extends QuickBluePlatform {
       (candidate) => _bluezUuidToCanonical(candidate.uuid) == canonicalService,
     );
     if (service == null) {
-      throw StateError('Service $serviceId not found on $deviceId');
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.notFound,
+        operation: 'resolveCharacteristic',
+        deviceId: deviceId,
+        serviceId: serviceId,
+        message: 'Service $serviceId not found on $deviceId.',
+      );
     }
 
     final characteristic = service.characteristics.firstWhereOrNull(
@@ -867,8 +899,15 @@ class QuickBlueLinux extends QuickBluePlatform {
           _bluezUuidToCanonical(candidate.uuid) == canonicalCharacteristic,
     );
     if (characteristic == null) {
-      throw StateError(
-        'Characteristic $characteristicId not found on $serviceId for $deviceId',
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.notFound,
+        operation: 'resolveCharacteristic',
+        deviceId: deviceId,
+        serviceId: serviceId,
+        characteristicId: characteristicId,
+        message:
+            'Characteristic $characteristicId not found on $serviceId for '
+            '$deviceId.',
       );
     }
 
