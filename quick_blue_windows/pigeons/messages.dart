@@ -31,10 +31,7 @@ class PlatformWindowsSignalStrengthFilter {
 }
 
 class PlatformWindowsScanOptions {
-  PlatformWindowsScanOptions({
-    this.scanningMode,
-    this.signalStrengthFilter,
-  });
+  PlatformWindowsScanOptions({this.scanningMode, this.signalStrengthFilter});
 
   final PlatformWindowsScanMode? scanningMode;
   final PlatformWindowsSignalStrengthFilter? signalStrengthFilter;
