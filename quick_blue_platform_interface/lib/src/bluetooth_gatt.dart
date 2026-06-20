@@ -5,6 +5,9 @@ import 'bluetooth_characteristic.dart';
 import 'bluetooth_device.dart';
 import 'bluetooth_uuid.dart';
 
+/// A discovered GATT view for one Bluetooth LE device.
+///
+/// This is a snapshot of the services returned by [BluetoothDevice.discoverGatt].
 class BluetoothGatt {
   @internal
   BluetoothGatt.internal({
@@ -14,10 +17,20 @@ class BluetoothGatt {
        services = List<BluetoothService>.unmodifiable(services);
 
   final BluetoothDevice _device;
+
+  /// The discovered services.
+  ///
+  /// The list is immutable.
   final List<BluetoothService> services;
 
+  /// The platform-specific device identifier.
   String get deviceId => _device.deviceId;
 
+  /// Resolves a characteristic and returns a handle for it.
+  ///
+  /// Pass [service] when the characteristic UUID appears under multiple
+  /// services. Throws [StateError] when the characteristic is missing or
+  /// ambiguous.
   BluetoothCharacteristic characteristic(
     String characteristic, {
     String? service,
@@ -29,6 +42,11 @@ class BluetoothGatt {
     );
   }
 
+  /// Resolves metadata for a discovered characteristic.
+  ///
+  /// Pass [service] when the characteristic UUID appears under multiple
+  /// services. Throws [StateError] when the characteristic is missing or
+  /// ambiguous.
   BluetoothCharacteristicInfo characteristicInfo(
     String characteristic, {
     String? service,

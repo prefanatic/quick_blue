@@ -8,6 +8,10 @@ import '../models.dart';
 import 'bluetooth_uuid.dart';
 import 'quick_blue_platform.dart';
 
+/// A handle for a Bluetooth LE characteristic.
+///
+/// The handle is service-scoped so duplicate characteristic UUIDs under
+/// different services can be addressed safely.
 class BluetoothCharacteristic {
   @internal
   BluetoothCharacteristic.internal({
@@ -17,11 +21,20 @@ class BluetoothCharacteristic {
     required QuickBluePlatform platform,
   }) : _platform = platform;
 
+  /// The platform-specific device identifier.
   final String deviceId;
+
+  /// The service UUID containing this characteristic.
   final String serviceId;
+
+  /// The characteristic UUID.
   final String characteristicId;
   final QuickBluePlatform _platform;
 
+  /// Value updates for this characteristic.
+  ///
+  /// Legacy platform events without a service id are still matched by
+  /// characteristic UUID for compatibility.
   Stream<Uint8List> get valueStream {
     return _platform.characteristicValueStream
         .where(
@@ -34,6 +47,10 @@ class BluetoothCharacteristic {
         .map((event) => event.value);
   }
 
+  /// Enables notifications or indications while the returned stream is active.
+  ///
+  /// Values are not forwarded until notification setup succeeds. Canceling the
+  /// stream disables updates again.
   Stream<Uint8List> notifications({
     BleInputProperty bleInputProperty = BleInputProperty.notification,
   }) {
@@ -91,6 +108,10 @@ class BluetoothCharacteristic {
     return controller.stream;
   }
 
+  /// Reads the current characteristic value.
+  ///
+  /// The future completes with the next matching value event after the platform
+  /// read request is sent.
   Future<Uint8List> read() async {
     final values = StreamQueue(valueStream);
 
@@ -102,6 +123,10 @@ class BluetoothCharacteristic {
     }
   }
 
+  /// Writes [value] to the characteristic.
+  ///
+  /// Completion timing follows the platform implementation and selected
+  /// [bleOutputProperty].
   Future<void> write(Uint8List value, BleOutputProperty bleOutputProperty) {
     return _platform.writeValue(
       deviceId,

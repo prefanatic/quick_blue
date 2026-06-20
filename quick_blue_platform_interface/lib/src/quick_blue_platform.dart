@@ -10,6 +10,7 @@ import 'callbacks.dart';
 import 'service_discovery_event.dart';
 import 'unimplemented_quick_blue_platform.dart';
 
+/// Platform interface for `quick_blue` implementations.
 abstract class QuickBluePlatform extends PlatformInterface {
   QuickBluePlatform() : super(token: _token);
 
@@ -17,8 +18,10 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   static QuickBluePlatform _instance = UnimplementedQuickBluePlatform();
 
+  /// The active platform implementation.
   static QuickBluePlatform get instance => _instance;
 
+  /// Sets the active platform implementation.
   static set instance(QuickBluePlatform instance) {
     PlatformInterface.verifyToken(instance, _token);
     _instance = instance;
@@ -38,13 +41,24 @@ abstract class QuickBluePlatform extends PlatformInterface {
         : BlueBluetoothState.poweredOff;
   }
 
+  /// Starts the platform scan lifecycle.
+  ///
+  /// Implementations should apply supported [scanFilter] and [scanOptions]
+  /// natively and emit results through [scanResultStream].
   Future<void> startScan({
     ScanFilter scanFilter = ScanFilter.empty,
     ScanOptions scanOptions = ScanOptions.defaults,
   });
 
+  /// Stops the platform scan lifecycle.
+  ///
+  /// Called after the last managed scan listener is canceled.
   Future<void> stopScan();
 
+  /// Raw scan results from the platform scan lifecycle.
+  ///
+  /// This stream does not manage scan ownership by itself; use [scanResults]
+  /// for automatic start/stop behavior.
   Stream<BlueScanResult> get scanResultStream;
 
   _ScanConfiguration? _activeScanConfiguration;
@@ -52,6 +66,11 @@ abstract class QuickBluePlatform extends PlatformInterface {
   var _activeScanStarted = false;
   Future<void> _scanLifecycle = Future<void>.value();
 
+  /// Starts scanning on listen and stops when the stream is canceled.
+  ///
+  /// Concurrent listeners must use the same scan configuration. RSSI filtering
+  /// and duplicate suppression are also applied in Dart for consistent
+  /// behavior across platforms.
   Stream<BlueScanResult> scanResults({
     ScanFilter scanFilter = ScanFilter.empty,
     ScanOptions scanOptions = ScanOptions.defaults,
@@ -165,6 +184,10 @@ abstract class QuickBluePlatform extends PlatformInterface {
     return next;
   }
 
+  /// Scans for device handles.
+  ///
+  /// Advertisement payloads are dropped; use [scanResults] when those are
+  /// needed.
   Stream<BluetoothDevice> scan({
     ScanFilter scanFilter = ScanFilter.empty,
     ScanOptions scanOptions = ScanOptions.defaults,
@@ -175,10 +198,12 @@ abstract class QuickBluePlatform extends PlatformInterface {
     ).map((result) => device(result.deviceId));
   }
 
+  /// Legacy stream of scanned device handles.
   Stream<BluetoothDevice> get bluetoothDeviceStream {
     return scan();
   }
 
+  /// Returns a handle for a platform Bluetooth device identifier.
   BluetoothDevice device(String deviceId) {
     return BluetoothDevice.internal(
       deviceId: deviceId,
@@ -187,40 +212,57 @@ abstract class QuickBluePlatform extends PlatformInterface {
     );
   }
 
+  /// Returns handles for devices already connected at the system level.
+  ///
+  /// Some platforms, notably CoreBluetooth, require service UUIDs to look up
+  /// connected peripherals.
   Future<List<BluetoothDevice>> connectedDevices({
     List<String> serviceUuids = const <String>[],
   });
 
+  /// Connects to [deviceId].
   Future<void> connect(String deviceId);
 
+  /// Disconnects from [deviceId].
   Future<void> disconnect(String deviceId);
 
+  /// Returns whether companion-device association is supported.
   Future<bool> isCompanionAssociationSupported();
 
+  /// Starts a companion-device association request.
   Future<CompanionAssociation?> companionAssociate(
     CompanionAssociationRequest request,
   );
 
+  /// Removes the association with [associationId].
   Future<void> companionDisassociate(int associationId);
 
+  /// Returns current companion-device associations.
   Future<List<CompanionAssociation>> getCompanionAssociations();
 
   final StreamController<BluetoothConnectionStateChange>
   _connectionStateController =
       StreamController<BluetoothConnectionStateChange>.broadcast();
 
+  /// Connection state changes for all devices.
   Stream<BluetoothConnectionStateChange> get connectionStateStream {
     return _connectionStateController.stream;
   }
 
   OnConnectionChanged? _onConnectionChanged;
 
+  /// Legacy global connection callback.
   OnConnectionChanged? get onConnectionChanged => _handleConnectionChanged;
 
+  /// Sets the legacy global connection callback.
   set onConnectionChanged(OnConnectionChanged? handler) {
     _onConnectionChanged = handler;
   }
 
+  /// Starts service discovery for [deviceId].
+  ///
+  /// Implementations should report each service and then call
+  /// [onServiceDiscoveryComplete].
   Future<void> discoverServices(String deviceId);
 
   final StreamController<BluetoothService> _serviceDiscoveryController =
@@ -230,30 +272,41 @@ abstract class QuickBluePlatform extends PlatformInterface {
   final _serviceDiscoveryEventController =
       StreamController<ServiceDiscoveryEvent>.broadcast();
 
+  /// Discovered services for all devices.
+  ///
+  /// Events may arrive before discovery completes.
   Stream<BluetoothService> get serviceDiscoveryStream {
     return _serviceDiscoveryController.stream;
   }
 
+  /// Emits a device identifier when service discovery completes.
   Stream<String> get serviceDiscoveryCompleteStream {
     return _serviceDiscoveryCompleteController.stream;
   }
 
   OnServiceDiscovered? _onServiceDiscovered;
 
+  /// Legacy global service discovery callback.
   OnServiceDiscovered? get onServiceDiscovered {
     return (deviceId, serviceId, characteristicIds) {
       _handleServiceDiscovered(deviceId, serviceId, characteristicIds, null);
     };
   }
 
+  /// Sets the legacy global service discovery callback.
   set onServiceDiscovered(OnServiceDiscovered? handler) {
     _onServiceDiscovered = handler;
   }
 
+  /// Callback used by platform code to report service discovery completion.
   OnServiceDiscoveryComplete get onServiceDiscoveryComplete {
     return _handleServiceDiscoveryComplete;
   }
 
+  /// Enables or disables notifications or indications for a characteristic.
+  ///
+  /// The returned future should complete after the platform has accepted or
+  /// rejected the notification state change.
   Future<void> setNotifiable(
     String deviceId,
     String service,
@@ -265,28 +318,38 @@ abstract class QuickBluePlatform extends PlatformInterface {
   _characteristicValueController =
       StreamController<BluetoothCharacteristicValue>.broadcast();
 
+  /// Characteristic value updates for all devices.
   Stream<BluetoothCharacteristicValue> get characteristicValueStream {
     return _characteristicValueController.stream;
   }
 
   OnValueChanged? _onValueChanged;
 
+  /// Legacy global characteristic value callback.
   OnValueChanged? get onValueChanged {
     return (deviceId, characteristicId, value) {
       _handleValueChanged(deviceId, '', characteristicId, value);
     };
   }
 
+  /// Sets the legacy global characteristic value callback.
   set onValueChanged(OnValueChanged? handler) {
     _onValueChanged = handler;
   }
 
+  /// Starts a characteristic read.
+  ///
+  /// Implementations should report the value through
+  /// [handleCharacteristicValueChanged].
   Future<void> readValue(
     String deviceId,
     String service,
     String characteristic,
   );
 
+  /// Writes a characteristic value.
+  ///
+  /// Completion should reflect the platform write result when available.
   Future<void> writeValue(
     String deviceId,
     String service,
@@ -295,8 +358,10 @@ abstract class QuickBluePlatform extends PlatformInterface {
     BleOutputProperty bleOutputProperty,
   );
 
+  /// Requests or returns the negotiated MTU, depending on platform support.
   Future<int> requestMtu(String deviceId, int expectedMtu);
 
+  /// Opens a BLE L2CAP socket for [deviceId].
   Future<BleL2capSocket> openL2cap(String deviceId, int psm);
 
   void _handleConnectionChanged(
@@ -396,6 +461,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
     _onValueChanged?.call(deviceId, characteristicId, value);
   }
 
+  /// Reports a discovered service from platform wrapper code.
   void handleServiceDiscovered(
     String deviceId,
     String serviceId,
@@ -411,6 +477,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
     );
   }
 
+  /// Reports a characteristic value from platform wrapper code.
   void handleCharacteristicValueChanged(
     String deviceId,
     String serviceId,
