@@ -45,7 +45,23 @@ dart run pigeon --input pigeons/messages.dart
 
 Do not hand-edit generated `messages.g.*` files except to inspect them.
 
-## Common Commands
+## Verification
+
+Choose the narrowest check that proves the change, then broaden when the touched
+surface is shared or platform-specific.
+
+- Docs-only changes: run `git diff --check`.
+- Dart API/model changes: format touched Dart files, run `flutter analyze`, and
+  run the relevant package tests.
+- Platform-interface changes: test `quick_blue_platform_interface` plus affected
+  app-facing package tests.
+- Example app changes: run `cd quick_blue/example && flutter analyze && flutter test`.
+- Pigeon schema changes: regenerate from the owning package and verify generated
+  files with `git diff`.
+- Platform implementation changes: run the affected package tests and build or
+  smoke-test the matching platform when available.
+
+Common repo checks:
 
 ```sh
 flutter pub get
@@ -61,12 +77,33 @@ cd quick_blue_darwin && flutter test
 cd quick_blue/example && flutter test
 ```
 
-Hardware-backed BLE smoke test, for changes touching scan/connect/service
-discovery behavior or when explicitly validating platform Bluetooth behavior:
+Hardware-backed BLE smoke tests are required for changes touching scan, connect,
+service discovery, read/write, notifications, device switching, or platform
+Bluetooth behavior unless the target hardware or host environment is genuinely
+unavailable.
+
+macOS smoke test:
 
 ```sh
 cd quick_blue/example
 QUICK_BLUE_HIDE_TEST_WINDOW=1 flutter test integration_test/ble_smoke_test.dart -d macos
+```
+
+Headless Linux smoke test:
+
+```sh
+cd quick_blue/example
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  xvfb-run -a flutter test integration_test/ble_smoke_test.dart -d linux
+```
+
+Known-device advertisement smoke test:
+
+```sh
+cd quick_blue/example
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  xvfb-run -a flutter test integration_test/ble_smoke_test.dart -d linux \
+    --dart-define=QUICK_BLUE_SMOKE_PROFILE=valve_lighthouse
 ```
 
 Windows BLE smoke test through Dockur, for Windows platform work or USB
@@ -92,6 +129,9 @@ than skip.
 Use platform builds or the example app for Android, iOS, macOS, Windows, and
 Linux behavior that unit tests cannot cover.
 
+When verification cannot be run, report the exact command attempted, the
+blocker, and what remains unverified.
+
 ## Development Notes
 
 - Preserve the federated plugin boundaries: shared API/model changes usually
@@ -109,3 +149,6 @@ Linux behavior that unit tests cannot cover.
 - `pubspec.lock` is ignored in this repository.
 - Before editing, check the worktree and avoid reverting or rewriting unrelated
   in-progress changes. Existing platform files may contain active BLE work.
+- Before committing, inspect recent commit subjects and match the repo style:
+  lower-case scoped subjects such as `quick_blue: tighten README docs` or
+  `quick_blue,platform_interface: document public APIs`.
