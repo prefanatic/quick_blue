@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:quick_blue_example/src/ble_smoke_profile.dart';
 import 'package:quick_blue/quick_blue.dart';
 
 const _scanSeconds = int.fromEnvironment(
@@ -39,11 +40,25 @@ const _targetDeviceId = String.fromEnvironment('QUICK_BLUE_SMOKE_DEVICE_ID');
 const _targetNamePattern = String.fromEnvironment(
   'QUICK_BLUE_SMOKE_NAME_PATTERN',
 );
+const _profileName = String.fromEnvironment('QUICK_BLUE_SMOKE_PROFILE');
+const _profileJson = String.fromEnvironment('QUICK_BLUE_SMOKE_PROFILE_JSON');
 const _serviceUuidCsv = String.fromEnvironment(
   'QUICK_BLUE_SMOKE_SERVICE_UUIDS',
 );
+const _expectedAdvertisedServiceUuidCsv = String.fromEnvironment(
+  'QUICK_BLUE_SMOKE_EXPECTED_ADVERTISED_SERVICE_UUIDS',
+);
 const _expectedServiceUuidCsv = String.fromEnvironment(
   'QUICK_BLUE_SMOKE_EXPECTED_SERVICE_UUIDS',
+);
+const _expectedManufacturerDataHex = String.fromEnvironment(
+  'QUICK_BLUE_SMOKE_EXPECTED_MANUFACTURER_DATA_HEX',
+);
+const _minRssi = int.fromEnvironment('QUICK_BLUE_SMOKE_MIN_RSSI');
+const _connect = String.fromEnvironment('QUICK_BLUE_SMOKE_CONNECT');
+const _read = String.fromEnvironment('QUICK_BLUE_SMOKE_READ');
+const _dumpAdvertisements = bool.fromEnvironment(
+  'QUICK_BLUE_SMOKE_DUMP_ADVERTISEMENTS',
 );
 const _writeServiceUuid = String.fromEnvironment(
   'QUICK_BLUE_SMOKE_WRITE_SERVICE_UUID',
@@ -76,11 +91,23 @@ void main() {
         );
       }
 
+      final profile = _activeProfile();
       final writeRequest = _writeRequest();
-      final serviceUuids = _csv(_serviceUuidCsv);
-      final expectedServiceUuids = _csv(_expectedServiceUuidCsv);
+      final serviceUuids = _definedList(_serviceUuidCsv, profile.serviceUuids);
+      final expectedServiceUuids = _definedList(
+        _expectedServiceUuidCsv,
+        profile.expectedServiceUuids,
+      );
+      final connect = _definedBool(_connect, profile.connect) ?? true;
+      final read = _definedBool(_read, profile.read) ?? true;
+      final maxConnectAttempts = _positive(
+        profile.maxConnectAttempts ?? _maxConnectAttempts,
+        1,
+      );
       final candidates = await _smokeCandidates(
         scanFilter: ScanFilter(serviceUuids: serviceUuids),
+        profile: profile,
+        shouldConnect: connect,
       );
       if (candidates.isEmpty) {
         markTestSkipped(
@@ -92,17 +119,23 @@ void main() {
       final explicitTarget =
           _targetDeviceId.isNotEmpty ||
           _targetNamePattern.isNotEmpty ||
+          _profileName.isNotEmpty ||
+          _profileJson.isNotEmpty ||
           serviceUuids.isNotEmpty ||
+          profile.targetsDevice ||
           expectedServiceUuids.isNotEmpty ||
           writeRequest != null;
       final failures = <String>[];
 
-      for (final candidate in candidates.take(
-        _positive(_maxConnectAttempts, 1),
-      )) {
+      for (final candidate in candidates.take(maxConnectAttempts)) {
         final device = candidate.device;
 
         try {
+          _expectAdvertisement(candidate.scanResult, profile);
+          if (!connect) {
+            return;
+          }
+
           if (candidate.shouldConnect) {
             await device.connect().timeout(
               _seconds(_connectTimeoutSeconds, 12),
@@ -117,10 +150,12 @@ void main() {
             services,
             expectedServiceUuids,
           );
-          await _readSmokeCharacteristic(
-            device,
-            services,
-          ).timeout(_seconds(_readTimeoutSeconds, 8));
+          if (read) {
+            await _readSmokeCharacteristic(
+              device,
+              services,
+            ).timeout(_seconds(_readTimeoutSeconds, 8));
+          }
           if (writeRequest != null) {
             await _writeSmokeCharacteristic(
               device,
@@ -190,18 +225,26 @@ Future<bool> _waitForBluetoothAvailable() async {
 
 Future<List<BlueScanResult>> _scanForCandidates({
   required ScanFilter scanFilter,
+  required BleSmokeProfile profile,
 }) async {
   final resultsByDeviceId = <String, BlueScanResult>{};
   final errors = <Object>[];
-  final namePattern = _targetNamePattern.isEmpty
+  final targetDeviceId = _targetDeviceId.isEmpty
+      ? profile.targetDeviceId
+      : _targetDeviceId;
+  final targetNamePattern = _targetNamePattern.isEmpty
+      ? profile.targetNamePattern
+      : _targetNamePattern;
+  final namePattern = targetNamePattern == null || targetNamePattern.isEmpty
       ? null
-      : RegExp(_targetNamePattern, caseSensitive: false);
+      : RegExp(targetNamePattern, caseSensitive: false);
 
   final subscription = QuickBlue.scanResults(scanFilter: scanFilter).listen((
     result,
   ) {
-    if (_targetDeviceId.isNotEmpty &&
-        !_matchesDeviceId(result.deviceId, _targetDeviceId)) {
+    if (targetDeviceId != null &&
+        targetDeviceId.isNotEmpty &&
+        !_matchesDeviceId(result.deviceId, targetDeviceId)) {
       return;
     }
     if (namePattern != null && !namePattern.hasMatch(result.name)) {
@@ -223,31 +266,45 @@ Future<List<BlueScanResult>> _scanForCandidates({
       if (byNamed != 0) return byNamed;
       return right.rssi.compareTo(left.rssi);
     });
+  if (_dumpAdvertisements) {
+    for (final result in results) {
+      debugPrint(_describeAdvertisement(result));
+    }
+  }
 
   return results;
 }
 
 Future<List<_SmokeCandidate>> _smokeCandidates({
   required ScanFilter scanFilter,
+  required BleSmokeProfile profile,
+  required bool shouldConnect,
 }) async {
-  final connectedTarget = await _connectedTarget();
+  final connectedTarget = shouldConnect
+      ? await _connectedTarget(profile)
+      : null;
   if (connectedTarget != null) {
     return <_SmokeCandidate>[
       _SmokeCandidate(
         device: connectedTarget,
         description: 'already-connected device ${connectedTarget.deviceId}',
+        scanResult: null,
         shouldConnect: false,
         shouldDisconnect: false,
       ),
     ];
   }
 
-  final scanResults = await _scanForCandidates(scanFilter: scanFilter);
+  final scanResults = await _scanForCandidates(
+    scanFilter: scanFilter,
+    profile: profile,
+  );
   return scanResults
       .map(
         (result) => _SmokeCandidate(
           device: QuickBlue.device(result.deviceId),
           description: _describeScanResult(result),
+          scanResult: result,
           shouldConnect: true,
           shouldDisconnect: true,
         ),
@@ -255,18 +312,104 @@ Future<List<_SmokeCandidate>> _smokeCandidates({
       .toList(growable: false);
 }
 
-Future<BluetoothDevice?> _connectedTarget() async {
-  if (_targetDeviceId.isEmpty) {
+Future<BluetoothDevice?> _connectedTarget(BleSmokeProfile profile) async {
+  final targetDeviceId = _targetDeviceId.isEmpty
+      ? profile.targetDeviceId
+      : _targetDeviceId;
+  if (targetDeviceId == null || targetDeviceId.isEmpty) {
     return null;
   }
 
   final connectedDevices = await QuickBlue.connectedDevices();
   for (final device in connectedDevices) {
-    if (_matchesDeviceId(device.deviceId, _targetDeviceId)) {
+    if (_matchesDeviceId(device.deviceId, targetDeviceId)) {
       return device;
     }
   }
   return null;
+}
+
+void _expectAdvertisement(BlueScanResult? result, BleSmokeProfile profile) {
+  if (result == null) {
+    if (profile.expectedAdvertisedServiceUuids.isNotEmpty ||
+        profile.expectedManufacturerDataHex != null ||
+        profile.expectedServiceDataHex.isNotEmpty ||
+        profile.minRssi != null) {
+      throw StateError(
+        'Cannot validate advertisement fields for an already-connected device.',
+      );
+    }
+    return;
+  }
+
+  final minRssi = _minRssi == 0 ? profile.minRssi : _minRssi;
+  if (minRssi != null && result.rssi < minRssi) {
+    throw StateError(
+      '${_describeScanResult(result)} RSSI is below expected minimum $minRssi.',
+    );
+  }
+
+  final expectedAdvertisedServiceUuids = _definedList(
+    _expectedAdvertisedServiceUuidCsv,
+    profile.expectedAdvertisedServiceUuids,
+  );
+  final missingAdvertisedServices = expectedAdvertisedServiceUuids
+      .where(
+        (expected) => !result.serviceUuids.any(
+          (actual) => _matchesBluetoothUuid(actual, expected),
+        ),
+      )
+      .toList(growable: false);
+  if (missingAdvertisedServices.isNotEmpty) {
+    throw StateError(
+      '${_describeScanResult(result)} did not advertise '
+      '${missingAdvertisedServices.join(', ')}. Advertised services: '
+      '${result.serviceUuids.join(', ')}.',
+    );
+  }
+
+  final expectedManufacturerDataHex = _expectedManufacturerDataHex.isEmpty
+      ? profile.expectedManufacturerDataHex
+      : _expectedManufacturerDataHex;
+  if (expectedManufacturerDataHex != null &&
+      expectedManufacturerDataHex.isNotEmpty) {
+    final expected = hexBytes(
+      expectedManufacturerDataHex,
+      'expectedManufacturerDataHex',
+    );
+    final manufacturerData = result.manufacturerData;
+    if (!hasBytePrefix(manufacturerData, expected)) {
+      throw StateError(
+        '${_describeScanResult(result)} did not advertise manufacturer data '
+        'prefix $expectedManufacturerDataHex. Actual bytes: '
+        '${manufacturerData.toList()}.',
+      );
+    }
+  }
+
+  for (final expected in profile.expectedServiceDataHex.entries) {
+    final serviceData = result.serviceData.entries.where(
+      (entry) => _matchesBluetoothUuid(entry.key, expected.key),
+    );
+    if (serviceData.isEmpty) {
+      throw StateError(
+        '${_describeScanResult(result)} did not advertise service data for '
+        '${expected.key}.',
+      );
+    }
+    final expectedBytes = hexBytes(
+      expected.value,
+      'expectedServiceDataHex.${expected.key}',
+    );
+    if (!serviceData.any(
+      (entry) => hasBytePrefix(entry.value, expectedBytes),
+    )) {
+      throw StateError(
+        '${_describeScanResult(result)} did not advertise service data prefix '
+        '${expected.value} for ${expected.key}.',
+      );
+    }
+  }
 }
 
 void _expectDiscoveredServices(
@@ -438,38 +581,38 @@ _WriteRequest? _writeRequest() {
   return _WriteRequest(
     serviceUuid: _writeServiceUuid,
     characteristicUuid: _writeCharacteristicUuid,
-    value: _hexBytes(_writeValueHex),
+    value: hexBytes(_writeValueHex, 'QUICK_BLUE_SMOKE_WRITE_HEX'),
     bleOutputProperty: _writeWithoutResponse
         ? BleOutputProperty.withoutResponse
         : BleOutputProperty.withResponse,
   );
 }
 
-Uint8List _hexBytes(String value) {
-  final cleaned = value.replaceAll(RegExp(r'[\s:_-]'), '');
-  if (cleaned.isEmpty || cleaned.length.isOdd) {
-    throw ArgumentError('QUICK_BLUE_SMOKE_WRITE_HEX must contain hex bytes.');
-  }
-
-  final bytes = Uint8List(cleaned.length ~/ 2);
-  for (var index = 0; index < cleaned.length; index += 2) {
-    final byte = int.tryParse(cleaned.substring(index, index + 2), radix: 16);
-    if (byte == null) {
-      throw ArgumentError(
-        'QUICK_BLUE_SMOKE_WRITE_HEX contains non-hex characters.',
-      );
-    }
-    bytes[index ~/ 2] = byte;
-  }
-  return bytes;
+List<String> _csv(String value) {
+  return csvList(value);
 }
 
-List<String> _csv(String value) {
-  return value
-      .split(',')
-      .map((item) => item.trim())
-      .where((item) => item.isNotEmpty)
-      .toList(growable: false);
+List<String> _definedList(String value, List<String> fallback) {
+  return value.isEmpty ? fallback : _csv(value);
+}
+
+bool? _definedBool(String value, bool? fallback) {
+  return value.isEmpty ? fallback : boolFromString(value, 'Dart define');
+}
+
+BleSmokeProfile _activeProfile() {
+  var profile = const BleSmokeProfile();
+  if (_profileName.isNotEmpty) {
+    final builtInProfile = BleSmokeProfile.builtIn(_profileName);
+    if (builtInProfile == null) {
+      throw ArgumentError('Unknown smoke profile: $_profileName.');
+    }
+    profile = profile.merge(builtInProfile);
+  }
+  if (_profileJson.isNotEmpty) {
+    profile = profile.merge(BleSmokeProfile.fromJson(_profileJson));
+  }
+  return profile;
 }
 
 Duration _seconds(int value, int fallback) {
@@ -514,6 +657,19 @@ String _describeScanResult(BlueScanResult result) {
   return '$name (${result.deviceId}, RSSI ${result.rssi})';
 }
 
+String _describeAdvertisement(BlueScanResult result) {
+  final serviceData = result.serviceData.map(
+    (uuid, value) => MapEntry(uuid, hexString(value)),
+  );
+  return 'BLE advertisement: '
+      'name="${result.name}", '
+      'deviceId="${result.deviceId}", '
+      'rssi=${result.rssi}, '
+      'serviceUuids=${result.serviceUuids}, '
+      'manufacturerData="${hexString(result.manufacturerData)}", '
+      'serviceData=$serviceData';
+}
+
 class _CharacteristicId {
   const _CharacteristicId(this.service, this.characteristic);
 
@@ -532,12 +688,14 @@ class _SmokeCandidate {
   _SmokeCandidate({
     required this.device,
     required this.description,
+    required this.scanResult,
     required this.shouldConnect,
     required this.shouldDisconnect,
   });
 
   final BluetoothDevice device;
   final String description;
+  final BlueScanResult? scanResult;
   final bool shouldConnect;
   final bool shouldDisconnect;
 }

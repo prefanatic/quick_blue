@@ -22,6 +22,15 @@ QUICK_BLUE_HIDE_TEST_WINDOW=1 \
 
 Useful Dart defines:
 
+- `QUICK_BLUE_SMOKE_PROFILE`: built-in smoke profile name. Current profile:
+  `valve_lighthouse`, which validates a Valve Lighthouse-style advertisement
+  name and skips connect/read by default.
+- `QUICK_BLUE_SMOKE_PROFILE_JSON`: custom profile JSON. Fields include
+  `deviceId`, `namePattern`, `serviceUuids`,
+  `expectedAdvertisedServiceUuids`, `expectedServiceUuids`,
+  `expectedManufacturerDataHex`, `expectedServiceDataHex`, `minRssi`,
+  `connect`, `read`, and `maxConnectAttempts`. Custom JSON is merged over the
+  built-in profile, and explicit Dart defines override profile values.
 - `QUICK_BLUE_SMOKE_SCAN_SECONDS`: scan duration before connection attempts
   begin. Defaults to `12`.
 - `QUICK_BLUE_SMOKE_MAX_CONNECT_ATTEMPTS`: maximum number of candidates to try.
@@ -30,8 +39,18 @@ Useful Dart defines:
 - `QUICK_BLUE_SMOKE_NAME_PATTERN`: case-insensitive regular expression matched
   against advertised device names.
 - `QUICK_BLUE_SMOKE_SERVICE_UUIDS`: comma-separated service UUID scan filter.
+- `QUICK_BLUE_SMOKE_EXPECTED_ADVERTISED_SERVICE_UUIDS`: comma-separated service
+  UUIDs that must be present in the advertisement.
 - `QUICK_BLUE_SMOKE_EXPECTED_SERVICE_UUIDS`: comma-separated GATT service UUIDs
   that must be discovered on the connected target.
+- `QUICK_BLUE_SMOKE_EXPECTED_MANUFACTURER_DATA_HEX`: manufacturer data byte
+  prefix that must be present in the advertisement.
+- `QUICK_BLUE_SMOKE_MIN_RSSI`: minimum advertisement RSSI in dBm.
+- `QUICK_BLUE_SMOKE_CONNECT`: set to `false` for advertisement-only profiles.
+- `QUICK_BLUE_SMOKE_READ`: set to `false` to skip the readable characteristic
+  check after connecting and discovering services.
+- `QUICK_BLUE_SMOKE_DUMP_ADVERTISEMENTS`: set to `true` to print matching
+  advertisement fields that can be copied into a custom profile.
 - `QUICK_BLUE_SMOKE_READ_TIMEOUT_SECONDS`: readable characteristic timeout.
   Defaults to `8`.
 - `QUICK_BLUE_SMOKE_WRITE_TIMEOUT_SECONDS`: opt-in write timeout. Defaults to
@@ -57,6 +76,44 @@ Example targeted run:
 flutter test integration_test/ble_smoke_test.dart -d macos \
   --dart-define=QUICK_BLUE_SMOKE_NAME_PATTERN='sensor|heart' \
   --dart-define=QUICK_BLUE_SMOKE_MAX_CONNECT_ATTEMPTS=5
+```
+
+Example Valve Lighthouse advertisement run:
+
+```sh
+flutter test integration_test/ble_smoke_test.dart -d linux \
+  --dart-define=QUICK_BLUE_SMOKE_PROFILE=valve_lighthouse
+```
+
+Use `xvfb-run` for headless Linux agents:
+
+```sh
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  xvfb-run -a flutter test integration_test/ble_smoke_test.dart -d linux \
+    --dart-define=QUICK_BLUE_SMOKE_PROFILE=valve_lighthouse
+```
+
+The built-in `valve_lighthouse` profile matches `LHB-*` advertisements and a
+Valve Lighthouse manufacturer-data prefix (`00 02`). Example captured
+advertisements:
+
+- `CB:48:BE:B2:AC:69` / `LHB-DD207A0C`: `00 02 02 01 00 06 00`
+- `F7:CA:86:52:A9:1D` / `LHB-9433D15E`: `00 02 01 01 00 06 00`
+
+Add device-specific values after a scan captures them:
+
+```sh
+flutter test integration_test/ble_smoke_test.dart -d linux \
+  --dart-define=QUICK_BLUE_SMOKE_PROFILE=valve_lighthouse \
+  --dart-define=QUICK_BLUE_SMOKE_DUMP_ADVERTISEMENTS=true
+```
+
+Then copy stable fields into a custom profile:
+
+```sh
+flutter test integration_test/ble_smoke_test.dart -d linux \
+  --dart-define=QUICK_BLUE_SMOKE_PROFILE=valve_lighthouse \
+  --dart-define='QUICK_BLUE_SMOKE_PROFILE_JSON={"deviceId":"AA:BB:CC:DD:EE:FF","expectedManufacturerDataHex":"01 02","minRssi":-90}'
 ```
 
 Example targeted GATT service run:
