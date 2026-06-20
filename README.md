@@ -86,6 +86,23 @@ Platform-specific scan options are also available when you need native scanner
 controls such as Android PHY, CoreBluetooth solicited services, BlueZ pathloss,
 or Windows signal-strength timing.
 
+Use `QuickBlue.scan()` when you only need `BluetoothDevice` handles. Use
+`QuickBlue.scanResults()` when you need advertisement fields such as RSSI,
+service UUIDs, service data, or manufacturer data. `BluetoothDevice` and
+`BluetoothCharacteristic` are lightweight handles: creating one does not start
+platform work until you call an operation on it.
+
+Get device handles for peripherals that are already connected:
+
+```dart
+final devices = await QuickBlue.connectedDevices(
+  serviceUuids: ['0000180d-0000-1000-8000-00805f9b34fb'],
+);
+```
+
+Pass service UUIDs when targeting iOS or macOS; CoreBluetooth only returns
+connected peripherals that match the supplied services.
+
 Connect, discover services, and interact with a characteristic:
 
 ```dart
@@ -128,8 +145,12 @@ Future<void> readWriteNotify({
 }
 ```
 
-When you know a characteristic UUID but not its service UUID, discover a GATT
-view and resolve the characteristic from the discovered services:
+The static `connect`, `disconnect`, `discoverServices`, `readValue`,
+`writeValue`, and `setNotifiable` methods delegate through the same handle API.
+Prefer keeping a `BluetoothDevice` when doing more than one operation.
+
+When you know a characteristic UUID but not its service UUID, discover a
+`BluetoothGatt` snapshot and resolve a service-scoped characteristic handle:
 
 ```dart
 final gatt = await device.discoverGatt();
@@ -147,23 +168,9 @@ final characteristic = gatt.characteristic(
 );
 ```
 
-Use `QuickBlue.scan()` when you only need device handles. Use
-`QuickBlue.scanResults()` when you need advertisement fields such as RSSI,
-service UUIDs, service data, or manufacturer data. `ScanFilter.rssi` and common
-`ScanOptions` fields are applied consistently by the Dart lifecycle APIs and
-mapped to native filters where the platform supports them. Omitted common
-options preserve Quick Blue's existing platform defaults.
-
-Get device handles for peripherals that are already connected:
-
-```dart
-final devices = await QuickBlue.connectedDevices(
-  serviceUuids: ['0000180d-0000-1000-8000-00805f9b34fb'],
-);
-```
-
-Pass service UUIDs when targeting iOS or macOS; CoreBluetooth only returns
-connected peripherals that match the supplied services.
+`ScanFilter.rssi` and common `ScanOptions` fields are applied consistently by
+the Dart lifecycle APIs and mapped to native filters where the platform supports
+them. Omitted common options preserve Quick Blue's existing platform defaults.
 
 ## Platform Notes
 
