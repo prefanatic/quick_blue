@@ -124,7 +124,6 @@ class QuickBlueDarwin extends QuickBluePlatform {
         .where((event) => event.deviceId == deviceId)
         .firstWhere((event) => event.opened == true)
         .timeout(const Duration(seconds: 5));
-    print('L2CAP socket opened for device: $deviceId');
 
     return BleL2capSocket(
       sink: _L2capSink(api: _api, deviceId: deviceId),
