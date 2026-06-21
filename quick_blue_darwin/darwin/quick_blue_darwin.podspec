@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   s.description      = <<-DESC
 Darwin implementation of the quick_blue Bluetooth LE plugin.
                        DESC
-  s.homepage         = 'https://github.com/woodemi/quick_blue'
+  s.homepage         = 'https://github.com/prefanatic/quick_blue'
   s.license          = { :type => 'BSD-3-Clause', :file => '../LICENSE' }
   s.author           = { 'Cody Goldberg' => 'cody@goldberg.fyi' }
   s.source           = { :path => '.' }

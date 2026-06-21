@@ -29,7 +29,7 @@ current availability snapshot.
 * iOS and macOS require service UUIDs when looking up already connected
   peripherals.
 
-> * Windows' APIs are little different on `discoverServices`: https://github.com/woodemi/quick_blue/issues/76
+> * Windows' APIs are little different on `discoverServices`: https://github.com/prefanatic/quick_blue/issues/76
 
 ## Scan BLE peripheral
 
