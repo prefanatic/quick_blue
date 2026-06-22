@@ -162,6 +162,56 @@ fails before booting Windows and prints the temporary `setfacl` command needed
 for that device. Device node permissions are reset when the adapter is
 replugged.
 
+## BLE characteristic benchmark
+
+The characteristic benchmark is hardware-backed and targets a known high-volume
+notifying characteristic. It connects to the target, discovers services,
+subscribes for a fixed duration, optionally runs sequential reads, and prints a
+JSON summary with notification throughput, byte throughput, inter-arrival
+latency, optional sequence gaps, and read latency.
+
+```sh
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/ble_characteristic_benchmark_test.dart -d macos \
+    --dart-define=QUICK_BLUE_BENCHMARK_DEVICE_ID='DEVICE_ID' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_SERVICE_UUID='12345678-1234-5678-1234-56789abcdef0' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_CHARACTERISTIC_UUID='12345678-1234-5678-1234-56789abcdef1'
+```
+
+Useful Dart defines:
+
+- `QUICK_BLUE_BENCHMARK_DEVICE_ID`: exact platform device identifier to target.
+- `QUICK_BLUE_BENCHMARK_NAME_PATTERN`: case-insensitive regular expression
+  matched against advertised device names. Use this instead of device ID when
+  IDs are unstable.
+- `QUICK_BLUE_BENCHMARK_SCAN_SERVICE_UUIDS`: comma-separated service UUID scan
+  filter. Defaults to no scan service filter.
+- `QUICK_BLUE_BENCHMARK_NOTIFY_SERVICE_UUID`: required notifying service UUID.
+- `QUICK_BLUE_BENCHMARK_NOTIFY_CHARACTERISTIC_UUID`: required notifying
+  characteristic UUID.
+- `QUICK_BLUE_BENCHMARK_USE_INDICATIONS`: set to `true` to benchmark
+  indications instead of notifications.
+- `QUICK_BLUE_BENCHMARK_DURATION_SECONDS`: notification sampling duration.
+  Defaults to `30`.
+- `QUICK_BLUE_BENCHMARK_READ_SERVICE_UUID`: optional readable service UUID. If
+  omitted, the benchmark reads the notifying characteristic when it is readable.
+- `QUICK_BLUE_BENCHMARK_READ_CHARACTERISTIC_UUID`: optional readable
+  characteristic UUID.
+- `QUICK_BLUE_BENCHMARK_READ_ITERATIONS`: sequential read count. Defaults to
+  `100`.
+- `QUICK_BLUE_BENCHMARK_READ_DELAY_MILLISECONDS`: delay between sequential
+  reads. Defaults to no delay.
+- `QUICK_BLUE_BENCHMARK_SEQUENCE_OFFSET`: optional byte offset for a monotonic
+  packet sequence number in notification payloads. When set, the benchmark
+  reports sequence gaps and duplicate or reordered packets.
+- `QUICK_BLUE_BENCHMARK_SEQUENCE_WIDTH_BYTES`: sequence width, one of `1`, `2`,
+  or `4`. Defaults to `2`.
+- `QUICK_BLUE_BENCHMARK_SEQUENCE_LITTLE_ENDIAN`: set to `false` for big-endian
+  sequence values. Defaults to `true`.
+
+The benchmark fails when Bluetooth is unavailable. It skips when the target
+device or required notifying characteristic is not configured or not found.
+
 ## Device-switch regressions
 
 The example also includes regression tests for switching devices while a

@@ -34,6 +34,8 @@
   settings on Android, Darwin, Linux, and Windows.
 - Add `QuickBlue.connectedDevices()` for retrieving already connected device
   handles.
+- Add a hardware-backed example benchmark for characteristic notification
+  throughput and read latency.
 - Add GitHub Actions CI updates and local `act` configuration.
 - Add repository contributor instructions.
 

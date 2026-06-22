@@ -227,6 +227,19 @@ test peripherals. `ble_ui_switch_test.dart` targets macOS and Linux. See
 [`quick_blue/example/README.md`](quick_blue/example/README.md) for optional
 Dart defines that target specific devices.
 
+The example app also includes a hardware-backed characteristic benchmark for
+high-volume notification throughput and read latency:
+
+```sh
+cd quick_blue/example
+
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/ble_characteristic_benchmark_test.dart -d macos \
+    --dart-define=QUICK_BLUE_BENCHMARK_DEVICE_ID='DEVICE_ID' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_SERVICE_UUID='SERVICE_UUID' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_CHARACTERISTIC_UUID='CHARACTERISTIC_UUID'
+```
+
 Run the Windows smoke test in a Dockur Windows VM from the repository root:
 
 ```sh
