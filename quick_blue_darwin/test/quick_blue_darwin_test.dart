@@ -250,6 +250,12 @@ void main() {
     );
   });
 
+  test('reuses the scan result event stream', () {
+    final platform = QuickBlueDarwin();
+
+    expect(platform.scanResultStream, same(platform.scanResultStream));
+  });
+
   test('startScan sends null filters for an unfiltered scan', () async {
     Object? sentMessage;
     const channel = BasicMessageChannel<Object?>(

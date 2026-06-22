@@ -41,6 +41,8 @@
 
 - Deprecate remaining static device and GATT operation wrappers in favor of
   `QuickBlue.device(deviceId)` and characteristic object APIs.
+- Reuse platform scan result event streams instead of rebuilding mapped streams
+  on each `scanResultStream` access.
 - Align static `QuickBlue` methods with the device object API.
 - Leave operation timeouts to clients through normal `Future.timeout`
   composition.

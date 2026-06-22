@@ -283,6 +283,12 @@ void main() {
       );
     });
 
+    test('reuses the scan result event stream', () {
+      final platform = QuickBlueAndroid();
+
+      expect(platform.scanResultStream, same(platform.scanResultStream));
+    });
+
     test('maps companion host API results', () async {
       final sentMessages = <String, Object?>{};
       for (final name in const <String>[

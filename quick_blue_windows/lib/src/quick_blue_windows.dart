@@ -12,6 +12,9 @@ class QuickBlueWindows extends QuickBluePlatform {
 
   final messages.QuickBlueApi _api = messages.QuickBlueApi();
   messages.QuickBlueFlutterApi? _flutterApi;
+  late final Stream<BlueScanResult> _scanResultStream = _scanResults
+      .receiveBroadcastStream({'name': 'scanResult'})
+      .map(_scanResultFromEvent);
 
   static void registerWith() {
     QuickBluePlatform.instance = QuickBlueWindows();
@@ -117,9 +120,7 @@ class QuickBlueWindows extends QuickBluePlatform {
   }
 
   @override
-  Stream<BlueScanResult> get scanResultStream => _scanResults
-      .receiveBroadcastStream({'name': 'scanResult'})
-      .map(_scanResultFromEvent);
+  Stream<BlueScanResult> get scanResultStream => _scanResultStream;
 
   @override
   Future<void> setNotifiable(

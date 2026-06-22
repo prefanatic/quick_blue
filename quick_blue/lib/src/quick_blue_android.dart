@@ -14,6 +14,9 @@ class QuickBlueAndroid extends QuickBluePlatform {
       .bluetoothState()
       .map((state) => state.toBlueBluetoothState())
       .distinct();
+  late final Stream<BlueScanResult> _scanResultStream = messages
+      .scanResults()
+      .map(_scanResultFromPlatformResult);
 
   static void registerWith() {
     QuickBluePlatform.instance = QuickBlueAndroid();
@@ -141,8 +144,7 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
-  Stream<BlueScanResult> get scanResultStream =>
-      messages.scanResults().map(_scanResultFromPlatformResult);
+  Stream<BlueScanResult> get scanResultStream => _scanResultStream;
 
   @override
   Future<void> setNotifiable(

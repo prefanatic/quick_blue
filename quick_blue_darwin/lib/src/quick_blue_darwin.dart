@@ -14,6 +14,9 @@ class QuickBlueDarwin extends QuickBluePlatform {
       .bluetoothState()
       .map((state) => state.toBlueBluetoothState())
       .distinct();
+  late final Stream<BlueScanResult> _scanResultStream = messages
+      .scanResults()
+      .map(_scanResultFromPlatformResult);
 
   final Stream<messages.PlatformL2CapSocketEvent> _l2CapEventStream = messages
       .l2CapSocketEvents();
@@ -152,8 +155,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
   }
 
   @override
-  Stream<BlueScanResult> get scanResultStream =>
-      messages.scanResults().map(_scanResultFromPlatformResult);
+  Stream<BlueScanResult> get scanResultStream => _scanResultStream;
 
   @override
   Future<void> setNotifiable(

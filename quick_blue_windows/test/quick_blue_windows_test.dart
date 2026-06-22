@@ -229,6 +229,12 @@ void main() {
     );
   });
 
+  test('reuses the scan result event stream', () {
+    final platform = QuickBlueWindows();
+
+    expect(platform.scanResultStream, same(platform.scanResultStream));
+  });
+
   test(
     'forwards known connection states and ignores unknown connection states',
     () async {
