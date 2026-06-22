@@ -5,6 +5,7 @@ import 'package:async/async.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import '../models.dart';
+import 'bluetooth_uuid.dart';
 import 'bluetooth_device.dart';
 import 'callbacks.dart';
 import 'quick_blue_exception.dart';
@@ -321,10 +322,42 @@ abstract class QuickBluePlatform extends PlatformInterface {
   final StreamController<BluetoothCharacteristicValue>
   _characteristicValueController =
       StreamController<BluetoothCharacteristicValue>.broadcast();
+  final _characteristicValueStreams =
+      <_CharacteristicValueKey, StreamController<Uint8List>>{};
 
   /// Characteristic value updates for all devices.
   Stream<BluetoothCharacteristicValue> get characteristicValueStream {
     return _characteristicValueController.stream;
+  }
+
+  /// Value updates for one characteristic.
+  ///
+  /// This avoids per-packet global stream filtering for hot notification paths.
+  Stream<Uint8List> characteristicValueStreamFor(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) {
+    final key = _CharacteristicValueKey.fromParts(
+      deviceId,
+      service,
+      characteristic,
+    );
+    final existing = _characteristicValueStreams[key];
+    if (existing != null) {
+      return existing.stream;
+    }
+
+    late StreamController<Uint8List> controller;
+    controller = StreamController<Uint8List>.broadcast(
+      onCancel: () {
+        if (!controller.hasListener) {
+          _characteristicValueStreams.remove(key);
+        }
+      },
+    );
+    _characteristicValueStreams[key] = controller;
+    return controller.stream;
   }
 
   OnValueChanged? _onValueChanged;
@@ -350,6 +383,27 @@ abstract class QuickBluePlatform extends PlatformInterface {
     String service,
     String characteristic,
   );
+
+  /// Reads a characteristic value and completes with the value bytes.
+  ///
+  /// Platform implementations may override this to return native read results
+  /// directly. The default preserves the older [readValue] event contract.
+  Future<Uint8List> readCharacteristicValue(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    final values = StreamQueue(
+      characteristicValueStreamFor(deviceId, service, characteristic),
+    );
+
+    try {
+      await readValue(deviceId, service, characteristic);
+      return await values.next;
+    } finally {
+      await values.cancel();
+    }
+  }
 
   /// Writes a characteristic value.
   ///
@@ -458,15 +512,48 @@ abstract class QuickBluePlatform extends PlatformInterface {
     String characteristicId,
     Uint8List value,
   ) {
-    _characteristicValueController.add(
-      BluetoothCharacteristicValue(
-        deviceId: deviceId,
-        serviceId: serviceId,
-        characteristicId: characteristicId,
-        value: value,
-      ),
+    _dispatchCharacteristicValue(
+      _CharacteristicValueKey.fromParts(deviceId, serviceId, characteristicId),
+      value,
     );
+    if (serviceId.isEmpty) {
+      _dispatchLegacyCharacteristicValue(deviceId, characteristicId, value);
+    }
+
+    if (_characteristicValueController.hasListener) {
+      _characteristicValueController.add(
+        BluetoothCharacteristicValue(
+          deviceId: deviceId,
+          serviceId: serviceId,
+          characteristicId: characteristicId,
+          value: value,
+        ),
+      );
+    }
     _onValueChanged?.call(deviceId, characteristicId, value);
+  }
+
+  void _dispatchCharacteristicValue(
+    _CharacteristicValueKey key,
+    Uint8List value,
+  ) {
+    _characteristicValueStreams[key]?.add(value);
+  }
+
+  void _dispatchLegacyCharacteristicValue(
+    String deviceId,
+    String characteristicId,
+    Uint8List value,
+  ) {
+    final characteristic = bluetoothUuidKey(characteristicId);
+    for (final entry in _characteristicValueStreams.entries) {
+      final key = entry.key;
+      if (key.service.isNotEmpty &&
+          key.deviceId == deviceId &&
+          key.characteristic == characteristic) {
+        entry.value.add(value);
+      }
+    }
   }
 
   /// Reports a discovered service from platform wrapper code.
@@ -515,4 +602,40 @@ class _ScanConfiguration {
 
   @override
   int get hashCode => Object.hash(scanFilter, scanOptions);
+}
+
+class _CharacteristicValueKey {
+  const _CharacteristicValueKey({
+    required this.deviceId,
+    required this.service,
+    required this.characteristic,
+  });
+
+  factory _CharacteristicValueKey.fromParts(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) {
+    return _CharacteristicValueKey(
+      deviceId: deviceId,
+      service: bluetoothUuidKey(service),
+      characteristic: bluetoothUuidKey(characteristic),
+    );
+  }
+
+  final String deviceId;
+  final String service;
+  final String characteristic;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is _CharacteristicValueKey &&
+            other.deviceId == deviceId &&
+            other.service == service &&
+            other.characteristic == characteristic;
+  }
+
+  @override
+  int get hashCode => Object.hash(deviceId, service, characteristic);
 }

@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:async/async.dart';
 import 'package:meta/meta.dart';
 
 import '../models.dart';
-import 'bluetooth_uuid.dart';
 import 'quick_blue_platform.dart';
 
 /// A handle for a Bluetooth LE characteristic.
@@ -36,15 +34,11 @@ class BluetoothCharacteristic {
   /// Legacy platform events without a service id are still matched by
   /// characteristic UUID for compatibility.
   Stream<Uint8List> get valueStream {
-    return _platform.characteristicValueStream
-        .where(
-          (event) =>
-              event.deviceId == deviceId &&
-              (event.serviceId.isEmpty ||
-                  matchesBluetoothUuid(event.serviceId, serviceId)) &&
-              matchesBluetoothUuid(event.characteristicId, characteristicId),
-        )
-        .map((event) => event.value);
+    return _platform.characteristicValueStreamFor(
+      deviceId,
+      serviceId,
+      characteristicId,
+    );
   }
 
   /// Enables notifications or indications while the returned stream is active.
@@ -110,17 +104,13 @@ class BluetoothCharacteristic {
 
   /// Reads the current characteristic value.
   ///
-  /// The future completes with the next matching value event after the platform
-  /// read request is sent.
+  /// The future completes with the bytes returned by the platform read.
   Future<Uint8List> read() async {
-    final values = StreamQueue(valueStream);
-
-    try {
-      await _platform.readValue(deviceId, serviceId, characteristicId);
-      return await values.next;
-    } finally {
-      await values.cancel();
-    }
+    return _platform.readCharacteristicValue(
+      deviceId,
+      serviceId,
+      characteristicId,
+    );
   }
 
   /// Writes [value] to the characteristic.

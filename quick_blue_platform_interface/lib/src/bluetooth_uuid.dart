@@ -1,16 +1,18 @@
+final _bluetoothUuidKeys = <String, String>{};
+
 bool matchesBluetoothUuid(String left, String right) {
   if (left == right) {
     return true;
   }
 
-  final normalizedLeft = _normalizeBluetoothUuid(left);
-  final normalizedRight = _normalizeBluetoothUuid(right);
+  final normalizedLeft = canonicalBluetoothUuid(left);
+  final normalizedRight = canonicalBluetoothUuid(right);
   return normalizedLeft != null &&
       normalizedRight != null &&
       normalizedLeft == normalizedRight;
 }
 
-String? _normalizeBluetoothUuid(String uuid) {
+String? canonicalBluetoothUuid(String uuid) {
   final cleaned = uuid.replaceAll('-', '').toLowerCase();
   if (cleaned.length == 4) {
     return '0000$cleaned'
@@ -24,4 +26,11 @@ String? _normalizeBluetoothUuid(String uuid) {
     return cleaned;
   }
   return null;
+}
+
+String bluetoothUuidKey(String uuid) {
+  return _bluetoothUuidKeys.putIfAbsent(
+    uuid,
+    () => canonicalBluetoothUuid(uuid) ?? uuid,
+  );
 }

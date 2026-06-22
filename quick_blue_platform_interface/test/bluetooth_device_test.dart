@@ -1384,6 +1384,54 @@ void main() {
     },
   );
 
+  test(
+    'BluetoothCharacteristic.valueStream receives direct and legacy values',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final device = platform.device('device-a');
+      final characteristic = device.characteristic('180d', '2a37');
+      final otherCharacteristic = device.characteristic('180d', '2a38');
+      final values = <Uint8List>[];
+      final otherValues = <Uint8List>[];
+      final subscription = characteristic.valueStream.listen(values.add);
+      final otherSubscription = otherCharacteristic.valueStream.listen(
+        otherValues.add,
+      );
+
+      platform.handleCharacteristicValueChanged(
+        'device-a',
+        '0000180d-0000-1000-8000-00805f9b34fb',
+        '00002a37-0000-1000-8000-00805f9b34fb',
+        Uint8List.fromList(<int>[1, 2, 3]),
+      );
+      platform.onValueChanged?.call(
+        'device-a',
+        '00002a37-0000-1000-8000-00805f9b34fb',
+        Uint8List.fromList(<int>[4, 5, 6]),
+      );
+      platform.handleCharacteristicValueChanged(
+        'device-a',
+        '0000180d-0000-1000-8000-00805f9b34fb',
+        '00002a38-0000-1000-8000-00805f9b34fb',
+        Uint8List.fromList(<int>[7, 8, 9]),
+      );
+      await pumpEventQueue();
+
+      expect(values.map((value) => value.toList()), [
+        <int>[1, 2, 3],
+        <int>[4, 5, 6],
+      ]);
+      expect(otherValues.map((value) => value.toList()), [
+        <int>[7, 8, 9],
+      ]);
+
+      await subscription.cancel();
+      await otherSubscription.cancel();
+    },
+  );
+
   test('BluetoothDevice.readValue propagates platform errors', () async {
     final error = StateError('read failed');
     final platform = _FakeQuickBluePlatform(readValueError: error);
