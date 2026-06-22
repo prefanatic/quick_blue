@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -63,6 +64,30 @@ const _notifyServiceUuid = String.fromEnvironment(
 const _notifyCharacteristicUuid = String.fromEnvironment(
   'QUICK_BLUE_BENCHMARK_NOTIFY_CHARACTERISTIC_UUID',
 );
+const _notifyWriteServiceUuid = String.fromEnvironment(
+  'QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_SERVICE_UUID',
+);
+const _notifyWriteCharacteristicUuid = String.fromEnvironment(
+  'QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_CHARACTERISTIC_UUID',
+);
+const _notifyWriteCommandHex = String.fromEnvironment(
+  'QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_COMMAND_HEX',
+);
+const _notifyWriteIterations = int.fromEnvironment(
+  'QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_ITERATIONS',
+  defaultValue: 1,
+);
+const _notifyWriteDelayMilliseconds = int.fromEnvironment(
+  'QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_DELAY_MILLISECONDS',
+);
+const _notifyWriteTimeoutSeconds = int.fromEnvironment(
+  'QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_TIMEOUT_SECONDS',
+  defaultValue: 5,
+);
+const _notifyWriteWithoutResponse = bool.fromEnvironment(
+  'QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_WITHOUT_RESPONSE',
+  defaultValue: true,
+);
 const _readServiceUuid = String.fromEnvironment(
   'QUICK_BLUE_BENCHMARK_READ_SERVICE_UUID',
 );
@@ -101,6 +126,19 @@ void main() {
           'Set both QUICK_BLUE_BENCHMARK_READ_SERVICE_UUID and '
           'QUICK_BLUE_BENCHMARK_READ_CHARACTERISTIC_UUID, or omit both to '
           'read the notifying characteristic when it is readable.',
+        );
+        return;
+      }
+      final hasPartialNotifyWriteTarget =
+          (_notifyWriteServiceUuid.isEmpty &&
+              _notifyWriteCharacteristicUuid.isNotEmpty) ||
+          (_notifyWriteServiceUuid.isNotEmpty &&
+              _notifyWriteCharacteristicUuid.isEmpty);
+      if (hasPartialNotifyWriteTarget) {
+        markTestSkipped(
+          'Set both QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_SERVICE_UUID and '
+          'QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_CHARACTERISTIC_UUID, or omit '
+          'both to write the notifying characteristic when it is writable.',
         );
         return;
       }
@@ -156,10 +194,39 @@ void main() {
           );
         }
 
+        _ResolvedCharacteristic? notifyWriteTarget;
+        Uint8List? notifyWriteCommand;
+        if (_notifyWriteCommandHex.trim().isNotEmpty) {
+          notifyWriteCommand = _hexBytes(_notifyWriteCommandHex);
+          notifyWriteTarget = _notifyWriteTarget(services, notifyInfo);
+          if (notifyWriteTarget == null) {
+            fail(
+              'Notify-write benchmark characteristic '
+              '$_notifyWriteServiceUuid/$_notifyWriteCharacteristicUuid was '
+              'not discovered.',
+            );
+          }
+          if (!notifyWriteTarget.info.canWrite) {
+            fail(
+              'Notify-write benchmark characteristic '
+              '${notifyWriteTarget.service.uuid}/${notifyWriteTarget.info.uuid} '
+              'does not support writes.',
+            );
+          }
+          result['notifyWriteServiceUuid'] = notifyWriteTarget.service.uuid;
+          result['notifyWriteCharacteristicUuid'] = notifyWriteTarget.info.uuid;
+          result['notifyWriteCommandHex'] = _hex(notifyWriteCommand);
+          result['notificationMode'] = 'writeCommand';
+        } else {
+          result['notificationMode'] = 'passiveDuration';
+        }
+
         final notifyResult = await _measureNotifications(
           device: device,
           serviceUuid: notifyInfo.service.uuid,
           characteristicUuid: notifyInfo.info.uuid,
+          writeTarget: notifyWriteTarget,
+          writeCommand: notifyWriteCommand,
         );
         result['notifications'] = notifyResult.toJson();
 
@@ -314,12 +381,19 @@ Future<_NotificationBenchmarkResult> _measureNotifications({
   required BluetoothDevice device,
   required String serviceUuid,
   required String characteristicUuid,
+  required _ResolvedCharacteristic? writeTarget,
+  required Uint8List? writeCommand,
 }) async {
   final characteristic = device.characteristic(serviceUuid, characteristicUuid);
-  final stopwatch = Stopwatch()..start();
+  final writeCharacteristic = writeTarget == null
+      ? null
+      : device.characteristic(writeTarget.service.uuid, writeTarget.info.uuid);
+  final stopwatch = Stopwatch();
   final intervals = <int>[];
+  final writeLatencies = <int>[];
   var bytes = 0;
   var count = 0;
+  var writeBytes = 0;
   var previousMicros = 0;
   var firstMicros = 0;
   var lastMicros = 0;
@@ -327,42 +401,97 @@ Future<_NotificationBenchmarkResult> _measureNotifications({
   var sequenceSamples = 0;
   var sequenceGaps = 0;
   var duplicateOrReorderedSequences = 0;
+  var waitForCount = 0;
+  Completer<void>? notificationWaiter;
 
-  final subscription = characteristic
-      .notifications(
-        bleInputProperty: _useIndications
-            ? BleInputProperty.indication
-            : BleInputProperty.notification,
-      )
-      .listen((value) {
-        final now = stopwatch.elapsedMicroseconds;
-        if (count == 0) {
-          firstMicros = now;
-        } else {
-          intervals.add(now - previousMicros);
+  final subscription = characteristic.valueStream.listen((value) {
+    final now = stopwatch.elapsedMicroseconds;
+    if (count == 0) {
+      firstMicros = now;
+    } else {
+      intervals.add(now - previousMicros);
+    }
+    previousMicros = now;
+    lastMicros = now;
+    count++;
+    bytes += value.length;
+
+    final sequence = _readSequence(value);
+    if (sequence != null) {
+      sequenceSamples++;
+      if (lastSequence != -1) {
+        if (sequence <= lastSequence) {
+          duplicateOrReorderedSequences++;
+        } else if (sequence > lastSequence + 1) {
+          sequenceGaps += sequence - lastSequence - 1;
         }
-        previousMicros = now;
-        lastMicros = now;
-        count++;
-        bytes += value.length;
+      }
+      lastSequence = sequence;
+    }
 
-        final sequence = _readSequence(value);
-        if (sequence != null) {
-          sequenceSamples++;
-          if (lastSequence != -1) {
-            if (sequence <= lastSequence) {
-              duplicateOrReorderedSequences++;
-            } else if (sequence > lastSequence + 1) {
-              sequenceGaps += sequence - lastSequence - 1;
-            }
-          }
-          lastSequence = sequence;
+    final waiter = notificationWaiter;
+    if (waiter != null && !waiter.isCompleted && count >= waitForCount) {
+      waiter.complete();
+    }
+  });
+
+  var notificationsEnabled = false;
+  try {
+    await device.setNotifiable(
+      serviceUuid,
+      characteristicUuid,
+      _useIndications
+          ? BleInputProperty.indication
+          : BleInputProperty.notification,
+    );
+    notificationsEnabled = true;
+    stopwatch.start();
+
+    if (writeCommand != null && writeCharacteristic != null) {
+      final writeIterations = _notifyWriteIterations <= 0
+          ? 1
+          : _notifyWriteIterations;
+      final writeMode = _notifyWriteWithoutResponse
+          ? BleOutputProperty.withoutResponse
+          : BleOutputProperty.withResponse;
+      for (var index = 0; index < writeIterations; index++) {
+        final waiter = Completer<void>();
+        waitForCount = count + 1;
+        notificationWaiter = waiter;
+
+        final writeStopwatch = Stopwatch()..start();
+        await writeCharacteristic.write(writeCommand, writeMode);
+        writeBytes += writeCommand.length;
+        await waiter.future.timeout(_seconds(_notifyWriteTimeoutSeconds, 5));
+        writeStopwatch.stop();
+        writeLatencies.add(writeStopwatch.elapsedMicroseconds);
+        if (identical(notificationWaiter, waiter)) {
+          notificationWaiter = null;
         }
-      });
 
-  await Future<void>.delayed(_seconds(_durationSeconds, 30));
-  await subscription.cancel();
-  stopwatch.stop();
+        if (_notifyWriteDelayMilliseconds > 0 && index != writeIterations - 1) {
+          await Future<void>.delayed(
+            Duration(milliseconds: _notifyWriteDelayMilliseconds),
+          );
+        }
+      }
+    } else {
+      await Future<void>.delayed(_seconds(_durationSeconds, 30));
+    }
+  } finally {
+    notificationWaiter = null;
+    await subscription.cancel();
+    if (notificationsEnabled) {
+      await device.setNotifiable(
+        serviceUuid,
+        characteristicUuid,
+        BleInputProperty.disabled,
+      );
+    }
+    if (stopwatch.isRunning) {
+      stopwatch.stop();
+    }
+  }
 
   final activeMicros = count < 2 ? 0 : lastMicros - firstMicros;
   final elapsedMicros = stopwatch.elapsedMicroseconds;
@@ -376,6 +505,13 @@ Future<_NotificationBenchmarkResult> _measureNotifications({
     sequenceSamples: sequenceSamples,
     sequenceGaps: sequenceGaps,
     duplicateOrReorderedSequences: duplicateOrReorderedSequences,
+    commandWrites: writeCommand == null
+        ? null
+        : _NotifyWriteBenchmarkResult(
+            count: writeLatencies.length,
+            bytes: writeBytes,
+            latencies: writeLatencies,
+          ),
   );
 }
 
@@ -427,6 +563,24 @@ _ResolvedCharacteristic? _readTarget(
     );
   }
   if (notifyInfo.info.canRead) {
+    return notifyInfo;
+  }
+  return null;
+}
+
+_ResolvedCharacteristic? _notifyWriteTarget(
+  List<BluetoothService> services,
+  _ResolvedCharacteristic notifyInfo,
+) {
+  if (_notifyWriteServiceUuid.isNotEmpty &&
+      _notifyWriteCharacteristicUuid.isNotEmpty) {
+    return _findCharacteristic(
+      services,
+      serviceUuid: _notifyWriteServiceUuid,
+      characteristicUuid: _notifyWriteCharacteristicUuid,
+    );
+  }
+  if (notifyInfo.info.canWrite) {
     return notifyInfo;
   }
   return null;
@@ -528,6 +682,26 @@ List<String> _csv(String value) {
       .toList(growable: false);
 }
 
+Uint8List _hexBytes(String value) {
+  final cleaned = value.replaceAll(RegExp(r'[\s:_-]'), '');
+  if (cleaned.isEmpty) {
+    throw StateError('Hex command must not be empty.');
+  }
+  if (cleaned.length.isOdd) {
+    throw StateError('Hex command must contain an even number of digits.');
+  }
+  final bytes = Uint8List(cleaned.length ~/ 2);
+  for (var index = 0; index < bytes.length; index++) {
+    final offset = index * 2;
+    bytes[index] = int.parse(cleaned.substring(offset, offset + 2), radix: 16);
+  }
+  return bytes;
+}
+
+String _hex(Uint8List value) {
+  return value.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+}
+
 Duration _seconds(int value, int fallback) {
   return Duration(seconds: value <= 0 ? fallback : value);
 }
@@ -568,6 +742,7 @@ class _NotificationBenchmarkResult {
     required this.sequenceSamples,
     required this.sequenceGaps,
     required this.duplicateOrReorderedSequences,
+    required this.commandWrites,
   });
 
   final Duration duration;
@@ -579,6 +754,7 @@ class _NotificationBenchmarkResult {
   final int sequenceSamples;
   final int sequenceGaps;
   final int duplicateOrReorderedSequences;
+  final _NotifyWriteBenchmarkResult? commandWrites;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -594,6 +770,27 @@ class _NotificationBenchmarkResult {
       'sequenceSamples': sequenceSamples,
       'sequenceGaps': sequenceGaps,
       'duplicateOrReorderedSequences': duplicateOrReorderedSequences,
+      if (commandWrites != null) 'commandWrites': commandWrites!.toJson(),
+    };
+  }
+}
+
+class _NotifyWriteBenchmarkResult {
+  _NotifyWriteBenchmarkResult({
+    required this.count,
+    required this.bytes,
+    required this.latencies,
+  });
+
+  final int count;
+  final int bytes;
+  final List<int> latencies;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'count': count,
+      'bytes': bytes,
+      'latencyMicros': _distribution(latencies),
     };
   }
 }

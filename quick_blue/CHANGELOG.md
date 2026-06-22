@@ -36,6 +36,8 @@
   handles.
 - Add a hardware-backed example benchmark for characteristic notification
   throughput and read latency.
+- Add serialized write/notification-response coverage to the characteristic
+  benchmark for command/notify devices.
 - Add GitHub Actions CI updates and local `act` configuration.
 - Add repository contributor instructions.
 
@@ -72,6 +74,9 @@
   characteristic metadata, and service-scoped values.
 - Bring the Linux implementation up to the current Dart surface with live
   Bluetooth state, scan filters, and service data in scan results.
+- Route characteristic value streams directly by characteristic to reduce
+  high-throughput notification overhead.
+- Return Linux characteristic read results directly.
 - Replace the companion-device platform contract with association-specific
   models and deprecate the older static companion methods.
 - Retire the legacy `MethodChannelQuickBlue` fallback from the platform

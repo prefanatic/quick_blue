@@ -166,9 +166,10 @@ replugged.
 
 The characteristic benchmark is hardware-backed and targets a known high-volume
 notifying characteristic. It connects to the target, discovers services,
-subscribes for a fixed duration, optionally runs sequential reads, and prints a
-JSON summary with notification throughput, byte throughput, inter-arrival
-latency, optional sequence gaps, and read latency.
+subscribes for a fixed duration or runs serialized write/notification-response
+cycles, optionally runs sequential reads, and prints a JSON summary with
+notification throughput, byte throughput, inter-arrival latency, optional
+sequence gaps, command-response latency, and read latency.
 
 ```sh
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
@@ -191,6 +192,22 @@ Useful Dart defines:
   characteristic UUID.
 - `QUICK_BLUE_BENCHMARK_USE_INDICATIONS`: set to `true` to benchmark
   indications instead of notifications.
+- `QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_COMMAND_HEX`: optional hex command to
+  write after notifications are enabled. When set, the benchmark writes the
+  command sequentially and waits for the next notification after each write.
+- `QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_SERVICE_UUID`: optional writable service
+  UUID. If omitted, the benchmark writes the notifying characteristic when it is
+  writable.
+- `QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_CHARACTERISTIC_UUID`: optional writable
+  characteristic UUID.
+- `QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_ITERATIONS`: serialized write/notification
+  cycle count. Defaults to `1`.
+- `QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_TIMEOUT_SECONDS`: per-command notification
+  response timeout. Defaults to `5`.
+- `QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_DELAY_MILLISECONDS`: delay between
+  serialized command writes. Defaults to no delay.
+- `QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_WITHOUT_RESPONSE`: set to `false` to write
+  with response. Defaults to `true`.
 - `QUICK_BLUE_BENCHMARK_DURATION_SECONDS`: notification sampling duration.
   Defaults to `30`.
 - `QUICK_BLUE_BENCHMARK_READ_SERVICE_UUID`: optional readable service UUID. If
@@ -211,6 +228,20 @@ Useful Dart defines:
 
 The benchmark fails when Bluetooth is unavailable. It skips when the target
 device or required notifying characteristic is not configured or not found.
+
+SwitchBot Meter-style command/notification response benchmark:
+
+```sh
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/ble_characteristic_benchmark_test.dart -d linux \
+    --dart-define=QUICK_BLUE_BENCHMARK_DEVICE_ID='D1:B4:29:F5:B8:7D' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_SERVICE_UUID='cba20d00-224d-11e6-9fb8-0002a5d5c51b' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_CHARACTERISTIC_UUID='cba20003-224d-11e6-9fb8-0002a5d5c51b' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_SERVICE_UUID='cba20d00-224d-11e6-9fb8-0002a5d5c51b' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_CHARACTERISTIC_UUID='cba20002-224d-11e6-9fb8-0002a5d5c51b' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_COMMAND_HEX='570f31' \
+    --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_ITERATIONS=50
+```
 
 ## Device-switch regressions
 
