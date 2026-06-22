@@ -6,6 +6,8 @@ import 'package:quick_blue/quick_blue.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart'
     show QuickBluePlatform;
 
+import 'ble_gatt_session.dart';
+import 'ble_scan_configuration.dart';
 import 'ble_value_codec.dart';
 
 const scanDuration = Duration(seconds: 10);
@@ -36,25 +38,12 @@ class BleExplorerController extends ChangeNotifier {
 
   final Duration connectTimeout;
   final devices = <String, BlueScanResult>{};
-  final services = <BluetoothService>[];
-  final latestValues = <String, Uint8List>{};
   final events = <BleEvent>[];
 
   late final Future<void> initialBluetoothCheck;
-  final serviceFilterController = TextEditingController();
-  final androidReportDelayMillisController = TextEditingController();
-  final darwinSolicitedServiceUuidsController = TextEditingController();
-  final linuxRssiController = TextEditingController();
-  final linuxPathlossController = TextEditingController();
-  final linuxPatternController = TextEditingController();
-  final windowsInRangeThresholdController = TextEditingController();
-  final windowsOutOfRangeThresholdController = TextEditingController();
-  final windowsOutOfRangeTimeoutMillisController = TextEditingController();
-  final windowsSamplingIntervalMillisController = TextEditingController();
 
-  final _writeControllers = <String, TextEditingController>{};
-  final _writeWithoutResponseKeys = <String>{};
-  final _notificationSubscriptions = <String, StreamSubscription<Uint8List>>{};
+  final _gattSession = BleGattSession();
+  final _scanConfiguration = BleScanConfiguration();
 
   Completer<void>? _initialBluetoothCheck;
   StreamSubscription<BlueBluetoothState>? _bluetoothStateSubscription;
@@ -74,25 +63,86 @@ class BleExplorerController extends ChangeNotifier {
   String? selectedDeviceId;
   BlueConnectionState connectionState = BlueConnectionState.disconnected;
   String? status;
-  bool? scanAllowDuplicates;
-  ScanMode? scanMode;
-  AndroidScanMode? androidScanMode;
-  AndroidScanCallbackType androidCallbackType =
-      AndroidScanCallbackType.allMatches;
-  AndroidScanMatchMode androidMatchMode = AndroidScanMatchMode.sticky;
-  AndroidScanNumOfMatches? androidNumOfMatches;
-  bool? androidLegacy;
-  AndroidScanPhy? androidPhy;
-  bool? darwinAllowDuplicates;
-  LinuxScanTransport linuxTransport = LinuxScanTransport.le;
-  bool? linuxDuplicateData;
-  bool? linuxDiscoverable;
-  WindowsScanMode? windowsScanMode;
 
   bool _disposed = false;
-  bool _scanOptionParseFailed = false;
 
-  Set<String> get notificationKeys => _notificationSubscriptions.keys.toSet();
+  List<BluetoothService> get services => _gattSession.services;
+
+  Map<String, Uint8List> get latestValues => _gattSession.latestValues;
+
+  Set<String> get notificationKeys => _gattSession.notificationKeys;
+
+  TextEditingController get serviceFilterController {
+    return _scanConfiguration.serviceFilterController;
+  }
+
+  TextEditingController get androidReportDelayMillisController {
+    return _scanConfiguration.androidReportDelayMillisController;
+  }
+
+  TextEditingController get darwinSolicitedServiceUuidsController {
+    return _scanConfiguration.darwinSolicitedServiceUuidsController;
+  }
+
+  TextEditingController get linuxRssiController {
+    return _scanConfiguration.linuxRssiController;
+  }
+
+  TextEditingController get linuxPathlossController {
+    return _scanConfiguration.linuxPathlossController;
+  }
+
+  TextEditingController get linuxPatternController {
+    return _scanConfiguration.linuxPatternController;
+  }
+
+  TextEditingController get windowsInRangeThresholdController {
+    return _scanConfiguration.windowsInRangeThresholdController;
+  }
+
+  TextEditingController get windowsOutOfRangeThresholdController {
+    return _scanConfiguration.windowsOutOfRangeThresholdController;
+  }
+
+  TextEditingController get windowsOutOfRangeTimeoutMillisController {
+    return _scanConfiguration.windowsOutOfRangeTimeoutMillisController;
+  }
+
+  TextEditingController get windowsSamplingIntervalMillisController {
+    return _scanConfiguration.windowsSamplingIntervalMillisController;
+  }
+
+  bool? get scanAllowDuplicates => _scanConfiguration.scanAllowDuplicates;
+
+  ScanMode? get scanMode => _scanConfiguration.scanMode;
+
+  AndroidScanMode? get androidScanMode => _scanConfiguration.androidScanMode;
+
+  AndroidScanCallbackType get androidCallbackType {
+    return _scanConfiguration.androidCallbackType;
+  }
+
+  AndroidScanMatchMode get androidMatchMode {
+    return _scanConfiguration.androidMatchMode;
+  }
+
+  AndroidScanNumOfMatches? get androidNumOfMatches {
+    return _scanConfiguration.androidNumOfMatches;
+  }
+
+  bool? get androidLegacy => _scanConfiguration.androidLegacy;
+
+  AndroidScanPhy? get androidPhy => _scanConfiguration.androidPhy;
+
+  bool? get darwinAllowDuplicates => _scanConfiguration.darwinAllowDuplicates;
+
+  LinuxScanTransport get linuxTransport => _scanConfiguration.linuxTransport;
+
+  bool? get linuxDuplicateData => _scanConfiguration.linuxDuplicateData;
+
+  bool? get linuxDiscoverable => _scanConfiguration.linuxDiscoverable;
+
+  WindowsScanMode? get windowsScanMode => _scanConfiguration.windowsScanMode;
 
   List<BlueScanResult> get discoveredDevices {
     return devices.values.toList();
@@ -111,9 +161,12 @@ class BleExplorerController extends ChangeNotifier {
 
     await _cancelScanSubscription();
     _scanTimer?.cancel();
-    final scanFilter = _scanFilter();
-    final scanOptions = _scanOptions();
-    if (scanOptions == null) {
+    final scanFilter = _scanConfiguration.scanFilter();
+    late final ScanOptions scanOptions;
+    try {
+      scanOptions = _scanConfiguration.scanOptions();
+    } on BleScanOptionParseException catch (error) {
+      _setScanOptionError(error.message);
       return;
     }
 
@@ -196,9 +249,8 @@ class BleExplorerController extends ChangeNotifier {
       );
     }
     await _cancelConnectionSubscription();
-    await _cancelNotifications();
-    _disposeWriteControllers();
-    _writeWithoutResponseKeys.clear();
+    await _gattSession.cancelNotifications();
+    _gattSession.clear(disposeControllers: true);
 
     final device = QuickBlue.device(deviceId);
     _connectionSubscription = device.connectionStateStream.listen(
@@ -316,13 +368,10 @@ class BleExplorerController extends ChangeNotifier {
       return;
     }
 
-    await _cancelNotifications();
-    _disposeWriteControllers();
-    _writeWithoutResponseKeys.clear();
+    await _gattSession.cancelNotifications();
+    _gattSession.clear(disposeControllers: true);
     _mutate(() {
       discovering = true;
-      services.clear();
-      latestValues.clear();
       status = 'Discovering services...';
       _log(status!, BleEventSeverity.info);
     });
@@ -335,7 +384,7 @@ class BleExplorerController extends ChangeNotifier {
         return;
       }
       _mutate(() {
-        services.addAll(discoveredServices);
+        _gattSession.replaceServices(discoveredServices);
         status = 'Found ${discoveredServices.length} service(s).';
         _log(status!, BleEventSeverity.info);
       });
@@ -403,7 +452,10 @@ class BleExplorerController extends ChangeNotifier {
       ).characteristic(service.uuid, characteristicId);
       final value = await characteristic.read();
       _mutate(() {
-        latestValues[characteristicKey(service.uuid, characteristicId)] = value;
+        _gattSession.setLatestValue(
+          characteristicKey(service.uuid, characteristicId),
+          value,
+        );
         status = 'Read ${value.length} byte(s).';
         _log(
           'Read ${value.length} byte(s) from $characteristicId.',
@@ -420,7 +472,7 @@ class BleExplorerController extends ChangeNotifier {
     String characteristicId,
   ) async {
     final key = characteristicKey(service.uuid, characteristicId);
-    final text = _writeControllers[key]?.text ?? '';
+    final text = _gattSession.writeTextFor(key);
     if (text.trim().isEmpty) {
       _mutate(() {
         message = 'Enter bytes as hex or text before writing.';
@@ -461,7 +513,7 @@ class BleExplorerController extends ChangeNotifier {
     String characteristicId,
   ) async {
     final key = characteristicKey(service.uuid, characteristicId);
-    final subscription = _notificationSubscriptions.remove(key);
+    final subscription = _gattSession.takeNotification(key);
     if (subscription != null) {
       await subscription.cancel();
       _mutate(() {
@@ -481,17 +533,17 @@ class BleExplorerController extends ChangeNotifier {
       final newSubscription = characteristic.notifications().listen(
         (value) {
           _mutate(() {
-            latestValues[key] = value;
+            _gattSession.setLatestValue(key, value);
             status = 'Notification: ${value.length} byte(s).';
           });
         },
         onError: (Object error) {
-          _notificationSubscriptions.remove(key);
+          _gattSession.removeNotification(key);
           _setError('Notification failed', error);
         },
       );
       _mutate(() {
-        _notificationSubscriptions[key] = newSubscription;
+        _gattSession.setNotification(key, newSubscription);
         status = 'Notifications started.';
         _log(
           'Started notifications for $characteristicId.',
@@ -504,98 +556,94 @@ class BleExplorerController extends ChangeNotifier {
   }
 
   TextEditingController writeControllerFor(String key) {
-    return _writeControllers.putIfAbsent(key, TextEditingController.new);
+    return _gattSession.writeControllerFor(key);
   }
 
   bool writeWithoutResponseFor(String key) {
-    return _writeWithoutResponseKeys.contains(key);
+    return _gattSession.writeWithoutResponseFor(key);
   }
 
   void setWriteWithoutResponse(String key, bool enabled) {
     _mutate(() {
-      if (enabled) {
-        _writeWithoutResponseKeys.add(key);
-      } else {
-        _writeWithoutResponseKeys.remove(key);
-      }
+      _gattSession.setWriteWithoutResponse(key, enabled);
     });
   }
 
   void setScanAllowDuplicates(bool? value) {
     _mutate(() {
-      scanAllowDuplicates = value;
+      _scanConfiguration.scanAllowDuplicates = value;
     });
   }
 
   void setScanMode(ScanMode? value) {
     _mutate(() {
-      scanMode = value;
+      _scanConfiguration.scanMode = value;
     });
   }
 
   void setAndroidScanMode(AndroidScanMode? value) {
     _mutate(() {
-      androidScanMode = value;
+      _scanConfiguration.androidScanMode = value;
     });
   }
 
   void setAndroidCallbackType(AndroidScanCallbackType value) {
     _mutate(() {
-      androidCallbackType = value;
+      _scanConfiguration.androidCallbackType = value;
     });
   }
 
   void setAndroidMatchMode(AndroidScanMatchMode value) {
     _mutate(() {
-      androidMatchMode = value;
+      _scanConfiguration.androidMatchMode = value;
     });
   }
 
   void setAndroidNumOfMatches(AndroidScanNumOfMatches? value) {
     _mutate(() {
-      androidNumOfMatches = value;
+      _scanConfiguration.androidNumOfMatches = value;
     });
   }
 
   void setAndroidLegacy(bool? value) {
     _mutate(() {
-      androidLegacy = value;
+      _scanConfiguration.androidLegacy = value;
     });
   }
 
   void setAndroidPhy(AndroidScanPhy? value) {
     _mutate(() {
-      androidPhy = value;
+      _scanConfiguration.androidPhy = value;
     });
   }
 
   void setDarwinAllowDuplicates(bool? value) {
     _mutate(() {
-      darwinAllowDuplicates = value;
+      _scanConfiguration.darwinAllowDuplicates = value;
     });
   }
 
   void setLinuxTransport(LinuxScanTransport value) {
     _mutate(() {
-      linuxTransport = value;
+      _scanConfiguration.linuxTransport = value;
     });
   }
 
   void setLinuxDuplicateData(bool? value) {
     _mutate(() {
-      linuxDuplicateData = value;
+      _scanConfiguration.linuxDuplicateData = value;
     });
   }
 
   void setLinuxDiscoverable(bool? value) {
     _mutate(() {
-      linuxDiscoverable = value;
+      _scanConfiguration.linuxDiscoverable = value;
     });
   }
 
   void setWindowsScanMode(WindowsScanMode? value) {
     _mutate(() {
-      windowsScanMode = value;
+      _scanConfiguration.windowsScanMode = value;
     });
   }
 
@@ -607,7 +655,12 @@ class BleExplorerController extends ChangeNotifier {
   String? message;
 
   void clearMessage() {
-    message = null;
+    if (message == null) {
+      return;
+    }
+    _mutate(() {
+      message = null;
+    });
   }
 
   void clearEvents() {
@@ -632,141 +685,7 @@ class BleExplorerController extends ChangeNotifier {
     await subscription?.cancel();
   }
 
-  Future<void> _cancelNotifications() async {
-    final subscriptions = _notificationSubscriptions.values.toList();
-    _notificationSubscriptions.clear();
-    for (final subscription in subscriptions) {
-      await subscription.cancel();
-    }
-  }
-
-  ScanFilter _scanFilter() {
-    final serviceUuids = _splitUuidText(serviceFilterController.text);
-    return serviceUuids.isEmpty
-        ? ScanFilter.empty
-        : ScanFilter(serviceUuids: serviceUuids);
-  }
-
-  ScanOptions? _scanOptions() {
-    _scanOptionParseFailed = false;
-    final androidReportDelayMillis = _optionalInt(
-      androidReportDelayMillisController.text,
-      'Android report delay',
-    );
-    final linuxRssi = _optionalInt(linuxRssiController.text, 'Linux RSSI');
-    final linuxPathloss = _optionalInt(
-      linuxPathlossController.text,
-      'Linux pathloss',
-    );
-    final windowsInRangeThreshold = _optionalInt(
-      windowsInRangeThresholdController.text,
-      'Windows in-range threshold',
-    );
-    final windowsOutOfRangeThreshold = _optionalInt(
-      windowsOutOfRangeThresholdController.text,
-      'Windows out-of-range threshold',
-    );
-    final windowsOutOfRangeTimeoutMillis = _optionalInt(
-      windowsOutOfRangeTimeoutMillisController.text,
-      'Windows out-of-range timeout',
-    );
-    final windowsSamplingIntervalMillis = _optionalInt(
-      windowsSamplingIntervalMillisController.text,
-      'Windows sampling interval',
-    );
-    if (_scanOptionParseFailed) {
-      return null;
-    }
-
-    return ScanOptions(
-      allowDuplicates: scanAllowDuplicates,
-      scanMode: scanMode,
-      android: AndroidScanOptions(
-        scanMode: androidScanMode,
-        callbackType: androidCallbackType,
-        matchMode: androidMatchMode,
-        numOfMatches: androidNumOfMatches,
-        reportDelay: Duration(milliseconds: androidReportDelayMillis ?? 0),
-        legacy: androidLegacy,
-        phy: androidPhy,
-      ),
-      darwin: DarwinScanOptions(
-        allowDuplicates: darwinAllowDuplicates,
-        solicitedServiceUuids: _splitUuidText(
-          darwinSolicitedServiceUuidsController.text,
-        ),
-      ),
-      linux: LinuxScanOptions(
-        rssi: linuxRssi,
-        pathloss: linuxPathloss,
-        transport: linuxTransport,
-        duplicateData: linuxDuplicateData,
-        discoverable: linuxDiscoverable,
-        pattern: _optionalText(linuxPatternController.text),
-      ),
-      windows: WindowsScanOptions(
-        scanningMode: windowsScanMode,
-        signalStrengthFilter: _windowsSignalStrengthFilter(
-          inRangeThresholdInDBm: windowsInRangeThreshold,
-          outOfRangeThresholdInDBm: windowsOutOfRangeThreshold,
-          outOfRangeTimeoutMillis: windowsOutOfRangeTimeoutMillis,
-          samplingIntervalMillis: windowsSamplingIntervalMillis,
-        ),
-      ),
-    );
-  }
-
-  int? _optionalInt(String text, String label) {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) {
-      return null;
-    }
-    final value = int.tryParse(trimmed);
-    if (value == null) {
-      _setScanOptionError('$label must be an integer.');
-    }
-    return value;
-  }
-
-  String? _optionalText(String text) {
-    final trimmed = text.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
-
-  List<String> _splitUuidText(String text) {
-    return text
-        .split(RegExp(r'[\s,]+'))
-        .map((uuid) => uuid.trim())
-        .where((uuid) => uuid.isNotEmpty)
-        .toList();
-  }
-
-  WindowsSignalStrengthFilter? _windowsSignalStrengthFilter({
-    required int? inRangeThresholdInDBm,
-    required int? outOfRangeThresholdInDBm,
-    required int? outOfRangeTimeoutMillis,
-    required int? samplingIntervalMillis,
-  }) {
-    if (inRangeThresholdInDBm == null &&
-        outOfRangeThresholdInDBm == null &&
-        outOfRangeTimeoutMillis == null &&
-        samplingIntervalMillis == null) {
-      return null;
-    }
-    return WindowsSignalStrengthFilter(
-      inRangeThresholdInDBm: inRangeThresholdInDBm,
-      outOfRangeThresholdInDBm: outOfRangeThresholdInDBm,
-      outOfRangeTimeout: outOfRangeTimeoutMillis == null
-          ? null
-          : Duration(milliseconds: outOfRangeTimeoutMillis),
-      samplingInterval: samplingIntervalMillis == null
-          ? null
-          : Duration(milliseconds: samplingIntervalMillis),
-    );
-  }
-
   void _setScanOptionError(String text) {
-    _scanOptionParseFailed = true;
     _mutate(() {
       message = 'Invalid scan option: $text';
       status = 'Invalid scan option.';
@@ -925,19 +844,7 @@ class BleExplorerController extends ChangeNotifier {
   }
 
   void _clearGattState({required bool disposeControllers}) {
-    services.clear();
-    latestValues.clear();
-    _writeWithoutResponseKeys.clear();
-    if (disposeControllers) {
-      _disposeWriteControllers();
-    }
-  }
-
-  void _disposeWriteControllers() {
-    for (final controller in _writeControllers.values) {
-      controller.dispose();
-    }
-    _writeControllers.clear();
+    _gattSession.clear(disposeControllers: disposeControllers);
   }
 
   void _setError(String label, Object error) {
@@ -1002,19 +909,10 @@ class BleExplorerController extends ChangeNotifier {
     );
     _reportCancelError(
       'while canceling BLE notification subscriptions',
-      _cancelNotifications(),
+      _gattSession.cancelNotifications(),
     );
-    _disposeWriteControllers();
-    serviceFilterController.dispose();
-    androidReportDelayMillisController.dispose();
-    darwinSolicitedServiceUuidsController.dispose();
-    linuxRssiController.dispose();
-    linuxPathlossController.dispose();
-    linuxPatternController.dispose();
-    windowsInRangeThresholdController.dispose();
-    windowsOutOfRangeThresholdController.dispose();
-    windowsOutOfRangeTimeoutMillisController.dispose();
-    windowsSamplingIntervalMillisController.dispose();
+    _gattSession.disposeWriteControllers();
+    _scanConfiguration.dispose();
     super.dispose();
   }
 }
