@@ -53,6 +53,8 @@ class QuickBlueLinux extends QuickBluePlatform {
   final Map<String, Future<void>> _serviceDiscoveryEmits =
       <String, Future<void>>{};
   final Map<String, bool> _lastConnectionState = <String, bool>{};
+  final Map<String, _ResolvedCharacteristic> _resolvedCharacteristics =
+      <String, _ResolvedCharacteristic>{};
 
   StreamSubscription<BlueZDevice>? _deviceAddedSubscription;
   StreamSubscription<BlueZDevice>? _deviceRemovedSubscription;
@@ -443,7 +445,8 @@ class QuickBlueLinux extends QuickBluePlatform {
         if (changed.contains('Value')) {
           _emitCharacteristicValue(
             device.address,
-            service,
+            resolved.serviceId,
+            resolved.characteristicId,
             targetCharacteristic,
           );
         }
@@ -466,11 +469,25 @@ class QuickBlueLinux extends QuickBluePlatform {
     );
     deviceSubscriptions[key] = subscription;
 
-    _emitCharacteristicValue(device.address, service, targetCharacteristic);
+    _emitCharacteristicValue(
+      device.address,
+      resolved.serviceId,
+      resolved.characteristicId,
+      targetCharacteristic,
+    );
   }
 
   @override
   Future<void> readValue(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    await readCharacteristicValue(deviceId, service, characteristic);
+  }
+
+  @override
+  Future<Uint8List> readCharacteristicValue(
     String deviceId,
     String service,
     String characteristic,
@@ -485,12 +502,14 @@ class QuickBlueLinux extends QuickBluePlatform {
     final targetCharacteristic = resolved.characteristic;
 
     final data = await targetCharacteristic.readValue();
-    _emitCharacteristicValue(
+    final value = _emitCharacteristicValue(
       device.address,
       resolved.serviceId,
+      resolved.characteristicId,
       targetCharacteristic,
       overrideValue: data,
     );
+    return value;
   }
 
   @override
@@ -746,6 +765,7 @@ class QuickBlueLinux extends QuickBluePlatform {
           _emitConnectionState(deviceId, state, BleStatus.success);
           if (!device.connected) {
             unawaited(_clearNotificationSubscriptions(deviceId));
+            _clearResolvedCharacteristics(deviceId);
           }
         }
       },
@@ -880,6 +900,11 @@ class QuickBlueLinux extends QuickBluePlatform {
 
     final canonicalService = _canonicalizeUuid(serviceId);
     final canonicalCharacteristic = _canonicalizeUuid(characteristicId);
+    final key = '$deviceId|$canonicalService|$canonicalCharacteristic';
+    final cached = _resolvedCharacteristics[key];
+    if (cached != null) {
+      return cached;
+    }
 
     final service = device.gattServices.firstWhereOrNull(
       (candidate) => _bluezUuidToCanonical(candidate.uuid) == canonicalService,
@@ -911,26 +936,32 @@ class QuickBlueLinux extends QuickBluePlatform {
       );
     }
 
-    return _ResolvedCharacteristic(
+    final resolved = _ResolvedCharacteristic(
       device: device,
       serviceId: _formatUuid(service.uuid),
+      characteristicId: _formatUuid(characteristic.uuid),
       characteristic: characteristic,
     );
+    _resolvedCharacteristics[key] = resolved;
+    return resolved;
   }
 
-  void _emitCharacteristicValue(
+  Uint8List _emitCharacteristicValue(
     String deviceId,
     String serviceId,
+    String characteristicId,
     BlueZGattCharacteristic characteristic, {
     List<int>? overrideValue,
   }) {
-    final value = Uint8List.fromList(overrideValue ?? characteristic.value);
+    final data = overrideValue ?? characteristic.value;
+    final value = data is Uint8List ? data : Uint8List.fromList(data);
     handleCharacteristicValueChanged(
       deviceId,
       serviceId,
-      _formatUuid(characteristic.uuid),
+      characteristicId,
       value,
     );
+    return value;
   }
 
   void _emitConnectionState(
@@ -963,10 +994,17 @@ class QuickBlueLinux extends QuickBluePlatform {
 
     _lastConnectionState.remove(deviceId);
     _serviceDiscoveryEmits.remove(deviceId);
+    _clearResolvedCharacteristics(deviceId);
 
     await _clearNotificationSubscriptions(deviceId);
     await _cancelMappedSubscription(_scanDevicePropertySubscriptions, deviceId);
     await _cancelMappedSubscription(_devicePropertySubscriptions, deviceId);
+  }
+
+  void _clearResolvedCharacteristics(String deviceId) {
+    _resolvedCharacteristics.removeWhere(
+      (key, _) => key.startsWith('$deviceId|'),
+    );
   }
 
   Future<void> _clearScanDevicePropertySubscriptions() async {
@@ -1065,11 +1103,13 @@ class _ResolvedCharacteristic {
   _ResolvedCharacteristic({
     required this.device,
     required this.serviceId,
+    required this.characteristicId,
     required this.characteristic,
   });
 
   final BlueZDevice device;
   final String serviceId;
+  final String characteristicId;
   final BlueZGattCharacteristic characteristic;
 }
 
