@@ -97,9 +97,11 @@ class QuickBlue {
   }
 
   /// Connects to [deviceId] and waits for the connected state event.
+  @Deprecated('Use QuickBlue.device(deviceId).connect() instead.')
   static Future<void> connect(String deviceId) => device(deviceId).connect();
 
   /// Disconnects from [deviceId] and waits for the disconnected state event.
+  @Deprecated('Use QuickBlue.device(deviceId).disconnect() instead.')
   static Future<void> disconnect(String deviceId) =>
       device(deviceId).disconnect();
 
@@ -149,6 +151,7 @@ class QuickBlue {
   ///
   /// The returned future completes after the platform reports service discovery
   /// completion.
+  @Deprecated('Use QuickBlue.device(deviceId).discoverServices() instead.')
   static Future<List<BluetoothService>> discoverServices(String deviceId) =>
       device(deviceId).discoverServices();
 
@@ -156,6 +159,7 @@ class QuickBlue {
   ///
   /// Use the returned [BluetoothGatt] to resolve characteristics by UUID,
   /// including the service UUID when a characteristic is ambiguous.
+  @Deprecated('Use QuickBlue.device(deviceId).discoverGatt() instead.')
   static Future<BluetoothGatt> discoverGatt(String deviceId) =>
       device(deviceId).discoverGatt();
 
@@ -166,6 +170,10 @@ class QuickBlue {
   }
 
   /// Enables or disables notifications or indications for a characteristic.
+  @Deprecated(
+    'Use QuickBlue.device(deviceId).characteristic(service, characteristic).notifications() '
+    'or QuickBlue.device(deviceId).discoverGatt() instead.',
+  )
   static Future<void> setNotifiable(
     String deviceId,
     String service,
@@ -187,6 +195,10 @@ class QuickBlue {
   }
 
   /// Reads a characteristic value and completes with the matching value event.
+  @Deprecated(
+    'Use QuickBlue.device(deviceId).characteristic(service, characteristic).read() '
+    'or QuickBlue.device(deviceId).discoverGatt() instead.',
+  )
   static Future<Uint8List> readValue(
     String deviceId,
     String service,
@@ -196,6 +208,10 @@ class QuickBlue {
   }
 
   /// Writes a characteristic value.
+  @Deprecated(
+    'Use QuickBlue.device(deviceId).characteristic(service, characteristic).write() '
+    'or QuickBlue.device(deviceId).discoverGatt() instead.',
+  )
   static Future<void> writeValue(
     String deviceId,
     String service,
@@ -209,12 +225,14 @@ class QuickBlue {
   }
 
   /// Requests or returns the negotiated MTU, depending on platform support.
+  @Deprecated('Use QuickBlue.device(deviceId).requestMtu() instead.')
   static Future<int> requestMtu(String deviceId, int expectedMtu) =>
       device(deviceId).requestMtu(expectedMtu);
 
   /// Opens a BLE L2CAP socket for [deviceId] and protocol/service multiplexer.
   ///
   /// Not every platform supports L2CAP sockets.
+  @Deprecated('Use QuickBlue.device(deviceId).openL2cap() instead.')
   static Future<BleL2capSocket> openL2cap(String deviceId, int psm) =>
       device(deviceId).openL2cap(psm);
 }

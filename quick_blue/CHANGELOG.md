@@ -39,6 +39,8 @@
 
 ### Changed
 
+- Deprecate remaining static device and GATT operation wrappers in favor of
+  `QuickBlue.device(deviceId)` and characteristic object APIs.
 - Align static `QuickBlue` methods with the device object API.
 - Leave operation timeouts to clients through normal `Future.timeout`
   composition.

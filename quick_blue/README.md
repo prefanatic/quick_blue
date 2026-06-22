@@ -93,7 +93,8 @@ await connectionSubscription.cancel();
 
 The static `connect`, `disconnect`, `discoverServices`, `readValue`,
 `writeValue`, and `setNotifiable` methods delegate through the same handle API.
-Prefer keeping a `BluetoothDevice` when doing more than one operation.
+They remain available as deprecated compatibility wrappers. Prefer keeping a
+`BluetoothDevice` when doing more than one operation.
 
 ## Discover services and characteristics
 
@@ -183,9 +184,9 @@ services.
 
 `notifications()` enables notifications before forwarding values and disables
 them when the subscription is canceled. On Android, GATT operations for a device
-are serialized and `setNotifiable` completes after the client characteristic
+are serialized and notification setup completes after the client characteristic
 configuration descriptor write is acknowledged; descriptor write failures are
-reported through the returned `Future` or notification stream error.
+reported through the returned notification stream error.
 
 The device handle also exposes one-off characteristic methods:
 
@@ -198,3 +199,7 @@ await device.writeValue(
   BleOutputProperty.withResponse,
 );
 ```
+
+The older static read, write, notify, MTU, L2CAP, and service-discovery helpers
+remain available as deprecated compatibility wrappers around the device and
+characteristic APIs.
