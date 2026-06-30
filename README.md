@@ -41,8 +41,9 @@ example app includes working platform manifests and plist entries.
 | `isBluetoothAvailable` | yes | yes | yes | yes | yes |
 | `bluetoothStateStream` | yes | yes | yes | yes | yes |
 | `scan` / `scanResults` | yes | yes | yes | yes | yes |
-| `connectedDevices` | yes | yes* | yes* | yes | yes |
+| `connectedDevices` | yes | yes[1] | yes[1] | yes | yes |
 | `connect` / `disconnect` | yes | yes | yes | yes | yes |
+| `bondState` / `pair` | yes | no[2] | no[2] | no | yes |
 | `discoverServices` | yes | yes | yes | yes | yes |
 | `readValue` / `writeValue` | yes | yes | yes | yes | yes |
 | `setNotifiable` | yes | yes | yes | yes | yes |
@@ -52,8 +53,11 @@ example app includes working platform manifests and plist entries.
 macOS, and Linux then emit live state changes; Windows currently emits only the
 current availability snapshot.
 
-* iOS and macOS use CoreBluetooth's connected-peripheral lookup, which requires
-  service UUIDs to find system-connected peripherals.
+[1] iOS and macOS use CoreBluetooth's connected-peripheral lookup, which requires
+service UUIDs to find system-connected peripherals.
+
+[2] iOS and macOS do not expose app-initiated BLE pairing. CoreBluetooth prompts
+automatically when an encrypted characteristic requires pairing.
 
 ## Example Usage
 
@@ -145,6 +149,16 @@ Future<void> readWriteNotify({
 }
 ```
 
+Pair with a device on platforms that expose app-initiated bonding:
+
+```dart
+final device = QuickBlue.device(deviceId);
+final state = await device.bondState();
+if (state != BluetoothBondState.bonded) {
+  await device.pair();
+}
+```
+
 The static `connect`, `disconnect`, `discoverServices`, `readValue`,
 `writeValue`, and `setNotifiable` methods delegate through the same handle API.
 Prefer keeping a `BluetoothDevice` when doing more than one operation.
@@ -179,10 +193,15 @@ them. Omitted common options preserve Quick Blue's existing platform defaults.
   association UI, then call `associate()`, `associations()`, and
   `disassociate()`. The older static companion methods remain as deprecated
   compatibility wrappers.
+- Android and Linux expose app-initiated BLE pairing through
+  `BluetoothDevice.pair()`. Android shows the system pairing flow and the
+  returned future completes when bonding succeeds or fails.
 - iOS and macOS use CoreBluetooth. `requestMtu` returns the negotiated MTU
-  currently in effect; CoreBluetooth does not let apps request an exact MTU.
+  currently in effect; CoreBluetooth does not let apps request an exact MTU or
+  manually start BLE pairing.
 - Linux requires BlueZ.
-- Windows has platform-specific service discovery behavior.
+- Windows has platform-specific service discovery behavior. App-initiated
+  pairing is not currently implemented by this plugin.
 
 ## Development
 

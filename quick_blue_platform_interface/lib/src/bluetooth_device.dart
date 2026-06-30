@@ -84,6 +84,16 @@ class BluetoothDevice {
     );
   }
 
+  /// Returns the current pairing/bonding state for this device.
+  Future<BluetoothBondState> bondState() {
+    return _platform.bondState(deviceId);
+  }
+
+  /// Starts pairing/bonding with this device.
+  Future<void> pair() {
+    return _platform.pair(deviceId);
+  }
+
   Future<void> _runConnectionOperation({
     required String operationName,
     required BlueConnectionState targetState,

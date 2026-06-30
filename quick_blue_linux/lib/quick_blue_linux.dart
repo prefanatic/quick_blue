@@ -380,6 +380,25 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   @override
+  Future<BluetoothBondState> bondState(String deviceId) async {
+    await _ensureInitialized();
+    final device = _getDeviceOrThrow(deviceId);
+    return device.paired
+        ? BluetoothBondState.bonded
+        : BluetoothBondState.notBonded;
+  }
+
+  @override
+  Future<void> pair(String deviceId) async {
+    await _ensureInitialized();
+    final device = _getDeviceOrThrow(deviceId);
+    if (device.paired) {
+      return;
+    }
+    await device.pair();
+  }
+
+  @override
   Future<void> discoverServices(String deviceId) async {
     await _ensureInitialized();
     final device = _getDeviceOrThrow(deviceId);

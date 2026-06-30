@@ -231,6 +231,12 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// Disconnects from [deviceId].
   Future<void> disconnect(String deviceId);
 
+  /// Returns the current pairing/bonding state for [deviceId].
+  Future<BluetoothBondState> bondState(String deviceId);
+
+  /// Starts pairing/bonding with [deviceId].
+  Future<void> pair(String deviceId);
+
   /// Returns whether companion-device association is supported.
   Future<bool> isCompanionAssociationSupported();
 

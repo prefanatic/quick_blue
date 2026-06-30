@@ -111,6 +111,19 @@ void main() {
     expect(disconnectCompleted, isTrue);
   });
 
+  test('bondState delegates to the platform device', () async {
+    final state = await QuickBlue.bondState('device-a');
+
+    expect(state, BluetoothBondState.notBonded);
+    expect(platform.calls, <String>['bondState device-a']);
+  });
+
+  test('pair delegates to the platform device', () async {
+    await QuickBlue.pair('device-a');
+
+    expect(platform.calls, <String>['pair device-a']);
+  });
+
   test('discoverGatt returns a discovered GATT view', () async {
     platform.discoveredServices = <BluetoothService>[
       BluetoothService(

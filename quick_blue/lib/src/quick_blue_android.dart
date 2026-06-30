@@ -82,6 +82,20 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
+  Future<BluetoothBondState> bondState(String deviceId) async {
+    _ensureInitialized();
+
+    return (await _api.bondState(deviceId)).toBluetoothBondState();
+  }
+
+  @override
+  Future<void> pair(String deviceId) {
+    _ensureInitialized();
+
+    return _api.pair(deviceId);
+  }
+
+  @override
   Future<void> discoverServices(String deviceId) {
     _ensureInitialized();
 
@@ -501,6 +515,17 @@ extension _PlatformConnectionStateExtension
       messages.PlatformConnectionState.connected =>
         BlueConnectionState.connected,
       _ => null,
+    };
+  }
+}
+
+extension _PlatformBondStateExtension on messages.PlatformBondState {
+  BluetoothBondState toBluetoothBondState() {
+    return switch (this) {
+      messages.PlatformBondState.unknown => BluetoothBondState.unknown,
+      messages.PlatformBondState.notBonded => BluetoothBondState.notBonded,
+      messages.PlatformBondState.bonding => BluetoothBondState.bonding,
+      messages.PlatformBondState.bonded => BluetoothBondState.bonded,
     };
   }
 }

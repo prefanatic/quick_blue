@@ -57,6 +57,16 @@ class UnimplementedQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
+  Future<BluetoothBondState> bondState(String deviceId) {
+    return Future<BluetoothBondState>.error(_unsupported('bondState'));
+  }
+
+  @override
+  Future<void> pair(String deviceId) {
+    return Future<void>.error(_unsupported('pair'));
+  }
+
+  @override
   Future<bool> isCompanionAssociationSupported() {
     return Future<bool>.error(_unsupported('isCompanionAssociationSupported'));
   }

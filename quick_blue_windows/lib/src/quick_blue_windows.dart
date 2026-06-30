@@ -28,6 +28,8 @@ class QuickBlueWindows extends QuickBluePlatform {
 
   static const _companionUnsupported =
       'Companion device association is not supported on Windows.';
+  static const _pairingUnsupported =
+      'App-initiated Bluetooth LE pairing is not supported on Windows.';
 
   @override
   Future<bool> isCompanionAssociationSupported() async => false;
@@ -80,6 +82,24 @@ class QuickBlueWindows extends QuickBluePlatform {
   Future<void> disconnect(String deviceId) {
     _ensureInitialized();
     return _api.disconnect(deviceId);
+  }
+
+  @override
+  Future<BluetoothBondState> bondState(String deviceId) {
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'bondState',
+      message: _pairingUnsupported,
+    );
+  }
+
+  @override
+  Future<void> pair(String deviceId) {
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'pair',
+      message: _pairingUnsupported,
+    );
   }
 
   @override

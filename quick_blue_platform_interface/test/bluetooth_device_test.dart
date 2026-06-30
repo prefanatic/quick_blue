@@ -811,6 +811,8 @@ void main() {
     final value = Uint8List.fromList(<int>[1, 2, 3]);
 
     await device.connect();
+    await device.bondState();
+    await device.pair();
     await device.discoverServices();
     await device.setNotifiable(
       'service-a',
@@ -829,6 +831,8 @@ void main() {
 
     expect(platform.calls, <String>[
       'connect device-a',
+      'bondState device-a',
+      'pair device-a',
       'discoverServices device-a',
       'setNotifiable device-a service-a characteristic-a notification',
       'writeValue device-a service-a characteristic-a withResponse [1, 2, 3]',
@@ -1729,6 +1733,17 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
         BleStatus.success,
       );
     }
+  }
+
+  @override
+  Future<BluetoothBondState> bondState(String deviceId) async {
+    calls.add('bondState $deviceId');
+    return BluetoothBondState.notBonded;
+  }
+
+  @override
+  Future<void> pair(String deviceId) async {
+    calls.add('pair $deviceId');
   }
 
   @override

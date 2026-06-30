@@ -133,6 +133,17 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
     }
   }
 
+  @override
+  Future<BluetoothBondState> bondState(String deviceId) async {
+    calls.add('bondState $deviceId');
+    return BluetoothBondState.notBonded;
+  }
+
+  @override
+  Future<void> pair(String deviceId) async {
+    calls.add('pair $deviceId');
+  }
+
   Completer<void>? _otherPendingConnect(String deviceId) {
     for (final entry in pendingConnects.entries) {
       if (entry.key != deviceId && !entry.value.isCompleted) {

@@ -197,6 +197,35 @@ void main() {
     );
   });
 
+  test('pairing APIs throw QuickBlueException', () async {
+    final platform = QuickBlueDarwin();
+
+    expect(
+      platform.bondState('device-a'),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.unsupported,
+            )
+            .having((error) => error.operation, 'operation', 'bondState'),
+      ),
+    );
+    expect(
+      () => platform.pair('device-a'),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.unsupported,
+            )
+            .having((error) => error.operation, 'operation', 'pair'),
+      ),
+    );
+  });
+
   test('maps bluetooth state events', () async {
     _mockEventChannel(bluetoothStateChannelName, <Object?>[
       messages.PlatformBluetoothState.unknown,

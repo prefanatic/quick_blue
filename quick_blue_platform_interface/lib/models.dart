@@ -870,6 +870,21 @@ enum BleStatus {
   failure,
 }
 
+/// Device pairing/bonding state.
+enum BluetoothBondState {
+  /// The platform cannot currently determine the bond state.
+  unknown,
+
+  /// The device is not bonded with the host.
+  notBonded,
+
+  /// Pairing or bonding is in progress.
+  bonding,
+
+  /// The device is bonded with the host.
+  bonded,
+}
+
 /// A connection state event for a Bluetooth LE device.
 ///
 /// Connection operations complete from these events in the device API.

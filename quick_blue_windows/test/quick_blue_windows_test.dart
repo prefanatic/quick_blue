@@ -189,6 +189,26 @@ void main() {
         ),
       ),
     );
+    expect(
+      () => platform.bondState('device-a'),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
+    );
+    expect(
+      () => platform.pair('device-a'),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
+    );
   });
 
   test('maps scan result events', () async {

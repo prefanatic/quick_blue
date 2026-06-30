@@ -14,6 +14,8 @@ void main() {
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.connectedDeviceIds',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.connect',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.disconnect',
+    'dev.flutter.pigeon.quick_blue.QuickBlueApi.bondState',
+    'dev.flutter.pigeon.quick_blue.QuickBlueApi.pair',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.isCompanionAssociationSupported',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.companionAssociate',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.companionDisassociate',
@@ -96,6 +98,8 @@ void main() {
       );
       await platform.connect('device-a');
       await platform.disconnect('device-a');
+      expect(await platform.bondState('device-a'), BluetoothBondState.bonded);
+      await platform.pair('device-a');
       await platform.discoverServices('device-a');
       await platform.setNotifiable(
         'device-a',
@@ -140,6 +144,14 @@ void main() {
       expect(connectedDevices.map((device) => device.id), <String>['device-a']);
       expect(
         sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.connect'],
+        <Object?>['device-a'],
+      );
+      expect(
+        sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.bondState'],
+        <Object?>['device-a'],
+      );
+      expect(
+        sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.pair'],
         <Object?>['device-a'],
       );
       expect(
@@ -673,6 +685,9 @@ Object _replyFor(String channelName) {
     return <Object?>[
       <String>['device-a'],
     ];
+  }
+  if (channelName.endsWith('.bondState')) {
+    return <Object?>[messages.PlatformBondState.bonded];
   }
   if (channelName.endsWith('.requestMtu')) {
     return <Object?>[247];

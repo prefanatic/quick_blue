@@ -37,6 +37,10 @@ class QuickBlueDarwin extends QuickBluePlatform {
       'Companion device association is not supported on iOS/macOS '
       '(no CoreBluetooth equivalent for Android CompanionDeviceManager).';
 
+  static const _pairingUnsupported =
+      'App-initiated Bluetooth LE pairing is not supported on iOS/macOS. '
+      'CoreBluetooth pairs automatically when a protected attribute is used.';
+
   @override
   Future<bool> isCompanionAssociationSupported() async => false;
 
@@ -93,6 +97,24 @@ class QuickBlueDarwin extends QuickBluePlatform {
     _ensureInitialized();
 
     return _api.disconnect(deviceId);
+  }
+
+  @override
+  Future<BluetoothBondState> bondState(String deviceId) async {
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'bondState',
+      message: _pairingUnsupported,
+    );
+  }
+
+  @override
+  Future<void> pair(String deviceId) {
+    throw const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'pair',
+      message: _pairingUnsupported,
+    );
   }
 
   @override

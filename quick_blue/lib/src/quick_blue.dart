@@ -105,6 +105,14 @@ class QuickBlue {
   static Future<void> disconnect(String deviceId) =>
       device(deviceId).disconnect();
 
+  /// Returns the current pairing/bonding state for [deviceId].
+  static Future<BluetoothBondState> bondState(String deviceId) {
+    return device(deviceId).bondState();
+  }
+
+  /// Starts pairing/bonding with [deviceId].
+  static Future<void> pair(String deviceId) => device(deviceId).pair();
+
   /// Starts a legacy Android companion-device association request.
   @Deprecated('Use QuickBlue.companion.associate() instead.')
   static Future<CompanionDevice?> companionAssociate({

@@ -34,6 +34,8 @@
   settings on Android, Darwin, Linux, and Windows.
 - Add `QuickBlue.connectedDevices()` for retrieving already connected device
   handles.
+- Add `BluetoothDevice.bondState()` and `BluetoothDevice.pair()` with Android
+  and Linux pairing/bonding support.
 - Add a hardware-backed example benchmark for characteristic notification
   throughput and read latency.
 - Add serialized write/notification-response coverage to the characteristic

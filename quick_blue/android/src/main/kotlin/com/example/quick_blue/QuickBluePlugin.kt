@@ -14,6 +14,7 @@ import PlatformAndroidScanMode
 import PlatformAndroidScanNumOfMatches
 import PlatformAndroidScanOptions
 import PlatformAndroidScanPhy
+import PlatformBondState
 import PlatformBluetoothState
 import PlatformCharacteristic
 import PlatformCharacteristicValueChanged
@@ -92,6 +93,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private val scanResultListener = ScanResultListener()
     private val mtuChangedListener = MtuChangedListener()
     private val l2CapSocketEventsListener = L2CapSocketEventsListener()
+    private val bondStateReceiver = BondStateReceiver()
     private lateinit var bluetoothStateListener: BluetoothStateListener
 
     private fun setUp(messenger: BinaryMessenger, context: Context) {
@@ -104,6 +106,12 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
 
         quickBlueFlutterApi = QuickBlueFlutterApi(messenger)
         this.context = context
+        ContextCompat.registerReceiver(
+            context,
+            bondStateReceiver,
+            IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -141,6 +149,10 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
 
         QuickBlueApi.setUp(binding.binaryMessenger, null)
+        try {
+            context.unregisterReceiver(bondStateReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
         if (::bluetoothStateListener.isInitialized) {
             bluetoothStateListener.onEventsDone()
         }
@@ -191,6 +203,9 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private val knownGatts = mutableMapOf<String, BluetoothGatt>()
     private val streamDelegates = mutableMapOf<String, L2CapStreamDelegate>()
     private val gattLock = Any()
+    private val bondLock = Any()
+    private val pendingPairCallbacks =
+        mutableMapOf<String, MutableList<(Result<Unit>) -> Unit>>()
 
     private enum class GattOperationKind {
         DISCOVER_SERVICES,
@@ -290,6 +305,41 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
     }
 
+    private inner class BondStateReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
+                return
+            }
+            val device = intent.bluetoothDeviceExtra ?: return
+            val state = intent.getIntExtra(
+                BluetoothDevice.EXTRA_BOND_STATE,
+                BluetoothDevice.ERROR
+            )
+            when (state) {
+                BluetoothDevice.BOND_BONDED -> completePendingPair(
+                    device.address,
+                    Result.success(Unit)
+                )
+                BluetoothDevice.BOND_NONE -> completePendingPair(
+                    device.address,
+                    Result.failure(
+                        FlutterError(
+                            "BondFailed",
+                            "Pairing failed for ${device.address}",
+                            null
+                        )
+                    )
+                )
+            }
+        }
+    }
+
+    private fun completePendingPair(deviceId: String, result: Result<Unit>) {
+        val callbacks = synchronized(bondLock) {
+            pendingPairCallbacks.remove(deviceId)?.toList() ?: emptyList()
+        }
+        callbacks.forEach { it(result) }
+    }
 
     private fun connectDevice(bluetoothDevice: BluetoothDevice) {
         val gatt =
@@ -620,6 +670,79 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         val gatt = knownGatts[deviceId]
             ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         cleanConnection(gatt)
+    }
+
+    override fun bondState(deviceId: String): PlatformBondState {
+        ensureBluetoothConnectPermission()
+        return remoteDevice(deviceId).bondState.toPlatformBondState()
+    }
+
+    override fun pair(deviceId: String, callback: (Result<Unit>) -> Unit) {
+        val device = try {
+            ensureBluetoothConnectPermission()
+            remoteDevice(deviceId)
+        } catch (error: FlutterError) {
+            callback(Result.failure(error))
+            return
+        }
+
+        when (device.bondState) {
+            BluetoothDevice.BOND_BONDED -> {
+                callback(Result.success(Unit))
+                return
+            }
+            BluetoothDevice.BOND_BONDING -> {
+                synchronized(bondLock) {
+                    pendingPairCallbacks.getOrPut(device.address) { mutableListOf() }
+                        .add(callback)
+                }
+                return
+            }
+        }
+
+        synchronized(bondLock) {
+            pendingPairCallbacks.getOrPut(device.address) { mutableListOf() }
+                .add(callback)
+        }
+
+        val started = try {
+            device.createBond()
+        } catch (error: Throwable) {
+            synchronized(bondLock) {
+                pendingPairCallbacks[device.address]?.remove(callback)
+                if (pendingPairCallbacks[device.address]?.isEmpty() == true) {
+                    pendingPairCallbacks.remove(device.address)
+                }
+            }
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "BondFailed",
+                        error.message ?: "Failed to start pairing for $deviceId",
+                        null
+                    )
+                )
+            )
+            return
+        }
+
+        if (!started) {
+            synchronized(bondLock) {
+                pendingPairCallbacks[device.address]?.remove(callback)
+                if (pendingPairCallbacks[device.address]?.isEmpty() == true) {
+                    pendingPairCallbacks.remove(device.address)
+                }
+            }
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "BondFailed",
+                        "Failed to start pairing for $deviceId",
+                        null
+                    )
+                )
+            )
+        }
     }
 
     override fun isCompanionAssociationSupported(callback: (Result<Boolean>) -> Unit) {
@@ -1114,6 +1237,33 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             "Missing Android permission: BLUETOOTH_CONNECT",
             null
         )
+    }
+
+    private fun remoteDevice(deviceId: String): BluetoothDevice {
+        return try {
+            bluetoothManager.adapter.getRemoteDevice(deviceId)
+        } catch (_: IllegalArgumentException) {
+            throw FlutterError("IllegalArgument", "Invalid deviceId: $deviceId", null)
+        }
+    }
+}
+
+private val Intent.bluetoothDeviceExtra: BluetoothDevice?
+    get() {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+        }
+    }
+
+private fun Int.toPlatformBondState(): PlatformBondState {
+    return when (this) {
+        BluetoothDevice.BOND_NONE -> PlatformBondState.NOT_BONDED
+        BluetoothDevice.BOND_BONDING -> PlatformBondState.BONDING
+        BluetoothDevice.BOND_BONDED -> PlatformBondState.BONDED
+        else -> PlatformBondState.UNKNOWN
     }
 }
 

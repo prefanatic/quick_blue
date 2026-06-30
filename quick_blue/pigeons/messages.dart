@@ -19,6 +19,8 @@ enum PlatformBluetoothState {
   poweredOn,
 }
 
+enum PlatformBondState { unknown, notBonded, bonding, bonded }
+
 enum PlatformAndroidScanMode { opportunistic, lowPower, balanced, lowLatency }
 
 enum PlatformAndroidScanCallbackType {
@@ -105,6 +107,9 @@ abstract class QuickBlueApi {
   List<String> connectedDeviceIds(List<String> serviceUuids);
   void connect(String deviceId);
   void disconnect(String deviceId);
+  PlatformBondState bondState(String deviceId);
+  @async
+  void pair(String deviceId);
   @async
   bool isCompanionAssociationSupported();
   @async
