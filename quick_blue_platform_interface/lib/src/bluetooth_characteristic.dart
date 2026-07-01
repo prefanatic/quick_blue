@@ -41,6 +41,22 @@ class BluetoothCharacteristic {
     );
   }
 
+  /// Enables notifications, enables indications, or disables updates for this
+  /// characteristic.
+  ///
+  /// Use [notifications] when the subscription should own setup and teardown.
+  /// Use this method with [valueStream] when callers need to attach listeners
+  /// before enabling updates, or when notification lifetime is managed
+  /// separately from a single stream subscription.
+  Future<void> setNotifiable(BleInputProperty bleInputProperty) {
+    return _platform.setNotifiable(
+      deviceId,
+      serviceId,
+      characteristicId,
+      bleInputProperty,
+    );
+  }
+
   /// Enables notifications or indications while the returned stream is active.
   ///
   /// Values are not forwarded until notification setup succeeds. Canceling the
@@ -71,12 +87,7 @@ class BluetoothCharacteristic {
       valueSubscription.pause();
       setUpNotification = () async {
         try {
-          await _platform.setNotifiable(
-            deviceId,
-            serviceId,
-            characteristicId,
-            bleInputProperty,
-          );
+          await setNotifiable(bleInputProperty);
           enabled = true;
           valueSubscription.resume();
         } catch (error, stackTrace) {
@@ -90,12 +101,7 @@ class BluetoothCharacteristic {
       await setUpNotification;
       await cancelValueSubscription();
       if (enabled) {
-        await _platform.setNotifiable(
-          deviceId,
-          serviceId,
-          characteristicId,
-          BleInputProperty.disabled,
-        );
+        await setNotifiable(BleInputProperty.disabled);
       }
     };
 

@@ -185,6 +185,11 @@ final characteristic = gatt.characteristic(
 );
 ```
 
+Use `characteristic.notifications()` when a subscription should own notification
+setup and teardown. Use `characteristic.valueStream` with
+`characteristic.setNotifiable(...)` when callers need to subscribe before
+enabling notifications or manage notification lifetime separately.
+
 `ScanFilter.rssi` and common `ScanOptions` fields are applied consistently by
 the Dart lifecycle APIs and mapped to native filters where the platform supports
 them. Omitted common options preserve Quick Blue's existing platform defaults.

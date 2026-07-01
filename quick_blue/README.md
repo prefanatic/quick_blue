@@ -181,6 +181,21 @@ final subscription = characteristic.notifications(
 await subscription.cancel();
 ```
 
+When notification lifetime needs to be managed separately from one stream
+subscription, listen to `valueStream` and call `setNotifiable` explicitly:
+
+```dart
+final subscription = characteristic.valueStream.listen((value) {
+  print(hex.encode(value));
+});
+
+await characteristic.setNotifiable(BleInputProperty.notification);
+
+// ...
+await characteristic.setNotifiable(BleInputProperty.disabled);
+await subscription.cancel();
+```
+
 Characteristic value events are scoped by device, service, and characteristic.
 This matters for peripherals that reuse a characteristic UUID under multiple
 services.

@@ -1549,6 +1549,44 @@ void main() {
     },
   );
 
+  test('BluetoothCharacteristic.setNotifiable delegates to platform', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    final characteristic = platform
+        .device('device-a')
+        .characteristic('service-a', 'characteristic-a');
+
+    await characteristic.setNotifiable(BleInputProperty.notification);
+    await characteristic.setNotifiable(BleInputProperty.disabled);
+
+    expect(platform.calls, <String>[
+      'setNotifiable device-a service-a characteristic-a notification',
+      'setNotifiable device-a service-a characteristic-a disabled',
+    ]);
+  });
+
+  test(
+    'BluetoothCharacteristic.setNotifiable propagates platform errors',
+    () async {
+      final error = StateError('notify failed');
+      final platform = _FakeQuickBluePlatform(setNotifiableError: error);
+      addTearDown(platform.dispose);
+
+      final characteristic = platform
+          .device('device-a')
+          .characteristic('service-a', 'characteristic-a');
+
+      await expectLater(
+        characteristic.setNotifiable(BleInputProperty.notification),
+        throwsA(same(error)),
+      );
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+      ]);
+    },
+  );
+
   test('BluetoothDevice.readValue propagates platform errors', () async {
     final error = StateError('read failed');
     final platform = _FakeQuickBluePlatform(readValueError: error);
