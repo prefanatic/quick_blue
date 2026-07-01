@@ -6,6 +6,8 @@
   `BluetoothDevice`, and `BluetoothCharacteristic`.
 - Add `BluetoothDevice.discoverGatt()` for resolving characteristics from
   discovered services by characteristic UUID.
+- Add `BluetoothGatt.hasCharacteristic()` for checking discovered GATT features
+  without handling lookup exceptions.
 - Add lifecycle-managed `scan()` and `scanResults()` streams that start scanning
   on listen and stop scanning on cancel.
 - Add `bluetoothStateStream` with an initial current-state event, live Android,

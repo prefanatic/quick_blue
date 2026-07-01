@@ -58,6 +58,27 @@ class BluetoothGatt {
     ).characteristic;
   }
 
+  /// Returns whether [characteristic] exists in the discovered GATT view.
+  ///
+  /// Pass [service] to restrict the lookup to a single service. An ambiguous
+  /// characteristic still returns `true` because the characteristic exists, but
+  /// [characteristic] or [characteristicInfo] will require a service UUID to
+  /// resolve it uniquely.
+  bool hasCharacteristic(String characteristic, {String? service}) {
+    try {
+      _resolveCharacteristic(characteristic, service: service);
+      return true;
+    } on QuickBlueException catch (error) {
+      if (error.code == QuickBlueErrorCode.notFound) {
+        return false;
+      }
+      if (error.code == QuickBlueErrorCode.ambiguous) {
+        return true;
+      }
+      rethrow;
+    }
+  }
+
   _BluetoothGattCharacteristic _resolveCharacteristic(
     String characteristic, {
     String? service,

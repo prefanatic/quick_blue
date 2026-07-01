@@ -172,6 +172,9 @@ final characteristic = gatt.characteristic(characteristicId);
 final value = await characteristic.read();
 ```
 
+Use `gatt.hasCharacteristic(characteristicId, service: serviceId)` when you only
+need to check whether a discovered GATT view contains a characteristic.
+
 If the same characteristic UUID appears under multiple services, pass the
 service UUID to disambiguate:
 

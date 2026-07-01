@@ -1182,6 +1182,119 @@ void main() {
     expect(gatt.characteristicInfo('characteristic-a').canRead, isTrue);
   });
 
+  test(
+    'BluetoothGatt.hasCharacteristic returns true when discovered',
+    () async {
+      final platform = _FakeQuickBluePlatform(
+        discoveredServices: <BluetoothService>[
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: 'service-a',
+            characteristics: const <String>['characteristic-a'],
+          ),
+        ],
+      );
+      addTearDown(platform.dispose);
+
+      final gatt = await platform.device('device-a').discoverGatt();
+
+      expect(gatt.hasCharacteristic('characteristic-a'), isTrue);
+    },
+  );
+
+  test(
+    'BluetoothGatt.hasCharacteristic returns false when not found',
+    () async {
+      final platform = _FakeQuickBluePlatform(
+        discoveredServices: <BluetoothService>[
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: 'service-a',
+            characteristics: const <String>['characteristic-a'],
+          ),
+        ],
+      );
+      addTearDown(platform.dispose);
+
+      final gatt = await platform.device('device-a').discoverGatt();
+
+      expect(gatt.hasCharacteristic('missing-characteristic'), isFalse);
+    },
+  );
+
+  test('BluetoothGatt.hasCharacteristic applies service filters', () async {
+    final platform = _FakeQuickBluePlatform(
+      discoveredServices: <BluetoothService>[
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-a',
+          characteristics: const <String>['characteristic-a'],
+        ),
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-b',
+          characteristics: const <String>['characteristic-b'],
+        ),
+      ],
+    );
+    addTearDown(platform.dispose);
+
+    final gatt = await platform.device('device-a').discoverGatt();
+
+    expect(
+      gatt.hasCharacteristic('characteristic-a', service: 'service-a'),
+      isTrue,
+    );
+    expect(
+      gatt.hasCharacteristic('characteristic-a', service: 'service-b'),
+      isFalse,
+    );
+  });
+
+  test(
+    'BluetoothGatt.hasCharacteristic matches short and full UUIDs',
+    () async {
+      final platform = _FakeQuickBluePlatform(
+        discoveredServices: <BluetoothService>[
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: '0000180d-0000-1000-8000-00805f9b34fb',
+            characteristics: const <String>[
+              '00002a37-0000-1000-8000-00805f9b34fb',
+            ],
+          ),
+        ],
+      );
+      addTearDown(platform.dispose);
+
+      final gatt = await platform.device('device-a').discoverGatt();
+
+      expect(gatt.hasCharacteristic('2a37', service: '180d'), isTrue);
+    },
+  );
+
+  test('BluetoothGatt.hasCharacteristic returns true when ambiguous', () async {
+    final platform = _FakeQuickBluePlatform(
+      discoveredServices: <BluetoothService>[
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-a',
+          characteristics: const <String>['characteristic-a'],
+        ),
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-b',
+          characteristics: const <String>['characteristic-a'],
+        ),
+      ],
+    );
+    addTearDown(platform.dispose);
+
+    final gatt = await platform.device('device-a').discoverGatt();
+
+    expect(gatt.hasCharacteristic('characteristic-a'), isTrue);
+  });
+
   test('BluetoothGatt.characteristic throws with service filter and missing '
       'characteristic context', () async {
     final platform = _FakeQuickBluePlatform(
