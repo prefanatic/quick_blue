@@ -29,6 +29,12 @@ abstract class QuickBluePlatform extends PlatformInterface {
     _instance = instance;
   }
 
+  /// Configures platform behavior before starting Bluetooth work.
+  ///
+  /// Call this before other `QuickBlue` APIs. Platforms that do not support a
+  /// requested option may ignore it when there is no native equivalent.
+  Future<void> configure({bool maintainState = false}) async {}
+
   /// Returns whether Bluetooth is currently powered on and usable.
   Future<bool> isBluetoothAvailable();
 

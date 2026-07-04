@@ -7,6 +7,8 @@ import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  const configureChannelName =
+      'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.configure';
   const isBluetoothAvailableChannelName =
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.isBluetoothAvailable';
   const startScanChannelName =
@@ -42,6 +44,7 @@ void main() {
 
   tearDown(() {
     for (final name in const [
+      configureChannelName,
       isBluetoothAvailableChannelName,
       startScanChannelName,
       stopScanChannelName,
@@ -84,6 +87,26 @@ void main() {
     } finally {
       QuickBluePlatform.instance = previous;
     }
+  });
+
+  test('configure forwards maintainState to the host API', () async {
+    Object? sentMessage;
+    const channel = BasicMessageChannel<Object?>(
+      configureChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(channel, (message) async {
+          sentMessage = message;
+          return <Object?>[null];
+        });
+
+    await QuickBlueDarwin().configure(maintainState: true);
+
+    final message = sentMessage as List<Object?>;
+    final configuration =
+        message.single as messages.PlatformDarwinConfiguration;
+    expect(configuration.maintainState, isTrue);
   });
 
   test('forwards core host API calls', () async {

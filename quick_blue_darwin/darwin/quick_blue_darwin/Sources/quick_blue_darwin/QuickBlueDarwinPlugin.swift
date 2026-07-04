@@ -1,3 +1,4 @@
+import Foundation
 import CoreBluetooth
 
 #if os(iOS)
@@ -128,6 +129,9 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var l2CapSocketEventsListener: L2CapSocketEventsListener
 
     private var manager: CBCentralManager?
+    private var maintainState = false
+    private let restorationIdentifier =
+        "\(Bundle.main.bundleIdentifier ?? "quick_blue").quick_blue.central"
     private var discoveredPeripherals: [String: CBPeripheral]!
     private var streamDelegates: [String: L2CapStreamDelegate]!
     private var pendingServiceDiscovery: [String: Set<String>]!
@@ -162,11 +166,35 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         pendingServiceDiscovery = Dictionary()
     }
 
+    func configure(configuration: PlatformDarwinConfiguration) throws {
+        try stateQueue.sync {
+            if manager != nil, configuration.maintainState != maintainState {
+                throw PigeonError(
+                    code: "InvalidState",
+                    message:
+                        "QuickBlue.configure(maintainState:) must be called before other Bluetooth APIs.",
+                    details: nil
+                )
+            }
+            maintainState = configuration.maintainState
+        }
+
+        if configuration.maintainState {
+            _ = getManager()
+        }
+    }
+
     private func getManager() -> CBCentralManager {
         if let manager = manager {
             return manager
         }
-        let manager = CBCentralManager(delegate: self, queue: nil)
+        let options: [String: Any]? = maintainState
+            ? [
+                CBCentralManagerOptionRestoreIdentifierKey:
+                    restorationIdentifier
+            ]
+            : nil
+        let manager = CBCentralManager(delegate: self, queue: nil, options: options)
         self.manager = manager
         return manager
     }
@@ -509,6 +537,47 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
 extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         bluetoothStateListener.onEvent(event: central.state.platformBluetoothState)
+    }
+
+    public func centralManager(
+        _ central: CBCentralManager,
+        willRestoreState dict: [String: Any]
+    ) {
+        let peripherals =
+            dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]
+            ?? []
+        stateQueue.sync {
+            for peripheral in peripherals {
+                peripheral.delegate = self
+                discoveredPeripherals[peripheral.identifier.uuidString] =
+                    peripheral
+            }
+        }
+
+        for peripheral in peripherals {
+            let state: PlatformConnectionState?
+            switch peripheral.state {
+            case .connected:
+                state = .connected
+            case .connecting:
+                state = .connecting
+            case .disconnecting:
+                state = .disconnecting
+            case .disconnected:
+                state = .disconnected
+            @unknown default:
+                state = nil
+            }
+            guard let state = state else { continue }
+            flutterApi.onConnectionStateChange(
+                stateChange: PlatformConnectionStateChange(
+                    deviceId: peripheral.identifier.uuidString,
+                    state: state,
+                    gattStatus: PlatformGattStatus.success
+                ),
+                completion: { _ in }
+            )
+        }
     }
 
     public func centralManager(

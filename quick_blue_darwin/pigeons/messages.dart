@@ -31,6 +31,12 @@ class PlatformDarwinScanOptions {
   final List<String> solicitedServiceUuids;
 }
 
+class PlatformDarwinConfiguration {
+  PlatformDarwinConfiguration({required this.maintainState});
+
+  final bool maintainState;
+}
+
 class Peripheral {
   Peripheral({required this.id, required this.name});
 
@@ -40,6 +46,7 @@ class Peripheral {
 
 @HostApi()
 abstract class QuickBlueApi {
+  void configure(PlatformDarwinConfiguration configuration);
   List<Peripheral> getConnectedPeripherals(List<String> serviceUuids);
   bool isBluetoothAvailable();
   void startScan({

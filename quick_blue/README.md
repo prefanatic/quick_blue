@@ -35,6 +35,16 @@ current availability snapshot.
 
 Android/iOS/macOS/Windows/Linux
 
+Enable CoreBluetooth state preservation/restoration on iOS and macOS before any
+other Bluetooth call:
+
+```dart
+await QuickBlue.configure(maintainState: true);
+```
+
+On iOS, apps that rely on restoration after background termination also need the
+`bluetooth-central` background mode in `UIBackgroundModes`.
+
 Use `scan()` when you only need `BluetoothDevice` handles. A handle is a
 lightweight reference to a platform device identifier; creating one does not
 connect, scan, or validate that the peripheral is nearby.

@@ -61,6 +61,16 @@ automatically when an encrypted characteristic requires pairing.
 
 ## Example Usage
 
+Enable CoreBluetooth state preservation/restoration on iOS and macOS before any
+other Bluetooth call:
+
+```dart
+await QuickBlue.configure(maintainState: true);
+```
+
+On iOS, apps that rely on restoration after background termination also need the
+`bluetooth-central` background mode in `UIBackgroundModes`.
+
 Scan for nearby peripherals:
 
 ```dart

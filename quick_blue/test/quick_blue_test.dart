@@ -24,6 +24,12 @@ void main() {
     await platform.dispose();
   });
 
+  test('configure delegates maintainState to the platform', () async {
+    await QuickBlue.configure(maintainState: true);
+
+    expect(platform.calls, <String>['configure true']);
+  });
+
   test('connect waits for the connected state', () async {
     platform.connectsImmediately = false;
 

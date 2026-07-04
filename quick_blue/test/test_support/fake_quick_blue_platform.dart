@@ -49,6 +49,11 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
+  Future<void> configure({bool maintainState = false}) async {
+    calls.add('configure $maintainState');
+  }
+
+  @override
   Future<bool> isBluetoothAvailable() async {
     calls.add('isBluetoothAvailable');
     return isAvailable && bluetoothState == BlueBluetoothState.poweredOn;

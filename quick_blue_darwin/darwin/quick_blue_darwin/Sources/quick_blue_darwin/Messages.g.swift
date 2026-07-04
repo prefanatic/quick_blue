@@ -261,6 +261,41 @@ struct PlatformDarwinScanOptions: Hashable, CustomStringConvertible {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct PlatformDarwinConfiguration: Hashable, CustomStringConvertible {
+  var maintainState: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformDarwinConfiguration? {
+    let maintainState = pigeonVar_list[0] as! Bool
+
+    return PlatformDarwinConfiguration(
+      maintainState: maintainState
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      maintainState
+    ]
+  }
+  static func == (lhs: PlatformDarwinConfiguration, rhs: PlatformDarwinConfiguration) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.maintainState, rhs.maintainState)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformDarwinConfiguration")
+    MessagesPigeonInternal.deepHash(value: maintainState, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformDarwinConfiguration(maintainState: \(String(describing: maintainState)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct Peripheral: Hashable, CustomStringConvertible {
   var id: String
   var name: String
@@ -656,18 +691,20 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 134:
       return PlatformDarwinScanOptions.fromList(self.readValue() as! [Any?])
     case 135:
-      return Peripheral.fromList(self.readValue() as! [Any?])
+      return PlatformDarwinConfiguration.fromList(self.readValue() as! [Any?])
     case 136:
-      return PlatformScanResult.fromList(self.readValue() as! [Any?])
+      return Peripheral.fromList(self.readValue() as! [Any?])
     case 137:
-      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
+      return PlatformScanResult.fromList(self.readValue() as! [Any?])
     case 138:
-      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
+      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
     case 139:
-      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
+      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
     case 140:
-      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
     case 141:
+      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+    case 142:
       return PlatformL2CapSocketEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -695,26 +732,29 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PlatformDarwinScanOptions {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? Peripheral {
+    } else if let value = value as? PlatformDarwinConfiguration {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformScanResult {
+    } else if let value = value as? Peripheral {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformConnectionStateChange {
+    } else if let value = value as? PlatformScanResult {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformServiceDiscovered {
+    } else if let value = value as? PlatformConnectionStateChange {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristic {
+    } else if let value = value as? PlatformServiceDiscovered {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristicValueChanged {
+    } else if let value = value as? PlatformCharacteristic {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformL2CapSocketEvent {
+    } else if let value = value as? PlatformCharacteristicValueChanged {
       super.writeByte(141)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformL2CapSocketEvent {
+      super.writeByte(142)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -741,6 +781,7 @@ var messagesPigeonMethodCodec = FlutterStandardMethodCodec(readerWriter: Message
 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol QuickBlueApi {
+  func configure(configuration: PlatformDarwinConfiguration) throws
   func getConnectedPeripherals(serviceUuids: [String]) throws -> [Peripheral]
   func isBluetoothAvailable() throws -> Bool
   func startScan(serviceUuids: [String]?, manufacturerData: [Int64: FlutterStandardTypedData]?, rssi: Int64?, options: PlatformDarwinScanOptions?) throws
@@ -763,6 +804,21 @@ class QuickBlueApiSetup {
   /// Sets up an instance of `QuickBlueApi` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: QuickBlueApi?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    let configureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.configure\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      configureChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let configurationArg = args[0] as! PlatformDarwinConfiguration
+        do {
+          try api.configure(configuration: configurationArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      configureChannel.setMessageHandler(nil)
+    }
     let getConnectedPeripheralsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.getConnectedPeripherals\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       getConnectedPeripheralsChannel.setMessageHandler { message, reply in

@@ -42,6 +42,15 @@ class QuickBlueDarwin extends QuickBluePlatform {
       'CoreBluetooth pairs automatically when a protected attribute is used.';
 
   @override
+  Future<void> configure({bool maintainState = false}) {
+    _ensureInitialized();
+
+    return _api.configure(
+      messages.PlatformDarwinConfiguration(maintainState: maintainState),
+    );
+  }
+
+  @override
   Future<bool> isCompanionAssociationSupported() async => false;
 
   @override

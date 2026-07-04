@@ -15,6 +15,11 @@ class UnimplementedQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
+  Future<void> configure({bool maintainState = false}) {
+    return Future<void>.error(_unsupported('configure'));
+  }
+
+  @override
   Future<bool> isBluetoothAvailable() {
     return Future<bool>.error(_unsupported('isBluetoothAvailable'));
   }

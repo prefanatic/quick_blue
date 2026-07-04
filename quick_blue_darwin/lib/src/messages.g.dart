@@ -189,6 +189,51 @@ class PlatformDarwinScanOptions {
   }
 }
 
+class PlatformDarwinConfiguration {
+  PlatformDarwinConfiguration({
+    required this.maintainState,
+  });
+
+  bool maintainState;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      maintainState,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformDarwinConfiguration decode(Object result) {
+    result as List<Object?>;
+    return PlatformDarwinConfiguration(
+      maintainState: result[0]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformDarwinConfiguration || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(maintainState, other.maintainState);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformDarwinConfiguration(maintainState: $maintainState)';
+  }
+}
+
 class Peripheral {
   Peripheral({
     required this.id,
@@ -645,26 +690,29 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformDarwinScanOptions) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is Peripheral) {
+    }    else if (value is PlatformDarwinConfiguration) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformScanResult) {
+    }    else if (value is Peripheral) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformConnectionStateChange) {
+    }    else if (value is PlatformScanResult) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformServiceDiscovered) {
+    }    else if (value is PlatformConnectionStateChange) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristic) {
+    }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformCharacteristic) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformL2CapSocketEvent) {
+    }    else if (value is PlatformCharacteristicValueChanged) {
       buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformL2CapSocketEvent) {
+      buffer.putUint8(142);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -692,18 +740,20 @@ class _PigeonCodec extends StandardMessageCodec {
       case 134:
         return PlatformDarwinScanOptions.decode(readValue(buffer)!);
       case 135:
-        return Peripheral.decode(readValue(buffer)!);
+        return PlatformDarwinConfiguration.decode(readValue(buffer)!);
       case 136:
-        return PlatformScanResult.decode(readValue(buffer)!);
+        return Peripheral.decode(readValue(buffer)!);
       case 137:
-        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+        return PlatformScanResult.decode(readValue(buffer)!);
       case 138:
-        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+        return PlatformConnectionStateChange.decode(readValue(buffer)!);
       case 139:
-        return PlatformCharacteristic.decode(readValue(buffer)!);
+        return PlatformServiceDiscovered.decode(readValue(buffer)!);
       case 140:
-        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+        return PlatformCharacteristic.decode(readValue(buffer)!);
       case 141:
+        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+      case 142:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -725,6 +775,24 @@ class QuickBlueApi {
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
+
+  Future<void> configure(PlatformDarwinConfiguration configuration) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.configure$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[configuration]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
 
   Future<List<Peripheral>> getConnectedPeripherals(List<String> serviceUuids) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.getConnectedPeripherals$pigeonVar_messageChannelSuffix';

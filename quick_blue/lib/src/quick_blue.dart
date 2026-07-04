@@ -23,6 +23,14 @@ class QuickBlue {
   /// Check [QuickBlueCompanion.isSupported] before showing association UI.
   static final QuickBlueCompanion companion = QuickBlueCompanion._();
 
+  /// Configures platform behavior before starting Bluetooth work.
+  ///
+  /// When [maintainState] is true, iOS and macOS opt into CoreBluetooth state
+  /// preservation and restoration. Call this before any other `QuickBlue` API.
+  static Future<void> configure({bool maintainState = false}) {
+    return _platform.configure(maintainState: maintainState);
+  }
+
   /// Returns whether Bluetooth is powered on and usable.
   static Future<bool> isBluetoothAvailable() =>
       _platform.isBluetoothAvailable();
