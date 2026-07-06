@@ -60,7 +60,7 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
-  Stream<BlueBluetoothState> get bluetoothStateStream {
+  Stream<BlueBluetoothState> get bluetoothStateEvents {
     calls.add('bluetoothStateStream');
     if (!emitInitialBluetoothState) {
       return _bluetoothStateController.stream;

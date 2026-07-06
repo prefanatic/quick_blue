@@ -94,6 +94,33 @@ void main() {
     await subscription.cancel();
   });
 
+  test('bluetoothStateStream replays latest state to new listeners', () async {
+    platform.emitInitialBluetoothState = true;
+
+    final stream = QuickBlue.bluetoothStateStream;
+    final firstStates = <BlueBluetoothState>[];
+    final firstSubscription = stream.listen(firstStates.add);
+
+    await pumpEventQueue();
+    expect(firstStates, <BlueBluetoothState>[BlueBluetoothState.poweredOn]);
+
+    platform.addBluetoothState(BlueBluetoothState.poweredOff);
+    await pumpEventQueue();
+    expect(firstStates, <BlueBluetoothState>[
+      BlueBluetoothState.poweredOn,
+      BlueBluetoothState.poweredOff,
+    ]);
+
+    final secondStates = <BlueBluetoothState>[];
+    final secondSubscription = stream.listen(secondStates.add);
+
+    await pumpEventQueue();
+    expect(secondStates, <BlueBluetoothState>[BlueBluetoothState.poweredOff]);
+
+    await firstSubscription.cancel();
+    await secondSubscription.cancel();
+  });
+
   test('disconnect waits for the disconnected state', () async {
     platform.disconnectsImmediately = false;
 

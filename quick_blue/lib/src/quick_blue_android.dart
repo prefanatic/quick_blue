@@ -10,10 +10,9 @@ class QuickBlueAndroid extends QuickBluePlatform {
 
   final messages.QuickBlueApi _api = messages.QuickBlueApi();
   messages.QuickBlueFlutterApi? _flutterApi;
-  late final Stream<BlueBluetoothState> _bluetoothStateStream = messages
+  late final Stream<BlueBluetoothState> _bluetoothStateEvents = messages
       .bluetoothState()
-      .map((state) => state.toBlueBluetoothState())
-      .distinct();
+      .map((state) => state.toBlueBluetoothState());
   late final Stream<BlueScanResult> _scanResultStream = messages
       .scanResults()
       .map(_scanResultFromPlatformResult);
@@ -118,10 +117,10 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
-  Stream<BlueBluetoothState> get bluetoothStateStream {
+  Stream<BlueBluetoothState> get bluetoothStateEvents {
     _ensureInitialized();
 
-    return _bluetoothStateStream;
+    return _bluetoothStateEvents;
   }
 
   @override

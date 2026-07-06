@@ -38,15 +38,88 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// Returns whether Bluetooth is currently powered on and usable.
   Future<bool> isBluetoothAvailable();
 
-  /// Emits the current Bluetooth state first, then emits later state changes
-  /// when the platform supports live state updates.
+  BlueBluetoothState? _latestBluetoothState;
+  Stream<BlueBluetoothState>? _bluetoothStateStream;
+  StreamController<BlueBluetoothState>? _bluetoothStateController;
+  StreamSubscription<BlueBluetoothState>? _bluetoothStateSubscription;
+
+  /// Emits the latest known Bluetooth state to each listener, then emits later
+  /// state changes when the platform supports live state updates.
   ///
   /// Platforms without live state monitoring may emit only the current
   /// availability snapshot.
-  Stream<BlueBluetoothState> get bluetoothStateStream async* {
+  Stream<BlueBluetoothState> get bluetoothStateStream {
+    return _bluetoothStateStream ??= Stream.multi((controller) {
+      var lastDelivered = _latestBluetoothState;
+      if (lastDelivered != null) {
+        controller.add(lastDelivered);
+      }
+
+      final subscription = _sharedBluetoothStateEvents.listen((state) {
+        if (state == lastDelivered) {
+          return;
+        }
+        lastDelivered = state;
+        controller.add(state);
+      }, onError: controller.addError);
+      controller.onCancel = subscription.cancel;
+    }, isBroadcast: true);
+  }
+
+  /// Raw platform Bluetooth state events.
+  ///
+  /// Platform implementations should override this instead of
+  /// [bluetoothStateStream] so all listeners share the same replay and
+  /// concurrent-listener behavior.
+  Stream<BlueBluetoothState> get bluetoothStateEvents async* {
     yield await isBluetoothAvailable()
         ? BlueBluetoothState.poweredOn
         : BlueBluetoothState.poweredOff;
+  }
+
+  Stream<BlueBluetoothState> get _sharedBluetoothStateEvents {
+    final existing = _bluetoothStateController;
+    if (existing != null) {
+      return existing.stream;
+    }
+
+    final controller = StreamController<BlueBluetoothState>.broadcast(
+      onListen: _startBluetoothStateEvents,
+      onCancel: _stopBluetoothStateEvents,
+    );
+    _bluetoothStateController = controller;
+    return controller.stream;
+  }
+
+  void _startBluetoothStateEvents() {
+    if (_bluetoothStateSubscription != null) {
+      return;
+    }
+
+    var completedSynchronously = false;
+    final subscription = bluetoothStateEvents.listen(
+      (state) {
+        _latestBluetoothState = state;
+        _bluetoothStateController?.add(state);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _bluetoothStateController?.addError(error, stackTrace);
+      },
+      onDone: () {
+        if (_bluetoothStateSubscription == null) {
+          completedSynchronously = true;
+        } else {
+          _bluetoothStateSubscription = null;
+        }
+      },
+    );
+    _bluetoothStateSubscription = completedSynchronously ? null : subscription;
+  }
+
+  Future<void> _stopBluetoothStateEvents() async {
+    final subscription = _bluetoothStateSubscription;
+    _bluetoothStateSubscription = null;
+    await subscription?.cancel();
   }
 
   /// Starts the platform scan lifecycle.

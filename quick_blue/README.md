@@ -22,9 +22,9 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 | writeValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | requestMtu | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 
-`bluetoothStateStream` emits the current Bluetooth state first. Android, iOS,
-macOS, and Linux then emit live state changes; Windows currently emits only the
-current availability snapshot.
+`bluetoothStateStream` emits the latest available Bluetooth state first for each
+listener. Android, iOS, macOS, and Linux then emit live state changes; Windows
+currently emits only the current availability snapshot.
 
 * iOS and macOS require service UUIDs when looking up already connected
   peripherals.

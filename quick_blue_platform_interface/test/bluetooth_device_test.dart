@@ -71,6 +71,77 @@ void main() {
     },
   );
 
+  test(
+    'bluetoothStateStream supports concurrent listeners and replays latest',
+    () async {
+      final platform = _FakeBluetoothStatePlatform();
+      addTearDown(platform.dispose);
+
+      final stream = platform.bluetoothStateStream;
+      expect(stream.isBroadcast, isTrue);
+
+      final firstStates = <BlueBluetoothState>[];
+      final firstSubscription = stream.listen(firstStates.add);
+
+      await pumpEventQueue();
+      expect(platform.bluetoothStateEventListenCount, 1);
+      expect(firstStates, <BlueBluetoothState>[BlueBluetoothState.poweredOn]);
+
+      platform.addBluetoothState(BlueBluetoothState.poweredOff);
+      await pumpEventQueue();
+      expect(firstStates, <BlueBluetoothState>[
+        BlueBluetoothState.poweredOn,
+        BlueBluetoothState.poweredOff,
+      ]);
+
+      final secondStates = <BlueBluetoothState>[];
+      final secondSubscription = stream.listen(secondStates.add);
+
+      await pumpEventQueue();
+      expect(platform.bluetoothStateEventListenCount, 1);
+      expect(secondStates, <BlueBluetoothState>[BlueBluetoothState.poweredOff]);
+
+      platform.addBluetoothState(BlueBluetoothState.unauthorized);
+      await pumpEventQueue();
+      expect(firstStates, <BlueBluetoothState>[
+        BlueBluetoothState.poweredOn,
+        BlueBluetoothState.poweredOff,
+        BlueBluetoothState.unauthorized,
+      ]);
+      expect(secondStates, <BlueBluetoothState>[
+        BlueBluetoothState.poweredOff,
+        BlueBluetoothState.unauthorized,
+      ]);
+
+      final thirdStates = <BlueBluetoothState>[];
+      final thirdSubscription = platform.bluetoothStateStream.listen(
+        thirdStates.add,
+      );
+
+      await pumpEventQueue();
+      expect(platform.bluetoothStateEventListenCount, 1);
+      expect(thirdStates, <BlueBluetoothState>[
+        BlueBluetoothState.unauthorized,
+      ]);
+
+      await firstSubscription.cancel();
+      await secondSubscription.cancel();
+      await thirdSubscription.cancel();
+      expect(platform.bluetoothStateEventCancelCount, 1);
+
+      final fourthStates = <BlueBluetoothState>[];
+      final fourthSubscription = stream.listen(fourthStates.add);
+
+      await pumpEventQueue();
+      expect(platform.bluetoothStateEventListenCount, 2);
+      expect(fourthStates, <BlueBluetoothState>[
+        BlueBluetoothState.unauthorized,
+      ]);
+
+      await fourthSubscription.cancel();
+    },
+  );
+
   test('default platform reports missing implementation', () async {
     await expectLater(
       QuickBluePlatform.instance.isBluetoothAvailable(),
@@ -2008,6 +2079,48 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
       sink: _NoopSink(),
       stream: const Stream<BleL2CapSocketEvent>.empty(),
     );
+  }
+}
+
+class _FakeBluetoothStatePlatform extends _FakeQuickBluePlatform {
+  final _bluetoothStateController =
+      StreamController<BlueBluetoothState>.broadcast();
+  var bluetoothState = BlueBluetoothState.poweredOn;
+  var bluetoothStateEventListenCount = 0;
+  var bluetoothStateEventCancelCount = 0;
+
+  void addBluetoothState(BlueBluetoothState state) {
+    bluetoothState = state;
+    _bluetoothStateController.add(state);
+  }
+
+  @override
+  Future<void> dispose() async {
+    await super.dispose();
+    await _bluetoothStateController.close();
+  }
+
+  @override
+  Future<bool> isBluetoothAvailable() async {
+    return bluetoothState == BlueBluetoothState.poweredOn;
+  }
+
+  @override
+  Stream<BlueBluetoothState> get bluetoothStateEvents {
+    return Stream.multi((controller) {
+      bluetoothStateEventListenCount += 1;
+      final subscription = _bluetoothStateController.stream.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller
+        ..add(bluetoothState)
+        ..onCancel = () async {
+          bluetoothStateEventCancelCount += 1;
+          await subscription.cancel();
+        };
+    });
   }
 }
 

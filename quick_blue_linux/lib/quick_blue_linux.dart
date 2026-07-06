@@ -109,7 +109,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   @override
-  Stream<BlueBluetoothState> get bluetoothStateStream {
+  Stream<BlueBluetoothState> get bluetoothStateEvents {
     return Stream.multi((controller) {
       final adapterSubscriptions = <StreamSubscription<List<String>>>[];
       final watchedAdapterAddresses = <String>{};

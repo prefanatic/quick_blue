@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Fixed
+
+- Replay the latest available `bluetoothStateStream` state to every new
+  listener and support concurrent Bluetooth state listeners consistently across
+  platforms.
+
 ### Added
 
 - Add Dart-shaped device and characteristic APIs, including `QuickBlue.device`,
