@@ -10,7 +10,8 @@ export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
         BluetoothDevice,
         BluetoothGatt,
         QuickBlueErrorCode,
-        QuickBlueException;
+        QuickBlueException,
+        QuickBlueGattException;
 
 export 'quick_blue_android.dart';
 
@@ -116,6 +117,19 @@ class QuickBlue {
   /// Returns the current pairing/bonding state for [deviceId].
   static Future<BluetoothBondState> bondState(String deviceId) {
     return device(deviceId).bondState();
+  }
+
+  /// Pairing/bonding state transitions for all devices.
+  static Stream<BluetoothBondStateChange> get bondStateStream {
+    return _platform.bondStateStream;
+  }
+
+  /// Waits until [deviceId] reaches [targetState].
+  static Future<BluetoothBondState> waitForBondState(
+    String deviceId,
+    BluetoothBondState targetState,
+  ) {
+    return device(deviceId).waitForBondState(targetState);
   }
 
   /// Starts pairing/bonding with [deviceId].

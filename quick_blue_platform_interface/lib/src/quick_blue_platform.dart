@@ -313,6 +313,32 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// Returns the current pairing/bonding state for [deviceId].
   Future<BluetoothBondState> bondState(String deviceId);
 
+  final StreamController<BluetoothBondStateChange> _bondStateController =
+      StreamController<BluetoothBondStateChange>.broadcast();
+
+  /// Pairing/bonding state transitions for all devices.
+  ///
+  /// Platforms without observable bond state do not emit events. Use
+  /// [bondState] for a current-state snapshot.
+  Stream<BluetoothBondStateChange> get bondStateStream {
+    return _bondStateController.stream;
+  }
+
+  /// Reports a native pairing/bonding state transition.
+  void handleBondStateChanged(
+    String deviceId,
+    BluetoothBondState state,
+    BluetoothBondState previousState,
+  ) {
+    _bondStateController.add(
+      BluetoothBondStateChange(
+        deviceId: deviceId,
+        state: state,
+        previousState: previousState,
+      ),
+    );
+  }
+
   /// Starts pairing/bonding with [deviceId].
   Future<void> pair(String deviceId);
 

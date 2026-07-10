@@ -885,6 +885,44 @@ enum BluetoothBondState {
   bonded,
 }
 
+/// A pairing/bonding state transition for a Bluetooth device.
+class BluetoothBondStateChange {
+  /// Creates a bond-state transition.
+  const BluetoothBondStateChange({
+    required this.deviceId,
+    required this.state,
+    required this.previousState,
+  });
+
+  /// Platform-specific device identifier.
+  final String deviceId;
+
+  /// Current pairing/bonding state.
+  final BluetoothBondState state;
+
+  /// Pairing/bonding state before this transition.
+  final BluetoothBondState previousState;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BluetoothBondStateChange &&
+            other.deviceId == deviceId &&
+            other.state == state &&
+            other.previousState == previousState;
+  }
+
+  @override
+  int get hashCode => Object.hash(deviceId, state, previousState);
+
+  @override
+  String toString() {
+    return 'BluetoothBondStateChange('
+        'deviceId: $deviceId, state: $state, previousState: $previousState'
+        ')';
+  }
+}
+
 /// A connection state event for a Bluetooth LE device.
 ///
 /// Connection operations complete from these events in the device API.

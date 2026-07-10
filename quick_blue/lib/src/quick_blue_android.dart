@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 import 'messages.g.dart' as messages;
@@ -13,6 +13,9 @@ class QuickBlueAndroid extends QuickBluePlatform {
   late final Stream<BlueBluetoothState> _bluetoothStateEvents = messages
       .bluetoothState()
       .map((state) => state.toBlueBluetoothState());
+  late final Stream<BluetoothBondStateChange> _bondStateEvents = messages
+      .bondStateChanges()
+      .map(_bondStateChangeFromPlatform);
   late final Stream<BlueScanResult> _scanResultStream = messages
       .scanResults()
       .map(_scanResultFromPlatformResult);
@@ -88,6 +91,13 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
+  Stream<BluetoothBondStateChange> get bondStateStream {
+    _ensureInitialized();
+
+    return _bondStateEvents;
+  }
+
+  @override
   Future<void> pair(String deviceId) {
     _ensureInitialized();
 
@@ -143,10 +153,27 @@ class QuickBlueAndroid extends QuickBluePlatform {
     String deviceId,
     String service,
     String characteristic,
-  ) {
+  ) async {
+    await readCharacteristicValue(deviceId, service, characteristic);
+  }
+
+  @override
+  Future<Uint8List> readCharacteristicValue(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
     _ensureInitialized();
 
-    return _api.readValue(deviceId, service, characteristic);
+    final value = await _runGattOperation(
+      operation: 'readValue',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => _api.readValue(deviceId, service, characteristic),
+    );
+    handleCharacteristicValueChanged(deviceId, service, characteristic, value);
+    return value;
   }
 
   @override
@@ -168,11 +195,17 @@ class QuickBlueAndroid extends QuickBluePlatform {
   ) {
     _ensureInitialized();
 
-    return _api.setNotifiable(
-      deviceId,
-      service,
-      characteristic,
-      bleInputProperty.toPlatformBleInputProperty(),
+    return _runGattOperation(
+      operation: 'setNotifiable',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => _api.setNotifiable(
+        deviceId,
+        service,
+        characteristic,
+        bleInputProperty.toPlatformBleInputProperty(),
+      ),
     );
   }
 
@@ -208,12 +241,46 @@ class QuickBlueAndroid extends QuickBluePlatform {
   ) {
     _ensureInitialized();
 
-    return _api.writeValue(
-      deviceId,
-      service,
-      characteristic,
-      value,
-      bleOutputProperty.toPlatformBleOutputProperty(),
+    return _runGattOperation(
+      operation: 'writeValue',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => _api.writeValue(
+        deviceId,
+        service,
+        characteristic,
+        value,
+        bleOutputProperty.toPlatformBleOutputProperty(),
+      ),
+    );
+  }
+}
+
+Future<T> _runGattOperation<T>({
+  required String operation,
+  required String deviceId,
+  required String serviceId,
+  required String characteristicId,
+  required Future<T> Function() action,
+}) async {
+  try {
+    return await action();
+  } on PlatformException catch (error, stackTrace) {
+    final status = error.details;
+    if (error.code != 'GattError' || status is! num) {
+      rethrow;
+    }
+    Error.throwWithStackTrace(
+      QuickBlueGattException(
+        status: status.toInt(),
+        operation: operation,
+        deviceId: deviceId,
+        serviceId: serviceId,
+        characteristicId: characteristicId,
+        message: error.message ?? '$operation failed with GATT status $status.',
+      ),
+      stackTrace,
     );
   }
 }
@@ -428,6 +495,16 @@ void _handleCharacteristicValueChanged(
     valueChanged.serviceUuid,
     valueChanged.characteristicId,
     valueChanged.value,
+  );
+}
+
+BluetoothBondStateChange _bondStateChangeFromPlatform(
+  messages.PlatformBondStateChange stateChange,
+) {
+  return BluetoothBondStateChange(
+    deviceId: stateChange.deviceId,
+    state: stateChange.state.toBluetoothBondState(),
+    previousState: stateChange.previousState.toBluetoothBondState(),
   );
 }
 

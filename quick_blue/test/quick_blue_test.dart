@@ -151,6 +151,42 @@ void main() {
     expect(platform.calls, <String>['bondState device-a']);
   });
 
+  test('bondStateStream forwards platform transitions', () async {
+    final event = QuickBlue.bondStateStream.first;
+
+    platform.addBondStateChange(
+      'device-a',
+      BluetoothBondState.bonding,
+      previousState: BluetoothBondState.notBonded,
+    );
+
+    expect(
+      await event,
+      const BluetoothBondStateChange(
+        deviceId: 'device-a',
+        state: BluetoothBondState.bonding,
+        previousState: BluetoothBondState.notBonded,
+      ),
+    );
+  });
+
+  test('waitForBondState delegates through the device API', () async {
+    final waiting = QuickBlue.waitForBondState(
+      'device-a',
+      BluetoothBondState.bonded,
+    );
+    await pumpEventQueue();
+
+    expect(platform.calls, <String>['bondState device-a']);
+    platform.addBondStateChange(
+      'device-a',
+      BluetoothBondState.bonded,
+      previousState: BluetoothBondState.bonding,
+    );
+
+    expect(await waiting, BluetoothBondState.bonded);
+  });
+
   test('pair delegates to the platform device', () async {
     await QuickBlue.pair('device-a');
 

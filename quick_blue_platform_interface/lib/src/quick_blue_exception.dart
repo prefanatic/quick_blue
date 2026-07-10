@@ -69,3 +69,22 @@ class QuickBlueException implements Exception {
     return 'QuickBlueException(${code.name}: $message)$suffix';
   }
 }
+
+/// A GATT operation failure reported by the active native platform.
+///
+/// [status] is the unmodified numeric platform status. Callers should preserve
+/// unknown values because Android devices may report vendor-specific statuses.
+class QuickBlueGattException extends QuickBlueException {
+  /// Creates a structured GATT operation failure.
+  const QuickBlueGattException({
+    required this.status,
+    required super.message,
+    required super.operation,
+    super.deviceId,
+    super.serviceId,
+    super.characteristicId,
+  }) : super(code: QuickBlueErrorCode.operationFailed, details: status);
+
+  /// Raw numeric GATT status reported by the native platform.
+  final int status;
+}

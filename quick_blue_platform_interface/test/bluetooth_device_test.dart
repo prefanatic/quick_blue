@@ -913,6 +913,83 @@ void main() {
     ]);
   });
 
+  test('BluetoothDevice.bondStateStream filters device transitions', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+    final events = <BluetoothBondStateChange>[];
+    final subscription = platform
+        .device('device-a')
+        .bondStateStream
+        .listen(events.add);
+
+    platform
+      ..addBondStateChange(
+        'device-b',
+        BluetoothBondState.bonding,
+        previousState: BluetoothBondState.notBonded,
+      )
+      ..addBondStateChange(
+        'device-a',
+        BluetoothBondState.bonding,
+        previousState: BluetoothBondState.notBonded,
+      );
+    await pumpEventQueue();
+
+    expect(events, const <BluetoothBondStateChange>[
+      BluetoothBondStateChange(
+        deviceId: 'device-a',
+        state: BluetoothBondState.bonding,
+        previousState: BluetoothBondState.notBonded,
+      ),
+    ]);
+    await subscription.cancel();
+  });
+
+  test('BluetoothDevice.waitForBondState returns an existing state', () async {
+    final platform = _FakeQuickBluePlatform(
+      currentBondState: BluetoothBondState.bonded,
+    );
+    addTearDown(platform.dispose);
+
+    final state = await platform
+        .device('device-a')
+        .waitForBondState(BluetoothBondState.bonded);
+
+    expect(state, BluetoothBondState.bonded);
+    expect(platform.calls, <String>['bondState device-a']);
+  });
+
+  test('BluetoothDevice.waitForBondState awaits a matching event', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+    final waiting = platform
+        .device('device-a')
+        .waitForBondState(BluetoothBondState.bonded);
+
+    await pumpEventQueue();
+    expect(platform.calls, <String>['bondState device-a']);
+
+    platform
+      ..addBondStateChange(
+        'device-b',
+        BluetoothBondState.bonded,
+        previousState: BluetoothBondState.bonding,
+      )
+      ..addBondStateChange(
+        'device-a',
+        BluetoothBondState.bonding,
+        previousState: BluetoothBondState.notBonded,
+      );
+    await pumpEventQueue();
+
+    platform.addBondStateChange(
+      'device-a',
+      BluetoothBondState.bonded,
+      previousState: BluetoothBondState.bonding,
+    );
+    expect(await waiting, BluetoothBondState.bonded);
+  });
+
   test('BluetoothDevice.connect waits for connected state', () async {
     final platform = _FakeQuickBluePlatform(connectsImmediately: false);
     addTearDown(platform.dispose);
@@ -1857,6 +1934,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     this.setNotifiableError,
     this.readValueError,
     this.writeValueError,
+    this.currentBondState = BluetoothBondState.notBonded,
     this.connectsImmediately = true,
     this.disconnectsImmediately = true,
   }) : readValueResult = readValueResult ?? Uint8List(0),
@@ -1877,6 +1955,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final Object? setNotifiableError;
   final Object? readValueError;
   final Object? writeValueError;
+  BluetoothBondState currentBondState;
   final bool connectsImmediately;
   final bool disconnectsImmediately;
   ScanFilter? lastScanFilter;
@@ -1888,6 +1967,17 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     _scanResultController.add(
       BlueScanResult(name: 'Device $deviceId', deviceId: deviceId, rssi: rssi),
     );
+  }
+
+  void addBondStateChange(
+    String deviceId,
+    BluetoothBondState state, {
+    required BluetoothBondState previousState,
+  }) {
+    if (deviceId == 'device-a') {
+      currentBondState = state;
+    }
+    handleBondStateChanged(deviceId, state, previousState);
   }
 
   Future<void> dispose() {
@@ -1960,7 +2050,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<BluetoothBondState> bondState(String deviceId) async {
     calls.add('bondState $deviceId');
-    return BluetoothBondState.notBonded;
+    return currentBondState;
   }
 
   @override

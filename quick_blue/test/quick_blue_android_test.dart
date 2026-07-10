@@ -32,6 +32,7 @@ void main() {
 
   const eventChannels = <String>[
     'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bluetoothState',
+    'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bondStateChanges',
     'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.scanResults',
     'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.mtuChanged',
     'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.l2CapSocketEvents',
@@ -107,7 +108,11 @@ void main() {
         'characteristic-a',
         BleInputProperty.indication,
       );
-      await platform.readValue('device-a', 'service-a', 'characteristic-a');
+      final readValue = await platform.readCharacteristicValue(
+        'device-a',
+        'service-a',
+        'characteristic-a',
+      );
       await platform.writeValue(
         'device-a',
         'service-a',
@@ -116,6 +121,7 @@ void main() {
         BleOutputProperty.withoutResponse,
       );
       expect(await platform.requestMtu('device-a', 512), 247);
+      expect(readValue, Uint8List.fromList(<int>[4, 5, 6]));
 
       final startScanMessage =
           sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.startScan']
@@ -174,8 +180,108 @@ void main() {
         ],
       );
       expect(
+        sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.readValue'],
+        <Object?>['device-a', 'service-a', 'characteristic-a'],
+      );
+      expect(
         sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.requestMtu'],
         <Object?>['device-a', 512],
+      );
+    });
+
+    test('read surfaces structured numeric GATT failures', () async {
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.readValue',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (_) async => <Object?>[
+          'GattError',
+          'Characteristic read failed with GATT status 5',
+          5,
+        ],
+      );
+
+      final platform = QuickBlueAndroid();
+
+      await expectLater(
+        platform.readCharacteristicValue(
+          'device-a',
+          'service-a',
+          'characteristic-a',
+        ),
+        throwsA(
+          isA<QuickBlueGattException>()
+              .having((error) => error.status, 'status', 5)
+              .having((error) => error.operation, 'operation', 'readValue')
+              .having((error) => error.deviceId, 'deviceId', 'device-a')
+              .having((error) => error.serviceId, 'serviceId', 'service-a')
+              .having(
+                (error) => error.characteristicId,
+                'characteristicId',
+                'characteristic-a',
+              ),
+        ),
+      );
+    });
+
+    test('read returns native bytes and publishes the value event', () async {
+      final expected = Uint8List.fromList(<int>[7, 8, 9]);
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.readValue',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (_) async => <Object?>[expected],
+      );
+
+      final platform = QuickBlueAndroid();
+      final valueEvent = platform.characteristicValueStream.first;
+
+      final value = await platform.readCharacteristicValue(
+        'device-a',
+        'service-a',
+        'characteristic-a',
+      );
+
+      expect(value, expected);
+      expect(
+        await valueEvent,
+        BluetoothCharacteristicValue(
+          deviceId: 'device-a',
+          serviceId: 'service-a',
+          characteristicId: 'characteristic-a',
+          value: expected,
+        ),
+      );
+    });
+
+    test('write surfaces structured numeric GATT failures', () async {
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.writeValue',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (_) async => <Object?>[
+          'GattError',
+          'Characteristic write failed with GATT status 133',
+          133,
+        ],
+      );
+
+      await expectLater(
+        QuickBlueAndroid().writeValue(
+          'device-a',
+          'service-a',
+          'characteristic-a',
+          Uint8List.fromList(<int>[1]),
+          BleOutputProperty.withResponse,
+        ),
+        throwsA(
+          isA<QuickBlueGattException>()
+              .having((error) => error.status, 'status', 133)
+              .having((error) => error.operation, 'operation', 'writeValue'),
+        ),
       );
     });
 
@@ -250,6 +356,40 @@ void main() {
           BlueBluetoothState.unauthorized,
           BlueBluetoothState.poweredOff,
           BlueBluetoothState.poweredOn,
+        ]),
+      );
+    });
+
+    test('maps bond state events', () async {
+      _mockEventChannel(
+        'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bondStateChanges',
+        <Object?>[
+          messages.PlatformBondStateChange(
+            deviceId: 'device-a',
+            state: messages.PlatformBondState.bonding,
+            previousState: messages.PlatformBondState.notBonded,
+          ),
+          messages.PlatformBondStateChange(
+            deviceId: 'device-a',
+            state: messages.PlatformBondState.bonded,
+            previousState: messages.PlatformBondState.bonding,
+          ),
+        ],
+      );
+
+      await expectLater(
+        QuickBlueAndroid().bondStateStream,
+        emitsInOrder(const <BluetoothBondStateChange>[
+          BluetoothBondStateChange(
+            deviceId: 'device-a',
+            state: BluetoothBondState.bonding,
+            previousState: BluetoothBondState.notBonded,
+          ),
+          BluetoothBondStateChange(
+            deviceId: 'device-a',
+            state: BluetoothBondState.bonded,
+            previousState: BluetoothBondState.bonding,
+          ),
         ]),
       );
     });
@@ -688,6 +828,11 @@ Object _replyFor(String channelName) {
   }
   if (channelName.endsWith('.bondState')) {
     return <Object?>[messages.PlatformBondState.bonded];
+  }
+  if (channelName.endsWith('.readValue')) {
+    return <Object?>[
+      Uint8List.fromList(<int>[4, 5, 6]),
+    ];
   }
   if (channelName.endsWith('.requestMtu')) {
     return <Object?>[247];

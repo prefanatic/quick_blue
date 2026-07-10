@@ -128,7 +128,10 @@ abstract class QuickBlueApi {
     String characteristic,
     PlatformBleInputProperty bleInputProperty,
   );
-  void readValue(String deviceId, String service, String characteristic);
+  // Async so the reply can be deferred until onCharacteristicRead reports
+  // either the value or the numeric GATT failure status.
+  @async
+  Uint8List readValue(String deviceId, String service, String characteristic);
 
   // Async so the reply can be deferred until the GATT write completes
   // (onCharacteristicWrite) rather than when the write is merely queued.
@@ -188,6 +191,18 @@ class PlatformConnectionStateChange {
   final String deviceId;
   final PlatformConnectionState state;
   final PlatformGattStatus gattStatus;
+}
+
+class PlatformBondStateChange {
+  PlatformBondStateChange({
+    required this.deviceId,
+    required this.state,
+    required this.previousState,
+  });
+
+  final String deviceId;
+  final PlatformBondState state;
+  final PlatformBondState previousState;
 }
 
 class PlatformServiceDiscovered {
@@ -260,6 +275,7 @@ class PlatformL2CapSocketEvent {
 @EventChannelApi()
 abstract class QuickBlueEventApi {
   PlatformBluetoothState bluetoothState();
+  PlatformBondStateChange bondStateChanges();
   PlatformScanResult scanResults();
   PlatformMtuChange mtuChanged();
   PlatformL2CapSocketEvent l2CapSocketEvents();

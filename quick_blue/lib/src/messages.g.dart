@@ -552,6 +552,61 @@ class PlatformConnectionStateChange {
   }
 }
 
+class PlatformBondStateChange {
+  PlatformBondStateChange({
+    required this.deviceId,
+    required this.state,
+    required this.previousState,
+  });
+
+  String deviceId;
+
+  PlatformBondState state;
+
+  PlatformBondState previousState;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      deviceId,
+      state,
+      previousState,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformBondStateChange decode(Object result) {
+    result as List<Object?>;
+    return PlatformBondStateChange(
+      deviceId: result[0]! as String,
+      state: result[1]! as PlatformBondState,
+      previousState: result[2]! as PlatformBondState,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformBondStateChange || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(state, other.state) && _deepEquals(previousState, other.previousState);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformBondStateChange(deviceId: $deviceId, state: $state, previousState: $previousState)';
+  }
+}
+
 class PlatformServiceDiscovered {
   PlatformServiceDiscovered({
     required this.deviceId,
@@ -911,20 +966,23 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformConnectionStateChange) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformServiceDiscovered) {
+    }    else if (value is PlatformBondStateChange) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristic) {
+    }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformMtuChange) {
+    }    else if (value is PlatformCharacteristic) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformMtuChange) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformL2CapSocketEvent) {
+    }    else if (value is PlatformCharacteristicValueChanged) {
       buffer.putUint8(150);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformL2CapSocketEvent) {
+      buffer.putUint8(151);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -980,14 +1038,16 @@ class _PigeonCodec extends StandardMessageCodec {
       case 145:
         return PlatformConnectionStateChange.decode(readValue(buffer)!);
       case 146:
-        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+        return PlatformBondStateChange.decode(readValue(buffer)!);
       case 147:
-        return PlatformCharacteristic.decode(readValue(buffer)!);
+        return PlatformServiceDiscovered.decode(readValue(buffer)!);
       case 148:
-        return PlatformMtuChange.decode(readValue(buffer)!);
+        return PlatformCharacteristic.decode(readValue(buffer)!);
       case 149:
-        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+        return PlatformMtuChange.decode(readValue(buffer)!);
       case 150:
+        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+      case 151:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1268,7 +1328,7 @@ class QuickBlueApi {
     ;
   }
 
-  Future<void> readValue(String deviceId, String service, String characteristic) async {
+  Future<Uint8List> readValue(String deviceId, String service, String characteristic) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue.QuickBlueApi.readValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -1278,12 +1338,13 @@ class QuickBlueApi {
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, service, characteristic]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
-    _extractReplyValueOrThrow(
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
         pigeonVar_replyList,
         pigeonVar_channelName,
-        isNullValid: true,
+        isNullValid: false,
     )
     ;
+    return pigeonVar_replyValue! as Uint8List;
   }
 
   Future<void> writeValue(String deviceId, String service, String characteristic, Uint8List value, PlatformBleOutputProperty bleOutputProperty) async {
@@ -1386,6 +1447,17 @@ Stream<PlatformBluetoothState> bluetoothState( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bluetoothState$instanceName', pigeonMethodCodec);
   return bluetoothStateChannel.receiveBroadcastStream().map((dynamic event) {
     return event as PlatformBluetoothState;
+  });
+}
+    
+Stream<PlatformBondStateChange> bondStateChanges( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel bondStateChangesChannel =
+      EventChannel('dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bondStateChanges$instanceName', pigeonMethodCodec);
+  return bondStateChangesChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as PlatformBondStateChange;
   });
 }
     

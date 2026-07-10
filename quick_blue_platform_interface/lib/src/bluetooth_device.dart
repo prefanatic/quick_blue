@@ -89,6 +89,36 @@ class BluetoothDevice {
     return _platform.bondState(deviceId);
   }
 
+  /// Pairing/bonding state transitions for this device.
+  Stream<BluetoothBondStateChange> get bondStateStream {
+    return _platform.bondStateStream.where(
+      (event) => event.deviceId == deviceId,
+    );
+  }
+
+  /// Waits until this device reaches [targetState].
+  ///
+  /// The event subscription is established before the current state is read,
+  /// so a transition racing with the snapshot is not missed. Timeouts are left
+  /// to callers with normal `Future.timeout` composition.
+  Future<BluetoothBondState> waitForBondState(
+    BluetoothBondState targetState,
+  ) async {
+    final stateEvents = StreamQueue(
+      bondStateStream.where((event) => event.state == targetState),
+    );
+
+    try {
+      final currentState = await bondState();
+      if (currentState == targetState) {
+        return currentState;
+      }
+      return (await stateEvents.next).state;
+    } finally {
+      await stateEvents.cancel();
+    }
+  }
+
   /// Starts pairing/bonding with this device.
   Future<void> pair() {
     return _platform.pair(deviceId);

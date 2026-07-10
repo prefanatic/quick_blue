@@ -637,6 +637,51 @@ data class PlatformConnectionStateChange (
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformBondStateChange (
+  val deviceId: String,
+  val state: PlatformBondState,
+  val previousState: PlatformBondState
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformBondStateChange {
+      val deviceId = pigeonVar_list[0] as String
+      val state = pigeonVar_list[1] as PlatformBondState
+      val previousState = pigeonVar_list[2] as PlatformBondState
+      return PlatformBondStateChange(deviceId, state, previousState)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      deviceId,
+      state,
+      previousState,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformBondStateChange
+    return MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.state, other.state) && MessagesPigeonUtils.deepEquals(this.previousState, other.previousState)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.state)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.previousState)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformBondStateChange(deviceId=$deviceId, state=$state, previousState=$previousState)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
 data class PlatformServiceDiscovered (
   val deviceId: String,
   val serviceUuid: String,
@@ -970,25 +1015,30 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformServiceDiscovered.fromList(it)
+          PlatformBondStateChange.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristic.fromList(it)
+          PlatformServiceDiscovered.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformMtuChange.fromList(it)
+          PlatformCharacteristic.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristicValueChanged.fromList(it)
+          PlatformMtuChange.fromList(it)
         }
       }
       150.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCharacteristicValueChanged.fromList(it)
+        }
+      }
+      151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformL2CapSocketEvent.fromList(it)
         }
@@ -1066,24 +1116,28 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is PlatformServiceDiscovered -> {
+      is PlatformBondStateChange -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristic -> {
+      is PlatformServiceDiscovered -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is PlatformMtuChange -> {
+      is PlatformCharacteristic -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristicValueChanged -> {
+      is PlatformMtuChange -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is PlatformL2CapSocketEvent -> {
+      is PlatformCharacteristicValueChanged -> {
         stream.write(150)
+        writeValue(stream, value.toList())
+      }
+      is PlatformL2CapSocketEvent -> {
+        stream.write(151)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1110,7 +1164,7 @@ interface QuickBlueApi {
   fun getCompanionAssociations(): List<PlatformCompanionAssociation>
   fun discoverServices(deviceId: String)
   fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: PlatformBleInputProperty, callback: (Result<Unit>) -> Unit)
-  fun readValue(deviceId: String, service: String, characteristic: String)
+  fun readValue(deviceId: String, service: String, characteristic: String, callback: (Result<ByteArray>) -> Unit)
   fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: PlatformBleOutputProperty, callback: (Result<Unit>) -> Unit)
   fun requestMtu(deviceId: String, expectedMtu: Long): Long
   fun openL2cap(deviceId: String, psm: Long, callback: (Result<Unit>) -> Unit)
@@ -1386,13 +1440,15 @@ interface QuickBlueApi {
             val deviceIdArg = args[0] as String
             val serviceArg = args[1] as String
             val characteristicArg = args[2] as String
-            val wrapped: List<Any?> = try {
-              api.readValue(deviceIdArg, serviceArg, characteristicArg)
-              listOf(null)
-            } catch (exception: Throwable) {
-              MessagesPigeonUtils.wrapError(exception)
+            api.readValue(deviceIdArg, serviceArg, characteristicArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)
@@ -1549,6 +1605,23 @@ abstract class BluetoothStateStreamHandler : MessagesPigeonEventChannelWrapper<P
   }
 // Implement methods from MessagesPigeonEventChannelWrapper
 override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformBluetoothState>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+      
+abstract class BondStateChangesStreamHandler : MessagesPigeonEventChannelWrapper<PlatformBondStateChange> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: BondStateChangesStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bondStateChanges"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = MessagesPigeonStreamHandler<PlatformBondStateChange>(streamHandler)
+      EventChannel(messenger, channelName, MessagesPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from MessagesPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformBondStateChange>) {}
 
 override fun onCancel(p0: Any?) {}
 }

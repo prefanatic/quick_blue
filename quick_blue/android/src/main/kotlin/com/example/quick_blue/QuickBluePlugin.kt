@@ -2,6 +2,7 @@ package com.example.quick_blue
 
 import FlutterError
 import BluetoothStateStreamHandler
+import BondStateChangesStreamHandler
 import L2CapSocketEventsStreamHandler
 import MtuChangedStreamHandler
 import PigeonEventSink
@@ -15,6 +16,7 @@ import PlatformAndroidScanNumOfMatches
 import PlatformAndroidScanOptions
 import PlatformAndroidScanPhy
 import PlatformBondState
+import PlatformBondStateChange
 import PlatformBluetoothState
 import PlatformCharacteristic
 import PlatformCharacteristicValueChanged
@@ -85,6 +87,14 @@ import java.util.regex.Pattern
 
 private const val SELECT_DEVICE_REQUEST_CODE = 10011
 
+private fun gattError(message: String, status: Int): FlutterError {
+    return FlutterError(
+        "GattError",
+        "$message with GATT status $status",
+        status
+    )
+}
+
 /** QuickBluePlugin */
 @SuppressLint("MissingPermission")
 class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
@@ -93,6 +103,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private val scanResultListener = ScanResultListener()
     private val mtuChangedListener = MtuChangedListener()
     private val l2CapSocketEventsListener = L2CapSocketEventsListener()
+    private val bondStateChangesListener = BondStateChangesListener()
     private val bondStateReceiver = BondStateReceiver()
     private lateinit var bluetoothStateListener: BluetoothStateListener
 
@@ -100,6 +111,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         QuickBlueApi.setUp(messenger, this)
         bluetoothStateListener = BluetoothStateListener(context, bluetoothManager)
         BluetoothStateStreamHandler.register(messenger, bluetoothStateListener)
+        BondStateChangesStreamHandler.register(messenger, bondStateChangesListener)
         ScanResultsStreamHandler.register(messenger, scanResultListener)
         MtuChangedStreamHandler.register(messenger, mtuChangedListener)
         L2CapSocketEventsStreamHandler.register(messenger, l2CapSocketEventsListener)
@@ -157,6 +169,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             bluetoothStateListener.onEventsDone()
         }
         scanResultListener.onEventsDone()
+        bondStateChangesListener.onEventsDone()
         mtuChangedListener.onEventsDone()
         l2CapSocketEventsListener.onEventsDone()
     }
@@ -219,7 +232,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         val deviceId: String,
         val kind: GattOperationKind,
         val start: (BluetoothGatt) -> Boolean,
-        val onComplete: (Int) -> Unit = {},
+        val onComplete: (Int, ByteArray?) -> Unit = { _, _ -> },
         val onStartFailed: () -> Unit = {},
         val onDisconnected: () -> Unit = {},
     )
@@ -314,6 +327,17 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             val state = intent.getIntExtra(
                 BluetoothDevice.EXTRA_BOND_STATE,
                 BluetoothDevice.ERROR
+            )
+            val previousState = intent.getIntExtra(
+                BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE,
+                BluetoothDevice.ERROR
+            )
+            bondStateChangesListener.onBondStateChanged(
+                PlatformBondStateChange(
+                    deviceId = device.address,
+                    state = state.toPlatformBondState(),
+                    previousState = previousState.toPlatformBondState(),
+                )
             )
             when (state) {
                 BluetoothDevice.BOND_BONDED -> completePendingPair(
@@ -483,19 +507,35 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
-            gattOperationQueue.complete(gatt.device.address, GattOperationKind.READ_CHARACTERISTIC)
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                return
+            completeCharacteristicRead(gatt, characteristic.value, status)
+        }
+
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray,
+            status: Int
+        ) {
+            completeCharacteristicRead(gatt, value, status)
+        }
+
+        private fun completeCharacteristicRead(
+            gatt: BluetoothGatt,
+            value: ByteArray?,
+            status: Int
+        ) {
+            val completedValue = if (status == BluetoothGatt.GATT_SUCCESS) {
+                value?.copyOf() ?: byteArrayOf()
+            } else {
+                null
             }
+            val operation =
+                gattOperationQueue.complete(
+                    gatt.device.address,
+                    GattOperationKind.READ_CHARACTERISTIC
+                ) ?: return
             mainThreadHandler.post {
-                quickBlueFlutterApi?.onCharacteristicValueChanged(
-                    PlatformCharacteristicValueChanged(
-                        deviceId = gatt.device.address,
-                        serviceUuid = characteristic.service.uuid.toString(),
-                        characteristicId = characteristic.uuid.toString(),
-                        value = characteristic.value,
-                    )
-                ) {}
+                operation.onComplete(status, completedValue)
             }
         }
 
@@ -524,7 +564,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             val operation =
                 gattOperationQueue.complete(deviceId, GattOperationKind.WRITE_CHARACTERISTIC) ?: return
             mainThreadHandler.post {
-                operation.onComplete(status)
+                operation.onComplete(status, null)
             }
         }
 
@@ -536,7 +576,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             val operation =
                 gattOperationQueue.complete(gatt.device.address, GattOperationKind.WRITE_DESCRIPTOR) ?: return
             mainThreadHandler.post {
-                operation.onComplete(status)
+                operation.onComplete(status, null)
             }
         }
     }
@@ -971,16 +1011,15 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                     it.setCharacteristicNotification(descriptor.characteristic, enable) &&
                         it.writeDescriptor(descriptor)
                 },
-                onComplete = { status ->
+                onComplete = { status, _ ->
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         callback(Result.success(Unit))
                     } else {
                         callback(
                             Result.failure(
-                                FlutterError(
-                                    "DescriptorWriteFailed",
-                                    "Descriptor write failed for $characteristic with status $status",
-                                    null
+                                gattError(
+                                    "Descriptor write failed for $characteristic",
+                                    status
                                 )
                             )
                         )
@@ -1015,20 +1054,65 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     override fun readValue(
         deviceId: String,
         service: String,
-        characteristic: String
+        characteristic: String,
+        callback: (Result<ByteArray>) -> Unit
     ) {
+        // @async: every terminal GATT path must complete the callback so Dart
+        // never waits indefinitely for a characteristic value event.
         val gatt = knownGatts[deviceId]
-            ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
-        val gattChar = gatt.getKnownCharacteristic(service, characteristic)
+        if (gatt == null) {
+            callback(
+                Result.failure(
+                    FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
+                )
+            )
+            return
+        }
+        val gattChar = try {
+            gatt.getKnownCharacteristic(service, characteristic)
+        } catch (error: FlutterError) {
+            callback(Result.failure(error))
+            return
+        }
         gattOperationQueue.enqueue(
             GattOperation(
                 deviceId = deviceId,
                 kind = GattOperationKind.READ_CHARACTERISTIC,
                 start = { it.readCharacteristic(gattChar) },
+                onComplete = { status, value ->
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
+                        callback(Result.success(value ?: byteArrayOf()))
+                    } else {
+                        callback(
+                            Result.failure(
+                                gattError(
+                                    "Characteristic read failed for $characteristic",
+                                    status
+                                )
+                            )
+                        )
+                    }
+                },
                 onStartFailed = {
-                    Log.e(
-                        "QuickBluePlugin",
-                        "Failed to initiate read from $characteristic"
+                    callback(
+                        Result.failure(
+                            FlutterError(
+                                "ReadFailed",
+                                "Failed to initiate read from $characteristic",
+                                null
+                            )
+                        )
+                    )
+                },
+                onDisconnected = {
+                    callback(
+                        Result.failure(
+                            FlutterError(
+                                "Disconnected",
+                                "Connection lost before the read was acknowledged",
+                                null
+                            )
+                        )
                     )
                 },
             )
@@ -1078,16 +1162,15 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                     gattChar.value = value
                     it.writeCharacteristic(gattChar)
                 },
-                onComplete = { status ->
+                onComplete = { status, _ ->
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         callback(Result.success(Unit))
                     } else {
                         callback(
                             Result.failure(
-                                FlutterError(
-                                    "WriteFailed",
-                                    "Write failed with status $status",
-                                    null
+                                gattError(
+                                    "Characteristic write failed for $characteristic",
+                                    status
                                 )
                             )
                         )
@@ -1590,6 +1673,27 @@ class ScanResultListener : ScanResultsStreamHandler() {
 
     fun onScanError(errorCode: Int) {
         eventSink?.error("ScanError", "Error while scanning", errorCode)
+    }
+
+    fun onEventsDone() {
+        eventSink?.endOfStream()
+        eventSink = null
+    }
+}
+
+class BondStateChangesListener : BondStateChangesStreamHandler() {
+    private var eventSink: PigeonEventSink<PlatformBondStateChange>? = null
+
+    override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformBondStateChange>) {
+        eventSink = sink
+    }
+
+    override fun onCancel(p0: Any?) {
+        eventSink = null
+    }
+
+    fun onBondStateChanged(stateChange: PlatformBondStateChange) {
+        eventSink?.success(stateChange)
     }
 
     fun onEventsDone() {

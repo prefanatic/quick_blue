@@ -2,12 +2,17 @@
 
 ### Fixed
 
+- Complete failed Android characteristic reads with an error instead of leaving
+  Dart waiting indefinitely for a value event.
 - Replay the latest available `bluetoothStateStream` state to every new
   listener and support concurrent Bluetooth state listeners consistently across
   platforms.
 
 ### Added
 
+- Add `QuickBlueGattException` with the raw numeric native GATT status for
+  Android read, write, and notification-configuration failures.
+- Add Android `bondStateStream` events and race-safe `waitForBondState()` APIs.
 - Add Dart-shaped device and characteristic APIs, including `QuickBlue.device`,
   `BluetoothDevice`, and `BluetoothCharacteristic`.
 - Add `BluetoothDevice.discoverGatt()` for resolving characteristics from

@@ -280,6 +280,30 @@ void main() {
     });
   });
 
+  group(BluetoothBondStateChange, () {
+    test('compares by value', () {
+      const first = BluetoothBondStateChange(
+        deviceId: 'device-a',
+        state: BluetoothBondState.bonded,
+        previousState: BluetoothBondState.bonding,
+      );
+      const equivalent = BluetoothBondStateChange(
+        deviceId: 'device-a',
+        state: BluetoothBondState.bonded,
+        previousState: BluetoothBondState.bonding,
+      );
+      const different = BluetoothBondStateChange(
+        deviceId: 'device-b',
+        state: BluetoothBondState.bonded,
+        previousState: BluetoothBondState.bonding,
+      );
+
+      expect(first, equivalent);
+      expect(first.hashCode, equivalent.hashCode);
+      expect(first, isNot(different));
+    });
+  });
+
   group(BluetoothService, () {
     test('defensively copies characteristics', () {
       final characteristics = <String>['characteristic-a'];

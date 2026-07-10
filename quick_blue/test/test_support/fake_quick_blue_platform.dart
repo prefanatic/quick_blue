@@ -10,6 +10,7 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   var disconnectsImmediately = true;
   var emitInitialBluetoothState = false;
   var bluetoothState = BlueBluetoothState.poweredOn;
+  var currentBondState = BluetoothBondState.notBonded;
   var readValueResult = Uint8List(0);
   var discoveredServices = <BluetoothService>[];
   var connectedDeviceIds = <String>[];
@@ -46,6 +47,15 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   void addBluetoothState(BlueBluetoothState state) {
     bluetoothState = state;
     _bluetoothStateController.add(state);
+  }
+
+  void addBondStateChange(
+    String deviceId,
+    BluetoothBondState state, {
+    required BluetoothBondState previousState,
+  }) {
+    currentBondState = state;
+    handleBondStateChanged(deviceId, state, previousState);
   }
 
   @override
@@ -141,7 +151,7 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<BluetoothBondState> bondState(String deviceId) async {
     calls.add('bondState $deviceId');
-    return BluetoothBondState.notBonded;
+    return currentBondState;
   }
 
   @override

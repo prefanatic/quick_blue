@@ -6,6 +6,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 
 - [Scan BLE peripheral](#scan-ble-peripheral)
 - [Use device handles](#use-device-handles)
+- [Observe Android bond state](#observe-android-bond-state)
 - [Discover services and characteristics](#discover-services-and-characteristics)
 - [Transfer characteristic data](#transfer-characteristic-data)
 
@@ -16,6 +17,8 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 | scan/scanResults | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | connectedDevices | ✔️ | ✔️* | ✔️* | ✔️ | ✔️ |
 | connect/disconnect | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| bondState/pair | ✔️ | — | — | — | ✔️ |
+| bondStateStream | ✔️ | — | — | — | — |
 | discoverServices | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | setNotifiable | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | readValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
@@ -105,6 +108,27 @@ The static `connect`, `disconnect`, `discoverServices`, `readValue`,
 `writeValue`, and `setNotifiable` methods delegate through the same handle API.
 They remain available as deprecated compatibility wrappers. Prefer keeping a
 `BluetoothDevice` when doing more than one operation.
+
+## Observe Android bond state
+
+Android exposes live pairing/bonding transitions through each device handle.
+`waitForBondState()` subscribes before reading the current state, so it does not
+miss a transition racing with the snapshot. Calling `pair()` while Android is
+already bonding joins that in-progress operation.
+
+```dart
+final device = QuickBlue.device(deviceId);
+final subscription = device.bondStateStream.listen((event) {
+  print('bond ${event.previousState} -> ${event.state}');
+});
+
+await device.pair();
+await device.waitForBondState(BluetoothBondState.bonded);
+await subscription.cancel();
+```
+
+`bondState()` remains available for a one-time snapshot. App-initiated pairing
+and live bond-state events are not supported on iOS, macOS, or Windows.
 
 ## Discover services and characteristics
 
@@ -226,6 +250,18 @@ await device.writeValue(
   value,
   BleOutputProperty.withResponse,
 );
+```
+
+Android GATT callback failures are exposed as `QuickBlueGattException`. Its
+`status` field is the unmodified numeric status, including vendor-specific
+values, so applications do not need to parse error messages.
+
+```dart
+try {
+  await device.readValue(serviceId, characteristicId);
+} on QuickBlueGattException catch (error) {
+  print('read failed with GATT status ${error.status}');
+}
 ```
 
 The older static read, write, notify, MTU, L2CAP, and service-discovery helpers
