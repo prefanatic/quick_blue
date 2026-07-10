@@ -2,6 +2,8 @@
 
 ### Fixed
 
+- Report failed Darwin connection attempts as disconnected connection events
+  with a failure status.
 - Complete failed Android characteristic reads with an error instead of leaving
   Dart waiting indefinitely for a value event.
 - Replay the latest available `bluetoothStateStream` state to every new
