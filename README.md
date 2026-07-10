@@ -14,15 +14,12 @@ The repository is a Dart workspace:
 
 ## Install
 
-This package is not published on pub.dev yet. Add it from your chosen Git
-source or local checkout:
+Add the app-facing package from pub.dev. Its federated platform packages are
+resolved transitively:
 
 ```yaml
 dependencies:
-  quick_blue:
-    git:
-      url: <repository-url>
-      path: quick_blue
+  quick_blue: ^0.5.0
 ```
 
 Then import it:

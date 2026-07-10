@@ -11,3 +11,15 @@ workspace:
   - quick_blue_linux
   - quick_blue_platform_interface
   - quick_blue_windows
+
+# Keep hosted runtime packages visible at the workspace surface. This mirrors
+# the publishable packages' dependency graph for reliable cold-cache resolves.
+dependencies:
+  async: ^2.13.0
+  bluez: ^0.8.3
+  collection: ^1.19.0
+  convert: ^3.0.0
+  ffi: ^2.1.3
+  logging: ^1.0.2
+  meta: ^1.18.0
+  plugin_platform_interface: ^2.0.0

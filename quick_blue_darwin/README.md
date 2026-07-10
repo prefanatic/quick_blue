@@ -1,15 +1,11 @@
 # quick_blue_darwin
 
-A new flutter plugin project.
+The iOS and macOS implementation of the
+[`quick_blue`](https://pub.dev/packages/quick_blue) federated Flutter plugin.
 
-## Getting Started
+This package is endorsed by `quick_blue`, so applications normally only need
+to depend on `quick_blue`. Flutter selects this implementation automatically on
+iOS and macOS.
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/developing-packages/),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
+See the [QuickBlue repository](https://github.com/prefanatic/quick_blue) for
+usage, platform setup, and development documentation.

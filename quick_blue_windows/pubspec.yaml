@@ -1,6 +1,6 @@
 name: quick_blue_windows
 description: Windows implementation of the quick_blue plugin.
-version: 0.4.0-dev.0
+version: 0.5.0
 homepage: https://github.com/prefanatic/quick_blue
 repository: https://github.com/prefanatic/quick_blue/tree/master/quick_blue_windows
 
@@ -11,9 +11,10 @@ environment:
 resolution: workspace
 
 dependencies:
-  quick_blue_platform_interface: ^0.4.0-dev.0
+  quick_blue_platform_interface: ^0.5.0
   flutter:
     sdk: flutter
+  meta: ^1.18.0
 
 dev_dependencies:
   flutter_test:
