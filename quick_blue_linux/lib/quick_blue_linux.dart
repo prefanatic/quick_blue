@@ -1,21 +1,25 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:bluez/bluez.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 import 'generated_bindings.dart';
 import 'src/l2cap_channel.dart';
 import 'src/native_libraries.dart';
+import 'src/scan_filter.dart';
 
 typedef _BlueZPropertySubscription = StreamSubscription<List<String>>;
 typedef _DevicePropertySubscriptions = Map<String, _BlueZPropertySubscription>;
 typedef _NotificationSubscriptions = Map<String, _DevicePropertySubscriptions>;
 
 class QuickBlueLinux extends QuickBluePlatform {
-  QuickBlueLinux() {
+  QuickBlueLinux() : this.withClient(BlueZClient());
+
+  @visibleForTesting
+  QuickBlueLinux.withClient(this._client) {
     _scanResultController = StreamController<BlueScanResult>.broadcast(
       onListen: _emitKnownScanResults,
     );
@@ -35,9 +39,10 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   bool isInitialized = false;
+  Future<void>? _initialization;
 
   // Platform clients.
-  final BlueZClient _client = BlueZClient();
+  final BlueZClient _client;
   final Logger _logger = Logger('QuickBlueLinux');
   late final Libc _libc = Libc();
   LibBluetooth? _libBluetooth;
@@ -72,33 +77,45 @@ class QuickBlueLinux extends QuickBluePlatform {
   @override
   Stream<BlueScanResult> get scanResultStream => _scanResultController.stream;
 
-  Future<void> _ensureInitialized() async {
-    if (isInitialized) {
-      return;
+  Future<void> _ensureInitialized() {
+    final existing = _initialization;
+    if (existing != null) {
+      return existing;
     }
 
-    await _client.connect();
+    final initialization = _initialize();
+    _initialization = initialization;
+    return initialization;
+  }
 
-    _activeAdapter = _selectPoweredAdapter();
+  Future<void> _initialize() async {
+    try {
+      await _client.connect();
 
-    _deviceAddedSubscription ??= _client.deviceAdded.listen(
-      _onDeviceAdd,
-      onError: (error, stackTrace) {
-        _logger.warning('Device add stream error', error, stackTrace);
-      },
-    );
-    _deviceRemovedSubscription ??= _client.deviceRemoved.listen(
-      _onDeviceRemoved,
-      onError: (error, stackTrace) {
-        _logger.warning('Device remove stream error', error, stackTrace);
-      },
-    );
+      _activeAdapter = _selectPoweredAdapter();
 
-    for (final device in _client.devices) {
-      _devices[device.address] = device;
+      _deviceAddedSubscription ??= _client.deviceAdded.listen(
+        _onDeviceAdd,
+        onError: (Object error, StackTrace stackTrace) {
+          _logger.warning('Device add stream error', error, stackTrace);
+        },
+      );
+      _deviceRemovedSubscription ??= _client.deviceRemoved.listen(
+        _onDeviceRemoved,
+        onError: (Object error, StackTrace stackTrace) {
+          _logger.warning('Device remove stream error', error, stackTrace);
+        },
+      );
+
+      for (final device in _client.devices) {
+        _devices[device.address] = device;
+      }
+
+      isInitialized = true;
+    } catch (_) {
+      _initialization = null;
+      rethrow;
     }
-
-    isInitialized = true;
   }
 
   @override
@@ -284,7 +301,10 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   void _onDeviceRemoved(BlueZDevice device) {
-    unawaited(_clearDeviceState(device.address, removeDevice: true));
+    _observeBackgroundOperation(
+      _clearDeviceState(device.address, removeDevice: true),
+      'Unable to clear removed device ${device.address}',
+    );
   }
 
   void _watchScanDeviceProperties(BlueZDevice device) {
@@ -300,7 +320,7 @@ class QuickBlueLinux extends QuickBluePlatform {
               _emitScanResult(device);
             }
           },
-          onError: (error, stackTrace) {
+          onError: (Object error, StackTrace stackTrace) {
             _logger.warning(
               'Scan property stream error for $deviceId',
               error,
@@ -375,7 +395,7 @@ class QuickBlueLinux extends QuickBluePlatform {
         BlueConnectionState.disconnected,
         BleStatus.success,
       );
-      unawaited(_clearDeviceState(deviceId, removeDevice: false));
+      await _clearDeviceState(deviceId, removeDevice: false);
     }
   }
 
@@ -470,10 +490,13 @@ class QuickBlueLinux extends QuickBluePlatform {
           );
         }
         if (changed.contains('Notifying') && !targetCharacteristic.notifying) {
-          unawaited(_removeNotificationSubscription(device.address, key));
+          _observeBackgroundOperation(
+            _removeNotificationSubscription(device.address, key),
+            'Unable to remove notification subscription for $deviceId',
+          );
         }
       },
-      onError: (error, stackTrace) {
+      onError: (Object error, StackTrace stackTrace) {
         _logger.warning(
           'Notification stream error for $deviceId ($service/$characteristic)',
           error,
@@ -556,16 +579,15 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
-    await _ensureInitialized();
-    final device = _getDeviceOrThrow(deviceId);
-
-    await _ensureConnectedDevice(device);
-    await _waitForServicesResolved(device);
-
-    _logger.fine(
-      'MTU request for $deviceId with expectation $expectedMtu - BlueZ negotiates automatically.',
+    throw QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'requestMtu',
+      deviceId: deviceId,
+      details: expectedMtu,
+      message:
+          'BlueZ negotiates the ATT MTU automatically and does not expose the '
+          'negotiated value through this implementation.',
     );
-    return expectedMtu;
   }
 
   @override
@@ -696,7 +718,7 @@ class QuickBlueLinux extends QuickBluePlatform {
 
     final scanOptions = _activeScanOptions;
     final rssi = _activeScanRssi;
-    if (rssi != null && device.rssi <= rssi) {
+    if (!meetsRssiThreshold(device.rssi, rssi)) {
       return false;
     }
 
@@ -783,12 +805,15 @@ class QuickBlueLinux extends QuickBluePlatform {
               : BlueConnectionState.disconnected;
           _emitConnectionState(deviceId, state, BleStatus.success);
           if (!device.connected) {
-            unawaited(_clearNotificationSubscriptions(deviceId));
+            _observeBackgroundOperation(
+              _clearNotificationSubscriptions(deviceId),
+              'Unable to clear notification subscriptions for $deviceId',
+            );
             _clearResolvedCharacteristics(deviceId);
           }
         }
       },
-      onError: (error, stackTrace) {
+      onError: (Object error, StackTrace stackTrace) {
         _logger.warning(
           'Property stream error for $deviceId',
           error,
@@ -894,7 +919,7 @@ class QuickBlueLinux extends QuickBluePlatform {
           completer.complete();
         }
       },
-      onError: (error, stackTrace) {
+      onError: (Object error, StackTrace stackTrace) {
         if (!completer.isCompleted) {
           completer.completeError(error, stackTrace);
         }
@@ -1080,6 +1105,18 @@ class QuickBlueLinux extends QuickBluePlatform {
     StreamSubscription<T>? subscription,
   ) async {
     await subscription?.cancel();
+  }
+
+  void _observeBackgroundOperation(
+    Future<void> operation,
+    String failureMessage,
+  ) {
+    operation.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        _logger.warning(failureMessage, error, stackTrace);
+      },
+    );
   }
 
   String _characteristicKey(String serviceId, String characteristicId) {

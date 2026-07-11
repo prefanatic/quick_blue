@@ -44,7 +44,7 @@ example app includes working platform manifests and plist entries.
 | `discoverServices` | yes | yes | yes | yes | yes |
 | `readValue` / `writeValue` | yes | yes | yes | yes | yes |
 | `setNotifiable` | yes | yes | yes | yes | yes |
-| `requestMtu` | yes | yes | yes | yes | yes |
+| `requestMtu` | yes | yes | yes | yes | no[3] |
 
 `bluetoothStateStream` emits the latest available Bluetooth state first for each
 listener. Android, iOS, macOS, and Linux then emit live state changes; Windows
@@ -55,6 +55,10 @@ service UUIDs to find system-connected peripherals.
 
 [2] iOS and macOS do not expose app-initiated BLE pairing. CoreBluetooth prompts
 automatically when an encrypted characteristic requires pairing.
+
+[3] BlueZ negotiates ATT MTU automatically, but this implementation cannot
+reliably retrieve the negotiated value and therefore reports the operation as
+unsupported.
 
 ## Example Usage
 
@@ -196,6 +200,8 @@ Use `characteristic.notifications()` when a subscription should own notification
 setup and teardown. Use `characteristic.valueStream` with
 `characteristic.setNotifiable(...)` when callers need to subscribe before
 enabling notifications or manage notification lifetime separately.
+Concurrent `notifications()` listeners for the same characteristic share one
+native subscription; updates are disabled after the final listener cancels.
 
 `ScanFilter.rssi` and common `ScanOptions` fields are applied consistently by
 the Dart lifecycle APIs and mapped to native filters where the platform supports
@@ -214,7 +220,8 @@ them. Omitted common options preserve Quick Blue's existing platform defaults.
 - iOS and macOS use CoreBluetooth. `requestMtu` returns the negotiated MTU
   currently in effect; CoreBluetooth does not let apps request an exact MTU or
   manually start BLE pairing.
-- Linux requires BlueZ.
+- Linux requires BlueZ. BlueZ negotiates ATT MTU automatically, so
+  `requestMtu` is unsupported rather than returning an estimated value.
 - Windows has platform-specific service discovery behavior. App-initiated
   pairing is not currently implemented by this plugin.
 

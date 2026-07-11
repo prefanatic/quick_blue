@@ -23,7 +23,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 | setNotifiable | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | readValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | writeValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| requestMtu | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| requestMtu | ✔️ | ✔️ | ✔️ | ✔️ | — |
 
 `bluetoothStateStream` emits the latest available Bluetooth state first for each
 listener. Android, iOS, macOS, and Linux then emit live state changes; Windows
@@ -235,10 +235,16 @@ This matters for peripherals that reuse a characteristic UUID under multiple
 services.
 
 `notifications()` enables notifications before forwarding values and disables
-them when the subscription is canceled. On Android, GATT operations for a device
+them after the final subscription for that characteristic is canceled.
+Concurrent listeners share one native notification lifecycle. On Android,
+GATT operations for a device
 are serialized and notification setup completes after the client characteristic
 configuration descriptor write is acknowledged; descriptor write failures are
 reported through the returned notification stream error.
+
+Linux relies on BlueZ's automatic ATT MTU negotiation. Because the negotiated
+value is not reliably available through this implementation, `requestMtu`
+reports an unsupported-operation error on Linux.
 
 The device handle also exposes one-off characteristic methods:
 

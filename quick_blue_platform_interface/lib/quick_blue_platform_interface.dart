@@ -1,5 +1,3 @@
-library quick_blue_platform_interface;
-
 export 'models.dart';
 export 'src/bluetooth_characteristic.dart';
 export 'src/bluetooth_device.dart';

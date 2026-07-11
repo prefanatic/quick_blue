@@ -84,7 +84,7 @@ class L2capChannel {
 
     _outgoingSubscription = _outgoingController.stream.listen(
       _enqueueWrite,
-      onError: (error, st) {
+      onError: (Object error, StackTrace st) {
         _logger.warning(
           'Write error on L2CAP channel for $deviceId',
           error,
@@ -356,7 +356,10 @@ class L2capChannel {
     _pendingWrites.add(_PendingFrame(Uint8List.fromList(data)));
     if (!_isWriting) {
       _isWriting = true;
-      unawaited(_drainWriteQueue());
+      _observeBackgroundOperation(
+        _drainWriteQueue(),
+        'Unexpected write queue failure for $deviceId',
+      );
     }
   }
 
@@ -446,11 +449,20 @@ class L2capChannel {
     }
     _closed = true;
     _pollTimer?.cancel();
-    _outgoingSubscription?.cancel();
+    final outgoingSubscription = _outgoingSubscription;
+    if (outgoingSubscription != null) {
+      _observeBackgroundOperation(
+        outgoingSubscription.cancel(),
+        'Unable to cancel outgoing L2CAP subscription for $deviceId',
+      );
+    }
     _cleanup();
     _pendingWrites.clear();
     if (!_outgoingController.isClosed) {
-      unawaited(_outgoingController.close());
+      _observeBackgroundOperation(
+        _outgoingController.close(),
+        'Unable to close outgoing L2CAP stream for $deviceId',
+      );
     }
     if (errorMessage != null) {
       _eventController.add(
@@ -458,7 +470,22 @@ class L2capChannel {
       );
     }
     _eventController.add(BleL2CapSocketEventClosed(deviceId: deviceId));
-    unawaited(_eventController.close());
+    _observeBackgroundOperation(
+      _eventController.close(),
+      'Unable to close L2CAP event stream for $deviceId',
+    );
+  }
+
+  void _observeBackgroundOperation(
+    Future<void> operation,
+    String failureMessage,
+  ) {
+    operation.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        _logger.warning(failureMessage, error, stackTrace);
+      },
+    );
   }
 
   void _cleanup() {

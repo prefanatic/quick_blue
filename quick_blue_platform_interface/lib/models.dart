@@ -45,18 +45,20 @@ class BlueScanResult {
 
   /// Creates a scan result from a platform event map.
   BlueScanResult.fromMap(Map<String, dynamic> map)
-    : name = map['name'],
-      deviceId = map['deviceId'],
+    : name = map['name'] as String,
+      deviceId = map['deviceId'] as String,
       _manufacturerDataHead = _copyBytes(map['manufacturerDataHead']),
       _manufacturerData = _copyBytes(map['manufacturerData']),
-      rssi = map['rssi'],
+      rssi = map['rssi'] as int,
       advertisedDateTime =
           map['advertisedDateTime'] as DateTime? ?? DateTime.now(),
       serviceUuids = List<String>.unmodifiable(
-        map['serviceUuids']?.cast<String>() ?? <String>[],
+        (map['serviceUuids'] as List<dynamic>?)?.cast<String>() ?? <String>[],
       ),
       _serviceData = _copyStringByteMap(
-        map['serviceData']?.cast<String, Uint8List>() ?? <String, Uint8List>{},
+        (map['serviceData'] as Map<dynamic, dynamic>?)
+                ?.cast<String, Uint8List>() ??
+            <String, Uint8List>{},
       );
 
   /// Advertised device name, or an empty string when absent.
@@ -1323,7 +1325,7 @@ class CompanionAssociation {
   });
 
   /// Creates an association from a platform event map.
-  CompanionAssociation.fromMap(Map map)
+  CompanionAssociation.fromMap(Map<Object?, Object?> map)
     : id = map['id'] as int,
       deviceId = map['deviceId'] as String?,
       displayName = map['displayName'] as String?,
@@ -1375,7 +1377,7 @@ class CompanionDevice {
   });
 
   /// Creates a legacy companion device from a platform event map.
-  CompanionDevice.fromMap(Map map)
+  CompanionDevice.fromMap(Map<Object?, Object?> map)
     : id = map['id'] as String,
       name = map['name'] as String,
       associationId = map['associationId'] as int;

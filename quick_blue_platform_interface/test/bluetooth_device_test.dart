@@ -1585,6 +1585,41 @@ void main() {
     expect(platform.calls, <String>['discoverServices device-a']);
   });
 
+  test(
+    'BluetoothDevice.discoverServices coalesces concurrent device requests',
+    () async {
+      final discovery = Completer<void>();
+      final platform = _FakeQuickBluePlatform(
+        discoveredServices: <BluetoothService>[
+          BluetoothService(
+            deviceId: 'device-a',
+            uuid: 'service-a',
+            characteristics: const <String>['characteristic-a'],
+          ),
+        ],
+        discoverServicesCompletion: discovery,
+      );
+      addTearDown(platform.dispose);
+
+      final device = platform.device('device-a');
+      final firstDiscovery = device.discoverServices();
+      final secondDiscovery = device.discoverServices();
+      await pumpEventQueue();
+
+      expect(platform.calls, <String>['discoverServices device-a']);
+
+      discovery.complete();
+      final results = await Future.wait(<Future<List<BluetoothService>>>[
+        firstDiscovery,
+        secondDiscovery,
+      ]);
+
+      expect(results[0].map((service) => service.uuid), <String>['service-a']);
+      expect(results[1].map((service) => service.uuid), <String>['service-a']);
+      expect(results[0], same(results[1]));
+    },
+  );
+
   test('BluetoothDevice.setNotifiable propagates platform errors', () async {
     final error = StateError('notify failed');
     final platform = _FakeQuickBluePlatform(setNotifiableError: error);
@@ -1920,6 +1955,58 @@ void main() {
       expect(cancelCompleted, isTrue);
     },
   );
+
+  test(
+    'BluetoothCharacteristic notifications share native listener ownership',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+
+      final firstValues = <Uint8List>[];
+      final secondValues = <Uint8List>[];
+      final device = platform.device('device-a');
+      final firstCharacteristic = device.characteristic(
+        'service-a',
+        'characteristic-a',
+      );
+      final secondCharacteristic = device.characteristic(
+        'service-a',
+        'characteristic-a',
+      );
+
+      final firstSubscription = firstCharacteristic.notifications().listen(
+        firstValues.add,
+      );
+      final secondSubscription = secondCharacteristic.notifications().listen(
+        secondValues.add,
+      );
+      await pumpEventQueue();
+
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+      ]);
+
+      await firstSubscription.cancel();
+      expect(platform.calls, hasLength(1));
+
+      platform.handleCharacteristicValueChanged(
+        'device-a',
+        'service-a',
+        'characteristic-a',
+        Uint8List.fromList(<int>[1, 2, 3]),
+      );
+      await pumpEventQueue();
+
+      expect(firstValues, isEmpty);
+      expect(secondValues.single, Uint8List.fromList(<int>[1, 2, 3]));
+
+      await secondSubscription.cancel();
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+        'setNotifiable device-a service-a characteristic-a disabled',
+      ]);
+    },
+  );
 }
 
 class _FakeQuickBluePlatform extends QuickBluePlatform {
@@ -1930,6 +2017,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     this.startScanError,
     List<Completer<void>> startScanCompletions = const <Completer<void>>[],
     List<Completer<void>> setNotifiableCompletions = const <Completer<void>>[],
+    this.discoverServicesCompletion,
     this.discoverServicesError,
     this.setNotifiableError,
     this.readValueError,
@@ -1951,6 +2039,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final Object? startScanError;
   final List<Completer<void>> startScanCompletions;
   final List<Completer<void>> setNotifiableCompletions;
+  final Completer<void>? discoverServicesCompletion;
   final Object? discoverServicesError;
   final Object? setNotifiableError;
   final Object? readValueError;
@@ -2090,6 +2179,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     if (error != null) {
       throw error;
     }
+    await discoverServicesCompletion?.future;
     for (final service in discoveredServices) {
       handleServiceDiscovered(
         deviceId,

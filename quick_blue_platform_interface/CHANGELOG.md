@@ -1,5 +1,7 @@
 ## 0.5.0 - 2026-07-10
 
+- Share notification ownership across concurrent characteristic listeners.
+- Coalesce concurrent service discovery for the same device.
 - Add lifecycle-managed scanning, Bluetooth state, device, GATT,
   characteristic, pairing, and companion-association APIs.
 - Add scan filters and options, service data, characteristic metadata, and

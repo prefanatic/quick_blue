@@ -387,6 +387,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
       StreamController<String>.broadcast();
   final _serviceDiscoveryEventController =
       StreamController<ServiceDiscoveryEvent>.broadcast();
+  final _pendingServiceDiscoveries = <String, Future<List<BluetoothService>>>{};
 
   /// Discovered services for all devices.
   ///
@@ -435,6 +436,8 @@ abstract class QuickBluePlatform extends PlatformInterface {
       StreamController<BluetoothCharacteristicValue>.broadcast();
   final _characteristicValueStreams =
       <_CharacteristicValueKey, StreamController<Uint8List>>{};
+  final _activeNotifications = <_CharacteristicValueKey, _ActiveNotification>{};
+  final _notificationLifecycles = <_CharacteristicValueKey, Future<void>>{};
 
   /// Characteristic value updates for all devices.
   Stream<BluetoothCharacteristicValue> get characteristicValueStream {
@@ -469,6 +472,152 @@ abstract class QuickBluePlatform extends PlatformInterface {
     );
     _characteristicValueStreams[key] = controller;
     return controller.stream;
+  }
+
+  /// Enables notifications while the returned stream has listeners.
+  ///
+  /// Streams for the same characteristic share one native notification
+  /// lifecycle. The first listener enables updates and the last listener to
+  /// cancel disables them.
+  Stream<Uint8List> characteristicNotifications(
+    String deviceId,
+    String service,
+    String characteristic, {
+    BleInputProperty bleInputProperty = BleInputProperty.notification,
+  }) {
+    late StreamSubscription<Uint8List> valueSubscription;
+    late Future<void> setUpNotification;
+    var valueSubscriptionCanceled = false;
+    var acquired = false;
+    final controller = StreamController<Uint8List>();
+
+    Future<void> cancelValueSubscription() async {
+      if (valueSubscriptionCanceled) {
+        return;
+      }
+      valueSubscriptionCanceled = true;
+      await valueSubscription.cancel();
+    }
+
+    controller.onListen = () {
+      valueSubscription =
+          characteristicValueStreamFor(
+            deviceId,
+            service,
+            characteristic,
+          ).listen(
+            controller.add,
+            onError: controller.addError,
+            onDone: controller.close,
+          );
+      valueSubscription.pause();
+      setUpNotification = () async {
+        try {
+          await _acquireNotification(
+            deviceId,
+            service,
+            characteristic,
+            bleInputProperty,
+          );
+          acquired = true;
+          valueSubscription.resume();
+        } catch (error, stackTrace) {
+          controller.addError(error, stackTrace);
+          await cancelValueSubscription();
+        }
+      }();
+    };
+
+    controller.onCancel = () async {
+      await setUpNotification;
+      await cancelValueSubscription();
+      if (acquired) {
+        await _releaseNotification(deviceId, service, characteristic);
+      }
+    };
+
+    return controller.stream;
+  }
+
+  Future<void> _acquireNotification(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) {
+    final key = _CharacteristicValueKey.fromParts(
+      deviceId,
+      service,
+      characteristic,
+    );
+    return _queueNotificationLifecycle(key, () async {
+      final active = _activeNotifications[key];
+      if (active != null) {
+        if (active.bleInputProperty != bleInputProperty) {
+          throw QuickBlueException(
+            code: QuickBlueErrorCode.invalidState,
+            operation: 'notifications',
+            deviceId: deviceId,
+            serviceId: service,
+            characteristicId: characteristic,
+            message:
+                'Cannot listen with ${bleInputProperty.value} while '
+                '${active.bleInputProperty.value} is already active.',
+          );
+        }
+        active.listenerCount++;
+        return;
+      }
+
+      await setNotifiable(deviceId, service, characteristic, bleInputProperty);
+      _activeNotifications[key] = _ActiveNotification(bleInputProperty);
+    });
+  }
+
+  Future<void> _releaseNotification(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) {
+    final key = _CharacteristicValueKey.fromParts(
+      deviceId,
+      service,
+      characteristic,
+    );
+    return _queueNotificationLifecycle(key, () async {
+      final active = _activeNotifications[key];
+      if (active == null) {
+        return;
+      }
+      active.listenerCount--;
+      if (active.listenerCount != 0) {
+        return;
+      }
+
+      _activeNotifications.remove(key);
+      await setNotifiable(
+        deviceId,
+        service,
+        characteristic,
+        BleInputProperty.disabled,
+      );
+    });
+  }
+
+  Future<void> _queueNotificationLifecycle(
+    _CharacteristicValueKey key,
+    Future<void> Function() action,
+  ) {
+    final previous = _notificationLifecycles[key] ?? Future<void>.value();
+    final next = previous.then((_) => action());
+    final recovered = next.catchError((Object _) {});
+    _notificationLifecycles[key] = recovered;
+    recovered.then((_) {
+      if (identical(_notificationLifecycles[key], recovered)) {
+        _notificationLifecycles.remove(key);
+      }
+    });
+    return next;
   }
 
   OnValueChanged? _onValueChanged;
@@ -580,9 +729,27 @@ abstract class QuickBluePlatform extends PlatformInterface {
     _serviceDiscoveryCompleteController.add(deviceId);
   }
 
-  Future<List<BluetoothService>> _discoverServicesForDevice(
-    String deviceId,
-  ) async {
+  Future<List<BluetoothService>> _discoverServicesForDevice(String deviceId) {
+    final pending = _pendingServiceDiscoveries[deviceId];
+    if (pending != null) {
+      return pending;
+    }
+
+    late Future<List<BluetoothService>> discovery;
+    discovery = () async {
+      try {
+        return await _runServiceDiscovery(deviceId);
+      } finally {
+        if (identical(_pendingServiceDiscoveries[deviceId], discovery)) {
+          _pendingServiceDiscoveries.remove(deviceId);
+        }
+      }
+    }();
+    _pendingServiceDiscoveries[deviceId] = discovery;
+    return discovery;
+  }
+
+  Future<List<BluetoothService>> _runServiceDiscovery(String deviceId) async {
     final services = <BluetoothService>[];
     final events = StreamQueue(_serviceDiscoveryEvents(deviceId));
 
@@ -749,4 +916,11 @@ class _CharacteristicValueKey {
 
   @override
   int get hashCode => Object.hash(deviceId, service, characteristic);
+}
+
+class _ActiveNotification {
+  _ActiveNotification(this.bleInputProperty);
+
+  final BleInputProperty bleInputProperty;
+  var listenerCount = 1;
 }

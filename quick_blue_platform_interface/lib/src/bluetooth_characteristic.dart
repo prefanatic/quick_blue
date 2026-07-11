@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
@@ -64,48 +63,12 @@ class BluetoothCharacteristic {
   Stream<Uint8List> notifications({
     BleInputProperty bleInputProperty = BleInputProperty.notification,
   }) {
-    late StreamSubscription<Uint8List> valueSubscription;
-    late Future<void> setUpNotification;
-    var valueSubscriptionCanceled = false;
-    var enabled = false;
-    final controller = StreamController<Uint8List>();
-
-    Future<void> cancelValueSubscription() async {
-      if (valueSubscriptionCanceled) {
-        return;
-      }
-      valueSubscriptionCanceled = true;
-      await valueSubscription.cancel();
-    }
-
-    controller.onListen = () {
-      valueSubscription = valueStream.listen(
-        controller.add,
-        onError: controller.addError,
-        onDone: controller.close,
-      );
-      valueSubscription.pause();
-      setUpNotification = () async {
-        try {
-          await setNotifiable(bleInputProperty);
-          enabled = true;
-          valueSubscription.resume();
-        } catch (error, stackTrace) {
-          controller.addError(error, stackTrace);
-          await cancelValueSubscription();
-        }
-      }();
-    };
-
-    controller.onCancel = () async {
-      await setUpNotification;
-      await cancelValueSubscription();
-      if (enabled) {
-        await setNotifiable(BleInputProperty.disabled);
-      }
-    };
-
-    return controller.stream;
+    return _platform.characteristicNotifications(
+      deviceId,
+      serviceId,
+      characteristicId,
+      bleInputProperty: bleInputProperty,
+    );
   }
 
   /// Reads the current characteristic value.

@@ -451,7 +451,7 @@ class _L2capSink implements EventSink<Uint8List> {
   void addError(Object error, [StackTrace? stackTrace]) {}
 
   @override
-  Future close() async {}
+  Future<void> close() async {}
 }
 
 class _FlutterApi extends messages.QuickBlueFlutterApi {

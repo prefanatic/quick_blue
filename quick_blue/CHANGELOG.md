@@ -2,6 +2,13 @@
 
 ### Fixed
 
+- Share native characteristic notification ownership across concurrent Dart
+  listeners and disable updates only after the final listener cancels.
+- Coalesce concurrent service-discovery requests for the same device.
+- Report Linux MTU requests as unsupported instead of returning the requested
+  value as though it had been negotiated.
+- Align Linux RSSI threshold equality with the shared scan filter behavior and
+  make Linux initialization and asynchronous cleanup race-safe.
 - Report failed Darwin connection attempts as disconnected connection events
   with a failure status.
 - Complete failed Android characteristic reads with an error instead of leaving
