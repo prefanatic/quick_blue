@@ -370,14 +370,50 @@ abstract class QuickBluePlatform extends PlatformInterface {
   ///
   /// A second connection operation for the same device is rejected while the
   /// first is pending so failure events cannot be consumed by the wrong call.
-  Future<void> connectDevice(String deviceId) {
+  Future<void> connectDevice(
+    String deviceId, {
+    ConnectionConflictPolicy conflictPolicy = ConnectionConflictPolicy.reject,
+    Duration? conflictTimeout = const Duration(seconds: 30),
+  }) {
     return _runConnectionOperation(
       deviceId: deviceId,
       operationName: 'connect',
       targetState: BlueConnectionState.connected,
       failureMessage: 'Failed to connect to Bluetooth device $deviceId.',
-      operation: () => connect(deviceId),
+      operation: () =>
+          _connectWithConflictPolicy(deviceId, conflictPolicy, conflictTimeout),
     );
+  }
+
+  Future<void> _connectWithConflictPolicy(
+    String deviceId,
+    ConnectionConflictPolicy conflictPolicy,
+    Duration? conflictTimeout,
+  ) async {
+    final stopwatch = Stopwatch()..start();
+    while (true) {
+      try {
+        await connect(deviceId);
+        return;
+      } on QuickBlueException catch (error) {
+        if (error.code != QuickBlueErrorCode.deviceBusy ||
+            conflictPolicy != ConnectionConflictPolicy.wait) {
+          rethrow;
+        }
+        if (conflictTimeout != null && stopwatch.elapsed >= conflictTimeout) {
+          throw QuickBlueException(
+            code: QuickBlueErrorCode.deviceBusy,
+            operation: 'connect',
+            deviceId: deviceId,
+            details: conflictTimeout,
+            message:
+                'Timed out waiting for another Flutter engine to release '
+                'the connection to $deviceId.',
+          );
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    }
   }
 
   /// Disconnects from [deviceId] and waits for the disconnected state event.

@@ -80,6 +80,43 @@ extension CBManagerState {
 }
 
 public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
+    private static let connectionOwnerLock = NSLock()
+    private static var connectionOwners: [String: UUID] = [:]
+
+    private static func claimConnection(_ deviceId: String, owner: UUID) -> Bool {
+        connectionOwnerLock.lock()
+        defer { connectionOwnerLock.unlock() }
+        if let existing = connectionOwners[deviceId], existing != owner {
+            return false
+        }
+        connectionOwners[deviceId] = owner
+        return true
+    }
+
+    private static func ownsConnection(_ deviceId: String, owner: UUID) -> Bool {
+        connectionOwnerLock.lock()
+        defer { connectionOwnerLock.unlock() }
+        return connectionOwners[deviceId] == owner
+    }
+
+    @discardableResult
+    private static func releaseConnection(_ deviceId: String, owner: UUID) -> Bool {
+        connectionOwnerLock.lock()
+        defer { connectionOwnerLock.unlock() }
+        guard connectionOwners[deviceId] == owner else { return false }
+        connectionOwners.removeValue(forKey: deviceId)
+        return true
+    }
+
+    private static func releaseConnections(owner: UUID) {
+        connectionOwnerLock.lock()
+        defer { connectionOwnerLock.unlock() }
+        connectionOwners = connectionOwners.filter { $0.value != owner }
+    }
+
+    private let connectionOwnerId = UUID()
+    private var isAttachedToEngine = true
+
     func getConnectedPeripherals(serviceUuids: [String]) throws -> [Peripheral]
     {
         let peripherals = getManager().retrieveConnectedPeripherals(
@@ -271,8 +308,27 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                     details: nil
                 )
             }
-            // Prevent duplicate connects
-            if peripheral.state == .connected || peripheral.state == .connecting {
+            guard Self.claimConnection(deviceId, owner: connectionOwnerId) else {
+                throw PigeonError(
+                    code: "DeviceBusy",
+                    message: "Another Flutter engine owns the connection to \(deviceId)",
+                    details: nil
+                )
+            }
+            // Prevent duplicate native connects while still completing a Dart
+            // caller that asked for an already-established connection.
+            if peripheral.state == .connected {
+                flutterApi.onConnectionStateChange(
+                    stateChange: PlatformConnectionStateChange(
+                        deviceId: deviceId,
+                        state: PlatformConnectionState.connected,
+                        gattStatus: PlatformGattStatus.success
+                    ),
+                    completion: { _ in }
+                )
+                return
+            }
+            if peripheral.state == .connecting {
                 return
             }
             peripheral.delegate = self
@@ -495,6 +551,9 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                 cleanConnection(peripheral)
             }
         }
+        isAttachedToEngine = false
+        manager = nil
+        Self.releaseConnections(owner: connectionOwnerId)
     }
 
     private func cleanConnection(_ peripheral: CBPeripheral) {
@@ -548,6 +607,15 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
             ?? []
         stateQueue.sync {
             for peripheral in peripherals {
+                if peripheral.state != .disconnected,
+                    !Self.claimConnection(
+                        peripheral.identifier.uuidString,
+                        owner: connectionOwnerId
+                    )
+                {
+                    central.cancelPeripheralConnection(peripheral)
+                    continue
+                }
                 peripheral.delegate = self
                 discoveredPeripherals[peripheral.identifier.uuidString] =
                     peripheral
@@ -555,6 +623,8 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         }
 
         for peripheral in peripherals {
+            guard discoveredPeripherals[peripheral.identifier.uuidString] != nil
+            else { continue }
             let state: PlatformConnectionState?
             switch peripheral.state {
             case .connected:
@@ -641,6 +711,13 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         _ central: CBCentralManager,
         didConnect peripheral: CBPeripheral
     ) {
+        guard Self.ownsConnection(
+            peripheral.identifier.uuidString,
+            owner: connectionOwnerId
+        ), isAttachedToEngine else {
+            central.cancelPeripheralConnection(peripheral)
+            return
+        }
         flutterApi.onConnectionStateChange(
             stateChange: PlatformConnectionStateChange(
                 deviceId: peripheral.identifier.uuidString,
@@ -657,6 +734,10 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         didFailToConnect peripheral: CBPeripheral,
         error: Error?
     ) {
+        guard Self.releaseConnection(
+            peripheral.identifier.uuidString,
+            owner: connectionOwnerId
+        ), isAttachedToEngine else { return }
         flutterApi.onConnectionStateChange(
             stateChange: PlatformConnectionStateChange(
                 deviceId: peripheral.identifier.uuidString,
@@ -672,6 +753,10 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         didDisconnectPeripheral peripheral: CBPeripheral,
         error: Error?
     ) {
+        let shouldEmit = Self.releaseConnection(
+            peripheral.identifier.uuidString,
+            owner: connectionOwnerId
+        ) && isAttachedToEngine
         stateQueue.sync {
             if error != nil {
                 central.cancelPeripheralConnection(peripheral)
@@ -680,15 +765,17 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
                     streamDelegate.close()
                 }
             }
-            flutterApi.onConnectionStateChange(
-                stateChange: PlatformConnectionStateChange(
-                    deviceId: peripheral.identifier.uuidString,
-                    state: PlatformConnectionState.disconnected,
-                    gattStatus: error == nil
-                        ? PlatformGattStatus.success : PlatformGattStatus.failure
-                ),
-                completion: { _ in }
-            )
+            if shouldEmit {
+                flutterApi.onConnectionStateChange(
+                    stateChange: PlatformConnectionStateChange(
+                        deviceId: peripheral.identifier.uuidString,
+                        state: PlatformConnectionState.disconnected,
+                        gattStatus: error == nil
+                            ? PlatformGattStatus.success : PlatformGattStatus.failure
+                    ),
+                    completion: { _ in }
+                )
+            }
         }
 
         failPendingWrites(

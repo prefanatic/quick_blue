@@ -162,6 +162,27 @@ fails before booting Windows and prints the temporary `setfacl` command needed
 for that device. Device node permissions are reset when the adapter is
 replugged.
 
+## Android multi-engine connection test
+
+`android_multi_engine_test.dart` starts a second headless Flutter engine in the
+example process and registers Quick Blue with it. The primary and secondary
+engines attach to the same live GATT connection, issue concurrent service
+discoveries through the shared native operation queue, then the secondary
+engine detaches and the primary verifies that the physical connection remains
+usable.
+
+Run it on a physical Android device against a known connectable peripheral:
+
+```sh
+flutter test integration_test/android_multi_engine_test.dart \
+  -d ANDROID_DEVICE \
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_ID'
+```
+
+Keep the Android display awake and grant Nearby devices/Bluetooth permission to
+the example app. The test fails rather than skipping when Bluetooth or the
+target peripheral is unavailable.
+
 ## BLE characteristic benchmark
 
 The characteristic benchmark is hardware-backed and targets a known high-volume

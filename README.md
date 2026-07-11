@@ -178,6 +178,41 @@ an overlapping operation fails with `QuickBlueErrorCode.invalidState` instead
 of consuming an event intended for the first operation. Different devices can
 still connect concurrently.
 
+### Multiple Flutter engines
+
+Quick Blue coordinates each device connection across Flutter engines in the
+same application process. This covers foreground UI engines, Workmanager
+engines, and engines hosted by an Android foreground service.
+
+On Android, engines share one process-wide native GATT connection. Calling
+`connect()` attaches that engine to the existing connection (or starts it when
+there is none), and connection, discovery, MTU, and notification-value events
+are delivered to every attached engine. GATT operations from all engines are
+serialized through the same native queue. Calling `disconnect()` detaches only
+the calling engine; the physical connection closes after the final engine
+disconnects or detaches. Notification ownership is reference-counted across
+engines so one engine cannot disable another engine's active subscription.
+
+Other platforms currently use exclusive connection ownership. By default, a
+second engine's `connect()` fails with
+`QuickBlueErrorCode.deviceBusy`. For an intentional handoff, disconnect in the
+current owner and let the next engine wait for the lease:
+
+```dart
+await device.connect(
+  conflictPolicy: ConnectionConflictPolicy.wait,
+  conflictTimeout: const Duration(seconds: 20),
+);
+```
+
+On non-Android platforms this is a reconnecting handoff: the old engine
+disconnects and the new engine establishes its own native connection. Dart
+subscriptions and characteristic handles remain engine-local on every
+platform and must be created in each engine. The 30-second default
+`conflictTimeout` bounds only an ownership wait; pass `null` to wait
+indefinitely. Keep a separate operation timeout if the subsequent BLE
+connection itself also needs a deadline.
+
 When you know a characteristic UUID but not its service UUID, discover a
 `BluetoothGatt` snapshot and resolve a service-scoped characteristic handle:
 
@@ -263,6 +298,9 @@ QUICK_BLUE_HIDE_TEST_WINDOW=1 \
 
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
   flutter test integration_test/ble_ui_switch_test.dart -d macos
+
+flutter test integration_test/android_multi_engine_test.dart -d ANDROID_DEVICE \
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_ID'
 ```
 
 These tests need Bluetooth permission, powered-on Bluetooth hardware, and

@@ -225,6 +225,29 @@ void main() {
       );
     });
 
+    test('connect translates native engine ownership conflicts', () async {
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.connect',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (_) async => <Object?>['DeviceBusy', 'owned elsewhere', null],
+      );
+
+      await expectLater(
+        QuickBlueAndroid().connect('device-a'),
+        throwsA(
+          isA<QuickBlueException>()
+              .having(
+                (error) => error.code,
+                'code',
+                QuickBlueErrorCode.deviceBusy,
+              )
+              .having((error) => error.deviceId, 'deviceId', 'device-a'),
+        ),
+      );
+    });
+
     test('read returns native bytes and publishes the value event', () async {
       final expected = Uint8List.fromList(<int>[7, 8, 9]);
       binaryMessenger.setMockDecodedMessageHandler<Object?>(

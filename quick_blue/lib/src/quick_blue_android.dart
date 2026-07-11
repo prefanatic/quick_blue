@@ -70,10 +70,25 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
-  Future<void> connect(String deviceId) {
+  Future<void> connect(String deviceId) async {
     _ensureInitialized();
-
-    return _api.connect(deviceId);
+    try {
+      await _api.connect(deviceId);
+    } on PlatformException catch (error, stackTrace) {
+      if (error.code != 'DeviceBusy') rethrow;
+      Error.throwWithStackTrace(
+        QuickBlueException(
+          code: QuickBlueErrorCode.deviceBusy,
+          operation: 'connect',
+          deviceId: deviceId,
+          message:
+              error.message ??
+              'The shared connection to $deviceId is temporarily unavailable.',
+          details: error.details,
+        ),
+        stackTrace,
+      );
+    }
   }
 
   @override

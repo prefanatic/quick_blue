@@ -645,6 +645,31 @@ void main() {
     );
   });
 
+  test('connect translates native engine ownership conflicts', () async {
+    const channel = BasicMessageChannel<Object?>(
+      connectChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(
+          channel,
+          (_) async => <Object?>['DeviceBusy', 'owned elsewhere', null],
+        );
+
+    await expectLater(
+      QuickBlueDarwin().connect('device-a'),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.deviceBusy,
+            )
+            .having((error) => error.deviceId, 'deviceId', 'device-a'),
+      ),
+    );
+  });
+
   test('flutter API callbacks surface shared event streams', () async {
     const channel = BasicMessageChannel<Object?>(
       isBluetoothAvailableChannelName,

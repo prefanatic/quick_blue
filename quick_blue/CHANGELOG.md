@@ -27,6 +27,14 @@
 
 ### Added
 
+- Share one Android GATT connection across Flutter engines with per-engine
+  attachment lifecycles, multicast native events, serialized GATT operations,
+  and cross-engine notification reference counting.
+- Add a physical-device Android integration test that attaches two Flutter
+  engines to one GATT and verifies concurrent discovery and independent detach.
+- Add process-wide per-device connection ownership across Flutter engines on
+  Android, iOS, macOS, Linux, and Windows, with deterministic `deviceBusy`
+  errors and opt-in bounded waiting for reconnecting handoffs.
 - Add `QuickBlueGattException` with the raw numeric native GATT status for
   Android read, write, and notification-configuration failures.
 - Add Android `bondStateStream` events and race-safe `waitForBondState()` APIs.

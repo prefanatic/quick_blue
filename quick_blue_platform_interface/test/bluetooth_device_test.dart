@@ -1055,6 +1055,73 @@ void main() {
     await connectExpectation;
   });
 
+  test(
+    'BluetoothDevice.connect rejects a connection owned by another engine',
+    () async {
+      final busy = const QuickBlueException(
+        code: QuickBlueErrorCode.deviceBusy,
+        message: 'busy',
+      );
+      final platform = _FakeQuickBluePlatform(connectErrors: <Object>[busy]);
+      addTearDown(platform.dispose);
+
+      await expectLater(
+        platform.device('device-a').connect(),
+        throwsA(same(busy)),
+      );
+      expect(platform.calls, <String>['connect device-a']);
+    },
+  );
+
+  test('BluetoothDevice.connect can wait for an engine handoff', () async {
+    final platform = _FakeQuickBluePlatform(
+      connectErrors: <Object>[
+        const QuickBlueException(
+          code: QuickBlueErrorCode.deviceBusy,
+          message: 'busy',
+        ),
+      ],
+    );
+    addTearDown(platform.dispose);
+
+    await platform
+        .device('device-a')
+        .connect(conflictPolicy: ConnectionConflictPolicy.wait);
+
+    expect(platform.calls, <String>['connect device-a', 'connect device-a']);
+  });
+
+  test('BluetoothDevice.connect bounds the engine handoff wait', () async {
+    final platform = _FakeQuickBluePlatform(
+      connectErrors: <Object>[
+        const QuickBlueException(
+          code: QuickBlueErrorCode.deviceBusy,
+          message: 'busy',
+        ),
+      ],
+    );
+    addTearDown(platform.dispose);
+
+    await expectLater(
+      platform
+          .device('device-a')
+          .connect(
+            conflictPolicy: ConnectionConflictPolicy.wait,
+            conflictTimeout: Duration.zero,
+          ),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.deviceBusy,
+            )
+            .having((error) => error.operation, 'operation', 'connect'),
+      ),
+    );
+    expect(platform.calls, <String>['connect device-a']);
+  });
+
   test('BluetoothDevice.connect ignores other-device failure events', () async {
     final platform = _FakeQuickBluePlatform(connectsImmediately: false);
     addTearDown(platform.dispose);
@@ -2214,10 +2281,12 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     this.currentBondState = BluetoothBondState.notBonded,
     this.connectsImmediately = true,
     this.disconnectsImmediately = true,
+    List<Object> connectErrors = const <Object>[],
   }) : readValueResult = readValueResult ?? Uint8List(0),
        discoveredServices = discoveredServices,
        startScanCompletions = startScanCompletions,
-       setNotifiableCompletions = setNotifiableCompletions;
+       setNotifiableCompletions = setNotifiableCompletions,
+       connectErrors = List<Object>.of(connectErrors);
 
   final StreamController<BlueScanResult> _scanResultController =
       StreamController<BlueScanResult>.broadcast();
@@ -2236,6 +2305,7 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   BluetoothBondState currentBondState;
   final bool connectsImmediately;
   final bool disconnectsImmediately;
+  final List<Object> connectErrors;
   ScanFilter? lastScanFilter;
   ScanOptions? lastScanOptions;
   int _startScanCallCount = 0;
@@ -2304,6 +2374,9 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> connect(String deviceId) async {
     calls.add('connect $deviceId');
+    if (connectErrors.isNotEmpty) {
+      throw connectErrors.removeAt(0);
+    }
     if (connectsImmediately) {
       onConnectionChanged!(
         deviceId,
