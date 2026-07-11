@@ -1,5 +1,8 @@
 ## 0.5.0 - 2026-07-10
 
+- Retain `isInitialized` as a deprecated read-only compatibility getter so
+  callers cannot mutate internal lifecycle state.
+- Add a self-contained strict analyzer configuration.
 - Report MTU requests as unsupported instead of returning an unverified value.
 - Make initialization single-flight and route asynchronous cleanup failures to
   logging handlers.

@@ -108,6 +108,9 @@ The static `connect`, `disconnect`, `discoverServices`, `readValue`,
 `writeValue`, and `setNotifiable` methods delegate through the same handle API.
 They remain available as deprecated compatibility wrappers. Prefer keeping a
 `BluetoothDevice` when doing more than one operation.
+Only one connect or disconnect operation may be pending for a device at a time.
+Overlapping operations fail with `QuickBlueErrorCode.invalidState`; operations
+for different devices remain independent.
 
 ## Observe Android bond state
 

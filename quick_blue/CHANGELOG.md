@@ -2,6 +2,14 @@
 
 ### Fixed
 
+- Reject overlapping connect and disconnect operations for the same device so
+  a native failure event cannot complete the wrong caller.
+- Keep notification and service-discovery coordinators reusable after setup,
+  teardown, or discovery failures.
+- Give every publishable workspace package a self-contained strict analyzer
+  configuration.
+- Make Linux initialization state read-only to callers while retaining the
+  compatibility getter.
 - Share native characteristic notification ownership across concurrent Dart
   listeners and disable updates only after the final listener cancels.
 - Coalesce concurrent service-discovery requests for the same device.

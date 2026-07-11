@@ -173,6 +173,10 @@ if (state != BluetoothBondState.bonded) {
 The static `connect`, `disconnect`, `discoverServices`, `readValue`,
 `writeValue`, and `setNotifiable` methods delegate through the same handle API.
 Prefer keeping a `BluetoothDevice` when doing more than one operation.
+Only one connect or disconnect operation may be pending for a device at a time;
+an overlapping operation fails with `QuickBlueErrorCode.invalidState` instead
+of consuming an event intended for the first operation. Different devices can
+still connect concurrently.
 
 When you know a characteristic UUID but not its service UUID, discover a
 `BluetoothGatt` snapshot and resolve a service-scoped characteristic handle:

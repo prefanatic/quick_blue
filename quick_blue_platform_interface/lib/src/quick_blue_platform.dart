@@ -359,10 +359,88 @@ abstract class QuickBluePlatform extends PlatformInterface {
   final StreamController<BluetoothConnectionStateChange>
   _connectionStateController =
       StreamController<BluetoothConnectionStateChange>.broadcast();
+  final _activeConnectionOperations = <String, String>{};
 
   /// Connection state changes for all devices.
   Stream<BluetoothConnectionStateChange> get connectionStateStream {
     return _connectionStateController.stream;
+  }
+
+  /// Connects to [deviceId] and waits for the connected state event.
+  ///
+  /// A second connection operation for the same device is rejected while the
+  /// first is pending so failure events cannot be consumed by the wrong call.
+  Future<void> connectDevice(String deviceId) {
+    return _runConnectionOperation(
+      deviceId: deviceId,
+      operationName: 'connect',
+      targetState: BlueConnectionState.connected,
+      failureMessage: 'Failed to connect to Bluetooth device $deviceId.',
+      operation: () => connect(deviceId),
+    );
+  }
+
+  /// Disconnects from [deviceId] and waits for the disconnected state event.
+  ///
+  /// A second connection operation for the same device is rejected while the
+  /// first is pending.
+  Future<void> disconnectDevice(String deviceId) {
+    return _runConnectionOperation(
+      deviceId: deviceId,
+      operationName: 'disconnect',
+      targetState: BlueConnectionState.disconnected,
+      failureMessage: 'Failed to disconnect Bluetooth device $deviceId.',
+      operation: () => disconnect(deviceId),
+    );
+  }
+
+  Future<void> _runConnectionOperation({
+    required String deviceId,
+    required String operationName,
+    required BlueConnectionState targetState,
+    required String failureMessage,
+    required Future<void> Function() operation,
+  }) async {
+    final activeOperation = _activeConnectionOperations[deviceId];
+    if (activeOperation != null) {
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.invalidState,
+        operation: operationName,
+        deviceId: deviceId,
+        details: activeOperation,
+        message:
+            'Cannot $operationName Bluetooth device $deviceId while '
+            '$activeOperation is pending.',
+      );
+    }
+    _activeConnectionOperations[deviceId] = operationName;
+
+    final stateEvents = StreamQueue(
+      connectionStateStream.where(
+        (event) =>
+            event.deviceId == deviceId &&
+            (event.status == BleStatus.failure || event.state == targetState),
+      ),
+    );
+
+    try {
+      await operation();
+      final state = await stateEvents.next;
+      if (state.status == BleStatus.failure) {
+        throw QuickBlueException(
+          code: QuickBlueErrorCode.operationFailed,
+          operation: operationName,
+          deviceId: deviceId,
+          details: state.status,
+          message: failureMessage,
+        );
+      }
+    } finally {
+      await stateEvents.cancel();
+      if (_activeConnectionOperations[deviceId] == operationName) {
+        _activeConnectionOperations.remove(deviceId);
+      }
+    }
   }
 
   OnConnectionChanged? _onConnectionChanged;

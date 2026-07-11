@@ -38,8 +38,15 @@ class QuickBlueLinux extends QuickBluePlatform {
     QuickBluePlatform.instance = QuickBlueLinux();
   }
 
-  bool isInitialized = false;
+  var _isInitialized = false;
   Future<void>? _initialization;
+
+  /// Whether the BlueZ client has finished initializing.
+  ///
+  /// This implementation detail is retained as a read-only compatibility
+  /// getter. Applications should use [isBluetoothAvailable] instead.
+  @Deprecated('Use isBluetoothAvailable() instead.')
+  bool get isInitialized => _isInitialized;
 
   // Platform clients.
   final BlueZClient _client;
@@ -111,7 +118,7 @@ class QuickBlueLinux extends QuickBluePlatform {
         _devices[device.address] = device;
       }
 
-      isInitialized = true;
+      _isInitialized = true;
     } catch (_) {
       _initialization = null;
       rethrow;

@@ -62,27 +62,19 @@ class BluetoothDevice {
 
   /// Connects and waits for a connected state event.
   ///
+  /// Throws [QuickBlueException] when another connection operation for this
+  /// device is already pending.
+  ///
   /// Timeouts are left to callers with normal `Future.timeout` composition.
-  Future<void> connect() async {
-    await _runConnectionOperation(
-      operationName: 'connect',
-      targetState: BlueConnectionState.connected,
-      failureMessage: 'Failed to connect to Bluetooth device $deviceId.',
-      operation: () => _platform.connect(deviceId),
-    );
-  }
+  Future<void> connect() => _platform.connectDevice(deviceId);
 
   /// Disconnects and waits for a disconnected state event.
   ///
+  /// Throws [QuickBlueException] when another connection operation for this
+  /// device is already pending.
+  ///
   /// Timeouts are left to callers with normal `Future.timeout` composition.
-  Future<void> disconnect() async {
-    await _runConnectionOperation(
-      operationName: 'disconnect',
-      targetState: BlueConnectionState.disconnected,
-      failureMessage: 'Failed to disconnect Bluetooth device $deviceId.',
-      operation: () => _platform.disconnect(deviceId),
-    );
-  }
+  Future<void> disconnect() => _platform.disconnectDevice(deviceId);
 
   /// Returns the current pairing/bonding state for this device.
   Future<BluetoothBondState> bondState() {
@@ -122,36 +114,6 @@ class BluetoothDevice {
   /// Starts pairing/bonding with this device.
   Future<void> pair() {
     return _platform.pair(deviceId);
-  }
-
-  Future<void> _runConnectionOperation({
-    required String operationName,
-    required BlueConnectionState targetState,
-    required String failureMessage,
-    required Future<void> Function() operation,
-  }) async {
-    final stateEvents = StreamQueue(
-      connectionStateStream.where(
-        (event) =>
-            event.status == BleStatus.failure || event.state == targetState,
-      ),
-    );
-
-    try {
-      await operation();
-      final state = await stateEvents.next;
-      if (state.status == BleStatus.failure) {
-        throw QuickBlueException(
-          code: QuickBlueErrorCode.operationFailed,
-          operation: operationName,
-          deviceId: deviceId,
-          details: state.status,
-          message: failureMessage,
-        );
-      }
-    } finally {
-      await stateEvents.cancel();
-    }
   }
 
   /// Discovers services and characteristics for this device.

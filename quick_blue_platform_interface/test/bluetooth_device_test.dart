@@ -1201,6 +1201,66 @@ void main() {
   );
 
   test(
+    'BluetoothDevice rejects overlapping operations for the same device',
+    () async {
+      final platform = _FakeQuickBluePlatform(connectsImmediately: false);
+      addTearDown(platform.dispose);
+
+      final device = platform.device('device-a');
+      final connect = device.connect();
+      await pumpEventQueue();
+
+      await expectLater(
+        device.disconnect().timeout(const Duration(milliseconds: 100)),
+        throwsA(
+          isA<QuickBlueException>()
+              .having(
+                (error) => error.code,
+                'code',
+                QuickBlueErrorCode.invalidState,
+              )
+              .having((error) => error.operation, 'operation', 'disconnect')
+              .having((error) => error.details, 'details', 'connect'),
+        ),
+      );
+      expect(platform.calls, <String>['connect device-a']);
+
+      platform.onConnectionChanged!(
+        'device-a',
+        BlueConnectionState.connected,
+        BleStatus.success,
+      );
+      await connect;
+    },
+  );
+
+  test(
+    'BluetoothDevice allows concurrent operations for different devices',
+    () async {
+      final platform = _FakeQuickBluePlatform(connectsImmediately: false);
+      addTearDown(platform.dispose);
+
+      final firstConnect = platform.device('device-a').connect();
+      final secondConnect = platform.device('device-b').connect();
+      await pumpEventQueue();
+
+      expect(platform.calls, <String>['connect device-a', 'connect device-b']);
+
+      platform.onConnectionChanged!(
+        'device-a',
+        BlueConnectionState.connected,
+        BleStatus.success,
+      );
+      platform.onConnectionChanged!(
+        'device-b',
+        BlueConnectionState.connected,
+        BleStatus.success,
+      );
+      await Future.wait(<Future<void>>[firstConnect, secondConnect]);
+    },
+  );
+
+  test(
     'BluetoothDevice.discoverServices completes with discovered services',
     () async {
       final platform = _FakeQuickBluePlatform(
@@ -1620,6 +1680,33 @@ void main() {
     },
   );
 
+  test('BluetoothDevice.discoverServices can retry after failure', () async {
+    final error = StateError('discover failed');
+    final platform = _FakeQuickBluePlatform(
+      discoveredServices: <BluetoothService>[
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-a',
+          characteristics: const <String>['characteristic-a'],
+        ),
+      ],
+      discoverServicesError: error,
+    );
+    addTearDown(platform.dispose);
+
+    final device = platform.device('device-a');
+    await expectLater(device.discoverServices(), throwsA(same(error)));
+
+    platform.discoverServicesError = null;
+    final services = await device.discoverServices();
+
+    expect(services.map((service) => service.uuid), <String>['service-a']);
+    expect(platform.calls, <String>[
+      'discoverServices device-a',
+      'discoverServices device-a',
+    ]);
+  });
+
   test('BluetoothDevice.setNotifiable propagates platform errors', () async {
     final error = StateError('notify failed');
     final platform = _FakeQuickBluePlatform(setNotifiableError: error);
@@ -2007,6 +2094,108 @@ void main() {
       ]);
     },
   );
+
+  test(
+    'BluetoothCharacteristic notifications can retry failed setup',
+    () async {
+      final error = StateError('notify failed');
+      final platform = _FakeQuickBluePlatform(setNotifiableError: error);
+      addTearDown(platform.dispose);
+      final characteristic = platform
+          .device('device-a')
+          .characteristic('service-a', 'characteristic-a');
+
+      final errors = <Object>[];
+      final failedSubscription = characteristic.notifications().listen(
+        (_) {},
+        onError: errors.add,
+      );
+      await pumpEventQueue();
+      await failedSubscription.cancel();
+      expect(errors, <Object>[error]);
+
+      platform.setNotifiableError = null;
+      final retrySubscription = characteristic.notifications().listen((_) {});
+      await pumpEventQueue();
+      await retrySubscription.cancel();
+
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+        'setNotifiable device-a service-a characteristic-a notification',
+        'setNotifiable device-a service-a characteristic-a disabled',
+      ]);
+    },
+  );
+
+  test(
+    'BluetoothCharacteristic rejects conflicting notification properties',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+      final characteristic = platform
+          .device('device-a')
+          .characteristic('service-a', 'characteristic-a');
+
+      final notificationSubscription = characteristic.notifications().listen(
+        (_) {},
+      );
+      await pumpEventQueue();
+
+      final errors = <Object>[];
+      final indicationSubscription = characteristic
+          .notifications(bleInputProperty: BleInputProperty.indication)
+          .listen((_) {}, onError: errors.add);
+      await pumpEventQueue();
+      await indicationSubscription.cancel();
+
+      expect(
+        errors.single,
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.invalidState,
+            )
+            .having((error) => error.operation, 'operation', 'notifications'),
+      );
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+      ]);
+
+      await notificationSubscription.cancel();
+      expect(platform.calls.last, contains('disabled'));
+    },
+  );
+
+  test(
+    'BluetoothCharacteristic can re-enable after failed final disable',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+      final characteristic = platform
+          .device('device-a')
+          .characteristic('service-a', 'characteristic-a');
+
+      final subscription = characteristic.notifications().listen((_) {});
+      await pumpEventQueue();
+
+      final disableError = StateError('disable failed');
+      platform.setNotifiableError = disableError;
+      await expectLater(subscription.cancel(), throwsA(same(disableError)));
+
+      platform.setNotifiableError = null;
+      final retrySubscription = characteristic.notifications().listen((_) {});
+      await pumpEventQueue();
+      await retrySubscription.cancel();
+
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+        'setNotifiable device-a service-a characteristic-a disabled',
+        'setNotifiable device-a service-a characteristic-a notification',
+        'setNotifiable device-a service-a characteristic-a disabled',
+      ]);
+    },
+  );
 }
 
 class _FakeQuickBluePlatform extends QuickBluePlatform {
@@ -2040,8 +2229,8 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final List<Completer<void>> startScanCompletions;
   final List<Completer<void>> setNotifiableCompletions;
   final Completer<void>? discoverServicesCompletion;
-  final Object? discoverServicesError;
-  final Object? setNotifiableError;
+  Object? discoverServicesError;
+  Object? setNotifiableError;
   final Object? readValueError;
   final Object? writeValueError;
   BluetoothBondState currentBondState;

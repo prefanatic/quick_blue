@@ -86,7 +86,8 @@ void main() {
       await Future.wait(<Future<bool>>[firstAvailability, secondAvailability]),
       <bool>[false, false],
     );
-    expect(platform.isInitialized, isTrue);
+    expect(await platform.isBluetoothAvailable(), isFalse);
+    expect(client.connectCount, 1);
   });
 }
 
