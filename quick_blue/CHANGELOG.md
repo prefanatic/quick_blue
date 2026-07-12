@@ -2,6 +2,9 @@
 
 ### Added
 
+- Expand iOS multi-engine integration coverage for known-UUID connection,
+  CoreBluetooth host-engine shutdown, concurrent foreground attach, and
+  notification-claim handoff.
 - Share one CoreBluetooth connection across Flutter engines on iOS and macOS,
   including independent engine detach and notification reference counting.
 - Add an iOS integration harness that launches a production-shaped headless
@@ -10,6 +13,10 @@
 
 ### Fixed
 
+- Let Darwin connect directly to a CoreBluetooth-known device UUID without a
+  preceding scan or connected-device lookup.
+- Give a concurrently-starting Darwin engine a handoff opportunity before
+  engine-detach cleanup closes the final shared CoreBluetooth connection.
 - Publish the Darwin plugin instance so Flutter engine destruction invokes its
   native detach lifecycle.
 - Let `disconnect()` cancel and supersede a pending connect, including an

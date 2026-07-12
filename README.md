@@ -196,6 +196,20 @@ Android's native operation queue). Calling `disconnect()` detaches only the
 calling engine; the physical connection closes after the final engine
 disconnects or detaches. Notification ownership is reference-counted across
 engines so one engine cannot disable another engine's active subscription.
+For a foreground handoff, attach the new engine before disconnecting the old
+one. Cancel the old engine's Dart notification subscriptions as part of its
+normal teardown:
+
+```dart
+await foregroundDevice.connect();
+await backgroundNotifications.cancel();
+await backgroundDevice.disconnect();
+```
+
+This does not require the old Flutter engine to terminate. On Darwin, a stable
+CoreBluetooth device UUID can be passed directly to `QuickBlue.device(id)` and
+connected without a preceding scan or `connectedDevices()` lookup, provided
+CoreBluetooth already knows that peripheral.
 
 Linux and Windows currently use exclusive connection ownership. By default, a
 second engine's `connect()` fails with
@@ -307,7 +321,9 @@ flutter test integration_test/android_multi_engine_test.dart -d ANDROID_DEVICE \
   --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_ID'
 
 flutter test integration_test/ios_multi_engine_test.dart -d IOS_DEVICE \
-  --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_UUID'
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_UUID' \
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_SERVICE_UUID='SERVICE_UUID' \
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_CHARACTERISTIC_UUID='CHARACTERISTIC_UUID'
 ```
 
 These tests need Bluetooth permission, powered-on Bluetooth hardware, and

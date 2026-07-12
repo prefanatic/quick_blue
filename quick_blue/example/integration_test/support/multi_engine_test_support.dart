@@ -30,19 +30,19 @@ Future<void> runMultiEngineConnectionScenario({
   try {
     await startSecondaryEngine();
     secondaryStarted = true;
-    await _callWorker<void>('connect', deviceId);
+    await callMultiEngineWorker<void>('connect', deviceId);
 
     await _expectConcurrentDiscovery(primaryDevice, deviceId);
 
     // An explicit secondary disconnect must leave the primary attached.
-    await _callWorker<void>('disconnect', deviceId);
+    await callMultiEngineWorker<void>('disconnect', deviceId);
     await _expectPrimaryConnectionUsable(primaryDevice);
 
     // Reattach, then destroy the engine without an explicit disconnect. This
     // matches background-task and foreground-service engine shutdown.
-    await _callWorker<void>('connect', deviceId);
+    await callMultiEngineWorker<void>('connect', deviceId);
     expect(
-      await _callWorker<int>('discoverServices', deviceId),
+      await callMultiEngineWorker<int>('discoverServices', deviceId),
       greaterThan(0),
     );
     await stopSecondaryEngine();
@@ -78,7 +78,7 @@ Future<void> _expectConcurrentDiscovery(
 ) async {
   final discoveries = await Future.wait<Object?>([
     primaryDevice.discoverServices().timeout(const Duration(seconds: 15)),
-    _callWorker<int>('discoverServices', deviceId),
+    callMultiEngineWorker<int>('discoverServices', deviceId),
   ]);
   expect(discoveries[0] as List<BluetoothService>, isNotEmpty);
   expect(discoveries[1] as int?, greaterThan(0));
@@ -102,11 +102,15 @@ Future<bool> _waitForBluetooth() async {
   return false;
 }
 
-Future<T?> _callWorker<T>(String method, String deviceId) {
+Future<T?> callMultiEngineWorker<T>(
+  String method,
+  String deviceId, {
+  Map<String, Object?> arguments = const <String, Object?>{},
+}) {
   return _controlChannel
       .invokeMethod<T>('callSecondary', {
         'method': method,
-        'arguments': {'deviceId': deviceId},
+        'arguments': <String, Object?>{'deviceId': deviceId, ...arguments},
       })
       .timeout(const Duration(seconds: 20));
 }

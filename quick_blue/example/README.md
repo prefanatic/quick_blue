@@ -171,7 +171,9 @@ and foreground-task plugins. The primary and secondary engines attach to the
 same live native connection, issue concurrent service discoveries, then the
 secondary explicitly disconnects and reattaches. Finally, the secondary engine
 stops while attached, and the primary verifies after both detach paths that the
-connection remains usable.
+connection remains usable. The iOS suite also verifies direct connection by a
+known CoreBluetooth UUID, host-engine shutdown, concurrent foreground attach
+during shutdown, and notification-claim handoff.
 
 Run them on a physical device against a known connectable peripheral:
 
@@ -182,8 +184,13 @@ flutter test integration_test/android_multi_engine_test.dart \
 
 flutter test integration_test/ios_multi_engine_test.dart \
   -d IOS_DEVICE \
-  --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_UUID'
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_UUID' \
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_SERVICE_UUID='SERVICE_UUID' \
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_CHARACTERISTIC_UUID='CHARACTERISTIC_UUID'
 ```
+
+The service and characteristic UUID defines are required by the notification
+handoff case and must identify a characteristic that supports notifications.
 
 Keep the device awake and grant Bluetooth permission to the example app. The
 tests fail rather than skipping when Bluetooth or the target peripheral is

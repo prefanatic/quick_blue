@@ -158,7 +158,8 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private static func detachConnection(
         _ deviceId: String,
         client: QuickBlueDarwinPlugin,
-        preserveFinalClient: Bool
+        preserveFinalClient: Bool,
+        preserveEmptyConnection: Bool = false
     ) -> DetachPlan? {
         connectionLock.lock()
         defer { connectionLock.unlock() }
@@ -192,7 +193,11 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
 
         connection.clients.removeValue(forKey: clientId)
         if connection.clients.isEmpty {
-            connections.removeValue(forKey: deviceId)
+            if preserveEmptyConnection {
+                connections[deviceId] = connection
+            } else {
+                connections.removeValue(forKey: deviceId)
+            }
         } else {
             connections[deviceId] = connection
         }
@@ -201,6 +206,22 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             shouldDisconnect: connection.clients.isEmpty,
             notificationsToDisable: notificationsToDisable
         )
+    }
+
+    /// Removes an engine-detach grace entry if no new engine attached before
+    /// deferred physical cleanup runs.
+    private static func takeUnclaimedConnection(
+        _ deviceId: String,
+        host: QuickBlueDarwinPlugin
+    ) -> Bool {
+        connectionLock.lock()
+        defer { connectionLock.unlock() }
+        guard let connection = connections[deviceId],
+            connection.host === host,
+            connection.clients.isEmpty
+        else { return false }
+        connections.removeValue(forKey: deviceId)
+        return true
     }
 
     private static func updateNotificationClaim(
@@ -470,6 +491,19 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         return manager
     }
 
+    /// Resolves a stable CoreBluetooth identifier without requiring this
+    /// engine to scan or call getConnectedPeripherals first.
+    private func retrieveKnownPeripheral(_ deviceId: String) -> CBPeripheral? {
+        guard let identifier = UUID(uuidString: deviceId) else { return nil }
+        guard
+            let peripheral = getManager().retrievePeripherals(
+                withIdentifiers: [identifier]
+            ).first
+        else { return nil }
+        discoveredPeripherals[deviceId] = peripheral
+        return peripheral
+    }
+
     func isBluetoothAvailable() throws -> Bool {
         return getManager().state == .poweredOn
     }
@@ -537,7 +571,13 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         try stateQueue.sync {
             let attachment = Self.attachConnection(deviceId, client: self)
             let host = attachment.host
-            let sharedPeripheral = host.discoveredPeripherals[deviceId]
+            // Existing shared connections always resolve through their host.
+            // A new host may recover a stable CoreBluetooth UUID directly so
+            // callers do not need a racy connected-device lookup first.
+            let sharedPeripheral =
+                host.discoveredPeripherals[deviceId]
+                ?? (attachment.isNew
+                    ? host.retrieveKnownPeripheral(deviceId) : nil)
             guard let sharedPeripheral = sharedPeripheral else {
                 _ = Self.detachConnection(
                     deviceId,
@@ -546,7 +586,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                 )
                 throw PigeonError(
                     code: "IllegalArgument",
-                    message: "Unknown shared deviceId:\(deviceId)",
+                    message: "Unknown deviceId:\(deviceId)",
                     details: nil
                 )
             }
@@ -779,7 +819,8 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                 let plan = Self.detachConnection(
                     deviceId,
                     client: self,
-                    preserveFinalClient: false
+                    preserveFinalClient: false,
+                    preserveEmptyConnection: true
                 )
             else { continue }
             do {
@@ -790,9 +831,24 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                 )
             }
             if plan.shouldDisconnect {
-                plan.host.stateQueue.sync {
-                    if let peripheral = plan.host.discoveredPeripherals[deviceId] {
-                        plan.host.cleanConnection(peripheral)
+                // Give a concurrently-starting foreground engine one main-loop
+                // turn to attach to the existing CoreBluetooth host. If it
+                // does, attachConnection adds the new client and this cleanup
+                // becomes a no-op.
+                DispatchQueue.main.async {
+                    guard
+                        Self.takeUnclaimedConnection(
+                            deviceId,
+                            host: plan.host
+                        )
+                    else { return }
+                    plan.host.stateQueue.sync {
+                        if let peripheral = plan.host.discoveredPeripherals[deviceId] {
+                            plan.host.cleanConnection(peripheral)
+                        }
+                    }
+                    if !Self.isHostingConnections(plan.host) {
+                        plan.host.manager = nil
                     }
                 }
             }

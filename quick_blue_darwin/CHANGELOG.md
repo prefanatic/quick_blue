@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Resolve CoreBluetooth-known device UUIDs during connect so a new engine does
+  not need to scan or query connected peripherals before attaching.
+- Defer final engine-detach cleanup by one main-queue turn so a concurrently
+  starting engine can attach to the existing CoreBluetooth host.
 - Share one CoreBluetooth connection across Flutter engines, multicast native
   connection and GATT events, and keep the physical connection alive until the
   final engine detaches.
