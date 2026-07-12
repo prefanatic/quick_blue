@@ -162,26 +162,35 @@ fails before booting Windows and prints the temporary `setfacl` command needed
 for that device. Device node permissions are reset when the adapter is
 replugged.
 
-## Android multi-engine connection test
+## Android and iOS multi-engine connection tests
 
-`android_multi_engine_test.dart` starts a second headless Flutter engine in the
-example process and registers Quick Blue with it. The primary and secondary
-engines attach to the same live GATT connection, issue concurrent service
-discoveries through the shared native operation queue, then the secondary
-engine detaches and the primary verifies that the physical connection remains
-usable.
+The multi-engine tests start a second headless Flutter engine in the example
+process and register Quick Blue with it. Android uses a Dart callback executor;
+iOS uses `FlutterEngine.run(withEntrypoint:libraryURI:)`, matching Workmanager
+and foreground-task plugins. The primary and secondary engines attach to the
+same live native connection, issue concurrent service discoveries, then the
+secondary explicitly disconnects and reattaches. Finally, the secondary engine
+stops while attached, and the primary verifies after both detach paths that the
+connection remains usable.
 
-Run it on a physical Android device against a known connectable peripheral:
+Run them on a physical device against a known connectable peripheral:
 
 ```sh
 flutter test integration_test/android_multi_engine_test.dart \
   -d ANDROID_DEVICE \
   --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_ID'
+
+flutter test integration_test/ios_multi_engine_test.dart \
+  -d IOS_DEVICE \
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_UUID'
 ```
 
-Keep the Android display awake and grant Nearby devices/Bluetooth permission to
-the example app. The test fails rather than skipping when Bluetooth or the
-target peripheral is unavailable.
+Keep the device awake and grant Bluetooth permission to the example app. The
+tests fail rather than skipping when Bluetooth or the target peripheral is
+unavailable. The first iOS test case only validates headless-engine startup and
+can run on a simulator by selecting the test named “iOS starts and stops a
+headless secondary Flutter engine”; shared BLE verification requires a physical
+device.
 
 ## BLE characteristic benchmark
 

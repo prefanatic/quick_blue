@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:ui';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:quick_blue/quick_blue.dart';
@@ -7,11 +10,14 @@ const _workerChannel = MethodChannel('quick_blue.example/multi_engine_worker');
 /// Reference used by the integration-test root to retain this Dart library.
 Function get multiEngineWorkerEntrypointReference => multiEngineWorkerMain;
 
-/// Secondary Flutter-engine entrypoint for Android multi-engine testing.
+/// Secondary Flutter-engine entrypoint for Android and iOS multi-engine tests.
 @pragma('vm:entry-point')
 Future<void> multiEngineWorkerMain() async {
   WidgetsFlutterBinding.ensureInitialized();
-  QuickBlueAndroid.registerWith();
+  DartPluginRegistrant.ensureInitialized();
+  if (Platform.isAndroid) {
+    QuickBlueAndroid.registerWith();
+  }
   _workerChannel.setMethodCallHandler((call) async {
     final arguments = (call.arguments as Map<Object?, Object?>?) ?? const {};
     final deviceId = arguments['deviceId'] as String;
@@ -34,5 +40,20 @@ Future<void> multiEngineWorkerMain() async {
         );
     }
   });
-  await _workerChannel.invokeMethod<void>('ready');
+  await _signalReady();
+}
+
+Future<void> _signalReady() async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  do {
+    try {
+      await _workerChannel.invokeMethod<void>('ready');
+      return;
+    } on MissingPluginException {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+  } while (DateTime.now().isBefore(deadline));
+  throw StateError(
+    'The native multi-engine worker channel was not registered.',
+  );
 }

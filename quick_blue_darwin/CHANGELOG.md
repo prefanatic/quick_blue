@@ -1,3 +1,11 @@
+## Unreleased
+
+- Share one CoreBluetooth connection across Flutter engines, multicast native
+  connection and GATT events, and keep the physical connection alive until the
+  final engine detaches.
+- Publish each plugin instance so headless Flutter engine destruction releases
+  its native connection attachment.
+
 ## 0.5.0 - 2026-07-10
 
 - Add the shared iOS and macOS federated implementation.

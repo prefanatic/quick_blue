@@ -1,7 +1,17 @@
 ## Unreleased
 
+### Added
+
+- Share one CoreBluetooth connection across Flutter engines on iOS and macOS,
+  including independent engine detach and notification reference counting.
+- Add an iOS integration harness that launches a production-shaped headless
+  Flutter engine, and align Android and iOS coverage for shared discovery,
+  explicit disconnect, reattachment, and engine detach.
+
 ### Fixed
 
+- Publish the Darwin plugin instance so Flutter engine destruction invokes its
+  native detach lifecycle.
 - Let `disconnect()` cancel and supersede a pending connect, including an
   ownership-wait retry loop, so caller-side connect timeouts can cleanly
   disconnect and retry.

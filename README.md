@@ -187,16 +187,17 @@ Quick Blue coordinates each device connection across Flutter engines in the
 same application process. This covers foreground UI engines, Workmanager
 engines, and engines hosted by an Android foreground service.
 
-On Android, engines share one process-wide native GATT connection. Calling
-`connect()` attaches that engine to the existing connection (or starts it when
-there is none), and connection, discovery, MTU, and notification-value events
-are delivered to every attached engine. GATT operations from all engines are
-serialized through the same native queue. Calling `disconnect()` detaches only
-the calling engine; the physical connection closes after the final engine
+On Android and Darwin, engines share one process-wide native GATT connection.
+Calling `connect()` attaches that engine to the existing connection (or starts
+it when there is none), and connection, discovery, MTU, and notification-value
+events are delivered to every attached engine. GATT operations from all engines
+are sent through that shared native connection (and serialized through
+Android's native operation queue). Calling `disconnect()` detaches only the
+calling engine; the physical connection closes after the final engine
 disconnects or detaches. Notification ownership is reference-counted across
 engines so one engine cannot disable another engine's active subscription.
 
-Other platforms currently use exclusive connection ownership. By default, a
+Linux and Windows currently use exclusive connection ownership. By default, a
 second engine's `connect()` fails with
 `QuickBlueErrorCode.deviceBusy`. For an intentional handoff, disconnect in the
 current owner and let the next engine wait for the lease:
@@ -208,7 +209,7 @@ await device.connect(
 );
 ```
 
-On non-Android platforms this is a reconnecting handoff: the old engine
+On Linux and Windows this is a reconnecting handoff: the old engine
 disconnects and the new engine establishes its own native connection. Dart
 subscriptions and characteristic handles remain engine-local on every
 platform and must be created in each engine. The 30-second default
@@ -304,6 +305,9 @@ QUICK_BLUE_HIDE_TEST_WINDOW=1 \
 
 flutter test integration_test/android_multi_engine_test.dart -d ANDROID_DEVICE \
   --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_ID'
+
+flutter test integration_test/ios_multi_engine_test.dart -d IOS_DEVICE \
+  --dart-define=QUICK_BLUE_MULTI_ENGINE_DEVICE_ID='DEVICE_UUID'
 ```
 
 These tests need Bluetooth permission, powered-on Bluetooth hardware, and
