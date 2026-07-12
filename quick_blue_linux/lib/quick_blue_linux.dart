@@ -11,19 +11,15 @@ import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
 
 import 'generated_bindings.dart';
 import 'src/l2cap_channel.dart';
+import 'src/connection_ownership.dart';
 import 'src/native_libraries.dart';
 import 'src/scan_filter.dart';
+
+export 'src/connection_ownership.dart' show QuickBlueLinuxConnectionLease;
 
 typedef _BlueZPropertySubscription = StreamSubscription<List<String>>;
 typedef _DevicePropertySubscriptions = Map<String, _BlueZPropertySubscription>;
 typedef _NotificationSubscriptions = Map<String, _DevicePropertySubscriptions>;
-
-/// Process-wide connection ownership used by the Linux implementation.
-@visibleForTesting
-abstract interface class QuickBlueLinuxConnectionLease {
-  Future<bool> claim(String deviceId);
-  Future<void> release(String deviceId);
-}
 
 class _DbusConnectionLease implements QuickBlueLinuxConnectionLease {
   final DBusClient _client = DBusClient.system(introspectable: false);
@@ -60,7 +56,9 @@ class QuickBlueLinux extends QuickBluePlatform {
   QuickBlueLinux.withClient(
     this._client, {
     QuickBlueLinuxConnectionLease? connectionLease,
-  }) : _connectionLease = connectionLease ?? _DbusConnectionLease() {
+  }) : _connectionOwnership = ConnectionOwnership(
+         connectionLease ?? _DbusConnectionLease(),
+       ) {
     _scanResultController = StreamController<BlueScanResult>.broadcast(
       onListen: _emitKnownScanResults,
     );
@@ -91,7 +89,7 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   // Platform clients.
   final BlueZClient _client;
-  final QuickBlueLinuxConnectionLease _connectionLease;
+  final ConnectionOwnership _connectionOwnership;
   final Logger _logger = Logger('QuickBlueLinux');
   late final Libc _libc = Libc();
   LibBluetooth? _libBluetooth;
@@ -408,7 +406,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     await _ensureInitialized();
     final device = _getDeviceOrThrow(deviceId);
 
-    if (!await _connectionLease.claim(deviceId)) {
+    if (!await _connectionOwnership.claim(deviceId)) {
       throw QuickBlueException(
         code: QuickBlueErrorCode.deviceBusy,
         operation: 'connect',
@@ -426,7 +424,7 @@ class QuickBlueLinux extends QuickBluePlatform {
       );
     } on Object catch (error, stackTrace) {
       try {
-        await _connectionLease.release(deviceId);
+        await _connectionOwnership.release(deviceId);
       } on Object catch (releaseError, releaseStackTrace) {
         _logger.warning(
           'Failed to release the connection lease for $deviceId',
@@ -447,6 +445,15 @@ class QuickBlueLinux extends QuickBluePlatform {
   @override
   Future<void> disconnect(String deviceId) async {
     await _ensureInitialized();
+    if (!_connectionOwnership.owns(deviceId)) {
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.deviceBusy,
+        operation: 'disconnect',
+        deviceId: deviceId,
+        message:
+            'This Flutter engine does not own the connection to $deviceId.',
+      );
+    }
     final device = _getDeviceOrThrow(deviceId);
 
     try {
@@ -465,7 +472,7 @@ class QuickBlueLinux extends QuickBluePlatform {
       );
       await _clearDeviceState(deviceId, removeDevice: false);
     } finally {
-      await _connectionLease.release(deviceId);
+      await _connectionOwnership.release(deviceId);
     }
   }
 
@@ -875,6 +882,10 @@ class QuickBlueLinux extends QuickBluePlatform {
               : BlueConnectionState.disconnected;
           _emitConnectionState(deviceId, state, BleStatus.success);
           if (!device.connected) {
+            _observeBackgroundOperation(
+              _connectionOwnership.release(deviceId),
+              'Unable to release the connection lease for $deviceId',
+            );
             _observeBackgroundOperation(
               _clearNotificationSubscriptions(deviceId),
               'Unable to clear notification subscriptions for $deviceId',

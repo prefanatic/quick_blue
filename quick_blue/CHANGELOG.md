@@ -17,10 +17,15 @@
   value as though it had been negotiated.
 - Align Linux RSSI threshold equality with the shared scan filter behavior and
   make Linux initialization and asynchronous cleanup race-safe.
+- Prevent a non-owning Linux Flutter engine from disconnecting another engine's
+  BlueZ connection, and release ownership after unexpected disconnects.
 - Report failed Darwin connection attempts as disconnected connection events
   with a failure status.
 - Complete failed Android characteristic reads with an error instead of leaving
   Dart waiting indefinitely for a value event.
+- Snapshot and route queued Android discovery and MTU results to the requesting
+  Flutter engine so concurrent engines cannot clear or consume each other's
+  results.
 - Replay the latest available `bluetoothStateStream` state to every new
   listener and support concurrent Bluetooth state listeners consistently across
   platforms.

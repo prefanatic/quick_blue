@@ -37,7 +37,6 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
@@ -98,41 +97,7 @@ private fun gattError(message: String, status: Int): FlutterError {
 /** QuickBluePlugin */
 @SuppressLint("MissingPermission")
 class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
-    ActivityAware, QuickBlueApi {
-
-    companion object {
-        private val gattLock = Any()
-        private val knownGatts = mutableMapOf<String, BluetoothGatt>()
-        private val connectionStates = mutableMapOf<String, Int>()
-        private val connectionClients = ConnectionClientSet<QuickBluePlugin>()
-        private val notificationClaims =
-            mutableMapOf<NotificationKey, MutableMap<QuickBluePlugin, PlatformBleInputProperty>>()
-        private val gattOperationQueue = GattOperationQueue()
-
-        private fun clientsFor(deviceId: String): List<QuickBluePlugin> =
-            synchronized(gattLock) {
-                connectionClients.clients(deviceId)
-            }
-
-        private fun removeNotificationClaims(
-            plugin: QuickBluePlugin,
-            deviceId: String? = null,
-        ): List<NotificationKey> = synchronized(gattLock) {
-            val unclaimedKeys = mutableListOf<NotificationKey>()
-            val keys = notificationClaims.keys.filter { key ->
-                (deviceId == null || key.deviceId == deviceId) &&
-                    notificationClaims[key]?.containsKey(plugin) == true
-            }
-            keys.forEach { key ->
-                notificationClaims[key]?.remove(plugin)
-                if (notificationClaims[key].isNullOrEmpty()) {
-                    notificationClaims.remove(key)
-                    unclaimedKeys.add(key)
-                }
-            }
-            unclaimedKeys
-        }
-    }
+    ActivityAware, QuickBlueApi, AndroidGattClient {
 
     private val scanResultListener = ScanResultListener()
     private val mtuChangedListener = MtuChangedListener()
@@ -176,31 +141,12 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
         isAttachedToEngine = false
 
-        val gattsToClose = mutableListOf<BluetoothGatt>()
-        val unclaimedNotifications = synchronized(gattLock) {
-            connectionClients.deviceIdsFor(this).forEach { deviceId ->
-                if (connectionClients.detach(deviceId, this)) {
-                    gattOperationQueue.failPending(deviceId)
-                    connectionStates.remove(deviceId)
-                    knownGatts.remove(deviceId)?.let(gattsToClose::add)
-                }
-            }
-            removeNotificationClaims(this)
-        }
+        val unclaimedNotifications = AndroidGattBroker.detach(this)
         disableUnclaimedNotifications(unclaimedNotifications)
 
         executor.execute {
             streamDelegates.values.forEach(L2CapStreamDelegate::close)
             streamDelegates.clear()
-            gattsToClose.forEach { gatt ->
-                try {
-                    gatt.disconnect()
-                    gatt.close()
-                    Log.d("QuickBluePlugin", "Closed GATT for ${gatt.device.address}")
-                } catch (e: Exception) {
-                    Log.e("QuickBluePlugin", "Error closing GATT", e)
-                }
-            }
         }
 
         QuickBlueApi.setUp(binding.binaryMessenger, null)
@@ -254,6 +200,8 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private var quickBlueFlutterApi: QuickBlueFlutterApi? = null
     @Volatile
     private var isAttachedToEngine = false
+    override val isGattClientAttached: Boolean
+        get() = isAttachedToEngine
     private var activeScanRssi: Long? = null
 
     private var activity: Activity? = null
@@ -263,120 +211,6 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private val bondLock = Any()
     private val pendingPairCallbacks =
         mutableMapOf<String, MutableList<(Result<Unit>) -> Unit>>()
-
-    private enum class GattOperationKind {
-        DISCOVER_SERVICES,
-        READ_CHARACTERISTIC,
-        WRITE_CHARACTERISTIC,
-        WRITE_DESCRIPTOR,
-        REQUEST_MTU,
-    }
-
-    private data class NotificationKey(
-        val deviceId: String,
-        val serviceId: String,
-        val characteristicId: String,
-    )
-
-    private class GattOperation(
-        val deviceId: String,
-        val kind: GattOperationKind,
-        val client: QuickBluePlugin? = null,
-        val start: (BluetoothGatt) -> Boolean,
-        val onComplete: (Int, ByteArray?) -> Unit = { _, _ -> },
-        val onStartFailed: () -> Unit = {},
-        val onDisconnected: () -> Unit = {},
-    ) {
-        fun canDeliver(): Boolean = client?.isAttachedToEngine != false
-    }
-
-    // Android BluetoothGatt accepts one asynchronous operation at a time per connection.
-    private class GattOperationQueue {
-        private val mainThreadHandler = Handler(Looper.getMainLooper())
-        private val queues = mutableMapOf<String, ArrayDeque<GattOperation>>()
-        private val active = mutableMapOf<String, GattOperation>()
-        private val lock = Any()
-
-        fun enqueue(operation: GattOperation) {
-            synchronized(lock) {
-                queues.getOrPut(operation.deviceId) { ArrayDeque() }
-                    .addLast(operation)
-            }
-            startNext(operation.deviceId)
-        }
-
-        fun complete(
-            deviceId: String,
-            kind: GattOperationKind,
-        ): GattOperation? {
-            val completed = synchronized(lock) {
-                val operation = active[deviceId]
-                if (operation?.kind != kind) {
-                    return null
-                }
-                active.remove(deviceId)
-                operation
-            }
-            startNext(deviceId)
-            return completed
-        }
-
-        /** Fails every queued operation still awaiting acknowledgement for [deviceId]. */
-        fun failPending(deviceId: String) {
-            val operations = synchronized(lock) {
-                val pending = mutableListOf<GattOperation>()
-                active.remove(deviceId)?.let { pending.add(it) }
-                queues.remove(deviceId)?.let { pending.addAll(it) }
-                pending
-            }
-            if (operations.isEmpty()) return
-            mainThreadHandler.post {
-                operations.filter(GattOperation::canDeliver).forEach { it.onDisconnected() }
-            }
-        }
-
-        private fun startNext(deviceId: String) {
-            val operation = synchronized(lock) {
-                if (active.containsKey(deviceId)) {
-                    return
-                }
-                val queue = queues[deviceId] ?: return
-                val next = queue.removeFirstOrNull() ?: return
-                if (queue.isEmpty()) {
-                    queues.remove(deviceId)
-                }
-                active[deviceId] = next
-                next
-            }
-
-            val gatt = synchronized(gattLock) { knownGatts[deviceId] }
-            if (gatt == null) {
-                complete(deviceId, operation.kind)
-                if (operation.canDeliver()) {
-                    mainThreadHandler.post(operation.onDisconnected)
-                }
-                return
-            }
-            if (!operation.canDeliver()) {
-                complete(deviceId, operation.kind)
-                return
-            }
-
-            val started = try {
-                operation.start(gatt)
-            } catch (error: Throwable) {
-                Log.e("QuickBluePlugin", "Failed to start GATT operation ${operation.kind}", error)
-                false
-            }
-
-            if (!started) {
-                complete(deviceId, operation.kind)
-                if (operation.canDeliver()) {
-                    mainThreadHandler.post(operation.onStartFailed)
-                }
-            }
-        }
-    }
 
     private inner class BondStateReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -425,7 +259,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         callbacks.forEach { it(result) }
     }
 
-    private fun emitConnectionState(
+    override fun emitConnectionState(
         deviceId: String,
         state: PlatformConnectionState,
         status: PlatformGattStatus,
@@ -443,41 +277,33 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
     }
 
-    private fun emitServices(gatt: BluetoothGatt, status: Int) {
+    override fun emitServices(
+        deviceId: String,
+        services: List<PlatformServiceDiscovered>,
+    ) {
         if (!isAttachedToEngine) return
         mainThreadHandler.post {
             if (!isAttachedToEngine) return@post
-            val services = if (status == BluetoothGatt.GATT_SUCCESS) {
-                gatt.services ?: emptyList()
-            } else {
-                emptyList()
-            }
             if (services.isEmpty()) {
-                quickBlueFlutterApi?.onServiceDiscoveryComplete(gatt.device.address) {}
+                quickBlueFlutterApi?.onServiceDiscoveryComplete(deviceId) {}
                 return@post
             }
 
             var pendingServiceCallbacks = services.size
             services.forEach { service ->
                 quickBlueFlutterApi?.onServiceDiscovered(
-                    PlatformServiceDiscovered(
-                        deviceId = gatt.device.address,
-                        serviceUuid = service.uuid.toString(),
-                        characteristics = service.characteristics.map {
-                            it.toPlatformCharacteristic()
-                        }
-                    )
+                    service
                 ) {
                     pendingServiceCallbacks -= 1
                     if (pendingServiceCallbacks == 0) {
-                        quickBlueFlutterApi?.onServiceDiscoveryComplete(gatt.device.address) {}
+                        quickBlueFlutterApi?.onServiceDiscoveryComplete(deviceId) {}
                     }
                 }
             }
         }
     }
 
-    private fun emitMtuChanged(deviceId: String, mtu: Int, status: Int) {
+    override fun emitMtuChanged(deviceId: String, mtu: Int, status: Int) {
         if (!isAttachedToEngine) return
         mainThreadHandler.post {
             if (!isAttachedToEngine) return@post
@@ -491,7 +317,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
     }
 
-    private fun emitCharacteristicValue(
+    override fun emitCharacteristicValue(
         deviceId: String,
         serviceId: String,
         characteristicId: String,
@@ -511,9 +337,13 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
     }
 
+    override fun closeGattStreams(deviceId: String) {
+        streamDelegates.remove(deviceId)?.close()
+    }
+
     private fun disableUnclaimedNotifications(keys: List<NotificationKey>) {
         keys.forEach { key ->
-            val gatt = synchronized(gattLock) { knownGatts[key.deviceId] } ?: return@forEach
+            val gatt = AndroidGattBroker.sharedGatt(key.deviceId) ?: return@forEach
             val characteristic = try {
                 gatt.getKnownCharacteristic(key.serviceId, key.characteristicId)
             } catch (_: FlutterError) {
@@ -521,7 +351,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             }
             val descriptor = characteristic.getDescriptor(DESC__CLIENT_CHAR_CONFIGURATION)
                 ?: return@forEach
-            gattOperationQueue.enqueue(
+            AndroidGattBroker.enqueue(
                 GattOperation(
                     deviceId = key.deviceId,
                     kind = GattOperationKind.WRITE_DESCRIPTOR,
@@ -543,25 +373,8 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
     }
 
-    private fun attachedGatt(deviceId: String): BluetoothGatt? = synchronized(gattLock) {
-        if (connectionClients.contains(deviceId, this) &&
-            connectionStates[deviceId] == BluetoothGatt.STATE_CONNECTED
-        ) {
-            knownGatts[deviceId]
-        } else {
-            null
-        }
-    }
-
-    private fun connectDevice(bluetoothDevice: BluetoothDevice) {
-        val gatt =
-            bluetoothDevice.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
-        knownGatts[bluetoothDevice.address] = gatt
-    }
-
-    private fun cleanConnection(gatt: BluetoothGatt) {
-        gatt.disconnect()
-    }
+    private fun attachedGatt(deviceId: String): BluetoothGatt? =
+        AndroidGattBroker.attachedGatt(this, deviceId)
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanFailed(errorCode: Int) {
@@ -588,147 +401,6 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
 
         override fun onBatchScanResults(results: MutableList<ScanResult>?) {
-        }
-    }
-
-    private val gattCallback = object : BluetoothGattCallback() {
-        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            val gattStatus = when (status) {
-                BluetoothGatt.GATT_SUCCESS -> PlatformGattStatus.SUCCESS
-                BluetoothGatt.GATT_FAILURE -> PlatformGattStatus.FAILURE
-                else -> PlatformGattStatus.FAILURE
-            }
-            val state = when (newState) {
-                BluetoothGatt.STATE_CONNECTED -> PlatformConnectionState.CONNECTED
-                BluetoothGatt.STATE_CONNECTING -> PlatformConnectionState.CONNECTING
-                BluetoothGatt.STATE_DISCONNECTED -> PlatformConnectionState.DISCONNECTED
-                BluetoothGatt.STATE_DISCONNECTING -> PlatformConnectionState.DISCONNECTING
-                else -> PlatformConnectionState.UNKNOWN
-            }
-
-            if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-                val clients = synchronized(gattLock) {
-                    if (knownGatts[gatt.device.address] !== gatt) {
-                        emptyList()
-                    } else {
-                        // No further acknowledgement callbacks will arrive.
-                        gattOperationQueue.failPending(gatt.device.address)
-                        knownGatts.remove(gatt.device.address)
-                        connectionStates.remove(gatt.device.address)
-                        notificationClaims.keys
-                            .filter { it.deviceId == gatt.device.address }
-                            .forEach(notificationClaims::remove)
-                        connectionClients.removeAll(gatt.device.address)
-                    }
-                }
-                clients.forEach { client ->
-                    client.streamDelegates.remove(gatt.device.address)?.close()
-                }
-                gatt.close()
-                clients.forEach { it.emitConnectionState(gatt.device.address, state, gattStatus) }
-                return
-            }
-
-            val clients = synchronized(gattLock) {
-                if (knownGatts[gatt.device.address] === gatt) {
-                    connectionStates[gatt.device.address] = newState
-                    connectionClients.clients(gatt.device.address)
-                } else {
-                    emptyList()
-                }
-            }
-            clients.forEach { it.emitConnectionState(gatt.device.address, state, gattStatus) }
-        }
-
-        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            gattOperationQueue.complete(gatt.device.address, GattOperationKind.DISCOVER_SERVICES)
-            clientsFor(gatt.device.address).forEach { it.emitServices(gatt, status) }
-        }
-
-        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-            gattOperationQueue.complete(gatt.device.address, GattOperationKind.REQUEST_MTU)
-            clientsFor(gatt.device.address).forEach {
-                it.emitMtuChanged(gatt.device.address, mtu, status)
-            }
-        }
-
-        override fun onCharacteristicRead(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            status: Int
-        ) {
-            completeCharacteristicRead(gatt, characteristic.value, status)
-        }
-
-        override fun onCharacteristicRead(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            value: ByteArray,
-            status: Int
-        ) {
-            completeCharacteristicRead(gatt, value, status)
-        }
-
-        private fun completeCharacteristicRead(
-            gatt: BluetoothGatt,
-            value: ByteArray?,
-            status: Int
-        ) {
-            val completedValue = if (status == BluetoothGatt.GATT_SUCCESS) {
-                value?.copyOf() ?: byteArrayOf()
-            } else {
-                null
-            }
-            val operation =
-                gattOperationQueue.complete(
-                    gatt.device.address,
-                    GattOperationKind.READ_CHARACTERISTIC
-                ) ?: return
-            if (!operation.canDeliver()) return
-            mainThreadHandler.post {
-                operation.onComplete(status, completedValue)
-            }
-        }
-
-        override fun onCharacteristicChanged(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic
-        ) {
-            clientsFor(gatt.device.address).forEach { client ->
-                client.emitCharacteristicValue(
-                    deviceId = gatt.device.address,
-                    serviceId = characteristic.service.uuid.toString(),
-                    characteristicId = characteristic.uuid.toString(),
-                    value = characteristic.value,
-                )
-            }
-        }
-
-        override fun onCharacteristicWrite(
-            gatt: BluetoothGatt?,
-            characteristic: BluetoothGattCharacteristic,
-            status: Int
-        ) {
-            val deviceId = gatt?.device?.address ?: return
-            val operation =
-                gattOperationQueue.complete(deviceId, GattOperationKind.WRITE_CHARACTERISTIC) ?: return
-            if (!operation.canDeliver()) return
-            mainThreadHandler.post {
-                operation.onComplete(status, null)
-            }
-        }
-
-        override fun onDescriptorWrite(
-            gatt: BluetoothGatt,
-            descriptor: BluetoothGattDescriptor,
-            status: Int
-        ) {
-            val operation =
-                gattOperationQueue.complete(gatt.device.address, GattOperationKind.WRITE_DESCRIPTOR) ?: return
-            if (!operation.canDeliver()) return
-            mainThreadHandler.post {
-                operation.onComplete(status, null)
-            }
         }
     }
 
@@ -830,89 +502,30 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
 
         val targetServiceUuids = serviceUuids.map { it.toBluetoothUuid() }.toSet()
-        return synchronized(gattLock) {
-            knownGatts.values
-                .filter { connectedDeviceIds.contains(it.device.address) }
-                .filter { gatt ->
-                    val serviceUuidsForGatt = gatt.services.map { it.uuid }.toSet()
-                    serviceUuidsForGatt.containsAll(targetServiceUuids)
-                }
-                .map { it.device.address }
-                .distinct()
-        }
+        return AndroidGattBroker.connectedGatts()
+            .filter { connectedDeviceIds.contains(it.device.address) }
+            .filter { gatt ->
+                val serviceUuidsForGatt = gatt.services.map { it.uuid }.toSet()
+                serviceUuidsForGatt.containsAll(targetServiceUuids)
+            }
+            .map { it.device.address }
+            .distinct()
     }
 
     override fun connect(deviceId: String) {
         ensureBluetoothConnectPermission()
 
         executor.execute {
-            synchronized(gattLock) {
-                val existingGatt = knownGatts[deviceId]
-                if (existingGatt != null) {
-                    when (connectionStates[deviceId]) {
-                        BluetoothGatt.STATE_DISCONNECTING,
-                        BluetoothGatt.STATE_DISCONNECTED -> throw FlutterError(
-                            "DeviceBusy",
-                            "The shared connection to $deviceId is still disconnecting",
-                            null
-                        )
-                        BluetoothGatt.STATE_CONNECTED -> {
-                            connectionClients.attach(deviceId, this)
-                            emitConnectionState(
-                                deviceId,
-                                PlatformConnectionState.CONNECTED,
-                                PlatformGattStatus.SUCCESS,
-                            )
-                        }
-                        else -> {
-                            connectionClients.attach(deviceId, this)
-                        }
-                    }
-                    return@execute
-                }
-                connectionClients.attach(deviceId, this)
-                try {
-                    val remoteDevice = bluetoothManager.adapter.getRemoteDevice(deviceId)
-                    connectionStates[deviceId] = BluetoothGatt.STATE_CONNECTING
-                    connectDevice(remoteDevice)
-                } catch (error: Throwable) {
-                    connectionClients.detach(deviceId, this)
-                    connectionStates.remove(deviceId)
-                    throw error
-                }
-            }
+            AndroidGattBroker.connect(
+                this,
+                context,
+                bluetoothManager.adapter.getRemoteDevice(deviceId),
+            )
         }
     }
 
     override fun disconnect(deviceId: String) {
-        val shouldDetachOnly: Boolean
-        val gatt = synchronized(gattLock) {
-            if (!connectionClients.contains(deviceId, this)) {
-                throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
-            }
-            shouldDetachOnly = connectionClients.clientCount(deviceId) > 1
-            if (shouldDetachOnly) {
-                connectionClients.detach(deviceId, this)
-                null
-            } else {
-                connectionStates[deviceId] = BluetoothGatt.STATE_DISCONNECTING
-                knownGatts[deviceId]
-            }
-        }
-        val unclaimedNotifications = removeNotificationClaims(this, deviceId)
-        if (shouldDetachOnly) {
-            disableUnclaimedNotifications(unclaimedNotifications)
-            streamDelegates.remove(deviceId)?.close()
-            emitConnectionState(
-                deviceId,
-                PlatformConnectionState.DISCONNECTED,
-                PlatformGattStatus.SUCCESS,
-            )
-            return
-        }
-        cleanConnection(
-            gatt ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
-        )
+        disableUnclaimedNotifications(AndroidGattBroker.disconnect(this, deviceId))
     }
 
     override fun bondState(deviceId: String): PlatformBondState {
@@ -1148,7 +761,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         if (attachedGatt(deviceId) == null) {
             throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         }
-        gattOperationQueue.enqueue(
+        AndroidGattBroker.enqueue(
             GattOperation(
                 deviceId = deviceId,
                 kind = GattOperationKind.DISCOVER_SERVICES,
@@ -1211,58 +824,39 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             service.toBluetoothUuid().toString(),
             characteristic.toBluetoothUuid().toString(),
         )
-        var previousClaim: PlatformBleInputProperty? = null
-        val canCompleteWithoutNativeWrite = synchronized(gattLock) {
-            val claims = notificationClaims.getOrPut(notificationKey) { mutableMapOf() }
-            previousClaim = claims[this]
-            if (enable) {
-                val conflictingClaim = claims.values.firstOrNull {
-                    it != bleInputProperty
-                }
-                if (conflictingClaim != null) {
-                    callback(
-                        Result.failure(
-                            FlutterError(
-                                "InvalidState",
-                                "Another Flutter engine configured $characteristic for " +
-                                    "${conflictingClaim.name.lowercase()}",
-                                null
-                            )
-                        )
+        val transition = AndroidGattBroker.updateNotificationClaim(
+            notificationKey,
+            this,
+            bleInputProperty,
+            enable,
+        )
+        val conflictingClaim = transition.conflict
+        if (conflictingClaim != null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "InvalidState",
+                        "Another Flutter engine configured $characteristic for " +
+                            "${conflictingClaim.name.lowercase()}",
+                        null
                     )
-                    return
-                }
-                claims[this] = bleInputProperty
-                false
-            } else {
-                claims.remove(this)
-                if (claims.isEmpty()) {
-                    notificationClaims.remove(notificationKey)
-                    false
-                } else {
-                    true
-                }
-            }
+                )
+            )
+            return
         }
-        if (canCompleteWithoutNativeWrite) {
+        if (!transition.needsNativeWrite) {
             callback(Result.success(Unit))
             return
         }
 
         fun restoreClaimAfterFailure() {
-            synchronized(gattLock) {
-                val claims = notificationClaims.getOrPut(notificationKey) { mutableMapOf() }
-                if (previousClaim == null) {
-                    claims.remove(this)
-                } else {
-                    claims[this] = previousClaim!!
-                }
-                if (claims.isEmpty()) {
-                    notificationClaims.remove(notificationKey)
-                }
-            }
+            AndroidGattBroker.restoreNotificationClaim(
+                notificationKey,
+                this,
+                transition.previous,
+            )
         }
-        gattOperationQueue.enqueue(
+        AndroidGattBroker.enqueue(
             GattOperation(
                 deviceId = deviceId,
                 kind = GattOperationKind.WRITE_DESCRIPTOR,
@@ -1338,7 +932,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             callback(Result.failure(error))
             return
         }
-        gattOperationQueue.enqueue(
+        AndroidGattBroker.enqueue(
             GattOperation(
                 deviceId = deviceId,
                 kind = GattOperationKind.READ_CHARACTERISTIC,
@@ -1418,7 +1012,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                 BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             else
                 BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        gattOperationQueue.enqueue(
+        AndroidGattBroker.enqueue(
             GattOperation(
                 deviceId = deviceId,
                 kind = GattOperationKind.WRITE_CHARACTERISTIC,
@@ -1472,7 +1066,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         if (attachedGatt(deviceId) == null) {
             throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         }
-        gattOperationQueue.enqueue(
+        AndroidGattBroker.enqueue(
             GattOperation(
                 deviceId = deviceId,
                 kind = GattOperationKind.REQUEST_MTU,
@@ -1873,7 +1467,7 @@ class BluetoothStateListener(
     }
 }
 
-private fun BluetoothGattCharacteristic.toPlatformCharacteristic(): PlatformCharacteristic {
+internal fun BluetoothGattCharacteristic.toPlatformCharacteristic(): PlatformCharacteristic {
     val props = properties
     return PlatformCharacteristic(
         uuid = uuid.toString(),
