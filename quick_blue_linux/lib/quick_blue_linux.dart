@@ -25,27 +25,77 @@ class _DbusConnectionLease implements QuickBlueLinuxConnectionLease {
   final DBusClient _client = DBusClient.system(introspectable: false);
 
   @override
-  Future<bool> claim(String deviceId) async {
-    final reply = await _client.requestName(
-      _nameFor(deviceId),
-      flags: const {DBusRequestNameFlag.doNotQueue},
-    );
-    return reply == DBusRequestNameReply.primaryOwner ||
-        reply == DBusRequestNameReply.alreadyOwner;
+  Future<void> attach(String deviceId) async {
+    await _withDeviceLock(deviceId, () async {
+      final reply = await _client.requestName(_clientNameFor(deviceId));
+      if (reply != DBusRequestNameReply.primaryOwner &&
+          reply != DBusRequestNameReply.alreadyOwner) {
+        throw StateError(
+          'Unable to register a connection client for $deviceId',
+        );
+      }
+    });
   }
 
   @override
-  Future<void> release(String deviceId) async {
-    await _client.releaseName(_nameFor(deviceId));
+  Future<void> detach(
+    String deviceId,
+    Future<void> Function() onLastClient,
+  ) async {
+    await _withDeviceLock(deviceId, () async {
+      await _client.releaseName(_clientNameFor(deviceId));
+      final prefix = '${_clientNamePrefix(deviceId)}.Client';
+      final hasOtherClients = (await _client.listNames()).any(
+        (name) => name.startsWith(prefix),
+      );
+      if (!hasOtherClients) {
+        await onLastClient();
+      }
+    });
   }
 
-  static String _nameFor(String deviceId) {
+  Future<void> _withDeviceLock(
+    String deviceId,
+    Future<void> Function() action,
+  ) async {
+    final lockName = '${_clientNamePrefix(deviceId)}.Lock';
+    while (true) {
+      final reply = await _client.requestName(
+        lockName,
+        flags: const {DBusRequestNameFlag.doNotQueue},
+      );
+      if (reply == DBusRequestNameReply.primaryOwner ||
+          reply == DBusRequestNameReply.alreadyOwner) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    try {
+      await action();
+    } finally {
+      await _client.releaseName(lockName);
+    }
+  }
+
+  String _clientNameFor(String deviceId) {
+    return '${_clientNamePrefix(deviceId)}.Client${_dbusClientId()}';
+  }
+
+  String _dbusClientId() {
+    final name = _client.uniqueName;
+    if (name.isEmpty) {
+      throw StateError('The D-Bus connection has no unique name');
+    }
+    return name.replaceAll(':', '').replaceAll('.', '_');
+  }
+
+  static String _clientNamePrefix(String deviceId) {
     var hash = 0xcbf29ce484222325;
     for (final byte in utf8.encode(deviceId)) {
       hash ^= byte;
       hash = (hash * 0x100000001b3) & 0xffffffffffffffff;
     }
-    return 'dev.quick_blue.ConnectionLease.p$pid.d${hash.toRadixString(16).padLeft(16, '0')}';
+    return 'dev.quick_blue.Connection.p$pid.d${hash.toRadixString(16).padLeft(16, '0')}';
   }
 }
 
@@ -406,14 +456,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     await _ensureInitialized();
     final device = _getDeviceOrThrow(deviceId);
 
-    if (!await _connectionOwnership.claim(deviceId)) {
-      throw QuickBlueException(
-        code: QuickBlueErrorCode.deviceBusy,
-        operation: 'connect',
-        deviceId: deviceId,
-        message: 'Another Flutter engine owns the connection to $deviceId.',
-      );
-    }
+    await _connectionOwnership.attach(deviceId);
 
     try {
       await _ensureConnectedDevice(device);
@@ -424,7 +467,7 @@ class QuickBlueLinux extends QuickBluePlatform {
       );
     } on Object catch (error, stackTrace) {
       try {
-        await _connectionOwnership.release(deviceId);
+        await _connectionOwnership.detach(deviceId, onLastClient: () async {});
       } on Object catch (releaseError, releaseStackTrace) {
         _logger.warning(
           'Failed to release the connection lease for $deviceId',
@@ -447,32 +490,35 @@ class QuickBlueLinux extends QuickBluePlatform {
     await _ensureInitialized();
     if (!_connectionOwnership.owns(deviceId)) {
       throw QuickBlueException(
-        code: QuickBlueErrorCode.deviceBusy,
+        code: QuickBlueErrorCode.invalidState,
         operation: 'disconnect',
         deviceId: deviceId,
-        message:
-            'This Flutter engine does not own the connection to $deviceId.',
+        message: 'This Flutter engine is not connected to $deviceId.',
       );
     }
     final device = _getDeviceOrThrow(deviceId);
 
     try {
-      await device.disconnect();
-    } on BlueZNotConnectedException {
-      // Already disconnected, ignore.
-    } on Object catch (error, stackTrace) {
-      _logger.severe('Failed to disconnect from $deviceId', error, stackTrace);
-      rethrow;
-    }
-    try {
+      await _stopNotificationsForClient(deviceId);
+      await _connectionOwnership.detach(
+        deviceId,
+        onLastClient: () async {
+          try {
+            await device.disconnect();
+          } on BlueZNotConnectedException {
+            // Already disconnected, ignore.
+          }
+        },
+      );
       _emitConnectionState(
         deviceId,
         BlueConnectionState.disconnected,
         BleStatus.success,
       );
       await _clearDeviceState(deviceId, removeDevice: false);
-    } finally {
-      await _connectionOwnership.release(deviceId);
+    } on Object catch (error, stackTrace) {
+      _logger.severe('Failed to disconnect from $deviceId', error, stackTrace);
+      rethrow;
     }
   }
 
@@ -546,12 +592,12 @@ class QuickBlueLinux extends QuickBluePlatform {
       );
     }
 
-    if (!targetCharacteristic.notifying) {
-      try {
-        await targetCharacteristic.startNotify();
-      } on BlueZAlreadyExistsException {
-        // Notifications already active, ignore.
-      }
+    try {
+      // BlueZ reference-counts StartNotify by D-Bus client. Call it even when
+      // another engine already made the global Notifying property true.
+      await targetCharacteristic.startNotify();
+    } on BlueZAlreadyExistsException {
+      // This D-Bus client already enabled notifications.
     }
 
     await _removeNotificationSubscription(deviceId, key);
@@ -883,8 +929,8 @@ class QuickBlueLinux extends QuickBluePlatform {
           _emitConnectionState(deviceId, state, BleStatus.success);
           if (!device.connected) {
             _observeBackgroundOperation(
-              _connectionOwnership.release(deviceId),
-              'Unable to release the connection lease for $deviceId',
+              _connectionOwnership.detach(deviceId, onLastClient: () async {}),
+              'Unable to detach the connection client for $deviceId',
             );
             _observeBackgroundOperation(
               _clearNotificationSubscriptions(deviceId),
@@ -1142,6 +1188,26 @@ class QuickBlueLinux extends QuickBluePlatform {
       return;
     }
     await _cancelSubscriptions(subscriptions.values);
+  }
+
+  Future<void> _stopNotificationsForClient(String deviceId) async {
+    final keys =
+        _notificationSubscriptions[deviceId]?.keys.toList() ?? const [];
+    for (final key in keys) {
+      final resolved = _resolvedCharacteristics['$deviceId|$key'];
+      if (resolved == null) {
+        continue;
+      }
+      try {
+        await resolved.characteristic.stopNotify();
+      } on Object catch (error, stackTrace) {
+        _logger.warning(
+          'Failed to release this engine\'s notification for $deviceId',
+          error,
+          stackTrace,
+        );
+      }
+    }
   }
 
   Future<void> _removeNotificationSubscription(

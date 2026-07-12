@@ -1,7 +1,10 @@
-/// Acquires process-wide ownership of a Linux Bluetooth connection.
+/// Coordinates clients of a process-wide Linux Bluetooth connection.
 abstract interface class QuickBlueLinuxConnectionLease {
-  Future<bool> claim(String deviceId);
-  Future<void> release(String deviceId);
+  Future<void> attach(String deviceId);
+
+  /// Detaches this client and runs [onLastClient] while new clients are blocked
+  /// when no other Flutter engine remains attached.
+  Future<void> detach(String deviceId, Future<void> Function() onLastClient);
 }
 
 /// Tracks the device leases held by one Linux Flutter-engine instance.
@@ -13,23 +16,23 @@ class ConnectionOwnership {
 
   bool owns(String deviceId) => _deviceIds.contains(deviceId);
 
-  Future<bool> claim(String deviceId) async {
+  Future<void> attach(String deviceId) async {
     if (_deviceIds.contains(deviceId)) {
-      return true;
+      return;
     }
-    if (!await _lease.claim(deviceId)) {
-      return false;
-    }
+    await _lease.attach(deviceId);
     _deviceIds.add(deviceId);
-    return true;
   }
 
-  Future<void> release(String deviceId) async {
+  Future<void> detach(
+    String deviceId, {
+    required Future<void> Function() onLastClient,
+  }) async {
     if (!_deviceIds.remove(deviceId)) {
       return;
     }
     try {
-      await _lease.release(deviceId);
+      await _lease.detach(deviceId, onLastClient);
     } catch (_) {
       _deviceIds.add(deviceId);
       rethrow;

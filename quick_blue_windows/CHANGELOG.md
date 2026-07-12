@@ -1,3 +1,8 @@
+## Unreleased
+
+- Share WinRT GATT sessions across Flutter engines, transfer native callback
+  hosting when an engine detaches, and disconnect only after the final client.
+
 ## 0.5.0 - 2026-07-10
 
 - Bring the Windows implementation up to the current QuickBlue API.

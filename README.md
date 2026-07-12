@@ -187,7 +187,8 @@ Quick Blue coordinates each device connection across Flutter engines in the
 same application process. This covers foreground UI engines, Workmanager
 engines, and engines hosted by an Android foreground service.
 
-On Android and Darwin, engines share one process-wide native GATT connection.
+On every supported platform, engines share one process-wide native GATT
+connection.
 Calling `connect()` attaches that engine to the existing connection (or starts
 it when there is none), and connection, discovery, MTU, and notification-value
 events are delivered to every attached engine. GATT operations from all engines
@@ -195,7 +196,10 @@ are sent through that shared native connection (and serialized through
 Android's native operation queue). Calling `disconnect()` detaches only the
 calling engine; the physical connection closes after the final engine
 disconnects or detaches. Notification ownership is reference-counted across
-engines so one engine cannot disable another engine's active subscription.
+engines so one engine cannot disable another engine's active subscription. On
+Linux, BlueZ owns the shared system connection while per-engine D-Bus client
+memberships serialize final disconnect. On Windows, the WinRT device and GATT
+session transfer to a surviving engine when their original host detaches.
 For a foreground handoff, attach the new engine before disconnecting the old
 one. Cancel the old engine's Dart notification subscriptions as part of its
 normal teardown:
@@ -211,25 +215,8 @@ CoreBluetooth device UUID can be passed directly to `QuickBlue.device(id)` and
 connected without a preceding scan or `connectedDevices()` lookup, provided
 CoreBluetooth already knows that peripheral.
 
-Linux and Windows currently use exclusive connection ownership. By default, a
-second engine's `connect()` fails with
-`QuickBlueErrorCode.deviceBusy`. For an intentional handoff, disconnect in the
-current owner and let the next engine wait for the lease:
-
-```dart
-await device.connect(
-  conflictPolicy: ConnectionConflictPolicy.wait,
-  conflictTimeout: const Duration(seconds: 20),
-);
-```
-
-On Linux and Windows this is a reconnecting handoff: the old engine
-disconnects and the new engine establishes its own native connection. Dart
-subscriptions and characteristic handles remain engine-local on every
-platform and must be created in each engine. The 30-second default
-`conflictTimeout` bounds only an ownership wait; pass `null` to wait
-indefinitely. Keep a separate operation timeout if the subsequent BLE
-connection itself also needs a deadline.
+Dart subscriptions and characteristic handles remain engine-local on every
+platform and must be created in each engine.
 
 When you know a characteristic UUID but not its service UUID, discover a
 `BluetoothGatt` snapshot and resolve a service-scoped characteristic handle:

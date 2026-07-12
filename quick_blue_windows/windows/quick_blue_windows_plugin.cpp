@@ -359,12 +359,36 @@ class QuickBlueWindowsPlugin : public flutter::Plugin,
   virtual ~QuickBlueWindowsPlugin();
 
  private:
+  struct SharedConnection {
+    QuickBlueWindowsPlugin* host;
+    std::set<QuickBlueWindowsPlugin*> clients;
+    std::map<std::string,
+             std::map<QuickBlueWindowsPlugin*, PlatformBleInputProperty>>
+        notification_claims;
+  };
+
   static std::mutex connection_owner_mutex_;
-  static std::map<uint64_t, QuickBlueWindowsPlugin*> connection_owners_;
-  bool ClaimConnection(uint64_t bluetooth_address);
+  static std::map<uint64_t, SharedConnection> shared_connections_;
+  QuickBlueWindowsPlugin* AttachConnection(uint64_t bluetooth_address,
+                                           bool* is_new);
   bool OwnsConnection(uint64_t bluetooth_address);
+  bool IsConnectionHost(uint64_t bluetooth_address);
   bool ReleaseConnection(uint64_t bluetooth_address);
-  void ReleaseConnections();
+  bool DetachConnection(uint64_t bluetooth_address);
+  std::vector<uint64_t> AttachedConnectionAddresses();
+  std::vector<QuickBlueWindowsPlugin*> ConnectionClients(
+      uint64_t bluetooth_address);
+  void TransferConnection(uint64_t bluetooth_address,
+                          QuickBlueWindowsPlugin* new_host);
+  winrt::fire_and_forget DisableNotifications(
+      uint64_t bluetooth_address,
+      std::vector<std::string> characteristic_keys);
+  std::optional<FlutterError> PrepareNotificationChange(
+      uint64_t bluetooth_address,
+      const std::string& key,
+      PlatformBleInputProperty property,
+      bool* needs_native_write,
+      QuickBlueWindowsPlugin** host);
 
   winrt::fire_and_forget InitializeAsync();
 
@@ -475,8 +499,8 @@ class QuickBlueWindowsPlugin : public flutter::Plugin,
 };
 
 std::mutex QuickBlueWindowsPlugin::connection_owner_mutex_;
-std::map<uint64_t, QuickBlueWindowsPlugin*>
-    QuickBlueWindowsPlugin::connection_owners_;
+std::map<uint64_t, QuickBlueWindowsPlugin::SharedConnection>
+    QuickBlueWindowsPlugin::shared_connections_;
 
 void QuickBlueWindowsPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows* registrar) {
@@ -515,49 +539,215 @@ QuickBlueWindowsPlugin::QuickBlueWindowsPlugin(
 
 QuickBlueWindowsPlugin::~QuickBlueWindowsPlugin() {
   StopScan();
-  while (!connectedDevices.empty()) {
-    CleanConnection(connectedDevices.begin()->first);
+  for (const auto address : AttachedConnectionAddresses()) {
+    DetachConnection(address);
   }
-  ReleaseConnections();
   QuickBlueApi::SetUp(binary_messenger_, nullptr);
 }
 
-bool QuickBlueWindowsPlugin::ClaimConnection(uint64_t bluetooth_address) {
+QuickBlueWindowsPlugin* QuickBlueWindowsPlugin::AttachConnection(
+    uint64_t bluetooth_address,
+    bool* is_new) {
   std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  const auto owner = connection_owners_.find(bluetooth_address);
-  if (owner != connection_owners_.end() && owner->second != this) {
-    return false;
+  auto connection = shared_connections_.find(bluetooth_address);
+  if (connection == shared_connections_.end()) {
+    *is_new = true;
+    shared_connections_.emplace(
+        bluetooth_address,
+        SharedConnection{this, std::set<QuickBlueWindowsPlugin*>{this}, {}});
+    return this;
   }
-  connection_owners_[bluetooth_address] = this;
-  return true;
+  *is_new = false;
+  connection->second.clients.insert(this);
+  return connection->second.host;
 }
 
 bool QuickBlueWindowsPlugin::OwnsConnection(uint64_t bluetooth_address) {
   std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  const auto owner = connection_owners_.find(bluetooth_address);
-  return owner != connection_owners_.end() && owner->second == this;
+  const auto connection = shared_connections_.find(bluetooth_address);
+  return connection != shared_connections_.end() &&
+         connection->second.clients.count(this) != 0;
+}
+
+bool QuickBlueWindowsPlugin::IsConnectionHost(uint64_t bluetooth_address) {
+  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
+  const auto connection = shared_connections_.find(bluetooth_address);
+  return connection != shared_connections_.end() &&
+         connection->second.host == this;
 }
 
 bool QuickBlueWindowsPlugin::ReleaseConnection(uint64_t bluetooth_address) {
   std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  const auto owner = connection_owners_.find(bluetooth_address);
-  if (owner == connection_owners_.end() || owner->second != this) {
+  const auto connection = shared_connections_.find(bluetooth_address);
+  if (connection == shared_connections_.end() ||
+      connection->second.host != this) {
     return false;
   }
-  connection_owners_.erase(owner);
+  shared_connections_.erase(connection);
   return true;
 }
 
-void QuickBlueWindowsPlugin::ReleaseConnections() {
-  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  for (auto owner = connection_owners_.begin();
-       owner != connection_owners_.end();) {
-    if (owner->second == this) {
-      owner = connection_owners_.erase(owner);
-    } else {
-      ++owner;
+bool QuickBlueWindowsPlugin::DetachConnection(uint64_t bluetooth_address) {
+  QuickBlueWindowsPlugin* new_host = nullptr;
+  QuickBlueWindowsPlugin* notification_host = nullptr;
+  std::vector<std::string> notifications_to_disable;
+  bool final_client = false;
+  {
+    std::lock_guard<std::mutex> lock(connection_owner_mutex_);
+    auto connection = shared_connections_.find(bluetooth_address);
+    if (connection == shared_connections_.end() ||
+        connection->second.clients.erase(this) == 0) {
+      return false;
+    }
+    for (auto claim = connection->second.notification_claims.begin();
+         claim != connection->second.notification_claims.end();) {
+      claim->second.erase(this);
+      if (claim->second.empty()) {
+        notifications_to_disable.push_back(claim->first);
+        claim = connection->second.notification_claims.erase(claim);
+      } else {
+        ++claim;
+      }
+    }
+    if (connection->second.clients.empty()) {
+      final_client = true;
+      shared_connections_.erase(connection);
+    } else if (connection->second.host == this) {
+      new_host = *connection->second.clients.begin();
+      connection->second.host = new_host;
+    }
+    if (!final_client) {
+      notification_host = connection->second.host;
     }
   }
+  if (final_client) {
+    CleanConnection(bluetooth_address);
+  } else if (new_host != nullptr) {
+    TransferConnection(bluetooth_address, new_host);
+  }
+  if (!final_client && !notifications_to_disable.empty()) {
+    notification_host->DisableNotifications(
+        bluetooth_address, std::move(notifications_to_disable));
+  }
+  return true;
+}
+
+std::vector<uint64_t>
+QuickBlueWindowsPlugin::AttachedConnectionAddresses() {
+  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
+  std::vector<uint64_t> addresses;
+  for (const auto& connection : shared_connections_) {
+    if (connection.second.clients.count(this) != 0) {
+      addresses.push_back(connection.first);
+    }
+  }
+  return addresses;
+}
+
+std::vector<QuickBlueWindowsPlugin*>
+QuickBlueWindowsPlugin::ConnectionClients(uint64_t bluetooth_address) {
+  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
+  const auto connection = shared_connections_.find(bluetooth_address);
+  if (connection == shared_connections_.end()) {
+    return {};
+  }
+  return {connection->second.clients.begin(), connection->second.clients.end()};
+}
+
+void QuickBlueWindowsPlugin::TransferConnection(
+    uint64_t bluetooth_address,
+    QuickBlueWindowsPlugin* new_host) {
+  auto node = connectedDevices.extract(bluetooth_address);
+  if (node.empty()) {
+    new_host->ConnectAsync(bluetooth_address);
+    return;
+  }
+  auto agent = std::move(node.mapped());
+  agent->device.ConnectionStatusChanged(agent->connnectionStatusChangedToken);
+  agent->connnectionStatusChangedToken = agent->device.ConnectionStatusChanged(
+      {new_host,
+       &QuickBlueWindowsPlugin::BluetoothLEDevice_ConnectionStatusChanged});
+  for (auto& token : agent->valueChangedTokens) {
+    const auto characteristic = agent->gattCharacteristics.find(token.first);
+    if (characteristic == agent->gattCharacteristics.end()) {
+      continue;
+    }
+    characteristic->second.ValueChanged(token.second);
+    token.second = characteristic->second.ValueChanged(
+        {new_host, &QuickBlueWindowsPlugin::GattCharacteristic_ValueChanged});
+  }
+  new_host->connectedDevices[bluetooth_address] = std::move(agent);
+}
+
+winrt::fire_and_forget QuickBlueWindowsPlugin::DisableNotifications(
+    uint64_t bluetooth_address,
+    std::vector<std::string> characteristic_keys) {
+  try {
+    const auto device = connectedDevices.find(bluetooth_address);
+    if (device == connectedDevices.end()) {
+      co_return;
+    }
+    for (const auto& key : characteristic_keys) {
+      const auto characteristic = device->second->gattCharacteristics.find(key);
+      if (characteristic == device->second->gattCharacteristics.end()) {
+        continue;
+      }
+      const auto token = device->second->valueChangedTokens.find(key);
+      if (token != device->second->valueChangedTokens.end()) {
+        characteristic->second.ValueChanged(token->second);
+        device->second->valueChangedTokens.erase(token);
+      }
+      co_await characteristic->second
+          .WriteClientCharacteristicConfigurationDescriptorAsync(
+              GattClientCharacteristicConfigurationDescriptorValue::None);
+    }
+  } catch (const winrt::hresult_error& error) {
+    OutputDebugString(L"Failed to disable detached engine notifications: ");
+    OutputDebugString(error.message().c_str());
+    OutputDebugString(L"\n");
+  }
+}
+
+std::optional<FlutterError>
+QuickBlueWindowsPlugin::PrepareNotificationChange(
+    uint64_t bluetooth_address,
+    const std::string& key,
+    PlatformBleInputProperty property,
+    bool* needs_native_write,
+    QuickBlueWindowsPlugin** host) {
+  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
+  auto connection = shared_connections_.find(bluetooth_address);
+  if (connection == shared_connections_.end() ||
+      connection->second.clients.count(this) == 0) {
+    return illegal_argument("Unknown deviceId: " +
+                            std::to_string(bluetooth_address));
+  }
+  *host = connection->second.host;
+  auto claims = connection->second.notification_claims.find(key);
+  if (property == PlatformBleInputProperty::kDisabled) {
+    if (claims == connection->second.notification_claims.end() ||
+        claims->second.erase(this) == 0) {
+      *needs_native_write = false;
+      return std::nullopt;
+    }
+    *needs_native_write = claims->second.empty();
+    if (*needs_native_write) {
+      connection->second.notification_claims.erase(claims);
+    }
+    return std::nullopt;
+  }
+
+  auto& clients = connection->second.notification_claims[key];
+  for (const auto& claim : clients) {
+    if (claim.second != property) {
+      return FlutterError(
+          "InvalidState",
+          "Another Flutter engine configured this characteristic differently");
+    }
+  }
+  *needs_native_write = clients.empty();
+  clients[this] = property;
+  return std::nullopt;
 }
 
 winrt::fire_and_forget QuickBlueWindowsPlugin::InitializeAsync() {
@@ -645,10 +835,14 @@ ErrorOr<EncodableList> QuickBlueWindowsPlugin::ConnectedDeviceIds(
   }
 
   EncodableList deviceIds;
-  for (const auto& device : connectedDevices) {
+  for (const auto address : AttachedConnectionAddresses()) {
+    auto* device = FindConnectedDevice(std::to_string(address));
+    if (device == nullptr) {
+      continue;
+    }
     if (!normalizedServiceUuids.empty()) {
       std::set<std::string> connectedServiceUuids;
-      for (const auto& service : device.second->gattServices) {
+      for (const auto& service : device->gattServices) {
         connectedServiceUuids.insert(service.first);
       }
       if (!std::includes(connectedServiceUuids.begin(),
@@ -659,7 +853,7 @@ ErrorOr<EncodableList> QuickBlueWindowsPlugin::ConnectedDeviceIds(
       }
     }
 
-    deviceIds.push_back(EncodableValue(std::to_string(device.first)));
+    deviceIds.push_back(EncodableValue(std::to_string(address)));
   }
   return deviceIds;
 }
@@ -669,18 +863,27 @@ std::optional<FlutterError> QuickBlueWindowsPlugin::Connect(
   try {
     const auto address = parse_bluetooth_address(device_id);
     if (OwnsConnection(address)) {
-      if (connectedDevices.find(address) != connectedDevices.end()) {
-        SendConnectionState(device_id, PlatformConnectionState::kConnected,
-                            PlatformGattStatus::kSuccess);
+      if (FindConnectedDevice(device_id) != nullptr) {
+        flutter_api_->OnConnectionStateChange(
+            PlatformConnectionStateChange(device_id,
+                                          PlatformConnectionState::kConnected,
+                                          PlatformGattStatus::kSuccess),
+            []() {}, [](const FlutterError&) {});
       }
       return std::nullopt;
     }
-    if (!ClaimConnection(address)) {
-      return FlutterError(
-          "DeviceBusy",
-          "Another Flutter engine owns the connection to " + device_id);
+    bool is_new = false;
+    auto* host = AttachConnection(address, &is_new);
+    if (is_new) {
+      ConnectAsync(address);
+    } else if (host->connectedDevices.find(address) !=
+               host->connectedDevices.end()) {
+      flutter_api_->OnConnectionStateChange(
+          PlatformConnectionStateChange(device_id,
+                                        PlatformConnectionState::kConnected,
+                                        PlatformGattStatus::kSuccess),
+          []() {}, [](const FlutterError&) {});
     }
-    ConnectAsync(address);
     return std::nullopt;
   } catch (const std::exception& error) {
     return illegal_argument(error.what());
@@ -691,12 +894,14 @@ std::optional<FlutterError> QuickBlueWindowsPlugin::Disconnect(
     const std::string& device_id) {
   try {
     const auto address = parse_bluetooth_address(device_id);
-    const auto disconnected = CleanConnection(address);
-    if (!disconnected) {
+    if (!DetachConnection(address)) {
       return illegal_argument("Unknown deviceId: " + device_id);
     }
-    SendConnectionState(device_id, PlatformConnectionState::kDisconnected,
-                        PlatformGattStatus::kSuccess);
+    flutter_api_->OnConnectionStateChange(
+        PlatformConnectionStateChange(device_id,
+                                      PlatformConnectionState::kDisconnected,
+                                      PlatformGattStatus::kSuccess),
+        []() {}, [](const FlutterError&) {});
     return std::nullopt;
   } catch (const std::exception& error) {
     return illegal_argument(error.what());
@@ -705,8 +910,19 @@ std::optional<FlutterError> QuickBlueWindowsPlugin::Disconnect(
 
 BluetoothDeviceAgent* QuickBlueWindowsPlugin::FindConnectedDevice(
     const std::string& device_id) {
-  auto it = connectedDevices.find(parse_bluetooth_address(device_id));
-  if (it == connectedDevices.end()) {
+  const auto address = parse_bluetooth_address(device_id);
+  QuickBlueWindowsPlugin* host = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(connection_owner_mutex_);
+    const auto connection = shared_connections_.find(address);
+    if (connection == shared_connections_.end() ||
+        connection->second.clients.count(this) == 0) {
+      return nullptr;
+    }
+    host = connection->second.host;
+  }
+  auto it = host->connectedDevices.find(address);
+  if (it == host->connectedDevices.end()) {
     return nullptr;
   }
   return it->second.get();
@@ -905,10 +1121,12 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::ConnectAsync(
     auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(
         bluetoothAddress);
     if (!device) {
-      ReleaseConnection(bluetoothAddress);
-      SendConnectionState(std::to_string(bluetoothAddress),
-                          PlatformConnectionState::kDisconnected,
-                          PlatformGattStatus::kFailure);
+      if (IsConnectionHost(bluetoothAddress)) {
+        SendConnectionState(std::to_string(bluetoothAddress),
+                            PlatformConnectionState::kDisconnected,
+                            PlatformGattStatus::kFailure);
+        ReleaseConnection(bluetoothAddress);
+      }
       co_return;
     }
 
@@ -923,10 +1141,12 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::ConnectAsync(
       if (gattSession) {
         gattSession.MaintainConnection(false);
       }
-      ReleaseConnection(bluetoothAddress);
-      SendConnectionState(std::to_string(bluetoothAddress),
-                          PlatformConnectionState::kDisconnected,
-                          PlatformGattStatus::kFailure);
+      if (IsConnectionHost(bluetoothAddress)) {
+        SendConnectionState(std::to_string(bluetoothAddress),
+                            PlatformConnectionState::kDisconnected,
+                            PlatformGattStatus::kFailure);
+        ReleaseConnection(bluetoothAddress);
+      }
       co_return;
     }
 
@@ -946,10 +1166,12 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::ConnectAsync(
                         PlatformConnectionState::kConnected,
                         PlatformGattStatus::kSuccess);
   } catch (const winrt::hresult_error&) {
-    ReleaseConnection(bluetoothAddress);
-    SendConnectionState(std::to_string(bluetoothAddress),
-                        PlatformConnectionState::kDisconnected,
-                        PlatformGattStatus::kFailure);
+    if (IsConnectionHost(bluetoothAddress)) {
+      SendConnectionState(std::to_string(bluetoothAddress),
+                          PlatformConnectionState::kDisconnected,
+                          PlatformGattStatus::kFailure);
+      ReleaseConnection(bluetoothAddress);
+    }
   }
 }
 
@@ -957,10 +1179,11 @@ void QuickBlueWindowsPlugin::BluetoothLEDevice_ConnectionStatusChanged(
     BluetoothLEDevice sender, IInspectable args) {
   (void)args;
   if (sender.ConnectionStatus() == BluetoothConnectionStatus::Disconnected) {
-    CleanConnection(sender.BluetoothAddress());
     SendConnectionState(std::to_string(sender.BluetoothAddress()),
                         PlatformConnectionState::kDisconnected,
                         PlatformGattStatus::kSuccess);
+    CleanConnection(sender.BluetoothAddress());
+    ReleaseConnection(sender.BluetoothAddress());
   }
 }
 
@@ -982,7 +1205,6 @@ bool QuickBlueWindowsPlugin::CleanConnection(uint64_t bluetoothAddress) {
       characteristic->second.ValueChanged(tokenPair.second);
     }
   }
-  ReleaseConnection(bluetoothAddress);
   return true;
 }
 
@@ -1055,6 +1277,21 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::SetNotifiableAsync(
       co_return;
     }
 
+    const auto cache_key = characteristic_cache_key(service, characteristic);
+    bool needs_native_write = false;
+    QuickBlueWindowsPlugin* event_host = nullptr;
+    const auto claim_error = PrepareNotificationChange(
+        bluetoothDeviceAgent.device.BluetoothAddress(), cache_key,
+        bleInputProperty, &needs_native_write, &event_host);
+    if (claim_error) {
+      result(claim_error);
+      co_return;
+    }
+    if (!needs_native_write) {
+      result(std::nullopt);
+      co_return;
+    }
+
     auto descriptorValue =
         bleInputProperty == PlatformBleInputProperty::kNotification
             ? GattClientCharacteristicConfigurationDescriptorValue::Notify
@@ -1073,11 +1310,16 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::SetNotifiableAsync(
       co_return;
     }
 
-    const auto cache_key = characteristic_cache_key(service, characteristic);
     if (bleInputProperty != PlatformBleInputProperty::kDisabled) {
+      auto existing_token =
+          bluetoothDeviceAgent.valueChangedTokens.find(cache_key);
+      if (existing_token != bluetoothDeviceAgent.valueChangedTokens.end()) {
+        gattCharacteristic.ValueChanged(existing_token->second);
+      }
       bluetoothDeviceAgent.valueChangedTokens[cache_key] =
           gattCharacteristic.ValueChanged(
-              {this, &QuickBlueWindowsPlugin::GattCharacteristic_ValueChanged});
+              {event_host,
+               &QuickBlueWindowsPlugin::GattCharacteristic_ValueChanged});
     } else {
       auto token = bluetoothDeviceAgent.valueChangedTokens.find(cache_key);
       if (token != bluetoothDeviceAgent.valueChangedTokens.end()) {
@@ -1161,23 +1403,32 @@ void QuickBlueWindowsPlugin::SendConnectionState(
     std::string deviceId,
     PlatformConnectionState state,
     PlatformGattStatus status) {
-  flutter_api_->OnConnectionStateChange(
-      PlatformConnectionStateChange(deviceId, state, status), []() {},
-      [](const FlutterError&) {});
+  const auto clients = ConnectionClients(parse_bluetooth_address(deviceId));
+  for (auto* client : clients) {
+    client->flutter_api_->OnConnectionStateChange(
+        PlatformConnectionStateChange(deviceId, state, status), []() {},
+        [](const FlutterError&) {});
+  }
 }
 
 void QuickBlueWindowsPlugin::SendServiceDiscovered(
     std::string deviceId,
     std::string serviceUuid,
     EncodableList characteristics) {
-  flutter_api_->OnServiceDiscovered(
-      PlatformServiceDiscovered(deviceId, serviceUuid, characteristics), []() {},
-      [](const FlutterError&) {});
+  const auto clients = ConnectionClients(parse_bluetooth_address(deviceId));
+  for (auto* client : clients) {
+    client->flutter_api_->OnServiceDiscovered(
+        PlatformServiceDiscovered(deviceId, serviceUuid, characteristics),
+        []() {}, [](const FlutterError&) {});
+  }
 }
 
 void QuickBlueWindowsPlugin::SendServiceDiscoveryComplete(std::string deviceId) {
-  flutter_api_->OnServiceDiscoveryComplete(deviceId, []() {},
-                                           [](const FlutterError&) {});
+  const auto clients = ConnectionClients(parse_bluetooth_address(deviceId));
+  for (auto* client : clients) {
+    client->flutter_api_->OnServiceDiscoveryComplete(
+        deviceId, []() {}, [](const FlutterError&) {});
+  }
 }
 
 void QuickBlueWindowsPlugin::SendCharacteristicValue(
@@ -1185,10 +1436,13 @@ void QuickBlueWindowsPlugin::SendCharacteristicValue(
     std::string serviceUuid,
     std::string characteristicId,
     std::vector<uint8_t> value) {
-  flutter_api_->OnCharacteristicValueChanged(
-      PlatformCharacteristicValueChanged(deviceId, serviceUuid, characteristicId,
-                                         value),
-      []() {}, [](const FlutterError&) {});
+  const auto clients = ConnectionClients(parse_bluetooth_address(deviceId));
+  for (auto* client : clients) {
+    client->flutter_api_->OnCharacteristicValueChanged(
+        PlatformCharacteristicValueChanged(deviceId, serviceUuid,
+                                           characteristicId, value),
+        []() {}, [](const FlutterError&) {});
+  }
 }
 
 }  // namespace

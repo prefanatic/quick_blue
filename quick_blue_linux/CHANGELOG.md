@@ -1,3 +1,8 @@
+## Unreleased
+
+- Share BlueZ connections across Flutter engines using serialized per-engine
+  D-Bus memberships, and disconnect physically only after the final client.
+
 ## 0.5.0 - 2026-07-10
 
 - Retain `isInitialized` as a deprecated read-only compatibility getter so

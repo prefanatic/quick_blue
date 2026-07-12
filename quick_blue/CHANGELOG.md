@@ -2,6 +2,9 @@
 
 ### Added
 
+- Share Linux BlueZ and Windows WinRT connections across Flutter engines, with
+  independent engine detach, multicast native events, and final-client native
+  disconnect.
 - Expand iOS multi-engine integration coverage for known-UUID connection,
   CoreBluetooth host-engine shutdown, concurrent foreground attach, and
   notification-claim handoff.
