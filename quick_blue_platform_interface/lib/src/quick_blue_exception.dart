@@ -23,6 +23,9 @@ enum QuickBlueErrorCode {
 
   /// The requested Bluetooth resource matched more than one candidate.
   ambiguous,
+
+  /// The operation was superseded by a conflicting request from this client.
+  cancelled,
 }
 
 /// Controls what happens when a connection is temporarily busy.

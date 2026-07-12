@@ -1268,38 +1268,121 @@ void main() {
   );
 
   test(
-    'BluetoothDevice rejects overlapping operations for the same device',
+    'BluetoothDevice.disconnect supersedes a timed-out connect and permits retry',
     () async {
       final platform = _FakeQuickBluePlatform(connectsImmediately: false);
       addTearDown(platform.dispose);
 
       final device = platform.device('device-a');
       final connect = device.connect();
-      await pumpEventQueue();
-
       await expectLater(
-        device.disconnect().timeout(const Duration(milliseconds: 100)),
+        connect.timeout(Duration.zero),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      await device.disconnect();
+      await expectLater(
+        connect,
         throwsA(
           isA<QuickBlueException>()
               .having(
                 (error) => error.code,
                 'code',
-                QuickBlueErrorCode.invalidState,
+                QuickBlueErrorCode.cancelled,
               )
-              .having((error) => error.operation, 'operation', 'disconnect')
-              .having((error) => error.details, 'details', 'connect'),
+              .having((error) => error.operation, 'operation', 'connect'),
         ),
       );
-      expect(platform.calls, <String>['connect device-a']);
+      expect(platform.calls, <String>[
+        'connect device-a',
+        'disconnect device-a',
+      ]);
 
+      final retry = device.connect();
+      await pumpEventQueue();
       platform.onConnectionChanged!(
         'device-a',
         BlueConnectionState.connected,
         BleStatus.success,
       );
-      await connect;
+      await retry;
+
+      expect(platform.calls, <String>[
+        'connect device-a',
+        'disconnect device-a',
+        'connect device-a',
+      ]);
     },
   );
+
+  test(
+    'BluetoothDevice.disconnect stops a connection ownership wait',
+    () async {
+      final platform = _FakeQuickBluePlatform(
+        connectErrors: <Object>[
+          const QuickBlueException(
+            code: QuickBlueErrorCode.deviceBusy,
+            message: 'busy',
+          ),
+        ],
+      );
+      addTearDown(platform.dispose);
+
+      final device = platform.device('device-a');
+      final connect = device.connect(
+        conflictPolicy: ConnectionConflictPolicy.wait,
+      );
+      await pumpEventQueue();
+
+      await device.disconnect();
+      await expectLater(
+        connect,
+        throwsA(
+          isA<QuickBlueException>().having(
+            (error) => error.code,
+            'code',
+            QuickBlueErrorCode.cancelled,
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(platform.calls, <String>[
+        'connect device-a',
+        'disconnect device-a',
+      ]);
+    },
+  );
+
+  test('BluetoothDevice rejects overlapping disconnect operations', () async {
+    final platform = _FakeQuickBluePlatform(disconnectsImmediately: false);
+    addTearDown(platform.dispose);
+
+    final device = platform.device('device-a');
+    final firstDisconnect = device.disconnect();
+    await pumpEventQueue();
+
+    await expectLater(
+      device.disconnect(),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.invalidState,
+            )
+            .having((error) => error.operation, 'operation', 'disconnect')
+            .having((error) => error.details, 'details', 'disconnect'),
+      ),
+    );
+
+    platform.onConnectionChanged!(
+      'device-a',
+      BlueConnectionState.disconnected,
+      BleStatus.success,
+    );
+    await firstDisconnect;
+  });
 
   test(
     'BluetoothDevice allows concurrent operations for different devices',

@@ -12,6 +12,34 @@ import 'quick_blue_exception.dart';
 import 'service_discovery_event.dart';
 import 'unimplemented_quick_blue_platform.dart';
 
+class _ConnectionOperation {
+  _ConnectionOperation(this.name);
+
+  final String name;
+  final cancellation = _ConnectionOperationCancellation();
+  late final Future<void> completed;
+}
+
+class _ConnectionOperationCancellation {
+  final _completer = Completer<void>();
+
+  void cancel() {
+    if (!_completer.isCompleted) {
+      _completer.complete();
+    }
+  }
+
+  Future<T> untilCancelled<T>(
+    Future<T> operation, {
+    required QuickBlueException error,
+  }) {
+    return Future.any<T>(<Future<T>>[
+      operation,
+      _completer.future.then<T>((_) => throw error),
+    ]);
+  }
+}
+
 /// Platform interface for `quick_blue` implementations.
 abstract class QuickBluePlatform extends PlatformInterface {
   QuickBluePlatform() : super(token: _token);
@@ -359,7 +387,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
   final StreamController<BluetoothConnectionStateChange>
   _connectionStateController =
       StreamController<BluetoothConnectionStateChange>.broadcast();
-  final _activeConnectionOperations = <String, String>{};
+  final _activeConnectionOperations = <String, _ConnectionOperation>{};
 
   /// Connection state changes for all devices.
   Stream<BluetoothConnectionStateChange> get connectionStateStream {
@@ -380,8 +408,12 @@ abstract class QuickBluePlatform extends PlatformInterface {
       operationName: 'connect',
       targetState: BlueConnectionState.connected,
       failureMessage: 'Failed to connect to Bluetooth device $deviceId.',
-      operation: () =>
-          _connectWithConflictPolicy(deviceId, conflictPolicy, conflictTimeout),
+      operation: (cancellation) => _connectWithConflictPolicy(
+        deviceId,
+        conflictPolicy,
+        conflictTimeout,
+        cancellation,
+      ),
     );
   }
 
@@ -389,11 +421,15 @@ abstract class QuickBluePlatform extends PlatformInterface {
     String deviceId,
     ConnectionConflictPolicy conflictPolicy,
     Duration? conflictTimeout,
+    _ConnectionOperationCancellation cancellation,
   ) async {
     final stopwatch = Stopwatch()..start();
     while (true) {
       try {
-        await connect(deviceId);
+        await cancellation.untilCancelled(
+          connect(deviceId),
+          error: _cancelledConnectionException(deviceId, 'connect'),
+        );
         return;
       } on QuickBlueException catch (error) {
         if (error.code != QuickBlueErrorCode.deviceBusy ||
@@ -411,22 +447,36 @@ abstract class QuickBluePlatform extends PlatformInterface {
                 'the connection to $deviceId.',
           );
         }
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await cancellation.untilCancelled(
+          Future<void>.delayed(const Duration(milliseconds: 100)),
+          error: _cancelledConnectionException(deviceId, 'connect'),
+        );
       }
     }
   }
 
   /// Disconnects from [deviceId] and waits for the disconnected state event.
   ///
-  /// A second connection operation for the same device is rejected while the
-  /// first is pending.
-  Future<void> disconnectDevice(String deviceId) {
+  /// A pending connect for the same device is cancelled first. Other
+  /// overlapping connection operations are rejected.
+  Future<void> disconnectDevice(String deviceId) async {
+    final activeOperation = _activeConnectionOperations[deviceId];
+    if (activeOperation?.name == 'connect') {
+      activeOperation!.cancellation.cancel();
+      try {
+        await activeOperation.completed;
+      } on Object {
+        // The disconnect is the authoritative cleanup request even if the
+        // superseded connect happened to fail while cancellation was racing.
+      }
+    }
+
     return _runConnectionOperation(
       deviceId: deviceId,
       operationName: 'disconnect',
       targetState: BlueConnectionState.disconnected,
       failureMessage: 'Failed to disconnect Bluetooth device $deviceId.',
-      operation: () => disconnect(deviceId),
+      operation: (_) => disconnect(deviceId),
     );
   }
 
@@ -435,33 +485,76 @@ abstract class QuickBluePlatform extends PlatformInterface {
     required String operationName,
     required BlueConnectionState targetState,
     required String failureMessage,
-    required Future<void> Function() operation,
-  }) async {
+    required Future<void> Function(
+      _ConnectionOperationCancellation cancellation,
+    )
+    operation,
+  }) {
     final activeOperation = _activeConnectionOperations[deviceId];
     if (activeOperation != null) {
-      throw QuickBlueException(
-        code: QuickBlueErrorCode.invalidState,
-        operation: operationName,
-        deviceId: deviceId,
-        details: activeOperation,
-        message:
-            'Cannot $operationName Bluetooth device $deviceId while '
-            '$activeOperation is pending.',
+      return Future<void>.error(
+        QuickBlueException(
+          code: QuickBlueErrorCode.invalidState,
+          operation: operationName,
+          deviceId: deviceId,
+          details: activeOperation.name,
+          message:
+              'Cannot $operationName Bluetooth device $deviceId while '
+              '${activeOperation.name} is pending.',
+        ),
       );
     }
-    _activeConnectionOperations[deviceId] = operationName;
-
-    final stateEvents = StreamQueue(
-      connectionStateStream.where(
-        (event) =>
-            event.deviceId == deviceId &&
-            (event.status == BleStatus.failure || event.state == targetState),
-      ),
+    final connectionOperation = _ConnectionOperation(operationName);
+    _activeConnectionOperations[deviceId] = connectionOperation;
+    connectionOperation.completed = _executeConnectionOperation(
+      deviceId: deviceId,
+      connectionOperation: connectionOperation,
+      targetState: targetState,
+      failureMessage: failureMessage,
+      operation: operation,
     );
+    return connectionOperation.completed;
+  }
+
+  Future<void> _executeConnectionOperation({
+    required String deviceId,
+    required _ConnectionOperation connectionOperation,
+    required BlueConnectionState targetState,
+    required String failureMessage,
+    required Future<void> Function(
+      _ConnectionOperationCancellation cancellation,
+    )
+    operation,
+  }) async {
+    final operationName = connectionOperation.name;
+    final cancellation = connectionOperation.cancellation;
+
+    final stateCompleter = Completer<BluetoothConnectionStateChange>();
+    final stateSubscription = connectionStateStream
+        .where(
+          (event) =>
+              event.deviceId == deviceId &&
+              (event.status == BleStatus.failure || event.state == targetState),
+        )
+        .listen((state) {
+          if (!stateCompleter.isCompleted) {
+            stateCompleter.complete(state);
+          }
+        });
 
     try {
-      await operation();
-      final state = await stateEvents.next;
+      final cancellationError = _cancelledConnectionException(
+        deviceId,
+        operationName,
+      );
+      await cancellation.untilCancelled(
+        operation(cancellation),
+        error: cancellationError,
+      );
+      final state = await cancellation.untilCancelled(
+        stateCompleter.future,
+        error: cancellationError,
+      );
       if (state.status == BleStatus.failure) {
         throw QuickBlueException(
           code: QuickBlueErrorCode.operationFailed,
@@ -472,11 +565,25 @@ abstract class QuickBluePlatform extends PlatformInterface {
         );
       }
     } finally {
-      await stateEvents.cancel();
-      if (_activeConnectionOperations[deviceId] == operationName) {
+      await stateSubscription.cancel();
+      if (_activeConnectionOperations[deviceId] == connectionOperation) {
         _activeConnectionOperations.remove(deviceId);
       }
     }
+  }
+
+  QuickBlueException _cancelledConnectionException(
+    String deviceId,
+    String operationName,
+  ) {
+    return QuickBlueException(
+      code: QuickBlueErrorCode.cancelled,
+      operation: operationName,
+      deviceId: deviceId,
+      message:
+          '${operationName[0].toUpperCase()}${operationName.substring(1)} '
+          'for Bluetooth device $deviceId was cancelled.',
+    );
   }
 
   OnConnectionChanged? _onConnectionChanged;

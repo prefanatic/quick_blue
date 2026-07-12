@@ -173,10 +173,13 @@ if (state != BluetoothBondState.bonded) {
 The static `connect`, `disconnect`, `discoverServices`, `readValue`,
 `writeValue`, and `setNotifiable` methods delegate through the same handle API.
 Prefer keeping a `BluetoothDevice` when doing more than one operation.
-Only one connect or disconnect operation may be pending for a device at a time;
-an overlapping operation fails with `QuickBlueErrorCode.invalidState` instead
-of consuming an event intended for the first operation. Different devices can
-still connect concurrently.
+Only one connect or disconnect operation may be pending for a device at a time.
+Calling `disconnect()` while `connect()` is pending supersedes the connect,
+which completes with `QuickBlueErrorCode.cancelled`, and then disconnects the
+native device. This also makes a caller-side `connect().timeout(...)` safe to
+follow with `disconnect()` and a retry. Other overlapping operations fail with
+`QuickBlueErrorCode.invalidState` instead of consuming an event intended for
+the first operation. Different devices can still connect concurrently.
 
 ### Multiple Flutter engines
 

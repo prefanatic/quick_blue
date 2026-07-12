@@ -1,3 +1,12 @@
+## Unreleased
+
+### Fixed
+
+- Let `disconnect()` cancel and supersede a pending connect, including an
+  ownership-wait retry loop, so caller-side connect timeouts can cleanly
+  disconnect and retry.
+- Export `ConnectionConflictPolicy` from the app-facing `quick_blue` library.
+
 ## [0.5.0] - 2026-07-10
 
 ### Fixed

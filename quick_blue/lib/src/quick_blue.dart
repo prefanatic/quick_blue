@@ -9,6 +9,7 @@ export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
         BluetoothCharacteristic,
         BluetoothDevice,
         BluetoothGatt,
+        ConnectionConflictPolicy,
         QuickBlueErrorCode,
         QuickBlueException,
         QuickBlueGattException;
