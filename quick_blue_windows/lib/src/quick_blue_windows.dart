@@ -73,25 +73,9 @@ class QuickBlueWindows extends QuickBluePlatform {
   }
 
   @override
-  Future<void> connect(String deviceId) async {
+  Future<void> connect(String deviceId) {
     _ensureInitialized();
-    try {
-      await _api.connect(deviceId);
-    } on PlatformException catch (error, stackTrace) {
-      if (error.code != 'DeviceBusy') rethrow;
-      Error.throwWithStackTrace(
-        QuickBlueException(
-          code: QuickBlueErrorCode.deviceBusy,
-          operation: 'connect',
-          deviceId: deviceId,
-          message:
-              error.message ??
-              'Another Flutter engine owns the connection to $deviceId.',
-          details: error.details,
-        ),
-        stackTrace,
-      );
-    }
+    return _api.connect(deviceId);
   }
 
   @override

@@ -225,13 +225,13 @@ void main() {
       );
     });
 
-    test('connect translates native engine ownership conflicts', () async {
+    test('connect translates a temporarily busy shared connection', () async {
       binaryMessenger.setMockDecodedMessageHandler<Object?>(
         const BasicMessageChannel<Object?>(
           'dev.flutter.pigeon.quick_blue.QuickBlueApi.connect',
           messages.QuickBlueApi.pigeonChannelCodec,
         ),
-        (_) async => <Object?>['DeviceBusy', 'owned elsewhere', null],
+        (_) async => <Object?>['DeviceBusy', 'still disconnecting', null],
       );
 
       await expectLater(

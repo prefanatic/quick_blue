@@ -64,22 +64,11 @@ class BluetoothDevice {
   ///
   /// Throws [QuickBlueException] when another connection operation for this
   /// device is already pending. A later [disconnect] supersedes this operation
-  /// and completes it with [QuickBlueErrorCode.cancelled]. When another Flutter
-  /// engine in this process owns the native connection, [conflictPolicy]
-  /// controls whether this call fails with [QuickBlueErrorCode.deviceBusy] or
-  /// waits for handoff.
-  /// [conflictTimeout] bounds only that lease wait; pass `null` to wait without
-  /// a limit.
+  /// and completes it with [QuickBlueErrorCode.cancelled]. A temporarily busy
+  /// shared native connection is retried automatically.
   ///
   /// Timeouts are left to callers with normal `Future.timeout` composition.
-  Future<void> connect({
-    ConnectionConflictPolicy conflictPolicy = ConnectionConflictPolicy.reject,
-    Duration? conflictTimeout = const Duration(seconds: 30),
-  }) => _platform.connectDevice(
-    deviceId,
-    conflictPolicy: conflictPolicy,
-    conflictTimeout: conflictTimeout,
-  );
+  Future<void> connect() => _platform.connectDevice(deviceId);
 
   /// Disconnects this client and waits for a disconnected state event.
   ///

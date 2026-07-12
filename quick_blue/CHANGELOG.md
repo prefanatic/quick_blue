@@ -22,10 +22,10 @@
   engine-detach cleanup closes the final shared CoreBluetooth connection.
 - Publish the Darwin plugin instance so Flutter engine destruction invokes its
   native detach lifecycle.
-- Let `disconnect()` cancel and supersede a pending connect, including an
-  ownership-wait retry loop, so caller-side connect timeouts can cleanly
-  disconnect and retry.
-- Export `ConnectionConflictPolicy` from the app-facing `quick_blue` library.
+- Let `disconnect()` cancel and supersede a pending connect, including the
+  automatic retry loop for a temporarily busy shared connection.
+- Keep transient shared-connection teardown retries internal instead of
+  exposing connection-conflict policy and timeout parameters to applications.
 
 ## [0.5.0] - 2026-07-10
 
@@ -66,9 +66,8 @@
   and cross-engine notification reference counting.
 - Add a physical-device Android integration test that attaches two Flutter
   engines to one GATT and verifies concurrent discovery and independent detach.
-- Add process-wide per-device connection ownership across Flutter engines on
-  Android, iOS, macOS, Linux, and Windows, with deterministic `deviceBusy`
-  errors and opt-in bounded waiting for reconnecting handoffs.
+- Add process-wide per-device connection coordination across Flutter engines
+  on Android, iOS, macOS, Linux, and Windows.
 - Add `QuickBlueGattException` with the raw numeric native GATT status for
   Android read, write, and notification-configuration failures.
 - Add Android `bondStateStream` events and race-safe `waitForBondState()` APIs.

@@ -9,10 +9,9 @@ enum QuickBlueErrorCode {
   /// The requested operation cannot run in the current state.
   invalidState,
 
-  /// The connection is temporarily unavailable to this Flutter engine.
+  /// The shared native connection is temporarily unavailable.
   ///
-  /// This may indicate exclusive ownership on a platform without shared
-  /// connections, or a shared connection that is still disconnecting.
+  /// This can occur while a previous connection is still disconnecting.
   deviceBusy,
 
   /// The operation failed after it was accepted by the platform.
@@ -26,15 +25,6 @@ enum QuickBlueErrorCode {
 
   /// The operation was superseded by a conflicting request from this client.
   cancelled,
-}
-
-/// Controls what happens when a connection is temporarily busy.
-enum ConnectionConflictPolicy {
-  /// Fail immediately with [QuickBlueErrorCode.deviceBusy].
-  reject,
-
-  /// Retry until the connection becomes available.
-  wait,
 }
 
 /// Exception type for errors created by QuickBlue Dart code.

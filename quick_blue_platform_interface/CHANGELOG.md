@@ -1,3 +1,8 @@
+## Unreleased
+
+- Retry temporarily busy shared connections internally and remove the
+  app-facing connection-conflict policy and timeout parameters.
+
 ## 0.5.0 - 2026-07-10
 
 - Reject overlapping connection operations for the same device while allowing

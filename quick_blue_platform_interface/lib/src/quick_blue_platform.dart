@@ -398,31 +398,22 @@ abstract class QuickBluePlatform extends PlatformInterface {
   ///
   /// A second connection operation for the same device is rejected while the
   /// first is pending so failure events cannot be consumed by the wrong call.
-  Future<void> connectDevice(
-    String deviceId, {
-    ConnectionConflictPolicy conflictPolicy = ConnectionConflictPolicy.reject,
-    Duration? conflictTimeout = const Duration(seconds: 30),
-  }) {
+  Future<void> connectDevice(String deviceId) {
     return _runConnectionOperation(
       deviceId: deviceId,
       operationName: 'connect',
       targetState: BlueConnectionState.connected,
       failureMessage: 'Failed to connect to Bluetooth device $deviceId.',
-      operation: (cancellation) => _connectWithConflictPolicy(
-        deviceId,
-        conflictPolicy,
-        conflictTimeout,
-        cancellation,
-      ),
+      operation: (cancellation) =>
+          _connectWhenAvailable(deviceId, cancellation),
     );
   }
 
-  Future<void> _connectWithConflictPolicy(
+  Future<void> _connectWhenAvailable(
     String deviceId,
-    ConnectionConflictPolicy conflictPolicy,
-    Duration? conflictTimeout,
     _ConnectionOperationCancellation cancellation,
   ) async {
+    const busyTimeout = Duration(seconds: 30);
     final stopwatch = Stopwatch()..start();
     while (true) {
       try {
@@ -432,19 +423,18 @@ abstract class QuickBluePlatform extends PlatformInterface {
         );
         return;
       } on QuickBlueException catch (error) {
-        if (error.code != QuickBlueErrorCode.deviceBusy ||
-            conflictPolicy != ConnectionConflictPolicy.wait) {
+        if (error.code != QuickBlueErrorCode.deviceBusy) {
           rethrow;
         }
-        if (conflictTimeout != null && stopwatch.elapsed >= conflictTimeout) {
+        if (stopwatch.elapsed >= busyTimeout) {
           throw QuickBlueException(
             code: QuickBlueErrorCode.deviceBusy,
             operation: 'connect',
             deviceId: deviceId,
-            details: conflictTimeout,
+            details: busyTimeout,
             message:
-                'Timed out waiting for another Flutter engine to release '
-                'the connection to $deviceId.',
+                'Timed out waiting for the shared connection to $deviceId '
+                'to finish disconnecting.',
           );
         }
         await cancellation.untilCancelled(

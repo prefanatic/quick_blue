@@ -9,7 +9,6 @@ export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
         BluetoothCharacteristic,
         BluetoothDevice,
         BluetoothGatt,
-        ConnectionConflictPolicy,
         QuickBlueErrorCode,
         QuickBlueException,
         QuickBlueGattException;
@@ -108,13 +107,7 @@ class QuickBlue {
 
   /// Connects to [deviceId] and waits for the connected state event.
   @Deprecated('Use QuickBlue.device(deviceId).connect() instead.')
-  static Future<void> connect(
-    String deviceId, {
-    ConnectionConflictPolicy conflictPolicy = ConnectionConflictPolicy.reject,
-    Duration? conflictTimeout = const Duration(seconds: 30),
-  }) => device(
-    deviceId,
-  ).connect(conflictPolicy: conflictPolicy, conflictTimeout: conflictTimeout);
+  static Future<void> connect(String deviceId) => device(deviceId).connect();
 
   /// Disconnects from [deviceId] and waits for the disconnected state event.
   @Deprecated('Use QuickBlue.device(deviceId).disconnect() instead.')
