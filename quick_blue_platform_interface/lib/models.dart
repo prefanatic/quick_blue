@@ -159,18 +159,22 @@ class BlueScanResult {
 
 /// Filters used when scanning for advertisements.
 ///
-/// Platforms may apply supported filters natively. The managed scan stream also
-/// applies [rssi] in Dart so behavior is consistent.
+/// Platforms may apply supported filters natively. Quick Blue also applies
+/// [serviceData] and [rssi] to emitted results so behavior is consistent when a
+/// platform cannot apply those filters during discovery.
 class ScanFilter {
   ScanFilter({
     List<String> serviceUuids = const [],
+    Map<String, Uint8List>? serviceData,
     Map<int, Uint8List>? manufacturerData,
     this.rssi,
   }) : serviceUuids = List<String>.unmodifiable(serviceUuids),
+       _serviceData = _copyServiceDataFilter(serviceData),
        _manufacturerData = _copyManufacturerData(manufacturerData);
 
   const ScanFilter._empty()
     : serviceUuids = const <String>[],
+      _serviceData = null,
       _manufacturerData = null,
       rssi = null;
 
@@ -180,10 +184,21 @@ class ScanFilter {
   /// Service UUIDs to match.
   final List<String> serviceUuids;
 
+  final Map<String, Uint8List>? _serviceData;
+
   final Map<int, Uint8List>? _manufacturerData;
 
   /// Minimum RSSI in dBm.
   final int? rssi;
+
+  /// Service data to match, keyed by service UUID.
+  ///
+  /// Each value is matched as a payload prefix. An empty value matches any
+  /// service data advertised for that UUID. Multiple entries use OR semantics.
+  Map<String, Uint8List>? get serviceData {
+    final data = _serviceData;
+    return data == null ? null : _copyServiceDataFilter(data);
+  }
 
   /// Manufacturer data keyed by company identifier.
   Map<int, Uint8List>? get manufacturerData {
@@ -196,6 +211,7 @@ class ScanFilter {
     return identical(this, other) ||
         other is ScanFilter &&
             _stringListEquality.equals(serviceUuids, other.serviceUuids) &&
+            _deepEquality.equals(_serviceData, other._serviceData) &&
             _deepEquality.equals(_manufacturerData, other._manufacturerData) &&
             other.rssi == rssi;
   }
@@ -204,6 +220,7 @@ class ScanFilter {
   int get hashCode {
     return Object.hash(
       _stringListEquality.hash(serviceUuids),
+      _deepEquality.hash(_serviceData),
       _deepEquality.hash(_manufacturerData),
       rssi,
     );
@@ -213,6 +230,7 @@ class ScanFilter {
   String toString() {
     return 'ScanFilter('
         'serviceUuids: $serviceUuids, '
+        'serviceData: ${_nullableStringByteMapToString(_serviceData)}, '
         'manufacturerData: ${_intByteMapToString(_manufacturerData)}, '
         'rssi: $rssi'
         ')';
@@ -814,6 +832,16 @@ Map<int, Uint8List>? _copyManufacturerData(
   );
 }
 
+Map<String, Uint8List>? _copyServiceDataFilter(
+  Map<String, Uint8List>? serviceData,
+) {
+  if (serviceData == null || serviceData.isEmpty) {
+    return null;
+  }
+
+  return _copyStringByteMap(serviceData);
+}
+
 Map<String, Uint8List> _copyStringByteMap(Map<String, Uint8List> data) {
   if (data.isEmpty) {
     return const <String, Uint8List>{};
@@ -834,6 +862,10 @@ String _intByteMapToString(Map<int, Uint8List>? data) {
 
 String _stringByteMapToString(Map<String, Uint8List> data) {
   return data.map((key, value) => MapEntry(key, value.toList())).toString();
+}
+
+String _nullableStringByteMapToString(Map<String, Uint8List>? data) {
+  return data == null ? 'null' : _stringByteMapToString(data);
 }
 
 /// Device connection state.

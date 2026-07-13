@@ -18,7 +18,13 @@ class QuickBlueAndroid extends QuickBluePlatform {
       .map(_bondStateChangeFromPlatform);
   late final Stream<BlueScanResult> _scanResultStream = messages
       .scanResults()
-      .map(_scanResultFromPlatformResult);
+      .map(_scanResultFromPlatformResult)
+      .where(_matchesActiveServiceDataFilter);
+  Map<String, Uint8List>? _activeScanServiceData;
+
+  bool _matchesActiveServiceDataFilter(BlueScanResult result) {
+    return matchesServiceDataFilter(_activeScanServiceData, result.serviceData);
+  }
 
   static void registerWith() {
     QuickBluePlatform.instance = QuickBlueAndroid();
@@ -228,22 +234,33 @@ class QuickBlueAndroid extends QuickBluePlatform {
   Future<void> startScan({
     ScanFilter scanFilter = ScanFilter.empty,
     ScanOptions scanOptions = ScanOptions.defaults,
-  }) {
+  }) async {
     _ensureInitialized();
+    _activeScanServiceData = scanFilter.serviceData;
 
-    return _api.startScan(
-      serviceUuids: scanFilter.serviceUuids,
-      manufacturerData: scanFilter.manufacturerData,
-      rssi: scanFilter.rssi,
-      options: scanOptions.toPlatformAndroidScanOptions(),
-    );
+    try {
+      await _api.startScan(
+        serviceUuids: scanFilter.serviceUuids,
+        serviceData: scanFilter.serviceData,
+        manufacturerData: scanFilter.manufacturerData,
+        rssi: scanFilter.rssi,
+        options: scanOptions.toPlatformAndroidScanOptions(),
+      );
+    } catch (_) {
+      _activeScanServiceData = null;
+      rethrow;
+    }
   }
 
   @override
-  Future<void> stopScan() {
+  Future<void> stopScan() async {
     _ensureInitialized();
 
-    return _api.stopScan();
+    try {
+      await _api.stopScan();
+    } finally {
+      _activeScanServiceData = null;
+    }
   }
 
   @override

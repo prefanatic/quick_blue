@@ -2,6 +2,8 @@
 
 ### Added
 
+- Add consistent scan filtering by service-data UUID and optional payload
+  prefix across platforms, including native Android scanner filtering.
 - Share Linux BlueZ and Windows WinRT connections across Flutter engines, with
   independent engine detach, multicast native events, and final-client native
   disconnect.

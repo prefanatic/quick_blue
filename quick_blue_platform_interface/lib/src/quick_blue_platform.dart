@@ -9,6 +9,7 @@ import 'bluetooth_uuid.dart';
 import 'bluetooth_device.dart';
 import 'callbacks.dart';
 import 'quick_blue_exception.dart';
+import 'scan_filter.dart';
 import 'service_discovery_event.dart';
 import 'unimplemented_quick_blue_platform.dart';
 
@@ -153,7 +154,8 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// Starts the platform scan lifecycle.
   ///
   /// Implementations should apply supported [scanFilter] and [scanOptions]
-  /// natively and emit results through [scanResultStream].
+  /// natively. Any filter that cannot be applied during discovery must be
+  /// applied before emitting results through [scanResultStream].
   Future<void> startScan({
     ScanFilter scanFilter = ScanFilter.empty,
     ScanOptions scanOptions = ScanOptions.defaults,
@@ -177,9 +179,9 @@ abstract class QuickBluePlatform extends PlatformInterface {
 
   /// Starts scanning on listen and stops when the stream is canceled.
   ///
-  /// Concurrent listeners must use the same scan configuration. RSSI filtering
-  /// and duplicate suppression are also applied in Dart for consistent
-  /// behavior across platforms.
+  /// Concurrent listeners must use the same scan configuration. RSSI,
+  /// service-data filtering, and duplicate suppression are also applied in
+  /// Dart for consistent behavior across platforms.
   Stream<BlueScanResult> scanResults({
     ScanFilter scanFilter = ScanFilter.empty,
     ScanOptions scanOptions = ScanOptions.defaults,
@@ -206,6 +208,13 @@ abstract class QuickBluePlatform extends PlatformInterface {
     _ScanConfiguration configuration,
     Set<String> seenDeviceIds,
   ) {
+    if (!matchesServiceDataFilter(
+      configuration.scanFilter.serviceData,
+      result.serviceData,
+    )) {
+      return false;
+    }
+
     final rssi = configuration.scanFilter.rssi;
     if (rssi != null && result.rssi < rssi) {
       return false;
@@ -252,6 +261,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
   ScanFilter _copyScanFilter(ScanFilter scanFilter) {
     return ScanFilter(
       serviceUuids: scanFilter.serviceUuids,
+      serviceData: scanFilter.serviceData,
       manufacturerData: scanFilter.manufacturerData,
       rssi: scanFilter.rssi,
     );

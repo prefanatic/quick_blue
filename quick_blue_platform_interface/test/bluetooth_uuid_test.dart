@@ -12,6 +12,10 @@ void main() {
       canonicalBluetoothUuid('cba20003-224d-11e6-9fb8-0002a5d5c51b'),
       'cba20003224d11e69fb80002a5d5c51b',
     );
+    expect(
+      canonicalBluetoothUuid(' {00002A37-0000-1000-8000-00805F9B34FB} '),
+      '00002a3700001000800000805f9b34fb',
+    );
   });
 
   test('bluetoothUuidKey returns stable canonical keys', () {

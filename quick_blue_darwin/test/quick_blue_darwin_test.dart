@@ -302,6 +302,65 @@ void main() {
     );
   });
 
+  test('raw scan results apply the active service-data filter', () async {
+    _mockEventChannel(scanResultChannelName, <Object?>[
+      messages.PlatformScanResult(
+        name: 'non-match',
+        deviceId: 'device-a',
+        manufacturerDataHead: Uint8List(0),
+        manufacturerData: Uint8List(0),
+        rssi: -40,
+        serviceUuids: const <String>[],
+        serviceData: <String, Uint8List>{
+          '180f': Uint8List.fromList(<int>[1, 2]),
+        },
+      ),
+      messages.PlatformScanResult(
+        name: 'match',
+        deviceId: 'device-b',
+        manufacturerDataHead: Uint8List(0),
+        manufacturerData: Uint8List(0),
+        rssi: -40,
+        serviceUuids: const <String>[],
+        serviceData: <String, Uint8List>{
+          '0000180a-0000-1000-8000-00805f9b34fb': Uint8List.fromList(<int>[
+            1,
+            2,
+            3,
+          ]),
+        },
+      ),
+    ]);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(
+          const BasicMessageChannel<Object?>(
+            startScanChannelName,
+            messages.QuickBlueApi.pigeonChannelCodec,
+          ),
+          (_) async => <Object?>[],
+        );
+
+    final platform = QuickBlueDarwin();
+    await platform.startScan(
+      scanFilter: ScanFilter(
+        serviceData: <String, Uint8List>{
+          '180a': Uint8List.fromList(<int>[1, 2]),
+        },
+      ),
+    );
+
+    await expectLater(
+      platform.scanResultStream.take(1),
+      emits(
+        isA<BlueScanResult>().having(
+          (result) => result.deviceId,
+          'deviceId',
+          'device-b',
+        ),
+      ),
+    );
+  });
+
   test('reuses the scan result event stream', () {
     final platform = QuickBlueDarwin();
 

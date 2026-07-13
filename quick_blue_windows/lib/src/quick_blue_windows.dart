@@ -14,7 +14,13 @@ class QuickBlueWindows extends QuickBluePlatform {
   messages.QuickBlueFlutterApi? _flutterApi;
   late final Stream<BlueScanResult> _scanResultStream = _scanResults
       .receiveBroadcastStream({'name': 'scanResult'})
-      .map(_scanResultFromEvent);
+      .map(_scanResultFromEvent)
+      .where(_matchesActiveServiceDataFilter);
+  Map<String, Uint8List>? _activeScanServiceData;
+
+  bool _matchesActiveServiceDataFilter(BlueScanResult result) {
+    return matchesServiceDataFilter(_activeScanServiceData, result.serviceData);
+  }
 
   static void registerWith() {
     QuickBluePlatform.instance = QuickBlueWindows();
@@ -162,20 +168,32 @@ class QuickBlueWindows extends QuickBluePlatform {
   Future<void> startScan({
     ScanFilter scanFilter = ScanFilter.empty,
     ScanOptions scanOptions = ScanOptions.defaults,
-  }) {
+  }) async {
     _ensureInitialized();
-    return _api.startScan(
-      serviceUuids: scanFilter.serviceUuids,
-      manufacturerData: scanFilter.manufacturerData,
-      rssi: scanFilter.rssi,
-      options: scanOptions.toPlatformWindowsScanOptions(scanFilter: scanFilter),
-    );
+    _activeScanServiceData = scanFilter.serviceData;
+    try {
+      await _api.startScan(
+        serviceUuids: scanFilter.serviceUuids,
+        manufacturerData: scanFilter.manufacturerData,
+        rssi: scanFilter.rssi,
+        options: scanOptions.toPlatformWindowsScanOptions(
+          scanFilter: scanFilter,
+        ),
+      );
+    } catch (_) {
+      _activeScanServiceData = null;
+      rethrow;
+    }
   }
 
   @override
-  Future<void> stopScan() {
+  Future<void> stopScan() async {
     _ensureInitialized();
-    return _api.stopScan();
+    try {
+      await _api.stopScan();
+    } finally {
+      _activeScanServiceData = null;
+    }
   }
 
   @override

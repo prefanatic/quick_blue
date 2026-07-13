@@ -15,7 +15,13 @@ class QuickBlueDarwin extends QuickBluePlatform {
       .map((state) => state.toBlueBluetoothState());
   late final Stream<BlueScanResult> _scanResultStream = messages
       .scanResults()
-      .map(_scanResultFromPlatformResult);
+      .map(_scanResultFromPlatformResult)
+      .where(_matchesActiveServiceDataFilter);
+  Map<String, Uint8List>? _activeScanServiceData;
+
+  bool _matchesActiveServiceDataFilter(BlueScanResult result) {
+    return matchesServiceDataFilter(_activeScanServiceData, result.serviceData);
+  }
 
   final Stream<messages.PlatformL2CapSocketEvent> _l2CapEventStream = messages
       .l2CapSocketEvents();
@@ -207,8 +213,9 @@ class QuickBlueDarwin extends QuickBluePlatform {
   Future<void> startScan({
     ScanFilter scanFilter = ScanFilter.empty,
     ScanOptions scanOptions = ScanOptions.defaults,
-  }) {
+  }) async {
     _ensureInitialized();
+    _activeScanServiceData = scanFilter.serviceData;
 
     final serviceUuids = scanFilter.serviceUuids.isEmpty
         ? null
@@ -217,19 +224,28 @@ class QuickBlueDarwin extends QuickBluePlatform {
         ? null
         : scanFilter.manufacturerData;
 
-    return _api.startScan(
-      serviceUuids: serviceUuids,
-      manufacturerData: manufacturerData,
-      rssi: scanFilter.rssi,
-      options: scanOptions.toPlatformDarwinScanOptions(),
-    );
+    try {
+      await _api.startScan(
+        serviceUuids: serviceUuids,
+        manufacturerData: manufacturerData,
+        rssi: scanFilter.rssi,
+        options: scanOptions.toPlatformDarwinScanOptions(),
+      );
+    } catch (_) {
+      _activeScanServiceData = null;
+      rethrow;
+    }
   }
 
   @override
-  Future<void> stopScan() {
+  Future<void> stopScan() async {
     _ensureInitialized();
 
-    return _api.stopScan();
+    try {
+      await _api.stopScan();
+    } finally {
+      _activeScanServiceData = null;
+    }
   }
 
   @override

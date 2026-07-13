@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Apply service-data UUID and payload-prefix filters to raw scan results.
 - Resolve CoreBluetooth-known device UUIDs during connect so a new engine does
   not need to scan or query connected peripherals before attaching.
 - Defer final engine-detach cleanup by one main-queue turn so a concurrently

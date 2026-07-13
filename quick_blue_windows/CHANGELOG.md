@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Apply service-data UUID and payload-prefix filters to raw scan results.
 - Share WinRT GATT sessions across Flutter engines, transfer native callback
   hosting when an engine detaches, and disconnect only after the final client.
 

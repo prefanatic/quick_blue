@@ -13,7 +13,11 @@ bool matchesBluetoothUuid(String left, String right) {
 }
 
 String? canonicalBluetoothUuid(String uuid) {
-  final cleaned = uuid.replaceAll('-', '').toLowerCase();
+  var cleaned = uuid.trim().toLowerCase();
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+    cleaned = cleaned.substring(1, cleaned.length - 1);
+  }
+  cleaned = cleaned.replaceAll('-', '');
   if (cleaned.length == 4) {
     return '0000$cleaned'
         '00001000800000805f9b34fb';

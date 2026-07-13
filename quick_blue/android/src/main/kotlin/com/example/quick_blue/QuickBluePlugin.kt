@@ -428,6 +428,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
 
     override fun startScan(
         serviceUuids: List<String>?,
+        serviceData: Map<String, ByteArray>?,
         manufacturerData: Map<Long, ByteArray>?,
         rssi: Long?,
         options: PlatformAndroidScanOptions?
@@ -436,31 +437,38 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         activeScanRssi = rssi
 
         val manufacturerDataFilter = manufacturerData?.entries?.firstOrNull()
-        val filters = if (serviceUuids.isNullOrEmpty()) {
-            if (manufacturerDataFilter == null) {
-                null
-            } else {
-                listOf(
-                    ScanFilter.Builder()
-                        .setManufacturerData(
+        val serviceUuidFilters: List<String?> =
+            serviceUuids?.ifEmpty { null } ?: listOf(null)
+        val serviceDataFilters: List<Map.Entry<String, ByteArray>?> =
+            serviceData?.entries?.toList()?.ifEmpty { null } ?: listOf(null)
+        val hasNativeFilters =
+            serviceUuids?.isNotEmpty() == true ||
+                serviceData?.isNotEmpty() == true ||
+                manufacturerDataFilter != null
+        val filters = if (hasNativeFilters) {
+            serviceUuidFilters.flatMap { serviceUuid ->
+                serviceDataFilters.map { serviceDataFilter ->
+                    val builder = ScanFilter.Builder()
+                    serviceUuid?.let {
+                        builder.setServiceUuid(ParcelUuid(it.toBluetoothUuid()))
+                    }
+                    serviceDataFilter?.let {
+                        builder.setServiceData(
+                            ParcelUuid(it.key.toBluetoothUuid()),
+                            it.value
+                        )
+                    }
+                    if (manufacturerDataFilter != null) {
+                        builder.setManufacturerData(
                             manufacturerDataFilter.key.toInt(),
                             manufacturerDataFilter.value
                         )
-                        .build()
-                )
+                    }
+                    builder.build()
+                }
             }
         } else {
-            serviceUuids.map {
-                val builder = ScanFilter.Builder()
-                    .setServiceUuid(ParcelUuid.fromString(it))
-                if (manufacturerDataFilter != null) {
-                    builder.setManufacturerData(
-                        manufacturerDataFilter.key.toInt(),
-                        manufacturerDataFilter.value
-                    )
-                }
-                builder.build()
-            }
+            null
         }
         val scanOptions = options ?: PlatformAndroidScanOptions(
             scanMode = PlatformAndroidScanMode.LOW_LATENCY,

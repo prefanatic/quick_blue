@@ -164,6 +164,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   // Active scan state.
   BlueZAdapter? _activeAdapter;
   Set<String> _activeScanServiceUuids = const <String>{};
+  Map<String, Uint8List>? _activeScanServiceData;
   Map<int, Uint8List>? _activeScanManufacturerData;
   int? _activeScanRssi;
   LinuxScanOptions _activeScanOptions = const LinuxScanOptions();
@@ -314,6 +315,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     _activeScanServiceUuids = scanFilter.serviceUuids
         .map(_canonicalizeUuid)
         .toSet();
+    _activeScanServiceData = scanFilter.serviceData;
     _activeScanManufacturerData = scanFilter.manufacturerData;
     _activeScanRssi = scanFilter.rssi ?? scanOptions.linux.rssi;
     _activeScanOptions = scanOptions.linux;
@@ -331,6 +333,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     if (adapter == null) {
       await _clearScanDevicePropertySubscriptions();
       _activeScanServiceUuids = const <String>{};
+      _activeScanServiceData = null;
       _activeScanManufacturerData = null;
       _activeScanRssi = null;
       _activeScanOptions = const LinuxScanOptions();
@@ -341,6 +344,7 @@ class QuickBlueLinux extends QuickBluePlatform {
     } finally {
       await _clearScanDevicePropertySubscriptions();
       _activeScanServiceUuids = const <String>{};
+      _activeScanServiceData = null;
       _activeScanManufacturerData = null;
       _activeScanRssi = null;
       _activeScanOptions = const LinuxScanOptions();
@@ -379,22 +383,23 @@ class QuickBlueLinux extends QuickBluePlatform {
     }
 
     final manufacturerData = device.advertisedManufacturerData;
-    _scanResultController.add(
-      BlueScanResult(
-        deviceId: device.address,
-        name: device.alias.isEmpty ? device.name : device.alias,
-        manufacturerDataHead: manufacturerData.head,
-        manufacturerData: manufacturerData.payload,
-        rssi: device.rssi,
-        serviceUuids: device.uuids
-            .map((uuid) => _formatUuid(uuid))
-            .toList(growable: false),
-        serviceData: device.serviceData.map(
-          (uuid, value) =>
-              MapEntry(_formatUuid(uuid), Uint8List.fromList(value)),
-        ),
+    final result = BlueScanResult(
+      deviceId: device.address,
+      name: device.alias.isEmpty ? device.name : device.alias,
+      manufacturerDataHead: manufacturerData.head,
+      manufacturerData: manufacturerData.payload,
+      rssi: device.rssi,
+      serviceUuids: device.uuids
+          .map((uuid) => _formatUuid(uuid))
+          .toList(growable: false),
+      serviceData: device.serviceData.map(
+        (uuid, value) => MapEntry(_formatUuid(uuid), Uint8List.fromList(value)),
       ),
     );
+    if (!matchesServiceDataFilter(_activeScanServiceData, result.serviceData)) {
+      return;
+    }
+    _scanResultController.add(result);
   }
 
   void _onDeviceRemoved(BlueZDevice device) {

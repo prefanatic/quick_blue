@@ -1089,14 +1089,14 @@ class QuickBlueApi {
     return pigeonVar_replyValue! as bool;
   }
 
-  Future<void> startScan({List<String>? serviceUuids, Map<int, Uint8List>? manufacturerData, int? rssi, PlatformAndroidScanOptions? options, }) async {
+  Future<void> startScan({List<String>? serviceUuids, Map<String, Uint8List>? serviceData, Map<int, Uint8List>? manufacturerData, int? rssi, PlatformAndroidScanOptions? options, }) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue.QuickBlueApi.startScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[serviceUuids, manufacturerData, rssi, options]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[serviceUuids, serviceData, manufacturerData, rssi, options]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

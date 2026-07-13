@@ -74,6 +74,25 @@ final subscription = QuickBlue.scanResults().listen((result) {
 await subscription.cancel();
 ```
 
+Filter service data separately from advertised service UUIDs. Values are
+payload prefixes, an empty value matches any service data for that UUID, and
+multiple entries use OR semantics:
+
+```dart
+import 'dart:typed_data';
+
+final subscription = QuickBlue.scanResults(
+  scanFilter: ScanFilter(
+    serviceData: <String, Uint8List>{'180a': Uint8List(0)},
+  ),
+).listen((result) {
+  print('onScanResult ${result.deviceId}');
+});
+```
+
+These result semantics are consistent across platforms. Android additionally
+applies the service-data filter through its native scanner.
+
 Get handles for peripherals that are already connected:
 
 ```dart

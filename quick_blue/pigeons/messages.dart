@@ -99,6 +99,7 @@ abstract class QuickBlueApi {
   bool isBluetoothAvailable();
   void startScan({
     List<String>? serviceUuids,
+    Map<String, Uint8List>? serviceData,
     Map<int, Uint8List>? manufacturerData,
     int? rssi,
     PlatformAndroidScanOptions? options,

@@ -97,6 +97,24 @@ final scanSubscription = QuickBlue.scanResults(
 });
 ```
 
+Service-data filters are distinct from advertised service UUIDs. Use an empty
+payload to match any service data for a UUID, or provide bytes to match a
+payload prefix. Multiple entries use OR semantics:
+
+```dart
+import 'dart:typed_data';
+
+final serviceDataScan = QuickBlue.scanResults(
+  scanFilter: ScanFilter(
+    serviceData: <String, Uint8List>{'180a': Uint8List(0)},
+  ),
+);
+```
+
+Quick Blue applies these result semantics on every platform. Android also maps
+the filter to its native `ScanFilter.Builder.setServiceData` API so unrelated
+advertisements can be discarded during discovery.
+
 Platform-specific scan options are also available when you need native scanner
 controls such as Android PHY, CoreBluetooth solicited services, BlueZ pathloss,
 or Windows signal-strength timing.

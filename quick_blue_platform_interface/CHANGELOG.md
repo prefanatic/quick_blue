@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Add service-data UUID and payload-prefix filters to `ScanFilter`, with shared
+  matching semantics for managed and raw platform scan streams.
 - Retry temporarily busy shared connections internally and remove the
   app-facing connection-conflict policy and timeout parameters.
 

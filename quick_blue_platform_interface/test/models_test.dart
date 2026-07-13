@@ -205,6 +205,27 @@ void main() {
       expect(filter.manufacturerData![76], orderedEquals(<int>[1, 2, 3]));
     });
 
+    test('defensively copies and exposes unmodifiable service data', () {
+      final serviceBytes = Uint8List.fromList(<int>[1, 2, 3]);
+      final serviceData = <String, Uint8List>{'180a': serviceBytes};
+      final filter = ScanFilter(serviceData: serviceData);
+
+      serviceBytes[0] = 9;
+      serviceData['180f'] = Uint8List.fromList(<int>[4, 5, 6]);
+
+      expect(filter.serviceData!.keys, <String>['180a']);
+      expect(filter.serviceData!['180a'], orderedEquals(<int>[1, 2, 3]));
+      expect(
+        () => filter.serviceData!['180f'] = Uint8List(0),
+        throwsUnsupportedError,
+      );
+
+      final exposedBytes = filter.serviceData!['180a']!;
+      exposedBytes[0] = 9;
+
+      expect(filter.serviceData!['180a'], orderedEquals(<int>[1, 2, 3]));
+    });
+
     test('compares service UUIDs by order', () {
       expect(
         ScanFilter(serviceUuids: const <String>['180d', '180f']),
@@ -241,6 +262,28 @@ void main() {
       expect(first, isNot(differentBytes));
     });
 
+    test('compares service data by UUID and bytes', () {
+      final first = ScanFilter(
+        serviceData: <String, Uint8List>{
+          '180a': Uint8List.fromList(<int>[1, 2, 3]),
+        },
+      );
+      final equivalent = ScanFilter(
+        serviceData: <String, Uint8List>{
+          '180a': Uint8List.fromList(<int>[1, 2, 3]),
+        },
+      );
+      final differentBytes = ScanFilter(
+        serviceData: <String, Uint8List>{
+          '180a': Uint8List.fromList(<int>[1, 2, 4]),
+        },
+      );
+
+      expect(first, equivalent);
+      expect(first.hashCode, equivalent.hashCode);
+      expect(first, isNot(differentBytes));
+    });
+
     test('compares RSSI thresholds by value', () {
       expect(ScanFilter(rssi: -80), ScanFilter(rssi: -80));
       expect(ScanFilter(rssi: -80), isNot(ScanFilter(rssi: -70)));
@@ -251,6 +294,15 @@ void main() {
       final emptyData = ScanFilter(manufacturerData: <int, Uint8List>{});
 
       expect(emptyData.manufacturerData, isNull);
+      expect(nullData, emptyData);
+      expect(nullData.hashCode, emptyData.hashCode);
+    });
+
+    test('treats null and empty service data consistently', () {
+      final nullData = ScanFilter();
+      final emptyData = ScanFilter(serviceData: <String, Uint8List>{});
+
+      expect(emptyData.serviceData, isNull);
       expect(nullData, emptyData);
       expect(nullData.hashCode, emptyData.hashCode);
     });

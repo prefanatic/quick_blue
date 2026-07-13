@@ -340,6 +340,80 @@ void main() {
     await subscription.cancel();
   });
 
+  test('scanResults filters service data by UUID and payload prefix', () async {
+    final platform = _FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+    final results = <String>[];
+
+    final subscription = platform
+        .scanResults(
+          scanFilter: ScanFilter(
+            serviceData: <String, Uint8List>{
+              '180a': Uint8List.fromList(<int>[1, 2]),
+            },
+          ),
+        )
+        .listen((result) => results.add(result.deviceId));
+
+    await pumpEventQueue();
+    platform
+      ..addScanResult(
+        'device-a',
+        serviceData: <String, Uint8List>{
+          '0000180a-0000-1000-8000-00805f9b34fb': Uint8List.fromList(<int>[
+            1,
+            2,
+            3,
+          ]),
+        },
+      )
+      ..addScanResult(
+        'device-b',
+        serviceData: <String, Uint8List>{
+          '180a': Uint8List.fromList(<int>[1, 3]),
+        },
+      )
+      ..addScanResult(
+        'device-c',
+        serviceData: <String, Uint8List>{'180f': Uint8List(0)},
+      );
+    await pumpEventQueue();
+
+    expect(results, <String>['device-a']);
+
+    await subscription.cancel();
+  });
+
+  test(
+    'scanResults accepts any payload for an empty service-data prefix',
+    () async {
+      final platform = _FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+      final results = <String>[];
+
+      final subscription = platform
+          .scanResults(
+            scanFilter: ScanFilter(
+              serviceData: <String, Uint8List>{'180a': Uint8List(0)},
+            ),
+          )
+          .listen((result) => results.add(result.deviceId));
+
+      await pumpEventQueue();
+      platform.addScanResult(
+        'device-a',
+        serviceData: <String, Uint8List>{
+          '180a': Uint8List.fromList(<int>[9, 8, 7]),
+        },
+      );
+      await pumpEventQueue();
+
+      expect(results, <String>['device-a']);
+
+      await subscription.cancel();
+    },
+  );
+
   test(
     'scanResults drops duplicate devices when duplicates are disabled',
     () async {
@@ -550,6 +624,9 @@ void main() {
 
     final filter = ScanFilter(
       serviceUuids: const <String>['180d'],
+      serviceData: <String, Uint8List>{
+        '180a': Uint8List.fromList(<int>[4, 5]),
+      },
       manufacturerData: <int, Uint8List>{
         76: Uint8List.fromList(<int>[1, 2, 3]),
       },
@@ -560,6 +637,10 @@ void main() {
     await pumpEventQueue();
     expect(platform.lastScanFilter, isNot(same(filter)));
     expect(platform.lastScanFilter!.serviceUuids, filter.serviceUuids);
+    expect(
+      platform.lastScanFilter!.serviceData!['180a'],
+      orderedEquals(<int>[4, 5]),
+    );
     expect(
       platform.lastScanFilter!.manufacturerData![76],
       orderedEquals(<int>[1, 2, 3]),
@@ -2335,9 +2416,18 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   int _startScanCallCount = 0;
   int _setNotifiableCallCount = 0;
 
-  void addScanResult(String deviceId, {int rssi = -40}) {
+  void addScanResult(
+    String deviceId, {
+    int rssi = -40,
+    Map<String, Uint8List> serviceData = const <String, Uint8List>{},
+  }) {
     _scanResultController.add(
-      BlueScanResult(name: 'Device $deviceId', deviceId: deviceId, rssi: rssi),
+      BlueScanResult(
+        name: 'Device $deviceId',
+        deviceId: deviceId,
+        rssi: rssi,
+        serviceData: serviceData,
+      ),
     );
   }
 

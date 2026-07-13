@@ -84,12 +84,14 @@ void main() {
 
       final platform = QuickBlueAndroid();
       final value = Uint8List.fromList(<int>[1, 2, 3]);
+      final serviceData = <String, Uint8List>{'180a': Uint8List(0)};
       final manufacturerData = <int, Uint8List>{76: value};
 
       expect(await platform.isBluetoothAvailable(), isTrue);
       await platform.startScan(
         scanFilter: ScanFilter(
           serviceUuids: const <String>['180d'],
+          serviceData: serviceData,
           manufacturerData: manufacturerData,
         ),
       );
@@ -127,10 +129,11 @@ void main() {
           sentMessages['dev.flutter.pigeon.quick_blue.QuickBlueApi.startScan']
               as List<Object?>;
       expect(startScanMessage[0], <String>['180d']);
-      expect(startScanMessage[1], manufacturerData);
-      expect(startScanMessage[2], isNull);
+      expect(startScanMessage[1], serviceData);
+      expect(startScanMessage[2], manufacturerData);
+      expect(startScanMessage[3], isNull);
       final scanOptions =
-          startScanMessage[3] as messages.PlatformAndroidScanOptions;
+          startScanMessage[4] as messages.PlatformAndroidScanOptions;
       expect(scanOptions.scanMode, messages.PlatformAndroidScanMode.lowLatency);
       expect(
         scanOptions.callbackType,
@@ -337,8 +340,8 @@ void main() {
       );
 
       final message = sentMessage as List<Object?>;
-      expect(message[2], -70);
-      final options = message[3] as messages.PlatformAndroidScanOptions;
+      expect(message[3], -70);
+      final options = message[4] as messages.PlatformAndroidScanOptions;
       expect(options.scanMode, messages.PlatformAndroidScanMode.balanced);
       expect(
         options.callbackType,
@@ -454,6 +457,67 @@ void main() {
                 'serviceUuids',
                 contains('180d'),
               ),
+        ),
+      );
+    });
+
+    test('raw scan results apply the active service-data filter', () async {
+      _mockEventChannel(
+        'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.scanResults',
+        <Object?>[
+          messages.PlatformScanResult(
+            name: 'non-match',
+            deviceId: 'device-a',
+            manufacturerDataHead: Uint8List(0),
+            manufacturerData: Uint8List(0),
+            rssi: -40,
+            serviceUuids: const <String>[],
+            serviceData: <String, Uint8List>{
+              '180f': Uint8List.fromList(<int>[1, 2]),
+            },
+          ),
+          messages.PlatformScanResult(
+            name: 'match',
+            deviceId: 'device-b',
+            manufacturerDataHead: Uint8List(0),
+            manufacturerData: Uint8List(0),
+            rssi: -40,
+            serviceUuids: const <String>[],
+            serviceData: <String, Uint8List>{
+              '0000180a-0000-1000-8000-00805f9b34fb': Uint8List.fromList(<int>[
+                1,
+                2,
+                3,
+              ]),
+            },
+          ),
+        ],
+      );
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.startScan',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (_) async => <Object?>[],
+      );
+
+      final platform = QuickBlueAndroid();
+      await platform.startScan(
+        scanFilter: ScanFilter(
+          serviceData: <String, Uint8List>{
+            '180a': Uint8List.fromList(<int>[1, 2]),
+          },
+        ),
+      );
+
+      await expectLater(
+        platform.scanResultStream.take(1),
+        emits(
+          isA<BlueScanResult>().having(
+            (result) => result.deviceId,
+            'deviceId',
+            'device-b',
+          ),
         ),
       );
     });

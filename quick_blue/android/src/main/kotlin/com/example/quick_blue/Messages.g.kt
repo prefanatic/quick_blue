@@ -1151,7 +1151,7 @@ val MessagesPigeonMethodCodec = StandardMethodCodec(MessagesPigeonCodec())
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface QuickBlueApi {
   fun isBluetoothAvailable(): Boolean
-  fun startScan(serviceUuids: List<String>?, manufacturerData: Map<Long, ByteArray>?, rssi: Long?, options: PlatformAndroidScanOptions?)
+  fun startScan(serviceUuids: List<String>?, serviceData: Map<String, ByteArray>?, manufacturerData: Map<Long, ByteArray>?, rssi: Long?, options: PlatformAndroidScanOptions?)
   fun stopScan()
   fun connectedDeviceIds(serviceUuids: List<String>): List<String>
   fun connect(deviceId: String)
@@ -1201,11 +1201,12 @@ interface QuickBlueApi {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val serviceUuidsArg = args[0] as List<String>?
-            val manufacturerDataArg = args[1] as Map<Long, ByteArray>?
-            val rssiArg = args[2] as Long?
-            val optionsArg = args[3] as PlatformAndroidScanOptions?
+            val serviceDataArg = args[1] as Map<String, ByteArray>?
+            val manufacturerDataArg = args[2] as Map<Long, ByteArray>?
+            val rssiArg = args[3] as Long?
+            val optionsArg = args[4] as PlatformAndroidScanOptions?
             val wrapped: List<Any?> = try {
-              api.startScan(serviceUuidsArg, manufacturerDataArg, rssiArg, optionsArg)
+              api.startScan(serviceUuidsArg, serviceDataArg, manufacturerDataArg, rssiArg, optionsArg)
               listOf(null)
             } catch (exception: Throwable) {
               MessagesPigeonUtils.wrapError(exception)
