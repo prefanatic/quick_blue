@@ -192,7 +192,7 @@ void main() {
       );
     });
 
-    test('read surfaces structured numeric GATT failures', () async {
+    test('read maps authentication failures to security errors', () async {
       binaryMessenger.setMockDecodedMessageHandler<Object?>(
         const BasicMessageChannel<Object?>(
           'dev.flutter.pigeon.quick_blue.QuickBlueApi.readValue',
@@ -214,8 +214,13 @@ void main() {
           'characteristic-a',
         ),
         throwsA(
-          isA<QuickBlueGattException>()
-              .having((error) => error.status, 'status', 5)
+          isA<QuickBlueSecurityException>()
+              .having(
+                (error) => error.reason,
+                'reason',
+                QuickBlueSecurityErrorReason.insufficientAuthentication,
+              )
+              .having((error) => error.nativeCode, 'nativeCode', 5)
               .having((error) => error.operation, 'operation', 'readValue')
               .having((error) => error.deviceId, 'deviceId', 'device-a')
               .having((error) => error.serviceId, 'serviceId', 'service-a')
@@ -758,6 +763,45 @@ void main() {
         await subscription.cancel();
       },
     );
+
+    test('maps connection authentication status to a security error', () async {
+      final platform = QuickBlueAndroid();
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.isBluetoothAvailable',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (_) async => <Object?>[true],
+      );
+
+      await platform.isBluetoothAvailable();
+      final event = platform.connectionStateStream.first;
+
+      await _sendFlutterApiMessage(
+        'onConnectionStateChange',
+        messages.PlatformConnectionStateChange(
+          deviceId: 'device-a',
+          state: messages.PlatformConnectionState.disconnected,
+          gattStatus: messages.PlatformGattStatus.failure,
+          nativeStatus: 5,
+        ),
+      );
+
+      final connectionChange = await event;
+      expect(connectionChange.status, BleStatus.failure);
+      expect(
+        connectionChange.error,
+        isA<QuickBlueSecurityException>()
+            .having(
+              (error) => error.reason,
+              'reason',
+              QuickBlueSecurityErrorReason.insufficientAuthentication,
+            )
+            .having((error) => error.nativeCode, 'nativeCode', 5)
+            .having((error) => error.operation, 'operation', 'connection')
+            .having((error) => error.deviceId, 'deviceId', 'device-a'),
+      );
+    });
 
     test('maps L2CAP socket events and forwards socket writes', () async {
       _mockEventChannel(

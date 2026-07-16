@@ -66,9 +66,16 @@ class BluetoothDevice {
   /// device is already pending. A later [disconnect] supersedes this operation
   /// and completes it with [QuickBlueErrorCode.cancelled]. A temporarily busy
   /// shared native connection is retried automatically.
+  /// Structured security failures trigger one coordinated recovery attempt and
+  /// retry before a terminal exception is reported.
   ///
   /// Timeouts are left to callers with normal `Future.timeout` composition.
-  Future<void> connect() => _platform.connectDevice(deviceId);
+  Future<void> connect() {
+    return _platform.runWithSecurityRecovery(
+      deviceId,
+      () => _platform.connectDevice(deviceId),
+    );
+  }
 
   /// Disconnects this client and waits for a disconnected state event.
   ///
@@ -121,6 +128,16 @@ class BluetoothDevice {
     return _platform.pair(deviceId);
   }
 
+  /// Explicitly attempts the platform's best recovery for [error].
+  ///
+  /// Normal connection and characteristic operations invoke this recovery
+  /// automatically before surfacing a terminal security exception.
+  Future<QuickBlueSecurityRecoveryResult> recoverSecurity(
+    QuickBlueSecurityException error,
+  ) {
+    return _platform.recoverSecurity(deviceId, error);
+  }
+
   /// Discovers services and characteristics for this device.
   ///
   /// Completes after the platform reports discovery completion.
@@ -160,11 +177,14 @@ class BluetoothDevice {
     String characteristic,
     BleInputProperty bleInputProperty,
   ) {
-    return _platform.setNotifiable(
+    return _platform.runWithSecurityRecovery(
       deviceId,
-      service,
-      characteristic,
-      bleInputProperty,
+      () => _platform.setNotifiable(
+        deviceId,
+        service,
+        characteristic,
+        bleInputProperty,
+      ),
     );
   }
 

@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Map BlueZ authorization failures into cross-platform security recovery.
 - Apply service-data UUID and payload-prefix filters to scan results.
 - Share BlueZ connections across Flutter engines using serialized per-engine
   D-Bus memberships, and disconnect physically only after the final client.

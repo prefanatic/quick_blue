@@ -89,9 +89,34 @@ void main() {
     expect(await platform.isBluetoothAvailable(), isFalse);
     expect(client.connectCount, 1);
   });
+
+  test('security recovery pairs an unpaired BlueZ device', () async {
+    final device = _FakeBlueZDevice('AA:BB:CC:DD:EE:FF');
+    final client = _FakeBlueZClient(devices: <BlueZDevice>[device]);
+    client.connection.complete();
+    final platform = QuickBlueLinux.withClient(client);
+
+    final result = await platform.recoverSecurity(
+      device.address,
+      QuickBlueSecurityException(
+        reason: QuickBlueSecurityErrorReason.insufficientAuthorization,
+        nativeDomain: 'org.bluez.Error.NotAuthorized',
+        nativeCode: null,
+        operation: 'readValue',
+        deviceId: device.address,
+        message: 'Not authorized',
+      ),
+    );
+
+    expect(result, QuickBlueSecurityRecoveryResult.recovered);
+    expect(device.pairCount, 1);
+    expect(device.paired, isTrue);
+  });
 }
 
 class _FakeBlueZClient implements BlueZClient {
+  _FakeBlueZClient({this.devices = const <BlueZDevice>[]});
+
   final connection = Completer<void>();
   var connectCount = 0;
 
@@ -105,7 +130,7 @@ class _FakeBlueZClient implements BlueZClient {
   List<BlueZAdapter> get adapters => const <BlueZAdapter>[];
 
   @override
-  List<BlueZDevice> get devices => const <BlueZDevice>[];
+  final List<BlueZDevice> devices;
 
   @override
   Stream<BlueZAdapter> get adapterAdded => const Stream<BlueZAdapter>.empty();
@@ -118,6 +143,27 @@ class _FakeBlueZClient implements BlueZClient {
 
   @override
   Stream<BlueZDevice> get deviceRemoved => const Stream<BlueZDevice>.empty();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeBlueZDevice implements BlueZDevice {
+  _FakeBlueZDevice(this.address);
+
+  @override
+  final String address;
+
+  @override
+  var paired = false;
+
+  var pairCount = 0;
+
+  @override
+  Future<void> pair() async {
+    pairCount++;
+    paired = true;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

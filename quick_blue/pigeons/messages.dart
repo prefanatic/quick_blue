@@ -187,11 +187,13 @@ class PlatformConnectionStateChange {
     required this.deviceId,
     required this.state,
     required this.gattStatus,
+    this.nativeStatus,
   });
 
   final String deviceId;
   final PlatformConnectionState state;
   final PlatformGattStatus gattStatus;
+  final int? nativeStatus;
 }
 
 class PlatformBondStateChange {

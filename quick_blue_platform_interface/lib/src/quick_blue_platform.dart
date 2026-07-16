@@ -380,6 +380,47 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// Starts pairing/bonding with [deviceId].
   Future<void> pair(String deviceId);
 
+  /// Attempts the active platform's best recovery for a security failure.
+  ///
+  /// Platform implementations may override this hook when their operating
+  /// system has a recovery mechanism beyond normal pairing.
+  Future<QuickBlueSecurityRecoveryResult> performSecurityRecovery(
+    String deviceId,
+    QuickBlueSecurityException error,
+  ) async {
+    BluetoothBondState state;
+    try {
+      state = await bondState(deviceId);
+    } on QuickBlueException catch (bondError) {
+      if (bondError.code == QuickBlueErrorCode.unsupported) {
+        return QuickBlueSecurityRecoveryResult.unsupported;
+      }
+      return QuickBlueSecurityRecoveryResult.userActionRequired;
+    } on Object {
+      return QuickBlueSecurityRecoveryResult.userActionRequired;
+    }
+
+    switch (state) {
+      case BluetoothBondState.notBonded:
+      case BluetoothBondState.bonding:
+        try {
+          await pair(deviceId);
+          return QuickBlueSecurityRecoveryResult.recovered;
+        } on QuickBlueException catch (pairError) {
+          if (pairError.code == QuickBlueErrorCode.unsupported) {
+            return QuickBlueSecurityRecoveryResult.unsupported;
+          }
+          return QuickBlueSecurityRecoveryResult.userActionRequired;
+        } on Object {
+          return QuickBlueSecurityRecoveryResult.userActionRequired;
+        }
+      case BluetoothBondState.bonded:
+        return QuickBlueSecurityRecoveryResult.userActionRequired;
+      case BluetoothBondState.unknown:
+        return QuickBlueSecurityRecoveryResult.unsupported;
+    }
+  }
+
   /// Returns whether companion-device association is supported.
   Future<bool> isCompanionAssociationSupported();
 
@@ -398,6 +439,61 @@ abstract class QuickBluePlatform extends PlatformInterface {
   _connectionStateController =
       StreamController<BluetoothConnectionStateChange>.broadcast();
   final _activeConnectionOperations = <String, _ConnectionOperation>{};
+  final _securityRecoveryOperations =
+      <String, Future<QuickBlueSecurityRecoveryResult>>{};
+
+  /// Coordinates one security recovery attempt per device.
+  Future<QuickBlueSecurityRecoveryResult> recoverSecurity(
+    String deviceId,
+    QuickBlueSecurityException error,
+  ) {
+    final activeRecovery = _securityRecoveryOperations[deviceId];
+    if (activeRecovery != null) {
+      return activeRecovery;
+    }
+
+    late final Future<QuickBlueSecurityRecoveryResult> recovery;
+    recovery = () async {
+      try {
+        return await performSecurityRecovery(deviceId, error);
+      } finally {
+        if (identical(_securityRecoveryOperations[deviceId], recovery)) {
+          _securityRecoveryOperations.remove(deviceId);
+        }
+      }
+    }();
+    _securityRecoveryOperations[deviceId] = recovery;
+    return recovery;
+  }
+
+  /// Runs [operation], attempts security recovery once, and retries on success.
+  Future<T> runWithSecurityRecovery<T>(
+    String deviceId,
+    Future<T> Function() operation,
+  ) async {
+    try {
+      return await operation();
+    } on QuickBlueSecurityException catch (error, stackTrace) {
+      final recoveryResult = await recoverSecurity(deviceId, error);
+      if (recoveryResult != QuickBlueSecurityRecoveryResult.recovered) {
+        Error.throwWithStackTrace(
+          error.withRecoveryResult(recoveryResult),
+          stackTrace,
+        );
+      }
+
+      try {
+        return await operation();
+      } on QuickBlueSecurityException catch (retryError, retryStackTrace) {
+        Error.throwWithStackTrace(
+          retryError.withRecoveryResult(
+            QuickBlueSecurityRecoveryResult.userActionRequired,
+          ),
+          retryStackTrace,
+        );
+      }
+    }
+  }
 
   /// Connection state changes for all devices.
   Stream<BluetoothConnectionStateChange> get connectionStateStream {
@@ -556,6 +652,9 @@ abstract class QuickBluePlatform extends PlatformInterface {
         error: cancellationError,
       );
       if (state.status == BleStatus.failure) {
+        if (state.error != null) {
+          throw state.error!;
+        }
         throw QuickBlueException(
           code: QuickBlueErrorCode.operationFailed,
           operation: operationName,
@@ -790,7 +889,11 @@ abstract class QuickBluePlatform extends PlatformInterface {
         return;
       }
 
-      await setNotifiable(deviceId, service, characteristic, bleInputProperty);
+      await runWithSecurityRecovery(
+        deviceId,
+        () =>
+            setNotifiable(deviceId, service, characteristic, bleInputProperty),
+      );
       _activeNotifications[key] = _ActiveNotification(bleInputProperty);
     });
   }
@@ -906,16 +1009,28 @@ abstract class QuickBluePlatform extends PlatformInterface {
   void _handleConnectionChanged(
     String deviceId,
     BlueConnectionState state,
-    BleStatus status,
-  ) {
+    BleStatus status, [
+    QuickBlueException? error,
+  ]) {
     _connectionStateController.add(
       BluetoothConnectionStateChange(
         deviceId: deviceId,
         state: state,
         status: status,
+        error: error,
       ),
     );
     _onConnectionChanged?.call(deviceId, state, status);
+  }
+
+  /// Reports a connection state and optional structured platform failure.
+  void handleConnectionStateChanged(
+    String deviceId,
+    BlueConnectionState state,
+    BleStatus status, {
+    QuickBlueException? error,
+  }) {
+    _handleConnectionChanged(deviceId, state, status, error);
   }
 
   void _handleServiceDiscovered(

@@ -139,6 +139,11 @@ void main() {
                   ],
                 ];
               }
+              if (name == readValueChannelName) {
+                return <Object?>[
+                  Uint8List.fromList(<int>[1, 2]),
+                ];
+              }
               return <Object?>[null];
             },
           );
@@ -516,23 +521,41 @@ void main() {
           deviceId: 'device-a',
           state: messages.PlatformConnectionState.disconnected,
           gattStatus: messages.PlatformGattStatus.failure,
+          errorDomain: 'CBErrorDomain',
+          errorCode: 14,
+          errorMessage: 'Peer removed pairing information',
         ),
       );
 
       await pumpEventQueue();
 
-      expect(connectionEvents, <BluetoothConnectionStateChange>[
+      expect(connectionEvents, hasLength(2));
+      expect(
+        connectionEvents.first,
         BluetoothConnectionStateChange(
           deviceId: 'device-a',
           state: BlueConnectionState.connected,
           status: BleStatus.success,
         ),
-        BluetoothConnectionStateChange(
-          deviceId: 'device-a',
-          state: BlueConnectionState.disconnected,
-          status: BleStatus.failure,
-        ),
-      ]);
+      );
+      expect(connectionEvents.last.deviceId, 'device-a');
+      expect(connectionEvents.last.state, BlueConnectionState.disconnected);
+      expect(connectionEvents.last.status, BleStatus.failure);
+      expect(
+        connectionEvents.last.error,
+        isA<QuickBlueSecurityException>()
+            .having(
+              (error) => error.reason,
+              'reason',
+              QuickBlueSecurityErrorReason.peerRemovedPairingInformation,
+            )
+            .having(
+              (error) => error.nativeDomain,
+              'nativeDomain',
+              'CBErrorDomain',
+            )
+            .having((error) => error.nativeCode, 'nativeCode', 14),
+      );
 
       await subscription.cancel();
     },
@@ -617,6 +640,53 @@ void main() {
     ]);
   });
 
+  test('connect surfaces peer-removed pairing information', () async {
+    const channel = BasicMessageChannel<Object?>(
+      connectChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(
+          channel,
+          (_) async => <Object?>[null],
+        );
+
+    final platform = QuickBlueDarwin();
+    final connect = platform.device('device-a').connect();
+    final connectExpectation = expectLater(
+      connect,
+      throwsA(
+        isA<QuickBlueSecurityException>()
+            .having(
+              (error) => error.reason,
+              'reason',
+              QuickBlueSecurityErrorReason.peerRemovedPairingInformation,
+            )
+            .having((error) => error.operation, 'operation', 'connection')
+            .having((error) => error.deviceId, 'deviceId', 'device-a')
+            .having(
+              (error) => error.recoveryResult,
+              'recoveryResult',
+              QuickBlueSecurityRecoveryResult.userActionRequired,
+            ),
+      ),
+    );
+    await pumpEventQueue();
+    await _sendFlutterApiMessage(
+      'onConnectionStateChange',
+      messages.PlatformConnectionStateChange(
+        deviceId: 'device-a',
+        state: messages.PlatformConnectionState.disconnected,
+        gattStatus: messages.PlatformGattStatus.failure,
+        errorDomain: 'CBErrorDomain',
+        errorCode: 14,
+        errorMessage: 'Peer removed pairing information',
+      ),
+    );
+
+    await connectExpectation;
+  });
+
   test('emits stream error for malformed L2CAP events', () async {
     _mockEventChannel(l2capSocketEventsChannelName, <Object?>[
       messages.PlatformL2CapSocketEvent(deviceId: 'device-a', opened: true),
@@ -689,10 +759,14 @@ void main() {
     );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockDecodedMessageHandler<Object?>(channel, (message) async {
-          return <Object?>['WriteFailed', 'boom', null];
+          return <Object?>[
+            'WriteFailed',
+            'boom',
+            <String, Object>{'domain': 'CBATTErrorDomain', 'code': 2},
+          ];
         });
 
-    expect(
+    await expectLater(
       QuickBlueDarwin().writeValue(
         'device-a',
         '180d',
@@ -700,7 +774,184 @@ void main() {
         Uint8List.fromList(<int>[0x01]),
         BleOutputProperty.withResponse,
       ),
-      throwsA(isA<PlatformException>()),
+      throwsA(
+        isA<PlatformException>().having(
+          (error) => error.details,
+          'details',
+          <String, Object>{'domain': 'CBATTErrorDomain', 'code': 2},
+        ),
+      ),
+    );
+  });
+
+  test('setNotifiable maps CoreBluetooth security errors', () async {
+    const channel = BasicMessageChannel<Object?>(
+      setNotifiableChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(channel, (_) async {
+          return <Object?>[
+            'SetNotifiableFailed',
+            'authentication required',
+            <String, Object>{'domain': 'CBATTErrorDomain', 'code': 5},
+          ];
+        });
+
+    await expectLater(
+      QuickBlueDarwin().setNotifiable(
+        'device-a',
+        '180d',
+        '2a37',
+        BleInputProperty.notification,
+      ),
+      throwsA(
+        isA<QuickBlueSecurityException>()
+            .having(
+              (error) => error.reason,
+              'reason',
+              QuickBlueSecurityErrorReason.insufficientAuthentication,
+            )
+            .having((error) => error.operation, 'operation', 'setNotifiable'),
+      ),
+    );
+  });
+
+  for (final testCase
+      in const <
+        ({String domain, int code, QuickBlueSecurityErrorReason reason})
+      >[
+        (
+          domain: 'CBATTErrorDomain',
+          code: 5,
+          reason: QuickBlueSecurityErrorReason.insufficientAuthentication,
+        ),
+        (
+          domain: 'CBATTErrorDomain',
+          code: 12,
+          reason: QuickBlueSecurityErrorReason.insufficientEncryptionKeySize,
+        ),
+        (
+          domain: 'CBATTErrorDomain',
+          code: 15,
+          reason: QuickBlueSecurityErrorReason.insufficientEncryption,
+        ),
+        (
+          domain: 'CBErrorDomain',
+          code: 15,
+          reason: QuickBlueSecurityErrorReason.encryptionTimedOut,
+        ),
+        (
+          domain: 'CBErrorDomain',
+          code: 14,
+          reason: QuickBlueSecurityErrorReason.peerRemovedPairingInformation,
+        ),
+      ]) {
+    test(
+      'writeValue maps ${testCase.domain} ${testCase.code} to security error',
+      () async {
+        const channel = BasicMessageChannel<Object?>(
+          writeValueChannelName,
+          messages.QuickBlueApi.pigeonChannelCodec,
+        );
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockDecodedMessageHandler<Object?>(channel, (message) async {
+              return <Object?>[
+                'WriteFailed',
+                'security failure',
+                <String, Object>{
+                  'domain': testCase.domain,
+                  'code': testCase.code,
+                },
+              ];
+            });
+
+        await expectLater(
+          QuickBlueDarwin().writeValue(
+            'device-a',
+            '180d',
+            '2a37',
+            Uint8List.fromList(<int>[0x01]),
+            BleOutputProperty.withResponse,
+          ),
+          throwsA(
+            isA<QuickBlueSecurityException>()
+                .having((error) => error.reason, 'reason', testCase.reason)
+                .having(
+                  (error) => error.nativeDomain,
+                  'nativeDomain',
+                  testCase.domain,
+                )
+                .having(
+                  (error) => error.nativeCode,
+                  'nativeCode',
+                  testCase.code,
+                )
+                .having((error) => error.operation, 'operation', 'writeValue')
+                .having((error) => error.deviceId, 'deviceId', 'device-a')
+                .having((error) => error.serviceId, 'serviceId', '180d')
+                .having(
+                  (error) => error.characteristicId,
+                  'characteristicId',
+                  '2a37',
+                ),
+          ),
+        );
+      },
+    );
+  }
+
+  test('managed write retries a recoverable security failure once', () async {
+    var callCount = 0;
+    const channel = BasicMessageChannel<Object?>(
+      writeValueChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(channel, (_) async {
+          callCount++;
+          if (callCount == 1) {
+            return <Object?>[
+              'WriteFailed',
+              'authentication required',
+              <String, Object>{'domain': 'CBATTErrorDomain', 'code': 5},
+            ];
+          }
+          return <Object?>[null];
+        });
+
+    await QuickBlueDarwin()
+        .device('device-a')
+        .writeValue(
+          '180d',
+          '2a37',
+          Uint8List.fromList(<int>[1]),
+          BleOutputProperty.withResponse,
+        );
+
+    expect(callCount, 2);
+  });
+
+  test('readCharacteristicValue returns the native callback value', () async {
+    const channel = BasicMessageChannel<Object?>(
+      readValueChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(
+          channel,
+          (_) async => <Object?>[
+            Uint8List.fromList(<int>[3, 4]),
+          ],
+        );
+
+    expect(
+      await QuickBlueDarwin().readCharacteristicValue(
+        'device-a',
+        '180d',
+        '2a37',
+      ),
+      Uint8List.fromList(<int>[3, 4]),
     );
   });
 

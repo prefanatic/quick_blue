@@ -47,12 +47,17 @@ class BluetoothCharacteristic {
   /// Use this method with [valueStream] when callers need to attach listeners
   /// before enabling updates, or when notification lifetime is managed
   /// separately from a single stream subscription.
+  ///
+  /// Security failures trigger one coordinated recovery attempt and retry.
   Future<void> setNotifiable(BleInputProperty bleInputProperty) {
-    return _platform.setNotifiable(
+    return _platform.runWithSecurityRecovery(
       deviceId,
-      serviceId,
-      characteristicId,
-      bleInputProperty,
+      () => _platform.setNotifiable(
+        deviceId,
+        serviceId,
+        characteristicId,
+        bleInputProperty,
+      ),
     );
   }
 
@@ -60,6 +65,7 @@ class BluetoothCharacteristic {
   ///
   /// Values are not forwarded until notification setup succeeds. Canceling the
   /// stream disables updates again.
+  /// Security failures during setup trigger one coordinated recovery attempt.
   Stream<Uint8List> notifications({
     BleInputProperty bleInputProperty = BleInputProperty.notification,
   }) {
@@ -74,11 +80,15 @@ class BluetoothCharacteristic {
   /// Reads the current characteristic value.
   ///
   /// The future completes with the bytes returned by the platform read.
+  /// Security failures trigger one coordinated recovery attempt and retry.
   Future<Uint8List> read() async {
-    return _platform.readCharacteristicValue(
+    return _platform.runWithSecurityRecovery(
       deviceId,
-      serviceId,
-      characteristicId,
+      () => _platform.readCharacteristicValue(
+        deviceId,
+        serviceId,
+        characteristicId,
+      ),
     );
   }
 
@@ -86,13 +96,17 @@ class BluetoothCharacteristic {
   ///
   /// Completion timing follows the platform implementation and selected
   /// [bleOutputProperty].
+  /// A rejected acknowledged write is retried once after security recovery.
   Future<void> write(Uint8List value, BleOutputProperty bleOutputProperty) {
-    return _platform.writeValue(
+    return _platform.runWithSecurityRecovery(
       deviceId,
-      serviceId,
-      characteristicId,
-      value,
-      bleOutputProperty,
+      () => _platform.writeValue(
+        deviceId,
+        serviceId,
+        characteristicId,
+        value,
+        bleOutputProperty,
+      ),
     );
   }
 }

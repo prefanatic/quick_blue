@@ -502,6 +502,7 @@ class PlatformConnectionStateChange {
     required this.deviceId,
     required this.state,
     required this.gattStatus,
+    this.nativeStatus,
   });
 
   String deviceId;
@@ -510,11 +511,14 @@ class PlatformConnectionStateChange {
 
   PlatformGattStatus gattStatus;
 
+  int? nativeStatus;
+
   List<Object?> _toList() {
     return <Object?>[
       deviceId,
       state,
       gattStatus,
+      nativeStatus,
     ];
   }
 
@@ -527,6 +531,7 @@ class PlatformConnectionStateChange {
       deviceId: result[0]! as String,
       state: result[1]! as PlatformConnectionState,
       gattStatus: result[2]! as PlatformGattStatus,
+      nativeStatus: result[3] as int?,
     );
   }
 
@@ -539,7 +544,7 @@ class PlatformConnectionStateChange {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(deviceId, other.deviceId) && _deepEquals(state, other.state) && _deepEquals(gattStatus, other.gattStatus);
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(state, other.state) && _deepEquals(gattStatus, other.gattStatus) && _deepEquals(nativeStatus, other.nativeStatus);
   }
 
   @override
@@ -548,7 +553,7 @@ class PlatformConnectionStateChange {
 
   @override
   String toString() {
-    return 'PlatformConnectionStateChange(deviceId: $deviceId, state: $state, gattStatus: $gattStatus)';
+    return 'PlatformConnectionStateChange(deviceId: $deviceId, state: $state, gattStatus: $gattStatus, nativeStatus: $nativeStatus)';
   }
 }
 

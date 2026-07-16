@@ -277,7 +277,8 @@ FlutterError gatt_error(const std::string& operation,
                         GattCommunicationStatus status) {
   return FlutterError(operation + "Failed",
                       operation + " failed with GATT status " +
-                          std::to_string(static_cast<int32_t>(status)) + ".");
+                          std::to_string(static_cast<int32_t>(status)) + ".",
+                      flutter::EncodableValue(static_cast<int32_t>(status)));
 }
 
 struct BluetoothDeviceAgent {

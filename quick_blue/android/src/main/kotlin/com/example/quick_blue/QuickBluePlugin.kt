@@ -263,6 +263,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         deviceId: String,
         state: PlatformConnectionState,
         status: PlatformGattStatus,
+        nativeStatus: Int,
     ) {
         if (!isAttachedToEngine) return
         mainThreadHandler.post {
@@ -272,6 +273,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                     deviceId = deviceId,
                     state = state,
                     gattStatus = status,
+                    nativeStatus = nativeStatus.toLong(),
                 )
             ) {}
         }

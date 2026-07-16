@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Preserve WinRT GATT status and map access-denied operations into
+  cross-platform security recovery.
 - Apply service-data UUID and payload-prefix filters to raw scan results.
 - Share WinRT GATT sessions across Flutter engines, transfer native callback
   hosting when an engine detaches, and disconnect only after the final client.

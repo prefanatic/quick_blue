@@ -405,6 +405,9 @@ struct PlatformConnectionStateChange: Hashable, CustomStringConvertible {
   var deviceId: String
   var state: PlatformConnectionState
   var gattStatus: PlatformGattStatus
+  var errorDomain: String? = nil
+  var errorCode: Int64? = nil
+  var errorMessage: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -412,11 +415,17 @@ struct PlatformConnectionStateChange: Hashable, CustomStringConvertible {
     let deviceId = pigeonVar_list[0] as! String
     let state = pigeonVar_list[1] as! PlatformConnectionState
     let gattStatus = pigeonVar_list[2] as! PlatformGattStatus
+    let errorDomain: String? = nilOrValue(pigeonVar_list[3])
+    let errorCode: Int64? = nilOrValue(pigeonVar_list[4])
+    let errorMessage: String? = nilOrValue(pigeonVar_list[5])
 
     return PlatformConnectionStateChange(
       deviceId: deviceId,
       state: state,
-      gattStatus: gattStatus
+      gattStatus: gattStatus,
+      errorDomain: errorDomain,
+      errorCode: errorCode,
+      errorMessage: errorMessage
     )
   }
   func toList() -> [Any?] {
@@ -424,13 +433,16 @@ struct PlatformConnectionStateChange: Hashable, CustomStringConvertible {
       deviceId,
       state,
       gattStatus,
+      errorDomain,
+      errorCode,
+      errorMessage,
     ]
   }
   static func == (lhs: PlatformConnectionStateChange, rhs: PlatformConnectionStateChange) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.state, rhs.state) && MessagesPigeonInternal.deepEquals(lhs.gattStatus, rhs.gattStatus)
+    return MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.state, rhs.state) && MessagesPigeonInternal.deepEquals(lhs.gattStatus, rhs.gattStatus) && MessagesPigeonInternal.deepEquals(lhs.errorDomain, rhs.errorDomain) && MessagesPigeonInternal.deepEquals(lhs.errorCode, rhs.errorCode) && MessagesPigeonInternal.deepEquals(lhs.errorMessage, rhs.errorMessage)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -438,10 +450,13 @@ struct PlatformConnectionStateChange: Hashable, CustomStringConvertible {
     MessagesPigeonInternal.deepHash(value: deviceId, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: state, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: gattStatus, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: errorDomain, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: errorCode, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: errorMessage, hasher: &hasher)
   }
 
   public var description: String {
-    return "PlatformConnectionStateChange(deviceId: \(String(describing: deviceId)), state: \(String(describing: state)), gattStatus: \(String(describing: gattStatus)))"
+    return "PlatformConnectionStateChange(deviceId: \(String(describing: deviceId)), state: \(String(describing: state)), gattStatus: \(String(describing: gattStatus)), errorDomain: \(String(describing: errorDomain)), errorCode: \(String(describing: errorCode)), errorMessage: \(String(describing: errorMessage)))"
   }
 }
 
@@ -789,8 +804,8 @@ protocol QuickBlueApi {
   func connect(deviceId: String) throws
   func disconnect(deviceId: String) throws
   func discoverServices(deviceId: String) throws
-  func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: PlatformBleInputProperty) throws
-  func readValue(deviceId: String, service: String, characteristic: String) throws
+  func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: PlatformBleInputProperty, completion: @escaping (Result<Void, Error>) -> Void)
+  func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: PlatformBleOutputProperty, completion: @escaping (Result<Void, Error>) -> Void)
   func requestMtu(deviceId: String, expectedMtu: Int64) throws -> Int64
   func openL2cap(deviceId: String, psm: Int64) throws
@@ -931,11 +946,13 @@ class QuickBlueApiSetup {
         let serviceArg = args[1] as! String
         let characteristicArg = args[2] as! String
         let bleInputPropertyArg = args[3] as! PlatformBleInputProperty
-        do {
-          try api.setNotifiable(deviceId: deviceIdArg, service: serviceArg, characteristic: characteristicArg, bleInputProperty: bleInputPropertyArg)
-          reply(wrapResult(nil))
-        } catch {
-          reply(wrapError(error))
+        api.setNotifiable(deviceId: deviceIdArg, service: serviceArg, characteristic: characteristicArg, bleInputProperty: bleInputPropertyArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
         }
       }
     } else {
@@ -948,11 +965,13 @@ class QuickBlueApiSetup {
         let deviceIdArg = args[0] as! String
         let serviceArg = args[1] as! String
         let characteristicArg = args[2] as! String
-        do {
-          try api.readValue(deviceId: deviceIdArg, service: serviceArg, characteristic: characteristicArg)
-          reply(wrapResult(nil))
-        } catch {
-          reply(wrapError(error))
+        api.readValue(deviceId: deviceIdArg, service: serviceArg, characteristic: characteristicArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
         }
       }
     } else {

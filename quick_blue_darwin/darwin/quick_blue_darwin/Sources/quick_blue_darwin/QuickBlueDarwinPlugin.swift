@@ -9,6 +9,21 @@ import Foundation
 
 let GSS_SUFFIX = "0000-1000-8000-00805f9b34fb"
 
+private func pigeonError(
+    from error: Error,
+    fallbackCode: String
+) -> PigeonError {
+    let nativeError = error as NSError
+    return PigeonError(
+        code: fallbackCode,
+        message: nativeError.localizedDescription,
+        details: [
+            "domain": nativeError.domain,
+            "code": nativeError.code,
+        ]
+    )
+}
+
 extension CBUUID {
     public var uuidStr: String {
         uuidString.lowercased()
@@ -97,6 +112,12 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         let host: QuickBlueDarwinPlugin
         let shouldDisconnect: Bool
         let notificationsToDisable: [NotificationKey]
+    }
+
+    private struct PendingNotificationUpdate {
+        let client: QuickBlueDarwinPlugin
+        let previousProperty: PlatformBleInputProperty?
+        let completion: (Result<Void, Error>) -> Void
     }
 
     private static let connectionLock = NSLock()
@@ -228,7 +249,10 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         key: NotificationKey,
         client: QuickBlueDarwinPlugin,
         property: PlatformBleInputProperty
-    ) throws -> Bool {
+    ) throws -> (
+        needsNativeWrite: Bool,
+        previousProperty: PlatformBleInputProperty?
+    ) {
         connectionLock.lock()
         defer { connectionLock.unlock() }
         let clientId = ObjectIdentifier(client)
@@ -242,16 +266,17 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             )
         }
         var claims = connection.notificationClaims[key] ?? [:]
+        let previousProperty = claims[clientId]
         if property == .disabled {
             claims.removeValue(forKey: clientId)
             if claims.isEmpty {
                 connection.notificationClaims.removeValue(forKey: key)
                 connections[key.deviceId] = connection
-                return true
+                return (true, previousProperty)
             }
             connection.notificationClaims[key] = claims
             connections[key.deviceId] = connection
-            return false
+            return (false, previousProperty)
         }
         if let existing = claims.values.first, existing != property {
             throw PigeonError(
@@ -264,7 +289,32 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         claims[clientId] = property
         connection.notificationClaims[key] = claims
         connections[key.deviceId] = connection
-        return needsNativeWrite
+        return (needsNativeWrite, previousProperty)
+    }
+
+    private static func restoreNotificationClaim(
+        key: NotificationKey,
+        client: QuickBlueDarwinPlugin,
+        property: PlatformBleInputProperty?
+    ) {
+        connectionLock.lock()
+        defer { connectionLock.unlock() }
+        let clientId = ObjectIdentifier(client)
+        guard var connection = connections[key.deviceId],
+            connection.clients[clientId] != nil
+        else { return }
+        var claims = connection.notificationClaims[key] ?? [:]
+        if let property = property {
+            claims[clientId] = property
+        } else {
+            claims.removeValue(forKey: clientId)
+        }
+        if claims.isEmpty {
+            connection.notificationClaims.removeValue(forKey: key)
+        } else {
+            connection.notificationClaims[key] = claims
+        }
+        connections[key.deviceId] = connection
     }
 
     private static func isHostingConnections(_ client: QuickBlueDarwinPlugin)
@@ -333,11 +383,15 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var streamDelegates: [String: L2CapStreamDelegate]!
     private var pendingServiceDiscovery: [String: Set<String>]!
 
-    // Completions for write-with-response calls awaiting their didWriteValueFor
-    // acknowledgement, keyed by "deviceId/characteristicId". CoreBluetooth
-    // serializes writes and delivers acknowledgements in order, so each key
-    // holds a FIFO queue. Guarded by `stateQueue`.
+    // Completions awaiting CoreBluetooth characteristic callbacks, keyed by
+    // "deviceId/characteristicId". CoreBluetooth serializes operations and
+    // delivers callbacks in order, so each key holds a FIFO queue. Guarded by
+    // `stateQueue`.
+    private var pendingReads:
+        [String: [(Result<FlutterStandardTypedData, Error>) -> Void]] = [:]
     private var pendingWrites: [String: [(Result<Void, Error>) -> Void]] = [:]
+    private var pendingNotificationUpdates:
+        [NotificationKey: [[PendingNotificationUpdate]]] = [:]
 
     private var targetManufacturerData: Data?
     private var targetRssi: Int64?
@@ -374,14 +428,19 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private func emitConnectionState(
         deviceId: String,
         state: PlatformConnectionState,
-        status: PlatformGattStatus
+        status: PlatformGattStatus,
+        error: Error? = nil
     ) {
         guard isAttachedToEngine else { return }
+        let nativeError = error as NSError?
         flutterApi.onConnectionStateChange(
             stateChange: PlatformConnectionStateChange(
                 deviceId: deviceId,
                 state: state,
-                gattStatus: status
+                gattStatus: status,
+                errorDomain: nativeError?.domain,
+                errorCode: nativeError.map { Int64($0.code) },
+                errorMessage: nativeError?.localizedDescription
             ),
             completion: { _ in }
         )
@@ -390,13 +449,15 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private static func emitConnectionState(
         deviceId: String,
         state: PlatformConnectionState,
-        status: PlatformGattStatus
+        status: PlatformGattStatus,
+        error: Error? = nil
     ) {
         for client in clients(for: deviceId) {
             client.emitConnectionState(
                 deviceId: deviceId,
                 state: state,
-                status: status
+                status: status,
+                error: error
             )
         }
     }
@@ -656,56 +717,96 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         deviceId: String,
         service: String,
         characteristic: String,
-        bleInputProperty: PlatformBleInputProperty
-    ) throws {
-        try withHostPeripheral(deviceId) { _, peripheral in
-            guard
-                let cbCharacteristic = peripheral.getCharacteristic(
-                    characteristic,
-                    of: service
+        bleInputProperty: PlatformBleInputProperty,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        var completesImmediately = false
+        do {
+            try withHostPeripheral(deviceId) { host, peripheral in
+                guard
+                    let cbCharacteristic = peripheral.getCharacteristic(
+                        characteristic,
+                        of: service
+                    )
+                else {
+                    throw PigeonError(
+                        code: "IllegalArgument",
+                        message: "Unknown characteristic:\(characteristic)",
+                        details: nil
+                    )
+                }
+                let key = NotificationKey(
+                    deviceId: deviceId,
+                    service: cbCharacteristic.service?.uuid.uuidStr
+                        ?? service.lowercased(),
+                    characteristic: cbCharacteristic.uuid.uuidStr
                 )
-            else {
-                throw PigeonError(
-                    code: "IllegalArgument",
-                    message: "Unknown characteristic:\(characteristic)",
-                    details: nil
+                let update = try Self.updateNotificationClaim(
+                    key: key,
+                    client: self,
+                    property: bleInputProperty
                 )
+                let pending = PendingNotificationUpdate(
+                    client: self,
+                    previousProperty: update.previousProperty,
+                    completion: completion
+                )
+                if update.needsNativeWrite {
+                    host.pendingNotificationUpdates[key, default: []].append(
+                        [pending]
+                    )
+                    peripheral.setNotifyValue(
+                        bleInputProperty != .disabled,
+                        for: cbCharacteristic
+                    )
+                } else if var batches = host.pendingNotificationUpdates[key],
+                    !batches.isEmpty
+                {
+                    batches[batches.count - 1].append(pending)
+                    host.pendingNotificationUpdates[key] = batches
+                } else {
+                    completesImmediately = true
+                }
             }
-            let key = NotificationKey(
-                deviceId: deviceId,
-                service: cbCharacteristic.service?.uuid.uuidStr ?? service.lowercased(),
-                characteristic: cbCharacteristic.uuid.uuidStr
-            )
-            let needsNativeWrite = try Self.updateNotificationClaim(
-                key: key,
-                client: self,
-                property: bleInputProperty
-            )
-            guard needsNativeWrite else { return }
-            peripheral.setNotifyValue(
-                bleInputProperty != .disabled,
-                for: cbCharacteristic
-            )
+        } catch {
+            completion(.failure(error))
+            return
+        }
+        if completesImmediately {
+            completion(.success(()))
         }
     }
 
-    func readValue(deviceId: String, service: String, characteristic: String)
-        throws
-    {
-        try withHostPeripheral(deviceId) { _, peripheral in
-            guard
-                let cbCharacteristic = peripheral.getCharacteristic(
-                    characteristic,
-                    of: service
-                )
-            else {
-                throw PigeonError(
-                    code: "IllegalArgument",
-                    message: "Unknown characteristic:\(characteristic)",
-                    details: nil
-                )
+    func readValue(
+        deviceId: String,
+        service: String,
+        characteristic: String,
+        completion: @escaping (
+            Result<FlutterStandardTypedData, Error>
+        ) -> Void
+    ) {
+        do {
+            try withHostPeripheral(deviceId) { host, peripheral in
+                guard
+                    let cbCharacteristic = peripheral.getCharacteristic(
+                        characteristic,
+                        of: service
+                    )
+                else {
+                    throw PigeonError(
+                        code: "IllegalArgument",
+                        message: "Unknown characteristic:\(characteristic)",
+                        details: nil
+                    )
+                }
+                host.pendingReads[
+                    host.writeKey(deviceId, cbCharacteristic.uuid.uuidStr),
+                    default: []
+                ].append(completion)
+                peripheral.readValue(for: cbCharacteristic)
             }
-            peripheral.readValue(for: cbCharacteristic)
+        } catch {
+            completion(.failure(error))
         }
     }
 
@@ -896,29 +997,66 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         manager?.cancelPeripheralConnection(peripheral)
     }
 
-    /// Fails any write-with-response completions still awaiting acknowledgement
-    /// for `deviceId`; once the peripheral is gone CoreBluetooth never delivers
-    /// didWriteValueFor, so the Dart futures would otherwise hang. Must be
-    /// called outside a `stateQueue` block to avoid deadlock.
-    private func failPendingWrites(forDeviceId deviceId: String, reason: String) {
-        var completions: [(Result<Void, Error>) -> Void] = []
+    /// Fails characteristic operations still awaiting callbacks for `deviceId`;
+    /// once the peripheral is gone CoreBluetooth never delivers them, so the
+    /// Dart futures would otherwise hang. Must be called outside a `stateQueue`
+    /// block to avoid deadlock.
+    private func failPendingGattOperations(
+        forDeviceId deviceId: String,
+        reason: String
+    ) {
+        var readCompletions:
+            [(Result<FlutterStandardTypedData, Error>) -> Void] = []
+        var writeCompletions: [(Result<Void, Error>) -> Void] = []
+        var notificationCompletions: [(Result<Void, Error>) -> Void] = []
         stateQueue.sync {
             let prefix = "\(deviceId)/"
             // Snapshot keys before removing to avoid mutating during iteration.
+            let matchingReadKeys = pendingReads.keys.filter {
+                $0.hasPrefix(prefix)
+            }
+            for key in matchingReadKeys {
+                if let queue = pendingReads.removeValue(forKey: key) {
+                    readCompletions.append(contentsOf: queue)
+                }
+            }
             let matchingKeys = pendingWrites.keys.filter { $0.hasPrefix(prefix) }
             for key in matchingKeys {
                 if let queue = pendingWrites.removeValue(forKey: key) {
-                    completions.append(contentsOf: queue)
+                    writeCompletions.append(contentsOf: queue)
+                }
+            }
+            let matchingNotificationKeys = pendingNotificationUpdates.keys
+                .filter { $0.deviceId == deviceId }
+            for key in matchingNotificationKeys {
+                if let batches = pendingNotificationUpdates.removeValue(
+                    forKey: key
+                ) {
+                    notificationCompletions.append(
+                        contentsOf: batches.flatMap {
+                            $0.map(\.completion)
+                        }
+                    )
                 }
             }
         }
-        guard !completions.isEmpty else { return }
+        guard !readCompletions.isEmpty || !writeCompletions.isEmpty
+            || !notificationCompletions.isEmpty
+        else {
+            return
+        }
         let error = PigeonError(
             code: "Disconnected",
             message: reason,
             details: nil
         )
-        for completion in completions {
+        for completion in readCompletions {
+            completion(.failure(error))
+        }
+        for completion in writeCompletions {
+            completion(.failure(error))
+        }
+        for completion in notificationCompletions {
             completion(.failure(error))
         }
     }
@@ -1055,7 +1193,8 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
             client.emitConnectionState(
                 deviceId: peripheral.identifier.uuidString,
                 state: .disconnected,
-                status: .failure
+                status: .failure,
+                error: error
             )
         }
     }
@@ -1077,14 +1216,15 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
                 client.emitConnectionState(
                     deviceId: peripheral.identifier.uuidString,
                     state: .disconnected,
-                    status: error == nil ? .success : .failure
+                    status: error == nil ? .success : .failure,
+                    error: error
                 )
             }
         }
 
-        failPendingWrites(
+        failPendingGattOperations(
             forDeviceId: peripheral.identifier.uuidString,
-            reason: "Peripheral disconnected before the write was acknowledged"
+            reason: "Peripheral disconnected before the GATT operation completed"
         )
     }
 }
@@ -1166,11 +1306,7 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
             )
             completion?(
                 .failure(
-                    PigeonError(
-                        code: "WriteFailed",
-                        message: error.localizedDescription,
-                        details: nil
-                    )
+                    pigeonError(from: error, fallbackCode: "WriteFailed")
                 )
             )
         } else {
@@ -1183,15 +1319,39 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
         didUpdateValueFor characteristic: CBCharacteristic,
         error: Error?
     ) {
+        let key = writeKey(
+            peripheral.identifier.uuidString,
+            characteristic.uuid.uuidStr
+        )
+        var completion:
+            ((Result<FlutterStandardTypedData, Error>) -> Void)?
+        stateQueue.sync {
+            if var queue = pendingReads[key], !queue.isEmpty {
+                completion = queue.removeFirst()
+                if queue.isEmpty {
+                    pendingReads.removeValue(forKey: key)
+                } else {
+                    pendingReads[key] = queue
+                }
+            }
+        }
         if let error = error {
             // A failed read/notify delivers no value, so the Dart-side read
             // would simply time out. Surface it for diagnosis.
             NSLog(
                 "[quick_blue] value update failed for \(characteristic.uuid.uuidStr) on \(peripheral.identifier.uuidString): \(error.localizedDescription)"
             )
+            completion?(
+                .failure(
+                    pigeonError(from: error, fallbackCode: "ReadFailed")
+                )
+            )
             return
         }
         if let value = characteristic.value {
+            completion?(
+                .success(FlutterStandardTypedData(bytes: value))
+            )
             let valueChanged = PlatformCharacteristicValueChanged(
                 deviceId: peripheral.identifier.uuidString,
                 serviceUuid: characteristic.service?.uuid.uuidStr ?? "",
@@ -1201,6 +1361,16 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
             for client in Self.clients(for: peripheral.identifier.uuidString) {
                 client.emitCharacteristicValue(valueChanged)
             }
+        } else {
+            completion?(
+                .failure(
+                    PigeonError(
+                        code: "ReadFailed",
+                        message: "CoreBluetooth returned no characteristic value",
+                        details: nil
+                    )
+                )
+            )
         }
     }
 
@@ -1209,13 +1379,46 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
         didUpdateNotificationStateFor characteristic: CBCharacteristic,
         error: Error?
     ) {
-        // `setNotifiable` cannot fail synchronously on CoreBluetooth; a failure
-        // to enable/disable notifications only arrives here. Log it so a
-        // silently-broken subscription is diagnosable.
+        let key = NotificationKey(
+            deviceId: peripheral.identifier.uuidString,
+            service: characteristic.service?.uuid.uuidStr ?? "",
+            characteristic: characteristic.uuid.uuidStr
+        )
+        var pendingUpdates: [PendingNotificationUpdate] = []
+        stateQueue.sync {
+            if var batches = pendingNotificationUpdates[key],
+                !batches.isEmpty
+            {
+                pendingUpdates = batches.removeFirst()
+                if batches.isEmpty {
+                    pendingNotificationUpdates.removeValue(forKey: key)
+                } else {
+                    pendingNotificationUpdates[key] = batches
+                }
+            }
+        }
         if let error = error {
             NSLog(
                 "[quick_blue] setNotifiable failed for \(characteristic.uuid.uuidStr) on \(peripheral.identifier.uuidString): \(error.localizedDescription)"
             )
+            for update in pendingUpdates.reversed() {
+                Self.restoreNotificationClaim(
+                    key: key,
+                    client: update.client,
+                    property: update.previousProperty
+                )
+            }
+            let mappedError = pigeonError(
+                from: error,
+                fallbackCode: "SetNotifiableFailed"
+            )
+            for update in pendingUpdates {
+                update.completion(.failure(mappedError))
+            }
+        } else {
+            for update in pendingUpdates {
+                update.completion(.success(()))
+            }
         }
     }
 

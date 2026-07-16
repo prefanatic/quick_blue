@@ -22,6 +22,7 @@ internal interface AndroidGattClient {
         deviceId: String,
         state: PlatformConnectionState,
         status: PlatformGattStatus,
+        nativeStatus: Int,
     )
 
     fun emitServices(deviceId: String, services: List<PlatformServiceDiscovered>)
@@ -124,6 +125,7 @@ internal object AndroidGattBroker {
                             deviceId,
                             PlatformConnectionState.CONNECTED,
                             PlatformGattStatus.SUCCESS,
+                            BluetoothGatt.GATT_SUCCESS,
                         )
                     }
                     else -> connectionClients.attach(deviceId, client)
@@ -175,6 +177,7 @@ internal object AndroidGattBroker {
                 deviceId,
                 PlatformConnectionState.DISCONNECTED,
                 PlatformGattStatus.SUCCESS,
+                BluetoothGatt.GATT_SUCCESS,
             )
         } else {
             (plan.gatt
@@ -282,7 +285,7 @@ internal object AndroidGattBroker {
                 }
                 clients.forEach { it.closeGattStreams(deviceId) }
                 gatt.close()
-                clients.forEach { it.emitConnectionState(deviceId, state, gattStatus) }
+                clients.forEach { it.emitConnectionState(deviceId, state, gattStatus, status) }
                 return
             }
 
@@ -294,7 +297,7 @@ internal object AndroidGattBroker {
                     emptyList()
                 }
             }
-            clients.forEach { it.emitConnectionState(deviceId, state, gattStatus) }
+            clients.forEach { it.emitConnectionState(deviceId, state, gattStatus, status) }
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {

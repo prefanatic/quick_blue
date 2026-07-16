@@ -364,6 +364,9 @@ class PlatformConnectionStateChange {
     required this.deviceId,
     required this.state,
     required this.gattStatus,
+    this.errorDomain,
+    this.errorCode,
+    this.errorMessage,
   });
 
   String deviceId;
@@ -372,11 +375,20 @@ class PlatformConnectionStateChange {
 
   PlatformGattStatus gattStatus;
 
+  String? errorDomain;
+
+  int? errorCode;
+
+  String? errorMessage;
+
   List<Object?> _toList() {
     return <Object?>[
       deviceId,
       state,
       gattStatus,
+      errorDomain,
+      errorCode,
+      errorMessage,
     ];
   }
 
@@ -389,6 +401,9 @@ class PlatformConnectionStateChange {
       deviceId: result[0]! as String,
       state: result[1]! as PlatformConnectionState,
       gattStatus: result[2]! as PlatformGattStatus,
+      errorDomain: result[3] as String?,
+      errorCode: result[4] as int?,
+      errorMessage: result[5] as String?,
     );
   }
 
@@ -401,7 +416,7 @@ class PlatformConnectionStateChange {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(deviceId, other.deviceId) && _deepEquals(state, other.state) && _deepEquals(gattStatus, other.gattStatus);
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(state, other.state) && _deepEquals(gattStatus, other.gattStatus) && _deepEquals(errorDomain, other.errorDomain) && _deepEquals(errorCode, other.errorCode) && _deepEquals(errorMessage, other.errorMessage);
   }
 
   @override
@@ -410,7 +425,7 @@ class PlatformConnectionStateChange {
 
   @override
   String toString() {
-    return 'PlatformConnectionStateChange(deviceId: $deviceId, state: $state, gattStatus: $gattStatus)';
+    return 'PlatformConnectionStateChange(deviceId: $deviceId, state: $state, gattStatus: $gattStatus, errorDomain: $errorDomain, errorCode: $errorCode, errorMessage: $errorMessage)';
   }
 }
 
@@ -940,7 +955,7 @@ class QuickBlueApi {
     ;
   }
 
-  Future<void> readValue(String deviceId, String service, String characteristic) async {
+  Future<Uint8List> readValue(String deviceId, String service, String characteristic) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.readValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -950,12 +965,13 @@ class QuickBlueApi {
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, service, characteristic]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
-    _extractReplyValueOrThrow(
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
         pigeonVar_replyList,
         pigeonVar_channelName,
-        isNullValid: true,
+        isNullValid: false,
     )
     ;
+    return pigeonVar_replyValue! as Uint8List;
   }
 
   Future<void> writeValue(String deviceId, String service, String characteristic, Uint8List value, PlatformBleOutputProperty bleOutputProperty) async {

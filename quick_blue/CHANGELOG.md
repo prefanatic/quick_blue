@@ -2,6 +2,12 @@
 
 ### Added
 
+- Add `QuickBlueSecurityException` for recoverable Darwin authentication,
+  encryption, and peer-removed-pairing failures while preserving the native
+  `NSError` domain and code.
+- Coordinate recovery for structured Android, Darwin, BlueZ, and WinRT
+  security failures, pairing when supported and retrying rejected connect,
+  read, notification, and acknowledged-write operations after recovery.
 - Add consistent scan filtering by service-data UUID and optional payload
   prefix across platforms, including native Android scanner filtering.
 - Share Linux BlueZ and Windows WinRT connections across Flutter engines, with

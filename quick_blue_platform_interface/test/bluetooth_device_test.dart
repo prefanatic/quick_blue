@@ -1358,10 +1358,7 @@ void main() {
 
     final device = platform.device('device-a');
     final connect = device.connect();
-    await pumpEventQueue();
-
-    await device.disconnect();
-    await expectLater(
+    final connectExpectation = expectLater(
       connect,
       throwsA(
         isA<QuickBlueException>().having(
@@ -1371,6 +1368,10 @@ void main() {
         ),
       ),
     );
+    await pumpEventQueue();
+
+    await device.disconnect();
+    await connectExpectation;
     await Future<void>.delayed(const Duration(milliseconds: 150));
 
     expect(platform.calls, <String>['connect device-a', 'disconnect device-a']);
@@ -2044,6 +2045,170 @@ void main() {
     ]);
   });
 
+  test(
+    'BluetoothDevice.readValue pairs and retries a security failure',
+    () async {
+      const securityError = QuickBlueSecurityException(
+        reason: QuickBlueSecurityErrorReason.insufficientAuthentication,
+        nativeDomain: 'test.security',
+        nativeCode: 5,
+        operation: 'readValue',
+        deviceId: 'device-a',
+        serviceId: 'service-a',
+        characteristicId: 'characteristic-a',
+        message: 'Authentication required',
+      );
+      final platform = _FakeQuickBluePlatform(
+        readValueResult: Uint8List.fromList(<int>[7, 8]),
+        readValueError: securityError,
+        clearSecurityErrorsOnPair: true,
+      );
+      addTearDown(platform.dispose);
+
+      final value = await platform
+          .device('device-a')
+          .readValue('service-a', 'characteristic-a');
+
+      expect(value, Uint8List.fromList(<int>[7, 8]));
+      expect(platform.calls, <String>[
+        'readValue device-a service-a characteristic-a',
+        'bondState device-a',
+        'pair device-a',
+        'readValue device-a service-a characteristic-a',
+      ]);
+    },
+  );
+
+  test(
+    'BluetoothDevice.connect pairs and retries a security failure',
+    () async {
+      const securityError = QuickBlueSecurityException(
+        reason: QuickBlueSecurityErrorReason.insufficientEncryption,
+        nativeDomain: 'test.security',
+        nativeCode: 15,
+        operation: 'connect',
+        deviceId: 'device-a',
+        message: 'Encryption required',
+      );
+      final platform = _FakeQuickBluePlatform(
+        connectErrors: <Object>[securityError],
+      );
+      addTearDown(platform.dispose);
+
+      await platform.device('device-a').connect();
+
+      expect(platform.calls, <String>[
+        'connect device-a',
+        'bondState device-a',
+        'pair device-a',
+        'connect device-a',
+      ]);
+    },
+  );
+
+  test('security recovery stops after one failed retry', () async {
+    const securityError = QuickBlueSecurityException(
+      reason: QuickBlueSecurityErrorReason.insufficientAuthentication,
+      nativeDomain: 'test.security',
+      nativeCode: 5,
+      operation: 'readValue',
+      deviceId: 'device-a',
+      message: 'Authentication required',
+    );
+    final platform = _FakeQuickBluePlatform(readValueError: securityError);
+    addTearDown(platform.dispose);
+
+    await expectLater(
+      platform.device('device-a').readValue('service-a', 'characteristic-a'),
+      throwsA(
+        isA<QuickBlueSecurityException>().having(
+          (error) => error.recoveryResult,
+          'recoveryResult',
+          QuickBlueSecurityRecoveryResult.userActionRequired,
+        ),
+      ),
+    );
+
+    expect(platform.calls, <String>[
+      'readValue device-a service-a characteristic-a',
+      'bondState device-a',
+      'pair device-a',
+      'readValue device-a service-a characteristic-a',
+    ]);
+  });
+
+  test(
+    'bonded security failures require user action without retrying',
+    () async {
+      const securityError = QuickBlueSecurityException(
+        reason: QuickBlueSecurityErrorReason.peerRemovedPairingInformation,
+        nativeDomain: 'test.security',
+        nativeCode: 14,
+        operation: 'readValue',
+        deviceId: 'device-a',
+        message: 'Peer removed pairing information',
+      );
+      final platform = _FakeQuickBluePlatform(
+        readValueError: securityError,
+        currentBondState: BluetoothBondState.bonded,
+      );
+      addTearDown(platform.dispose);
+
+      await expectLater(
+        platform.device('device-a').readValue('service-a', 'characteristic-a'),
+        throwsA(
+          isA<QuickBlueSecurityException>().having(
+            (error) => error.recoveryResult,
+            'recoveryResult',
+            QuickBlueSecurityRecoveryResult.userActionRequired,
+          ),
+        ),
+      );
+
+      expect(platform.calls, <String>[
+        'readValue device-a service-a characteristic-a',
+        'bondState device-a',
+      ]);
+    },
+  );
+
+  test('concurrent security failures share one device recovery', () async {
+    const securityError = QuickBlueSecurityException(
+      reason: QuickBlueSecurityErrorReason.insufficientAuthentication,
+      nativeDomain: 'test.security',
+      nativeCode: 5,
+      operation: 'readValue',
+      deviceId: 'device-a',
+      message: 'Authentication required',
+    );
+    final recoveryCompleter = Completer<void>();
+    final platform = _FakeQuickBluePlatform(
+      securityRecoveryResult: QuickBlueSecurityRecoveryResult.recovered,
+      securityRecoveryCompleter: recoveryCompleter,
+    );
+    addTearDown(platform.dispose);
+
+    final firstRecovery = platform.recoverSecurity('device-a', securityError);
+    final secondRecovery = platform.recoverSecurity('device-a', securityError);
+    await pumpEventQueue();
+
+    expect(platform.calls, <String>[
+      'performSecurityRecovery device-a insufficientAuthentication',
+    ]);
+
+    recoveryCompleter.complete();
+    expect(
+      await Future.wait(<Future<QuickBlueSecurityRecoveryResult>>[
+        firstRecovery,
+        secondRecovery,
+      ]),
+      <QuickBlueSecurityRecoveryResult>[
+        QuickBlueSecurityRecoveryResult.recovered,
+        QuickBlueSecurityRecoveryResult.recovered,
+      ],
+    );
+  });
+
   test('BluetoothDevice.writeValue propagates platform errors', () async {
     final error = StateError('write failed');
     final platform = _FakeQuickBluePlatform(writeValueError: error);
@@ -2126,6 +2291,43 @@ void main() {
       expect(platform.calls, <String>[
         'setNotifiable device-a service-a characteristic-a notification',
       ]);
+    },
+  );
+
+  test(
+    'BluetoothCharacteristic notifications recover security setup errors',
+    () async {
+      const securityError = QuickBlueSecurityException(
+        reason: QuickBlueSecurityErrorReason.insufficientEncryption,
+        nativeDomain: 'test.security',
+        nativeCode: 15,
+        operation: 'setNotifiable',
+        deviceId: 'device-a',
+        message: 'Encryption required',
+      );
+      final platform = _FakeQuickBluePlatform(
+        setNotifiableError: securityError,
+        clearSecurityErrorsOnPair: true,
+      );
+      addTearDown(platform.dispose);
+
+      final errors = <Object>[];
+      final subscription = platform
+          .device('device-a')
+          .characteristic('service-a', 'characteristic-a')
+          .notifications()
+          .listen((_) {}, onError: errors.add);
+      await pumpEventQueue();
+
+      expect(errors, isEmpty);
+      expect(platform.calls, <String>[
+        'setNotifiable device-a service-a characteristic-a notification',
+        'bondState device-a',
+        'pair device-a',
+        'setNotifiable device-a service-a characteristic-a notification',
+      ]);
+
+      await subscription.cancel();
     },
   );
 
@@ -2384,6 +2586,9 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
     this.readValueError,
     this.writeValueError,
     this.currentBondState = BluetoothBondState.notBonded,
+    this.clearSecurityErrorsOnPair = false,
+    this.securityRecoveryResult,
+    this.securityRecoveryCompleter,
     this.connectsImmediately = true,
     this.disconnectsImmediately = true,
     List<Object> connectErrors = const <Object>[],
@@ -2405,9 +2610,12 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   final Completer<void>? discoverServicesCompletion;
   Object? discoverServicesError;
   Object? setNotifiableError;
-  final Object? readValueError;
-  final Object? writeValueError;
+  Object? readValueError;
+  Object? writeValueError;
   BluetoothBondState currentBondState;
+  final bool clearSecurityErrorsOnPair;
+  final QuickBlueSecurityRecoveryResult? securityRecoveryResult;
+  final Completer<void>? securityRecoveryCompleter;
   final bool connectsImmediately;
   final bool disconnectsImmediately;
   final List<Object> connectErrors;
@@ -2521,6 +2729,25 @@ class _FakeQuickBluePlatform extends QuickBluePlatform {
   @override
   Future<void> pair(String deviceId) async {
     calls.add('pair $deviceId');
+    if (clearSecurityErrorsOnPair) {
+      readValueError = null;
+      writeValueError = null;
+      setNotifiableError = null;
+    }
+  }
+
+  @override
+  Future<QuickBlueSecurityRecoveryResult> performSecurityRecovery(
+    String deviceId,
+    QuickBlueSecurityException error,
+  ) async {
+    final result = securityRecoveryResult;
+    if (result == null) {
+      return super.performSecurityRecovery(deviceId, error);
+    }
+    calls.add('performSecurityRecovery $deviceId ${error.reason.name}');
+    await securityRecoveryCompleter?.future;
+    return result;
   }
 
   @override

@@ -11,7 +11,10 @@ export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
         BluetoothGatt,
         QuickBlueErrorCode,
         QuickBlueException,
-        QuickBlueGattException;
+        QuickBlueGattException,
+        QuickBlueSecurityErrorReason,
+        QuickBlueSecurityException,
+        QuickBlueSecurityRecoveryResult;
 
 export 'quick_blue_android.dart';
 

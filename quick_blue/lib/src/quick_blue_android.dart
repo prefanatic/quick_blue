@@ -303,9 +303,28 @@ Future<T> _runGattOperation<T>({
     if (error.code != 'GattError' || status is! num) {
       rethrow;
     }
+    final nativeStatus = status.toInt();
+    final securityReason = _androidSecurityReason(nativeStatus);
+    if (securityReason != null) {
+      Error.throwWithStackTrace(
+        QuickBlueSecurityException(
+          reason: securityReason,
+          nativeDomain: 'android.bluetooth.BluetoothGatt',
+          nativeCode: nativeStatus,
+          operation: operation,
+          deviceId: deviceId,
+          serviceId: serviceId,
+          characteristicId: characteristicId,
+          message:
+              error.message ??
+              '$operation failed with GATT status $nativeStatus.',
+        ),
+        stackTrace,
+      );
+    }
     Error.throwWithStackTrace(
       QuickBlueGattException(
-        status: status.toInt(),
+        status: nativeStatus,
         operation: operation,
         deviceId: deviceId,
         serviceId: serviceId,
@@ -547,11 +566,37 @@ void _handleConnectionStateChange(
   final state = stateChange.state.toBlueConnectionState();
   if (state == null) return;
 
-  platform.onConnectionChanged?.call(
+  final nativeStatus = stateChange.nativeStatus;
+  final securityReason = nativeStatus == null
+      ? null
+      : _androidSecurityReason(nativeStatus);
+  final error = securityReason == null
+      ? null
+      : QuickBlueSecurityException(
+          reason: securityReason,
+          nativeDomain: 'android.bluetooth.BluetoothGatt',
+          nativeCode: nativeStatus,
+          operation: 'connection',
+          deviceId: stateChange.deviceId,
+          message: 'Connection failed with GATT status $nativeStatus.',
+        );
+
+  platform.handleConnectionStateChanged(
     stateChange.deviceId,
     state,
     stateChange.gattStatus.toBleStatus(),
+    error: error,
   );
+}
+
+QuickBlueSecurityErrorReason? _androidSecurityReason(int nativeStatus) {
+  return switch (nativeStatus) {
+    5 => QuickBlueSecurityErrorReason.insufficientAuthentication,
+    8 => QuickBlueSecurityErrorReason.insufficientAuthorization,
+    12 => QuickBlueSecurityErrorReason.insufficientEncryptionKeySize,
+    15 => QuickBlueSecurityErrorReason.insufficientEncryption,
+    _ => null,
+  };
 }
 
 void _handleServiceDiscovered(

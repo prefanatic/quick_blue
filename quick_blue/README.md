@@ -280,15 +280,42 @@ await device.writeValue(
 );
 ```
 
-Android GATT callback failures are exposed as `QuickBlueGattException`. Its
-`status` field is the unmodified numeric status, including vendor-specific
-values, so applications do not need to parse error messages.
+Android non-security GATT callback failures are exposed as
+`QuickBlueGattException`. Its `status` field is the unmodified numeric status,
+including vendor-specific values, so applications do not need to parse error
+messages.
 
 ```dart
 try {
   await device.readValue(serviceId, characteristicId);
 } on QuickBlueGattException catch (error) {
   print('read failed with GATT status ${error.status}');
+}
+```
+
+Managed connect, characteristic read, notification setup, and acknowledged
+write operations use the same security-recovery contract across platforms.
+QuickBlue coordinates one recovery per device, pairs an unbonded device when
+the platform supports it, and retries the rejected operation once after
+successful recovery. This retry is safe for acknowledged writes because a
+security response means the peer rejected the write before applying it.
+
+If automatic recovery cannot proceed, QuickBlue exposes
+`QuickBlueSecurityException`. Its `reason` identifies authentication,
+authorization, encryption, encryption-key-size, encryption-timeout, and
+peer-removed-pairing failures. `nativeDomain` and `nativeCode` preserve native
+diagnostics when available, while `recoveryResult` reports whether user action
+is required or programmatic recovery is unsupported. Failed connection events
+also expose the exception through `BluetoothConnectionStateChange.error`.
+
+```dart
+try {
+  await device.readValue(serviceId, characteristicId);
+} on QuickBlueSecurityException catch (error) {
+  if (error.recoveryResult ==
+      QuickBlueSecurityRecoveryResult.userActionRequired) {
+    // Ask the user to forget and re-pair the device in system settings.
+  }
 }
 ```
 

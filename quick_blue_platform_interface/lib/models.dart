@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 
+import 'src/quick_blue_exception.dart';
+
 const _stringListEquality = ListEquality<String>();
 const _deepEquality = DeepCollectionEquality();
 
@@ -965,6 +967,7 @@ class BluetoothConnectionStateChange {
     required this.deviceId,
     required this.state,
     required this.status,
+    this.error,
   });
 
   /// Platform-specific device identifier.
@@ -976,22 +979,26 @@ class BluetoothConnectionStateChange {
   /// Whether the operation that produced this event succeeded.
   final BleStatus status;
 
+  /// Structured platform failure associated with this event, when available.
+  final QuickBlueException? error;
+
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         other is BluetoothConnectionStateChange &&
             other.deviceId == deviceId &&
             other.state == state &&
-            other.status == status;
+            other.status == status &&
+            other.error == error;
   }
 
   @override
-  int get hashCode => Object.hash(deviceId, state, status);
+  int get hashCode => Object.hash(deviceId, state, status, error);
 
   @override
   String toString() {
     return 'BluetoothConnectionStateChange('
-        'deviceId: $deviceId, state: $state, status: $status'
+        'deviceId: $deviceId, state: $state, status: $status, error: $error'
         ')';
   }
 }

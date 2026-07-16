@@ -595,7 +595,8 @@ data class PlatformScanResult (
 data class PlatformConnectionStateChange (
   val deviceId: String,
   val state: PlatformConnectionState,
-  val gattStatus: PlatformGattStatus
+  val gattStatus: PlatformGattStatus,
+  val nativeStatus: Long? = null
 )
  {
   companion object {
@@ -603,7 +604,8 @@ data class PlatformConnectionStateChange (
       val deviceId = pigeonVar_list[0] as String
       val state = pigeonVar_list[1] as PlatformConnectionState
       val gattStatus = pigeonVar_list[2] as PlatformGattStatus
-      return PlatformConnectionStateChange(deviceId, state, gattStatus)
+      val nativeStatus = pigeonVar_list[3] as Long?
+      return PlatformConnectionStateChange(deviceId, state, gattStatus, nativeStatus)
     }
   }
   fun toList(): List<Any?> {
@@ -611,6 +613,7 @@ data class PlatformConnectionStateChange (
       deviceId,
       state,
       gattStatus,
+      nativeStatus,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -621,7 +624,7 @@ data class PlatformConnectionStateChange (
       return true
     }
     val other = other as PlatformConnectionStateChange
-    return MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.state, other.state) && MessagesPigeonUtils.deepEquals(this.gattStatus, other.gattStatus)
+    return MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.state, other.state) && MessagesPigeonUtils.deepEquals(this.gattStatus, other.gattStatus) && MessagesPigeonUtils.deepEquals(this.nativeStatus, other.nativeStatus)
   }
 
   override fun hashCode(): Int {
@@ -629,10 +632,11 @@ data class PlatformConnectionStateChange (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.state)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.gattStatus)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.nativeStatus)
     return result
   }
   override fun toString(): String {
-    return "PlatformConnectionStateChange(deviceId=$deviceId, state=$state, gattStatus=$gattStatus)"
+    return "PlatformConnectionStateChange(deviceId=$deviceId, state=$state, gattStatus=$gattStatus, nativeStatus=$nativeStatus)"
   }
 }
 

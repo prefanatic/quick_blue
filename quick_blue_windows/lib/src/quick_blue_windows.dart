@@ -136,7 +136,13 @@ class QuickBlueWindows extends QuickBluePlatform {
     String characteristic,
   ) {
     _ensureInitialized();
-    return _api.readValue(deviceId, service, characteristic);
+    return _runWindowsGattOperation(
+      operation: 'readValue',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => _api.readValue(deviceId, service, characteristic),
+    );
   }
 
   @override
@@ -156,11 +162,17 @@ class QuickBlueWindows extends QuickBluePlatform {
     BleInputProperty bleInputProperty,
   ) {
     _ensureInitialized();
-    return _api.setNotifiable(
-      deviceId,
-      service,
-      characteristic,
-      bleInputProperty.toPlatformBleInputProperty(),
+    return _runWindowsGattOperation(
+      operation: 'setNotifiable',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => _api.setNotifiable(
+        deviceId,
+        service,
+        characteristic,
+        bleInputProperty.toPlatformBleInputProperty(),
+      ),
     );
   }
 
@@ -205,12 +217,50 @@ class QuickBlueWindows extends QuickBluePlatform {
     BleOutputProperty bleOutputProperty,
   ) {
     _ensureInitialized();
-    return _api.writeValue(
-      deviceId,
-      service,
-      characteristic,
-      value,
-      bleOutputProperty.toPlatformBleOutputProperty(),
+    return _runWindowsGattOperation(
+      operation: 'writeValue',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => _api.writeValue(
+        deviceId,
+        service,
+        characteristic,
+        value,
+        bleOutputProperty.toPlatformBleOutputProperty(),
+      ),
+    );
+  }
+}
+
+Future<T> _runWindowsGattOperation<T>({
+  required String operation,
+  required String deviceId,
+  required String serviceId,
+  required String characteristicId,
+  required Future<T> Function() action,
+}) async {
+  try {
+    return await action();
+  } on PlatformException catch (error, stackTrace) {
+    final status = error.details;
+    if (status is! num || status.toInt() != 3) {
+      rethrow;
+    }
+    Error.throwWithStackTrace(
+      QuickBlueSecurityException(
+        reason: QuickBlueSecurityErrorReason.insufficientAuthorization,
+        nativeDomain:
+            'Windows.Devices.Bluetooth.GenericAttributeProfile.'
+            'GattCommunicationStatus',
+        nativeCode: status.toInt(),
+        operation: operation,
+        deviceId: deviceId,
+        serviceId: serviceId,
+        characteristicId: characteristicId,
+        message: error.message ?? '$operation was denied by WinRT.',
+      ),
+      stackTrace,
     );
   }
 }

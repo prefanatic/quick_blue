@@ -1,5 +1,11 @@
 ## Unreleased
 
+- Preserve CoreBluetooth `NSError` domains and codes, map security failures to
+  `QuickBlueSecurityException`, and await native read and notification results
+  so their failures complete with errors instead of leaving callers waiting or
+  reporting premature success.
+- Retry CoreBluetooth authentication and encryption failures once while
+  reporting peer-removed pairing information as requiring user action.
 - Apply service-data UUID and payload-prefix filters to raw scan results.
 - Resolve CoreBluetooth-known device UUIDs during connect so a new engine does
   not need to scan or query connected peripherals before attaching.

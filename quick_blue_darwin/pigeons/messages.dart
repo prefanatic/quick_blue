@@ -60,13 +60,19 @@ abstract class QuickBlueApi {
   void disconnect(String deviceId);
 
   void discoverServices(String deviceId);
+  // Async so the reply can be deferred until CoreBluetooth reports the
+  // notification-state result.
+  @async
   void setNotifiable(
     String deviceId,
     String service,
     String characteristic,
     PlatformBleInputProperty bleInputProperty,
   );
-  void readValue(String deviceId, String service, String characteristic);
+  // Async so the reply can be deferred until CoreBluetooth reports either the
+  // characteristic value or an NSError.
+  @async
+  Uint8List readValue(String deviceId, String service, String characteristic);
 
   // Async so the reply can be deferred until the peripheral acknowledges a
   // write-with-response (via didWriteValueFor). Writes-without-response have no
@@ -125,11 +131,17 @@ class PlatformConnectionStateChange {
     required this.deviceId,
     required this.state,
     required this.gattStatus,
+    this.errorDomain,
+    this.errorCode,
+    this.errorMessage,
   });
 
   final String deviceId;
   final PlatformConnectionState state;
   final PlatformGattStatus gattStatus;
+  final String? errorDomain;
+  final int? errorCode;
+  final String? errorMessage;
 }
 
 class PlatformServiceDiscovered {

@@ -20,4 +20,39 @@ void main() {
     expect(error.serviceId, 'service-a');
     expect(error.characteristicId, 'characteristic-a');
   });
+
+  test('QuickBlueSecurityException exposes structured native error', () {
+    const error = QuickBlueSecurityException(
+      reason: QuickBlueSecurityErrorReason.peerRemovedPairingInformation,
+      nativeDomain: 'CBErrorDomain',
+      nativeCode: 14,
+      operation: 'writeValue',
+      deviceId: 'device-a',
+      serviceId: 'service-a',
+      characteristicId: 'characteristic-a',
+      message: 'Peer removed pairing information',
+    );
+
+    expect(error.code, QuickBlueErrorCode.operationFailed);
+    expect(
+      error.reason,
+      QuickBlueSecurityErrorReason.peerRemovedPairingInformation,
+    );
+    expect(error.nativeDomain, 'CBErrorDomain');
+    expect(error.nativeCode, 14);
+    expect(error.operation, 'writeValue');
+    expect(error.deviceId, 'device-a');
+    expect(error.serviceId, 'service-a');
+    expect(error.characteristicId, 'characteristic-a');
+
+    final terminalError = error.withRecoveryResult(
+      QuickBlueSecurityRecoveryResult.userActionRequired,
+    );
+    expect(
+      terminalError.recoveryResult,
+      QuickBlueSecurityRecoveryResult.userActionRequired,
+    );
+    expect(terminalError.nativeDomain, error.nativeDomain);
+    expect(terminalError.nativeCode, error.nativeCode);
+  });
 }

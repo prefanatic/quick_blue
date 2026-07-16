@@ -575,7 +575,13 @@ class QuickBlueLinux extends QuickBluePlatform {
 
     if (bleInputProperty == BleInputProperty.disabled) {
       if (targetCharacteristic.notifying) {
-        await targetCharacteristic.stopNotify();
+        await _runBlueZGattOperation(
+          operation: 'setNotifiable',
+          deviceId: deviceId,
+          serviceId: service,
+          characteristicId: characteristic,
+          action: targetCharacteristic.stopNotify,
+        );
       }
       await _removeNotificationSubscription(deviceId, key);
       return;
@@ -600,7 +606,13 @@ class QuickBlueLinux extends QuickBluePlatform {
     try {
       // BlueZ reference-counts StartNotify by D-Bus client. Call it even when
       // another engine already made the global Notifying property true.
-      await targetCharacteristic.startNotify();
+      await _runBlueZGattOperation(
+        operation: 'setNotifiable',
+        deviceId: deviceId,
+        serviceId: service,
+        characteristicId: characteristic,
+        action: targetCharacteristic.startNotify,
+      );
     } on BlueZAlreadyExistsException {
       // This D-Bus client already enabled notifications.
     }
@@ -671,7 +683,13 @@ class QuickBlueLinux extends QuickBluePlatform {
     final device = resolved.device;
     final targetCharacteristic = resolved.characteristic;
 
-    final data = await targetCharacteristic.readValue();
+    final data = await _runBlueZGattOperation(
+      operation: 'readValue',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: targetCharacteristic.readValue,
+    );
     final value = _emitCharacteristicValue(
       device.address,
       resolved.serviceId,
@@ -702,7 +720,13 @@ class QuickBlueLinux extends QuickBluePlatform {
         ? BlueZGattCharacteristicWriteType.request
         : BlueZGattCharacteristicWriteType.command;
 
-    await targetCharacteristic.writeValue(value, type: writeType);
+    await _runBlueZGattOperation(
+      operation: 'writeValue',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => targetCharacteristic.writeValue(value, type: writeType),
+    );
   }
 
   @override
@@ -1304,6 +1328,34 @@ class QuickBlueLinux extends QuickBluePlatform {
       return canonical;
     }
     return '${canonical.substring(0, 8)}-${canonical.substring(8, 12)}-${canonical.substring(12, 16)}-${canonical.substring(16, 20)}-${canonical.substring(20)}';
+  }
+}
+
+Future<T> _runBlueZGattOperation<T>({
+  required String operation,
+  required String deviceId,
+  required String serviceId,
+  required String characteristicId,
+  required Future<T> Function() action,
+}) async {
+  try {
+    return await action();
+  } on BlueZNotAuthorizedException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      QuickBlueSecurityException(
+        reason: QuickBlueSecurityErrorReason.insufficientAuthorization,
+        nativeDomain: 'org.bluez.Error.NotAuthorized',
+        nativeCode: null,
+        operation: operation,
+        deviceId: deviceId,
+        serviceId: serviceId,
+        characteristicId: characteristicId,
+        message: error.message.isEmpty
+            ? '$operation was not authorized by BlueZ.'
+            : error.message,
+      ),
+      stackTrace,
+    );
   }
 }
 

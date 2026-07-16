@@ -131,6 +131,20 @@ class QuickBlueDarwin extends QuickBluePlatform {
   }
 
   @override
+  Future<QuickBlueSecurityRecoveryResult> performSecurityRecovery(
+    String deviceId,
+    QuickBlueSecurityException error,
+  ) async {
+    if (error.reason ==
+        QuickBlueSecurityErrorReason.peerRemovedPairingInformation) {
+      return QuickBlueSecurityRecoveryResult.userActionRequired;
+    }
+    // CoreBluetooth owns pairing and encryption negotiation. Retrying the
+    // rejected operation gives it one bounded opportunity to renegotiate.
+    return QuickBlueSecurityRecoveryResult.recovered;
+  }
+
+  @override
   Future<void> discoverServices(String deviceId) {
     _ensureInitialized();
 
@@ -176,10 +190,25 @@ class QuickBlueDarwin extends QuickBluePlatform {
     String deviceId,
     String service,
     String characteristic,
+  ) async {
+    await readCharacteristicValue(deviceId, service, characteristic);
+  }
+
+  @override
+  Future<Uint8List> readCharacteristicValue(
+    String deviceId,
+    String service,
+    String characteristic,
   ) {
     _ensureInitialized();
 
-    return _api.readValue(deviceId, service, characteristic);
+    return _runDarwinGattOperation(
+      operation: 'readValue',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => _api.readValue(deviceId, service, characteristic),
+    );
   }
 
   @override
@@ -201,11 +230,17 @@ class QuickBlueDarwin extends QuickBluePlatform {
   ) {
     _ensureInitialized();
 
-    return _api.setNotifiable(
-      deviceId,
-      service,
-      characteristic,
-      bleInputProperty.toPlatformBleInputProperty(),
+    return _runDarwinGattOperation(
+      operation: 'setNotifiable',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => _api.setNotifiable(
+        deviceId,
+        service,
+        characteristic,
+        bleInputProperty.toPlatformBleInputProperty(),
+      ),
     );
   }
 
@@ -258,14 +293,106 @@ class QuickBlueDarwin extends QuickBluePlatform {
   ) {
     _ensureInitialized();
 
-    return _api.writeValue(
-      deviceId,
-      service,
-      characteristic,
-      value,
-      bleOutputProperty.toPlatformBleOutputProperty(),
+    return _runDarwinGattOperation(
+      operation: 'writeValue',
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      action: () => _api.writeValue(
+        deviceId,
+        service,
+        characteristic,
+        value,
+        bleOutputProperty.toPlatformBleOutputProperty(),
+      ),
     );
   }
+}
+
+Future<T> _runDarwinGattOperation<T>({
+  required String operation,
+  required String deviceId,
+  required String serviceId,
+  required String characteristicId,
+  required Future<T> Function() action,
+}) async {
+  try {
+    return await action();
+  } on PlatformException catch (error, stackTrace) {
+    final details = error.details;
+    if (details is! Map<Object?, Object?>) {
+      rethrow;
+    }
+    final nativeDomain = details['domain'];
+    final nativeCode = details['code'];
+    if (nativeDomain is! String || nativeCode is! num) {
+      rethrow;
+    }
+    final reason = _securityErrorReason(nativeDomain, nativeCode.toInt());
+    if (reason == null) {
+      rethrow;
+    }
+    Error.throwWithStackTrace(
+      _securityException(
+        nativeDomain: nativeDomain,
+        nativeCode: nativeCode.toInt(),
+        reason: reason,
+        operation: operation,
+        deviceId: deviceId,
+        serviceId: serviceId,
+        characteristicId: characteristicId,
+        message:
+            error.message ??
+            '$operation failed with $nativeDomain error $nativeCode.',
+      ),
+      stackTrace,
+    );
+  }
+}
+
+QuickBlueSecurityErrorReason? _securityErrorReason(
+  String nativeDomain,
+  int nativeCode,
+) {
+  if (nativeDomain == 'CBATTErrorDomain') {
+    return switch (nativeCode) {
+      5 => QuickBlueSecurityErrorReason.insufficientAuthentication,
+      8 => QuickBlueSecurityErrorReason.insufficientAuthorization,
+      12 => QuickBlueSecurityErrorReason.insufficientEncryptionKeySize,
+      15 => QuickBlueSecurityErrorReason.insufficientEncryption,
+      _ => null,
+    };
+  }
+  if (nativeDomain == 'CBErrorDomain') {
+    return switch (nativeCode) {
+      14 => QuickBlueSecurityErrorReason.peerRemovedPairingInformation,
+      15 => QuickBlueSecurityErrorReason.encryptionTimedOut,
+      _ => null,
+    };
+  }
+  return null;
+}
+
+QuickBlueSecurityException _securityException({
+  required String nativeDomain,
+  required int nativeCode,
+  required QuickBlueSecurityErrorReason reason,
+  required String operation,
+  required String deviceId,
+  String? serviceId,
+  String? characteristicId,
+  required String message,
+}) {
+  return QuickBlueSecurityException(
+    reason: reason,
+    nativeDomain: nativeDomain,
+    nativeCode: nativeCode,
+    operation: operation,
+    deviceId: deviceId,
+    serviceId: serviceId,
+    characteristicId: characteristicId,
+    message: message,
+  );
 }
 
 extension on ScanOptions {
@@ -385,10 +512,42 @@ void _handleConnectionStateChange(
   final state = stateChange.state.toBlueConnectionState();
   if (state == null) return;
 
-  platform.onConnectionChanged?.call(
+  platform.handleConnectionStateChanged(
     stateChange.deviceId,
     state,
     stateChange.gattStatus.toBleStatus(),
+    error: _connectionError(stateChange),
+  );
+}
+
+QuickBlueException? _connectionError(
+  messages.PlatformConnectionStateChange stateChange,
+) {
+  final nativeDomain = stateChange.errorDomain;
+  final nativeCode = stateChange.errorCode;
+  if (nativeDomain == null || nativeCode == null) {
+    return null;
+  }
+  final message =
+      stateChange.errorMessage ??
+      'CoreBluetooth connection failed with $nativeDomain error $nativeCode.';
+  final reason = _securityErrorReason(nativeDomain, nativeCode);
+  if (reason != null) {
+    return _securityException(
+      nativeDomain: nativeDomain,
+      nativeCode: nativeCode,
+      reason: reason,
+      operation: 'connection',
+      deviceId: stateChange.deviceId,
+      message: message,
+    );
+  }
+  return QuickBlueException(
+    code: QuickBlueErrorCode.operationFailed,
+    operation: 'connection',
+    deviceId: stateChange.deviceId,
+    details: <String, Object>{'domain': nativeDomain, 'code': nativeCode},
+    message: message,
   );
 }
 

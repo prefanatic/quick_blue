@@ -211,6 +211,26 @@ void main() {
     );
   });
 
+  test('security recovery reports unsupported pairing', () async {
+    final platform = QuickBlueWindows();
+
+    final result = await platform.recoverSecurity(
+      'device-a',
+      const QuickBlueSecurityException(
+        reason: QuickBlueSecurityErrorReason.insufficientAuthorization,
+        nativeDomain:
+            'Windows.Devices.Bluetooth.GenericAttributeProfile.'
+            'GattCommunicationStatus',
+        nativeCode: 3,
+        operation: 'readValue',
+        deviceId: 'device-a',
+        message: 'Access denied',
+      ),
+    );
+
+    expect(result, QuickBlueSecurityRecoveryResult.unsupported);
+  });
+
   test('maps scan result events', () async {
     final scanEventChannel = const EventChannel(scanResultEventChannelName);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -529,6 +549,31 @@ void main() {
       value,
       messages.PlatformBleOutputProperty.withResponse,
     ]);
+  });
+
+  test('readValue maps WinRT access denied to a security error', () async {
+    const channel = BasicMessageChannel<Object?>(
+      readValueChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(
+          channel,
+          (_) async => <Object?>['ReadValueFailed', 'Access denied', 3],
+        );
+
+    await expectLater(
+      QuickBlueWindows().readValue('device-a', '180d', '2a37'),
+      throwsA(
+        isA<QuickBlueSecurityException>()
+            .having(
+              (error) => error.reason,
+              'reason',
+              QuickBlueSecurityErrorReason.insufficientAuthorization,
+            )
+            .having((error) => error.nativeCode, 'nativeCode', 3),
+      ),
+    );
   });
 
   test('flutter API callbacks surface shared event streams', () async {

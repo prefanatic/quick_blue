@@ -96,3 +96,88 @@ class QuickBlueGattException extends QuickBlueException {
   /// Raw numeric GATT status reported by the native platform.
   final int status;
 }
+
+/// Security failures that may require pairing or bond recovery.
+enum QuickBlueSecurityErrorReason {
+  /// The peer requires authentication before the operation can continue.
+  insufficientAuthentication,
+
+  /// The peer or platform denied authorization for the operation.
+  insufficientAuthorization,
+
+  /// The negotiated encryption key is too short for the requested operation.
+  insufficientEncryptionKeySize,
+
+  /// The peer requires an encrypted link before the operation can continue.
+  insufficientEncryption,
+
+  /// Link encryption did not complete before CoreBluetooth timed out.
+  encryptionTimedOut,
+
+  /// The peer removed pairing information that the local device still holds.
+  peerRemovedPairingInformation,
+}
+
+/// Outcome of QuickBlue's attempt to recover a Bluetooth security failure.
+enum QuickBlueSecurityRecoveryResult {
+  /// Recovery completed and the rejected operation can be retried.
+  recovered,
+
+  /// The platform requires the user to repair pairing state outside the app.
+  userActionRequired,
+
+  /// The active platform cannot perform bond recovery programmatically.
+  unsupported,
+}
+
+/// A native Bluetooth security failure that callers can recover from.
+///
+/// [nativeDomain] and [nativeCode] preserve the unmodified platform error
+/// identity for diagnostics and forward compatibility. [reason] provides a
+/// portable category so callers do not need to know CoreBluetooth constants.
+class QuickBlueSecurityException extends QuickBlueException {
+  /// Creates a structured Bluetooth security failure.
+  const QuickBlueSecurityException({
+    required this.reason,
+    required this.nativeDomain,
+    required this.nativeCode,
+    required super.message,
+    required super.operation,
+    super.deviceId,
+    super.serviceId,
+    super.characteristicId,
+    this.recoveryResult,
+  }) : super(code: QuickBlueErrorCode.operationFailed);
+
+  /// Portable security failure category.
+  final QuickBlueSecurityErrorReason reason;
+
+  /// Unmodified native error domain.
+  final String nativeDomain;
+
+  /// Unmodified native error code.
+  final int? nativeCode;
+
+  /// Result of an automatic recovery attempt, when one has completed.
+  ///
+  /// Exceptions that escape a managed QuickBlue operation set this when the
+  /// operation could not be recovered automatically.
+  final QuickBlueSecurityRecoveryResult? recoveryResult;
+
+  /// Returns this failure with the result of a recovery attempt attached.
+  QuickBlueSecurityException withRecoveryResult(
+    QuickBlueSecurityRecoveryResult result,
+  ) {
+    return QuickBlueSecurityException(
+      reason: reason,
+      nativeDomain: nativeDomain,
+      nativeCode: nativeCode,
+      message: message,
+      operation: operation,
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+      recoveryResult: result,
+    );
+  }
+}
