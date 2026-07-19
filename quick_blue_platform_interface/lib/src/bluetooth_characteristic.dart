@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:meta/meta.dart';
 
 import '../models.dart';
+import 'observability.dart';
 import 'quick_blue_platform.dart';
 
 /// A handle for a Bluetooth LE characteristic.
@@ -50,13 +51,20 @@ class BluetoothCharacteristic {
   ///
   /// Security failures trigger one coordinated recovery attempt and retry.
   Future<void> setNotifiable(BleInputProperty bleInputProperty) {
-    return _platform.runWithSecurityRecovery(
-      deviceId,
-      () => _platform.setNotifiable(
+    return QuickBlueInstrumentation.observeFuture<void>(
+      kind: QuickBlueOperationKind.setNotifiable,
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+      inputProperty: bleInputProperty,
+      action: () => _platform.runWithSecurityRecovery(
         deviceId,
-        serviceId,
-        characteristicId,
-        bleInputProperty,
+        () => _platform.setNotifiable(
+          deviceId,
+          serviceId,
+          characteristicId,
+          bleInputProperty,
+        ),
       ),
     );
   }
@@ -69,11 +77,19 @@ class BluetoothCharacteristic {
   Stream<Uint8List> notifications({
     BleInputProperty bleInputProperty = BleInputProperty.notification,
   }) {
-    return _platform.characteristicNotifications(
-      deviceId,
-      serviceId,
-      characteristicId,
-      bleInputProperty: bleInputProperty,
+    return QuickBlueInstrumentation.observeStream<Uint8List>(
+      kind: QuickBlueOperationKind.notifications,
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+      inputProperty: bleInputProperty,
+      stream: () => _platform.characteristicNotifications(
+        deviceId,
+        serviceId,
+        characteristicId,
+        bleInputProperty: bleInputProperty,
+      ),
+      valueSize: (value) => value.length,
     );
   }
 
@@ -82,13 +98,22 @@ class BluetoothCharacteristic {
   /// The future completes with the bytes returned by the platform read.
   /// Security failures trigger one coordinated recovery attempt and retry.
   Future<Uint8List> read() async {
-    return _platform.runWithSecurityRecovery(
-      deviceId,
-      () => _platform.readCharacteristicValue(
+    return QuickBlueInstrumentation.observeFuture<Uint8List>(
+      kind: QuickBlueOperationKind.readCharacteristic,
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+      action: () => _platform.runWithSecurityRecovery(
         deviceId,
-        serviceId,
-        characteristicId,
+        () => _platform.readCharacteristicValue(
+          deviceId,
+          serviceId,
+          characteristicId,
+        ),
       ),
+      measurements: (value) => <QuickBlueOperationMeasurement, num>{
+        QuickBlueOperationMeasurement.byteCount: value.length,
+      },
     );
   }
 
@@ -98,14 +123,22 @@ class BluetoothCharacteristic {
   /// [bleOutputProperty].
   /// A rejected acknowledged write is retried once after security recovery.
   Future<void> write(Uint8List value, BleOutputProperty bleOutputProperty) {
-    return _platform.runWithSecurityRecovery(
-      deviceId,
-      () => _platform.writeValue(
+    return QuickBlueInstrumentation.observeFuture<void>(
+      kind: QuickBlueOperationKind.writeCharacteristic,
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+      outputProperty: bleOutputProperty,
+      valueSize: value.length,
+      action: () => _platform.runWithSecurityRecovery(
         deviceId,
-        serviceId,
-        characteristicId,
-        value,
-        bleOutputProperty,
+        () => _platform.writeValue(
+          deviceId,
+          serviceId,
+          characteristicId,
+          value,
+          bleOutputProperty,
+        ),
       ),
     );
   }

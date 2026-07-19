@@ -706,6 +706,196 @@ class WindowsScanOptions {
   }
 }
 
+/// Bluetooth discovery rules for an Apple AccessorySetupKit picker item.
+///
+/// The service UUID and name substring must also be declared by the app under
+/// `NSAccessorySetupBluetoothServices` and
+/// `NSAccessorySetupBluetoothNames`, respectively.
+class AppleAccessoryDiscovery {
+  AppleAccessoryDiscovery({
+    required this.serviceUuid,
+    this.nameSubstring,
+    Uint8List? serviceData,
+    Uint8List? serviceDataMask,
+    this.immediate = false,
+  }) : _serviceData = _copyNullableBytes(serviceData),
+       _serviceDataMask = _copyNullableBytes(serviceDataMask) {
+    if (serviceUuid.isEmpty) {
+      throw ArgumentError.value(
+        serviceUuid,
+        'serviceUuid',
+        'must not be empty',
+      );
+    }
+    if (nameSubstring?.isEmpty ?? false) {
+      throw ArgumentError.value(
+        nameSubstring,
+        'nameSubstring',
+        'must not be empty',
+      );
+    }
+    if ((_serviceData == null) != (_serviceDataMask == null)) {
+      throw ArgumentError(
+        'serviceData and serviceDataMask must either both be provided or '
+        'both be omitted',
+      );
+    }
+    if (_serviceData != null &&
+        _serviceData.length != _serviceDataMask!.length) {
+      throw ArgumentError(
+        'serviceData and serviceDataMask must have the same length',
+      );
+    }
+  }
+
+  /// Bluetooth service UUID advertised by matching accessories.
+  final String serviceUuid;
+
+  /// Optional substring of the over-the-air Bluetooth name.
+  final String? nameSubstring;
+
+  final Uint8List? _serviceData;
+  final Uint8List? _serviceDataMask;
+
+  /// Optional service-data bytes matched by [serviceDataMask].
+  Uint8List? get serviceData => _copyNullableBytes(_serviceData);
+
+  /// Mask applied while matching [serviceData].
+  Uint8List? get serviceDataMask => _copyNullableBytes(_serviceDataMask);
+
+  /// Whether the accessory must be in the immediate physical vicinity.
+  final bool immediate;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is AppleAccessoryDiscovery &&
+            other.serviceUuid == serviceUuid &&
+            other.nameSubstring == nameSubstring &&
+            _deepEquality.equals(other._serviceData, _serviceData) &&
+            _deepEquality.equals(other._serviceDataMask, _serviceDataMask) &&
+            other.immediate == immediate;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    serviceUuid,
+    nameSubstring,
+    _deepEquality.hash(_serviceData),
+    _deepEquality.hash(_serviceDataMask),
+    immediate,
+  );
+
+  @override
+  String toString() {
+    return 'AppleAccessoryDiscovery('
+        'serviceUuid: $serviceUuid, '
+        'nameSubstring: $nameSubstring, '
+        'serviceData: ${_serviceData?.toList()}, '
+        'serviceDataMask: ${_serviceDataMask?.toList()}, '
+        'immediate: $immediate'
+        ')';
+  }
+}
+
+/// Product presentation and discovery rules for AccessorySetupKit.
+class AppleAccessoryPickerItem {
+  AppleAccessoryPickerItem({
+    required this.displayName,
+    required Uint8List productImage,
+    required this.discovery,
+    this.migrationDeviceId,
+  }) : _productImage = _copyBytes(productImage) {
+    if (displayName.isEmpty) {
+      throw ArgumentError.value(
+        displayName,
+        'displayName',
+        'must not be empty',
+      );
+    }
+    if (_productImage.isEmpty) {
+      throw ArgumentError.value(
+        productImage,
+        'productImage',
+        'must contain encoded image bytes',
+      );
+    }
+  }
+
+  /// Friendly product name shown in the system picker.
+  final String displayName;
+
+  final Uint8List _productImage;
+
+  /// Encoded PNG, JPEG, or other `UIImage`-compatible product artwork.
+  Uint8List get productImage => _copyBytes(_productImage);
+
+  /// Bluetooth discovery rules for this product.
+  final AppleAccessoryDiscovery discovery;
+
+  /// Existing CoreBluetooth peripheral UUID to migrate, when applicable.
+  ///
+  /// Migration must run before Quick Blue initializes CoreBluetooth.
+  final String? migrationDeviceId;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is AppleAccessoryPickerItem &&
+            other.displayName == displayName &&
+            _deepEquality.equals(other._productImage, _productImage) &&
+            other.discovery == discovery &&
+            other.migrationDeviceId == migrationDeviceId;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    displayName,
+    _deepEquality.hash(_productImage),
+    discovery,
+    migrationDeviceId,
+  );
+
+  @override
+  String toString() {
+    return 'AppleAccessoryPickerItem('
+        'displayName: $displayName, '
+        'productImageLength: ${_productImage.length}, '
+        'discovery: $discovery, '
+        'migrationDeviceId: $migrationDeviceId'
+        ')';
+  }
+}
+
+/// A Bluetooth accessory authorized to this app by AccessorySetupKit.
+class AppleAccessory {
+  const AppleAccessory({required this.deviceId, required this.displayName});
+
+  /// CoreBluetooth peripheral UUID accepted by [BluetoothDevice].
+  final String deviceId;
+
+  /// User-visible accessory name managed by the system.
+  final String displayName;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is AppleAccessory &&
+            other.deviceId == deviceId &&
+            other.displayName == displayName;
+  }
+
+  @override
+  int get hashCode => Object.hash(deviceId, displayName);
+
+  @override
+  String toString() {
+    return 'AppleAccessory('
+        'deviceId: $deviceId, displayName: $displayName'
+        ')';
+  }
+}
+
 /// Request for Android companion-device association.
 ///
 /// Association shows the platform picker and may return null when the user
@@ -817,6 +1007,10 @@ Uint8List _copyBytes(Object? bytes) {
   }
 
   return Uint8List.fromList((bytes as Uint8List));
+}
+
+Uint8List? _copyNullableBytes(Uint8List? bytes) {
+  return bytes == null ? null : Uint8List.fromList(bytes);
 }
 
 Map<int, Uint8List>? _copyManufacturerData(

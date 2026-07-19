@@ -542,6 +542,84 @@ void main() {
     });
   });
 
+  group(AppleAccessoryDiscovery, () {
+    test('defensively copies service data and compares by value', () {
+      final data = Uint8List.fromList(<int>[1, 2]);
+      final mask = Uint8List.fromList(<int>[255, 0]);
+      final discovery = AppleAccessoryDiscovery(
+        serviceUuid: '180d',
+        nameSubstring: 'Sensor',
+        serviceData: data,
+        serviceDataMask: mask,
+        immediate: true,
+      );
+      final equivalent = AppleAccessoryDiscovery(
+        serviceUuid: '180d',
+        nameSubstring: 'Sensor',
+        serviceData: Uint8List.fromList(<int>[1, 2]),
+        serviceDataMask: Uint8List.fromList(<int>[255, 0]),
+        immediate: true,
+      );
+
+      data[0] = 9;
+      discovery.serviceData![1] = 9;
+
+      expect(discovery.serviceData, Uint8List.fromList(<int>[1, 2]));
+      expect(discovery, equivalent);
+      expect(discovery.hashCode, equivalent.hashCode);
+    });
+
+    test('rejects incomplete or mismatched service-data filters', () {
+      expect(
+        () => AppleAccessoryDiscovery(
+          serviceUuid: '180d',
+          serviceData: Uint8List(1),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => AppleAccessoryDiscovery(
+          serviceUuid: '180d',
+          serviceData: Uint8List(1),
+          serviceDataMask: Uint8List(2),
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group(AppleAccessoryPickerItem, () {
+    test('defensively copies product artwork', () {
+      final image = Uint8List.fromList(<int>[1, 2, 3]);
+      final item = AppleAccessoryPickerItem(
+        displayName: 'Sensor',
+        productImage: image,
+        discovery: AppleAccessoryDiscovery(serviceUuid: '180d'),
+      );
+
+      image[0] = 9;
+      item.productImage[1] = 9;
+
+      expect(item.productImage, Uint8List.fromList(<int>[1, 2, 3]));
+    });
+  });
+
+  test('AppleAccessory compares by value', () {
+    const first = AppleAccessory(deviceId: 'device-a', displayName: 'Sensor');
+    const equivalent = AppleAccessory(
+      deviceId: 'device-a',
+      displayName: 'Sensor',
+    );
+    const different = AppleAccessory(
+      deviceId: 'device-b',
+      displayName: 'Sensor',
+    );
+
+    expect(first, equivalent);
+    expect(first.hashCode, equivalent.hashCode);
+    expect(first, isNot(different));
+  });
+
   group(ScanOptions, () {
     test('compares nested platform options by value', () {
       const first = ScanOptions(

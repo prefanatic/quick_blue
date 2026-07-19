@@ -23,6 +23,9 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   List<CompanionAssociation> companionAssociations =
       const <CompanionAssociation>[];
   CompanionAssociationRequest? lastCompanionAssociateRequest;
+  AppleAccessory? selectedAppleAccessory;
+  List<AppleAccessory> appleAccessories = const <AppleAccessory>[];
+  List<AppleAccessoryPickerItem>? lastAppleAccessoryPickerItems;
   final _scanResultController = StreamController<BlueScanResult>.broadcast();
   final _bluetoothStateController =
       StreamController<BlueBluetoothState>.broadcast();
@@ -196,6 +199,32 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   Future<List<CompanionAssociation>> getCompanionAssociations() async {
     calls.add('getCompanionAssociations');
     return companionAssociations;
+  }
+
+  @override
+  Future<bool> isAppleAccessorySetupSupported() async {
+    calls.add('isAppleAccessorySetupSupported');
+    return true;
+  }
+
+  @override
+  Future<AppleAccessory?> showAppleAccessoryPicker(
+    List<AppleAccessoryPickerItem> items,
+  ) async {
+    lastAppleAccessoryPickerItems = items;
+    calls.add('showAppleAccessoryPicker');
+    return selectedAppleAccessory;
+  }
+
+  @override
+  Future<List<AppleAccessory>> getAppleAccessories() async {
+    calls.add('getAppleAccessories');
+    return appleAccessories;
+  }
+
+  @override
+  Future<void> removeAppleAccessory(String deviceId) async {
+    calls.add('removeAppleAccessory $deviceId');
   }
 
   @override

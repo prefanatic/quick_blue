@@ -36,11 +36,11 @@ class QuickBlueDarwin extends QuickBluePlatform {
     messages.QuickBlueFlutterApi.setUp(_flutterApi);
   }
 
-  // Companion device association is an Android CompanionDeviceManager feature
-  // with no CoreBluetooth equivalent on iOS/macOS.
+  // This API remains Android-specific. Apple AccessorySetupKit is exposed
+  // separately because its picker items and identifiers have different shapes.
   static const _companionUnsupported =
       'Companion device association is not supported on iOS/macOS '
-      '(no CoreBluetooth equivalent for Android CompanionDeviceManager).';
+      '(use QuickBlue.appleAccessorySetup on supported iOS versions).';
 
   static const _pairingUnsupported =
       'App-initiated Bluetooth LE pairing is not supported on iOS/macOS. '
@@ -53,6 +53,36 @@ class QuickBlueDarwin extends QuickBluePlatform {
     return _api.configure(
       messages.PlatformDarwinConfiguration(maintainState: maintainState),
     );
+  }
+
+  @override
+  Future<bool> isAppleAccessorySetupSupported() {
+    _ensureInitialized();
+    return _api.isAppleAccessorySetupSupported();
+  }
+
+  @override
+  Future<AppleAccessory?> showAppleAccessoryPicker(
+    List<AppleAccessoryPickerItem> items,
+  ) async {
+    _ensureInitialized();
+    final accessory = await _api.showAppleAccessoryPicker(
+      items.map(_toPlatformAppleAccessoryPickerItem).toList(growable: false),
+    );
+    return accessory == null ? null : _toAppleAccessory(accessory);
+  }
+
+  @override
+  Future<List<AppleAccessory>> getAppleAccessories() async {
+    _ensureInitialized();
+    final accessories = await _api.getAppleAccessories();
+    return accessories.map(_toAppleAccessory).toList(growable: false);
+  }
+
+  @override
+  Future<void> removeAppleAccessory(String deviceId) {
+    _ensureInitialized();
+    return _api.removeAppleAccessory(deviceId);
   }
 
   @override
@@ -415,6 +445,31 @@ BlueScanResult _scanResultFromPlatformResult(
     manufacturerDataHead: result.manufacturerDataHead,
     manufacturerData: result.manufacturerData,
     serviceData: result.serviceData,
+  );
+}
+
+messages.PlatformAppleAccessoryPickerItem _toPlatformAppleAccessoryPickerItem(
+  AppleAccessoryPickerItem item,
+) {
+  final discovery = item.discovery;
+  return messages.PlatformAppleAccessoryPickerItem(
+    displayName: item.displayName,
+    productImage: item.productImage,
+    migrationDeviceId: item.migrationDeviceId,
+    discovery: messages.PlatformAppleAccessoryDiscovery(
+      serviceUuid: discovery.serviceUuid,
+      nameSubstring: discovery.nameSubstring,
+      serviceData: discovery.serviceData,
+      serviceDataMask: discovery.serviceDataMask,
+      immediate: discovery.immediate,
+    ),
+  );
+}
+
+AppleAccessory _toAppleAccessory(messages.PlatformAppleAccessory accessory) {
+  return AppleAccessory(
+    deviceId: accessory.deviceId,
+    displayName: accessory.displayName,
   );
 }
 

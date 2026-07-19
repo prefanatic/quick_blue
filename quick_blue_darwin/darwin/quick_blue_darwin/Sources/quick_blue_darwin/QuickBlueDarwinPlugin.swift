@@ -3,6 +3,10 @@ import Foundation
 
 #if os(iOS)
     import Flutter
+    import UIKit
+    #if !targetEnvironment(macCatalyst)
+        import AccessorySetupKit
+    #endif
 #elseif os(OSX)
     import FlutterMacOS
 #endif
@@ -93,6 +97,287 @@ extension CBManagerState {
         }
     }
 }
+
+#if os(iOS) && !targetEnvironment(macCatalyst)
+    @available(iOS 18.0, *)
+    private final class AppleAccessorySetupCoordinator {
+        typealias VoidCompletion = (Result<Void, Error>) -> Void
+
+        private let session = ASAccessorySession()
+        private var activated = false
+        private var activationCompletions: [VoidCompletion] = []
+        private var pickerCompletion:
+            ((Result<PlatformAppleAccessory?, Error>) -> Void)?
+        private var pickedAccessory: ASAccessory?
+
+        init() {
+            session.activate(on: .main) { [weak self] event in
+                self?.handle(event)
+            }
+        }
+
+        deinit {
+            session.invalidate()
+        }
+
+        func showPicker(
+            items: [PlatformAppleAccessoryPickerItem],
+            completion: @escaping (Result<PlatformAppleAccessory?, Error>) -> Void
+        ) {
+            whenActivated { [weak self] result in
+                guard let self = self else { return }
+                switch result {
+                case .failure(let error):
+                    completion(.failure(error))
+                case .success:
+                    guard self.pickerCompletion == nil else {
+                        completion(
+                            .failure(
+                                PigeonError(
+                                    code: "InvalidState",
+                                    message: "An AccessorySetupKit picker is already active.",
+                                    details: nil
+                                )
+                            )
+                        )
+                        return
+                    }
+
+                    do {
+                        let displayItems = try items.map(self.makeDisplayItem)
+                        self.pickedAccessory = nil
+                        self.pickerCompletion = completion
+                        self.session.showPicker(for: displayItems) { [weak self] error in
+                            guard let error = error else { return }
+                            self?.finishPicker(.failure(error))
+                        }
+                    } catch {
+                        completion(.failure(error))
+                    }
+                }
+            }
+        }
+
+        func accessories(
+            completion: @escaping (Result<[PlatformAppleAccessory], Error>) -> Void
+        ) {
+            whenActivated { [weak self] result in
+                guard let self = self else { return }
+                switch result {
+                case .failure(let error):
+                    completion(.failure(error))
+                case .success:
+                    completion(
+                        .success(
+                            self.session.accessories.compactMap {
+                                self.mapAccessory($0)
+                            }
+                        )
+                    )
+                }
+            }
+        }
+
+        func remove(
+            deviceId: String,
+            completion: @escaping VoidCompletion
+        ) {
+            whenActivated { [weak self] result in
+                guard let self = self else { return }
+                switch result {
+                case .failure(let error):
+                    completion(.failure(error))
+                case .success:
+                    guard
+                        let accessory = self.session.accessories.first(where: {
+                            $0.bluetoothIdentifier?.uuidString.caseInsensitiveCompare(
+                                deviceId
+                            ) == .orderedSame
+                        })
+                    else {
+                        completion(
+                            .failure(
+                                PigeonError(
+                                    code: "NotFound",
+                                    message:
+                                        "No AccessorySetupKit accessory has deviceId \(deviceId).",
+                                    details: nil
+                                )
+                            )
+                        )
+                        return
+                    }
+
+                    self.session.removeAccessory(accessory) { error in
+                        if let error = error {
+                            completion(.failure(error))
+                        } else {
+                            completion(.success(()))
+                        }
+                    }
+                }
+            }
+        }
+
+        private func whenActivated(_ completion: @escaping VoidCompletion) {
+            if activated {
+                completion(.success(()))
+            } else {
+                activationCompletions.append(completion)
+            }
+        }
+
+        private func handle(_ event: ASAccessoryEvent) {
+            switch event.eventType {
+            case .activated:
+                activated = true
+                let completions = activationCompletions
+                activationCompletions.removeAll()
+                completions.forEach { $0(.success(())) }
+            case .invalidated:
+                activated = false
+                let error = event.error
+                    ?? PigeonError(
+                        code: "InvalidState",
+                        message: "The AccessorySetupKit session was invalidated.",
+                        details: nil
+                    )
+                let completions = activationCompletions
+                activationCompletions.removeAll()
+                completions.forEach { $0(.failure(error)) }
+                finishPicker(.failure(error))
+            case .accessoryAdded:
+                pickedAccessory = event.accessory
+            case .pickerDidDismiss:
+                finishPicker(.success(pickedAccessory.flatMap(mapAccessory)))
+            case .pickerSetupFailed:
+                if let error = event.error {
+                    finishPicker(.failure(error))
+                }
+            default:
+                break
+            }
+        }
+
+        private func finishPicker(
+            _ result: Result<PlatformAppleAccessory?, Error>
+        ) {
+            guard let completion = pickerCompletion else { return }
+            pickerCompletion = nil
+            pickedAccessory = nil
+            completion(result)
+        }
+
+        private func makeDisplayItem(
+            _ item: PlatformAppleAccessoryPickerItem
+        ) throws -> ASPickerDisplayItem {
+            guard let productImage = UIImage(data: item.productImage.data) else {
+                throw PigeonError(
+                    code: "InvalidArgument",
+                    message:
+                        "Accessory productImage must contain UIImage-compatible encoded bytes.",
+                    details: nil
+                )
+            }
+
+            let discovery = item.discovery
+            try validateInfoPlist(discovery)
+            let descriptor = ASDiscoveryDescriptor()
+            descriptor.bluetoothServiceUUID = CBUUID(
+                string: discovery.serviceUuid
+            )
+            descriptor.bluetoothNameSubstring = discovery.nameSubstring
+            descriptor.bluetoothServiceDataBlob = discovery.serviceData?.data
+            descriptor.bluetoothServiceDataMask = discovery.serviceDataMask?.data
+            descriptor.bluetoothRange = discovery.immediate ? .immediate : .default
+            let displayItem = ASPickerDisplayItem(
+                name: item.displayName,
+                productImage: productImage,
+                descriptor: descriptor
+            )
+            guard let migrationDeviceId = item.migrationDeviceId else {
+                return displayItem
+            }
+            guard let peripheralIdentifier = UUID(uuidString: migrationDeviceId) else {
+                throw PigeonError(
+                    code: "InvalidArgument",
+                    message:
+                        "migrationDeviceId must be a CoreBluetooth peripheral UUID.",
+                    details: migrationDeviceId
+                )
+            }
+            let migrationItem = ASMigrationDisplayItem(
+                name: item.displayName,
+                productImage: productImage,
+                descriptor: descriptor
+            )
+            migrationItem.peripheralIdentifier = peripheralIdentifier
+            return migrationItem
+        }
+
+        private func validateInfoPlist(
+            _ discovery: PlatformAppleAccessoryDiscovery
+        ) throws {
+            let supports =
+                Bundle.main.object(forInfoDictionaryKey: "NSAccessorySetupSupports")
+                as? [String] ?? []
+            guard supports.contains(where: { $0.caseInsensitiveCompare("Bluetooth") == .orderedSame }) else {
+                throw PigeonError(
+                    code: "InvalidConfiguration",
+                    message:
+                        "Info.plist NSAccessorySetupSupports must contain Bluetooth.",
+                    details: nil
+                )
+            }
+
+            let declaredServices =
+                Bundle.main.object(
+                    forInfoDictionaryKey: "NSAccessorySetupBluetoothServices"
+                ) as? [String] ?? []
+            let serviceUuid = CBUUID(string: discovery.serviceUuid).uuidString
+            guard declaredServices.contains(where: {
+                CBUUID(string: $0).uuidString.caseInsensitiveCompare(serviceUuid)
+                    == .orderedSame
+            }) else {
+                throw PigeonError(
+                    code: "InvalidConfiguration",
+                    message:
+                        "Info.plist NSAccessorySetupBluetoothServices must contain \(discovery.serviceUuid).",
+                    details: nil
+                )
+            }
+
+            if let name = discovery.nameSubstring {
+                let declaredNames =
+                    Bundle.main.object(
+                        forInfoDictionaryKey: "NSAccessorySetupBluetoothNames"
+                    ) as? [String] ?? []
+                guard declaredNames.contains(where: {
+                    $0.caseInsensitiveCompare(name) == .orderedSame
+                }) else {
+                    throw PigeonError(
+                        code: "InvalidConfiguration",
+                        message:
+                            "Info.plist NSAccessorySetupBluetoothNames must contain \(name).",
+                        details: nil
+                    )
+                }
+            }
+        }
+
+        private func mapAccessory(_ accessory: ASAccessory)
+            -> PlatformAppleAccessory?
+        {
+            guard let identifier = accessory.bluetoothIdentifier else {
+                return nil
+            }
+            return PlatformAppleAccessory(
+                deviceId: identifier.uuidString,
+                displayName: accessory.displayName
+            )
+        }
+    }
+#endif
 
 public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private struct NotificationKey: Hashable {
@@ -344,7 +629,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
-        #if os(iOS)
+        #if os(iOS) && !targetEnvironment(macCatalyst)
             let messenger = registrar.messenger()
         #elseif os(OSX)
             let messenger = registrar.messenger
@@ -376,6 +661,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var l2CapSocketEventsListener: L2CapSocketEventsListener
 
     private var manager: CBCentralManager?
+    private var appleAccessorySetupCoordinator: AnyObject?
     private var maintainState = false
     private let restorationIdentifier =
         "\(Bundle.main.bundleIdentifier ?? "quick_blue").quick_blue.central"
@@ -535,6 +821,100 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             _ = getManager()
         }
     }
+
+    func isAppleAccessorySetupSupported() throws -> Bool {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+            if #available(iOS 18.0, *) {
+                return true
+            }
+        #endif
+        return false
+    }
+
+    func showAppleAccessoryPicker(
+        items: [PlatformAppleAccessoryPickerItem],
+        completion: @escaping (Result<PlatformAppleAccessory?, Error>) -> Void
+    ) {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+            if #available(iOS 18.0, *) {
+                guard manager == nil else {
+                    completion(
+                        .failure(
+                            PigeonError(
+                                code: "InvalidState",
+                                message:
+                                    "AccessorySetupKit must run before Quick Blue initializes CoreBluetooth.",
+                                details: nil
+                            )
+                        )
+                    )
+                    return
+                }
+                getAppleAccessorySetupCoordinator().showPicker(
+                    items: items,
+                    completion: completion
+                )
+                return
+            }
+        #endif
+        completion(.failure(appleAccessorySetupUnsupportedError()))
+    }
+
+    func getAppleAccessories(
+        completion: @escaping (Result<[PlatformAppleAccessory], Error>) -> Void
+    ) {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+            if #available(iOS 18.0, *) {
+                getAppleAccessorySetupCoordinator().accessories(
+                    completion: completion
+                )
+                return
+            }
+        #endif
+        completion(.failure(appleAccessorySetupUnsupportedError()))
+    }
+
+    func removeAppleAccessory(
+        deviceId: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        #if os(iOS)
+            if #available(iOS 18.0, *) {
+                getAppleAccessorySetupCoordinator().remove(
+                    deviceId: deviceId,
+                    completion: completion
+                )
+                return
+            }
+        #endif
+        completion(.failure(appleAccessorySetupUnsupportedError()))
+    }
+
+    private func appleAccessorySetupUnsupportedError() -> PigeonError {
+        PigeonError(
+            code: "Unsupported",
+            message:
+                "Apple AccessorySetupKit requires iOS 18 or later and is unavailable on macOS.",
+            details: nil
+        )
+    }
+
+    #if os(iOS) && !targetEnvironment(macCatalyst)
+        @available(iOS 18.0, *)
+        private func getAppleAccessorySetupCoordinator()
+            -> AppleAccessorySetupCoordinator
+        {
+            if let coordinator =
+                appleAccessorySetupCoordinator
+                as? AppleAccessorySetupCoordinator
+            {
+                return coordinator
+            }
+            let coordinator = AppleAccessorySetupCoordinator()
+            appleAccessorySetupCoordinator = coordinator
+            return coordinator
+        }
+    #endif
 
     private func getManager() -> CBCentralManager {
         if let manager = manager {

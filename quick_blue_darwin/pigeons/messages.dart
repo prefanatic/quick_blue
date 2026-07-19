@@ -37,6 +37,43 @@ class PlatformDarwinConfiguration {
   final bool maintainState;
 }
 
+class PlatformAppleAccessoryDiscovery {
+  PlatformAppleAccessoryDiscovery({
+    required this.serviceUuid,
+    this.nameSubstring,
+    this.serviceData,
+    this.serviceDataMask,
+    required this.immediate,
+  });
+
+  final String serviceUuid;
+  final String? nameSubstring;
+  final Uint8List? serviceData;
+  final Uint8List? serviceDataMask;
+  final bool immediate;
+}
+
+class PlatformAppleAccessoryPickerItem {
+  PlatformAppleAccessoryPickerItem({
+    required this.displayName,
+    required this.productImage,
+    required this.discovery,
+    this.migrationDeviceId,
+  });
+
+  final String displayName;
+  final Uint8List productImage;
+  final PlatformAppleAccessoryDiscovery discovery;
+  final String? migrationDeviceId;
+}
+
+class PlatformAppleAccessory {
+  PlatformAppleAccessory({required this.deviceId, required this.displayName});
+
+  final String deviceId;
+  final String displayName;
+}
+
 class Peripheral {
   Peripheral({required this.id, required this.name});
 
@@ -47,6 +84,15 @@ class Peripheral {
 @HostApi()
 abstract class QuickBlueApi {
   void configure(PlatformDarwinConfiguration configuration);
+  bool isAppleAccessorySetupSupported();
+  @async
+  PlatformAppleAccessory? showAppleAccessoryPicker(
+    List<PlatformAppleAccessoryPickerItem> items,
+  );
+  @async
+  List<PlatformAppleAccessory> getAppleAccessories();
+  @async
+  void removeAppleAccessory(String deviceId);
   List<Peripheral> getConnectedPeripherals(List<String> serviceUuids);
   bool isBluetoothAvailable();
   void startScan({

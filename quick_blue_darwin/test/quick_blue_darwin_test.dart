@@ -9,6 +9,16 @@ void main() {
 
   const configureChannelName =
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.configure';
+  const isAppleAccessorySetupSupportedChannelName =
+      'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.'
+      'isAppleAccessorySetupSupported';
+  const showAppleAccessoryPickerChannelName =
+      'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.'
+      'showAppleAccessoryPicker';
+  const getAppleAccessoriesChannelName =
+      'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.getAppleAccessories';
+  const removeAppleAccessoryChannelName =
+      'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.removeAppleAccessory';
   const isBluetoothAvailableChannelName =
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.isBluetoothAvailable';
   const startScanChannelName =
@@ -45,6 +55,10 @@ void main() {
   tearDown(() {
     for (final name in const [
       configureChannelName,
+      isAppleAccessorySetupSupportedChannelName,
+      showAppleAccessoryPickerChannelName,
+      getAppleAccessoriesChannelName,
+      removeAppleAccessoryChannelName,
       isBluetoothAvailableChannelName,
       startScanChannelName,
       stopScanChannelName,
@@ -107,6 +121,92 @@ void main() {
     final configuration =
         message.single as messages.PlatformDarwinConfiguration;
     expect(configuration.maintainState, isTrue);
+  });
+
+  test('maps Apple AccessorySetupKit host API calls', () async {
+    final sentMessages = <String, Object?>{};
+    for (final name in const <String>[
+      isAppleAccessorySetupSupportedChannelName,
+      showAppleAccessoryPickerChannelName,
+      getAppleAccessoriesChannelName,
+      removeAppleAccessoryChannelName,
+    ]) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockDecodedMessageHandler<Object?>(
+            BasicMessageChannel<Object?>(
+              name,
+              messages.QuickBlueApi.pigeonChannelCodec,
+            ),
+            (message) async {
+              sentMessages[name] = message;
+              return switch (name) {
+                isAppleAccessorySetupSupportedChannelName => <Object?>[true],
+                showAppleAccessoryPickerChannelName => <Object?>[
+                  messages.PlatformAppleAccessory(
+                    deviceId: 'device-a',
+                    displayName: 'Sensor',
+                  ),
+                ],
+                getAppleAccessoriesChannelName => <Object?>[
+                  <messages.PlatformAppleAccessory>[
+                    messages.PlatformAppleAccessory(
+                      deviceId: 'device-a',
+                      displayName: 'Sensor',
+                    ),
+                  ],
+                ],
+                _ => <Object?>[null],
+              };
+            },
+          );
+    }
+
+    final platform = QuickBlueDarwin();
+    final item = AppleAccessoryPickerItem(
+      displayName: 'Sensor',
+      productImage: Uint8List.fromList(<int>[1, 2, 3]),
+      discovery: AppleAccessoryDiscovery(
+        serviceUuid: '180d',
+        nameSubstring: 'Sensor',
+        serviceData: Uint8List.fromList(<int>[1]),
+        serviceDataMask: Uint8List.fromList(<int>[255]),
+        immediate: true,
+      ),
+      migrationDeviceId: '00000000-0000-0000-0000-000000000001',
+    );
+
+    expect(await platform.isAppleAccessorySetupSupported(), isTrue);
+    expect(
+      await platform.showAppleAccessoryPicker(<AppleAccessoryPickerItem>[item]),
+      const AppleAccessory(deviceId: 'device-a', displayName: 'Sensor'),
+    );
+    expect(await platform.getAppleAccessories(), <AppleAccessory>[
+      const AppleAccessory(deviceId: 'device-a', displayName: 'Sensor'),
+    ]);
+    await platform.removeAppleAccessory('device-a');
+
+    final pickerMessage =
+        sentMessages[showAppleAccessoryPickerChannelName] as List<Object?>;
+    final pickerItem =
+        (pickerMessage.single as List<Object?>).single
+            as messages.PlatformAppleAccessoryPickerItem;
+    expect(pickerItem.displayName, 'Sensor');
+    expect(pickerItem.productImage, Uint8List.fromList(<int>[1, 2, 3]));
+    expect(pickerItem.discovery.serviceUuid, '180d');
+    expect(pickerItem.discovery.nameSubstring, 'Sensor');
+    expect(pickerItem.discovery.serviceData, Uint8List.fromList(<int>[1]));
+    expect(
+      pickerItem.discovery.serviceDataMask,
+      Uint8List.fromList(<int>[255]),
+    );
+    expect(pickerItem.discovery.immediate, isTrue);
+    expect(
+      pickerItem.migrationDeviceId,
+      '00000000-0000-0000-0000-000000000001',
+    );
+    expect(sentMessages[removeAppleAccessoryChannelName], <Object?>[
+      'device-a',
+    ]);
   });
 
   test('forwards core host API calls', () async {

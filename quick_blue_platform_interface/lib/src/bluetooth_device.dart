@@ -6,6 +6,7 @@ import 'package:meta/meta.dart';
 import '../models.dart';
 import 'bluetooth_characteristic.dart';
 import 'bluetooth_gatt.dart';
+import 'observability.dart';
 import 'quick_blue_platform.dart';
 import 'quick_blue_exception.dart';
 
@@ -90,7 +91,11 @@ class BluetoothDevice {
 
   /// Returns the current pairing/bonding state for this device.
   Future<BluetoothBondState> bondState() {
-    return _platform.bondState(deviceId);
+    return QuickBlueInstrumentation.observeFuture<BluetoothBondState>(
+      kind: QuickBlueOperationKind.bondState,
+      deviceId: deviceId,
+      action: () => _platform.bondState(deviceId),
+    );
   }
 
   /// Pairing/bonding state transitions for this device.
@@ -105,7 +110,16 @@ class BluetoothDevice {
   /// The event subscription is established before the current state is read,
   /// so a transition racing with the snapshot is not missed. Timeouts are left
   /// to callers with normal `Future.timeout` composition.
-  Future<BluetoothBondState> waitForBondState(
+  Future<BluetoothBondState> waitForBondState(BluetoothBondState targetState) {
+    return QuickBlueInstrumentation.observeFuture<BluetoothBondState>(
+      kind: QuickBlueOperationKind.waitForBondState,
+      deviceId: deviceId,
+      targetBondState: targetState,
+      action: () => _waitForBondState(targetState),
+    );
+  }
+
+  Future<BluetoothBondState> _waitForBondState(
     BluetoothBondState targetState,
   ) async {
     final stateEvents = StreamQueue(
@@ -113,7 +127,7 @@ class BluetoothDevice {
     );
 
     try {
-      final currentState = await bondState();
+      final currentState = await _platform.bondState(deviceId);
       if (currentState == targetState) {
         return currentState;
       }
@@ -125,7 +139,11 @@ class BluetoothDevice {
 
   /// Starts pairing/bonding with this device.
   Future<void> pair() {
-    return _platform.pair(deviceId);
+    return QuickBlueInstrumentation.observeFuture<void>(
+      kind: QuickBlueOperationKind.pair,
+      deviceId: deviceId,
+      action: () => _platform.pair(deviceId),
+    );
   }
 
   /// Explicitly attempts the platform's best recovery for [error].
@@ -142,7 +160,14 @@ class BluetoothDevice {
   ///
   /// Completes after the platform reports discovery completion.
   Future<List<BluetoothService>> discoverServices() {
-    return _discoverServices(deviceId);
+    return QuickBlueInstrumentation.observeFuture<List<BluetoothService>>(
+      kind: QuickBlueOperationKind.discoverServices,
+      deviceId: deviceId,
+      action: () => _discoverServices(deviceId),
+      measurements: (services) => <QuickBlueOperationMeasurement, num>{
+        QuickBlueOperationMeasurement.resultCount: services.length,
+      },
+    );
   }
 
   /// Discovers services and returns a GATT view for characteristic lookup.
@@ -177,13 +202,20 @@ class BluetoothDevice {
     String characteristic,
     BleInputProperty bleInputProperty,
   ) {
-    return _platform.runWithSecurityRecovery(
-      deviceId,
-      () => _platform.setNotifiable(
+    return QuickBlueInstrumentation.observeFuture<void>(
+      kind: QuickBlueOperationKind.setNotifiable,
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      inputProperty: bleInputProperty,
+      action: () => _platform.runWithSecurityRecovery(
         deviceId,
-        service,
-        characteristic,
-        bleInputProperty,
+        () => _platform.setNotifiable(
+          deviceId,
+          service,
+          characteristic,
+          bleInputProperty,
+        ),
       ),
     );
   }
@@ -207,11 +239,24 @@ class BluetoothDevice {
 
   /// Requests or returns the negotiated MTU, depending on platform support.
   Future<int> requestMtu(int expectedMtu) {
-    return _platform.requestMtu(deviceId, expectedMtu);
+    return QuickBlueInstrumentation.observeFuture<int>(
+      kind: QuickBlueOperationKind.requestMtu,
+      deviceId: deviceId,
+      requestedMtu: expectedMtu,
+      action: () => _platform.requestMtu(deviceId, expectedMtu),
+      measurements: (mtu) => <QuickBlueOperationMeasurement, num>{
+        QuickBlueOperationMeasurement.negotiatedMtu: mtu,
+      },
+    );
   }
 
   /// Opens a BLE L2CAP socket for this device.
   Future<BleL2capSocket> openL2cap(int psm) {
-    return _platform.openL2cap(deviceId, psm);
+    return QuickBlueInstrumentation.observeFuture<BleL2capSocket>(
+      kind: QuickBlueOperationKind.openL2cap,
+      deviceId: deviceId,
+      l2capPsm: psm,
+      action: () => _platform.openL2cap(deviceId, psm),
+    );
   }
 }

@@ -5,6 +5,8 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 # Usage
 
 - [Scan BLE peripheral](#scan-ble-peripheral)
+- [Collect observability signals](#collect-observability-signals)
+- [Set up an Apple accessory](#set-up-an-apple-accessory)
 - [Use device handles](#use-device-handles)
 - [Observe Android bond state](#observe-android-bond-state)
 - [Discover services and characteristics](#discover-services-and-characteristics)
@@ -24,6 +26,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutte
 | readValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | writeValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | requestMtu | ✔️ | ✔️ | ✔️ | ✔️ | — |
+| appleAccessorySetup | — | ✔️† | — | — | — |
 
 `bluetoothStateStream` emits the latest available Bluetooth state first for each
 listener. Android, iOS, macOS, and Linux then emit live state changes; Windows
@@ -31,6 +34,8 @@ currently emits only the current availability snapshot.
 
 * iOS and macOS require service UUIDs when looking up already connected
   peripherals.
+
+† AccessorySetupKit requires iOS 18 or later and explicit Info.plist setup.
 
 > * Windows' APIs are little different on `discoverServices`: https://github.com/prefanatic/quick_blue/issues/76
 
@@ -47,6 +52,62 @@ await QuickBlue.configure(maintainState: true);
 
 On iOS, apps that rely on restoration after background termination also need the
 `bluetooth-central` background mode in `UIBackgroundModes`.
+
+If the app uses AccessorySetupKit, finish accessory setup before calling
+`configure`, observing Bluetooth state, scanning, or connecting.
+
+## Collect observability signals
+
+Set `QuickBlue.observer` to receive typed Quick Blue operation lifecycles. The
+API is intentionally independent of traces, metrics, and logs: an adapter can
+turn each operation into the signals supported by the app's telemetry stack.
+
+For example, an observer can retain a Flutter `TimelineTask` in the returned
+per-operation handle:
+
+```dart
+import 'dart:developer';
+
+final class TimelineQuickBlueObserver implements QuickBlueObserver {
+  @override
+  QuickBlueOperationObservation onOperationStarted(
+    QuickBlueOperation operation,
+  ) {
+    final task = TimelineTask()
+      ..start('quick_blue.${operation.kind.name}');
+    return _TimelineOperation(task);
+  }
+}
+
+final class _TimelineOperation implements QuickBlueOperationObservation {
+  _TimelineOperation(this.task);
+
+  final TimelineTask task;
+
+  @override
+  void onOperationEnded(QuickBlueOperationEnd operation) {
+    task.finish(arguments: <String, Object?>{
+      'outcome': operation.outcome.name,
+      'duration_us': operation.duration.inMicroseconds,
+      if (operation.error != null) 'error': operation.error.toString(),
+    });
+  }
+}
+
+QuickBlue.observer = TimelineQuickBlueObserver();
+```
+
+An OpenTelemetry adapter follows the same pattern: create a real SDK span in
+`onOperationStarted`, retain it in the returned handle, then record the typed
+outcome and measurements before ending it. The adapter—not Quick Blue—chooses
+span names, metric instruments, log severity, sampling, and export policy.
+
+Canceled subscriptions and superseded operations are reported as `cancelled`,
+not failed. Observer callback failures are ignored so diagnostics cannot change
+Bluetooth behavior. `QuickBlueOperation.deviceId` is available for in-process
+correlation but can identify a physical device; redact or hash it before
+exporting. Advertisement and characteristic payload bytes are never included.
+Set `QuickBlue.observer = null` to disable observation.
 
 Use `scan()` when you only need `BluetoothDevice` handles. A handle is a
 lightweight reference to a platform device identifier; creating one does not
@@ -103,6 +164,68 @@ final devices = await QuickBlue.connectedDevices(
 
 Pass service UUIDs for iOS and macOS so CoreBluetooth can find matching
 system-connected peripherals.
+
+## Set up an Apple accessory
+
+iOS 18 and later can use AccessorySetupKit to discover and authorize a known
+Bluetooth product with Apple's system picker. Add the product's discovery
+values to the app's Info.plist:
+
+```xml
+<key>NSAccessorySetupSupports</key>
+<array>
+  <string>Bluetooth</string>
+</array>
+<key>NSAccessorySetupBluetoothServices</key>
+<array>
+  <string>180D</string>
+</array>
+<key>NSAccessorySetupBluetoothNames</key>
+<array>
+  <string>Sensor</string>
+</array>
+```
+
+Load product artwork and show the picker before any API that initializes
+CoreBluetooth:
+
+```dart
+import 'package:flutter/services.dart';
+
+final imageData = await rootBundle.load('assets/sensor.png');
+final imageBytes = imageData.buffer.asUint8List(
+  imageData.offsetInBytes,
+  imageData.lengthInBytes,
+);
+final accessory = await QuickBlue.appleAccessorySetup.showPicker([
+  AppleAccessoryPickerItem(
+    displayName: 'Sensor',
+    productImage: imageBytes,
+    discovery: AppleAccessoryDiscovery(
+      serviceUuid: '180d',
+      nameSubstring: 'Sensor',
+    ),
+  ),
+]);
+
+if (accessory != null) {
+  await QuickBlue.device(accessory.deviceId).connect();
+}
+```
+
+The picker authorizes the accessory but does not establish its GATT connection.
+Use `accessories()` to list authorized Bluetooth accessories and `remove()` to
+remove one. Calling `isSupported()` returns false on macOS and iOS versions
+before 18.
+
+Set `migrationDeviceId` on a picker item to migrate a peripheral UUID that the
+app configured through CoreBluetooth before adopting AccessorySetupKit. Run
+that picker before Quick Blue initializes CoreBluetooth.
+
+AccessorySetupKit is an app-level opt-in. Once its Info.plist keys are present,
+CoreBluetooth scanning is limited to accessories authorized for the app. The
+runtime service UUID and name substring must match the Info.plist declarations;
+Quick Blue validates them before showing the picker.
 
 ## Use device handles
 

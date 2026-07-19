@@ -12,6 +12,13 @@ export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
         QuickBlueErrorCode,
         QuickBlueException,
         QuickBlueGattException,
+        QuickBlueObserver,
+        QuickBlueOperation,
+        QuickBlueOperationEnd,
+        QuickBlueOperationKind,
+        QuickBlueOperationMeasurement,
+        QuickBlueOperationObservation,
+        QuickBlueOperationOutcome,
         QuickBlueSecurityErrorReason,
         QuickBlueSecurityException,
         QuickBlueSecurityRecoveryResult;
@@ -22,22 +29,48 @@ QuickBluePlatform get _platform => QuickBluePlatform.instance;
 
 /// Entry point for Bluetooth LE operations.
 class QuickBlue {
+  /// The optional observer for typed Quick Blue operation lifecycles.
+  ///
+  /// Assign null to disable observation. Observer callback failures are
+  /// ignored so diagnostics cannot change Bluetooth behavior.
+  static QuickBlueObserver? get observer => QuickBlueInstrumentation.observer;
+
+  static set observer(QuickBlueObserver? observer) {
+    QuickBlueInstrumentation.observer = observer;
+  }
+
   /// Android companion-device association APIs.
   ///
   /// Check [QuickBlueCompanion.isSupported] before showing association UI.
   static final QuickBlueCompanion companion = QuickBlueCompanion._();
 
+  /// Apple AccessorySetupKit discovery and authorization APIs.
+  ///
+  /// AccessorySetupKit is available on iOS 18 and later. Call its setup APIs
+  /// before any API that initializes CoreBluetooth.
+  static final QuickBlueAppleAccessorySetup appleAccessorySetup =
+      QuickBlueAppleAccessorySetup._();
+
   /// Configures platform behavior before starting Bluetooth work.
   ///
   /// When [maintainState] is true, iOS and macOS opt into CoreBluetooth state
-  /// preservation and restoration. Call this before any other `QuickBlue` API.
+  /// preservation and restoration. Call this before other Bluetooth APIs, but
+  /// after Apple AccessorySetupKit setup when the app uses it.
   static Future<void> configure({bool maintainState = false}) {
-    return _platform.configure(maintainState: maintainState);
+    return QuickBlueInstrumentation.observeFuture<void>(
+      kind: QuickBlueOperationKind.configure,
+      maintainState: maintainState,
+      action: () => _platform.configure(maintainState: maintainState),
+    );
   }
 
   /// Returns whether Bluetooth is powered on and usable.
-  static Future<bool> isBluetoothAvailable() =>
-      _platform.isBluetoothAvailable();
+  static Future<bool> isBluetoothAvailable() {
+    return QuickBlueInstrumentation.observeFuture<bool>(
+      kind: QuickBlueOperationKind.isBluetoothAvailable,
+      action: _platform.isBluetoothAvailable,
+    );
+  }
 
   /// Emits the current Bluetooth state, then later state changes when possible.
   ///
@@ -105,7 +138,13 @@ class QuickBlue {
   static Future<List<BluetoothDevice>> connectedDevices({
     List<String> serviceUuids = const <String>[],
   }) {
-    return _platform.connectedDevices(serviceUuids: serviceUuids);
+    return QuickBlueInstrumentation.observeFuture<List<BluetoothDevice>>(
+      kind: QuickBlueOperationKind.connectedDevices,
+      action: () => _platform.connectedDevices(serviceUuids: serviceUuids),
+      measurements: (devices) => <QuickBlueOperationMeasurement, num>{
+        QuickBlueOperationMeasurement.resultCount: devices.length,
+      },
+    );
   }
 
   /// Connects to [deviceId] and waits for the connected state event.
@@ -279,21 +318,88 @@ class QuickBlueCompanion {
   QuickBlueCompanion._();
 
   /// Returns whether companion association is supported on this platform.
-  Future<bool> isSupported() => _platform.isCompanionAssociationSupported();
+  Future<bool> isSupported() {
+    return QuickBlueInstrumentation.observeFuture<bool>(
+      kind: QuickBlueOperationKind.companionIsSupported,
+      action: _platform.isCompanionAssociationSupported,
+    );
+  }
 
   /// Starts a companion-device association request.
   Future<CompanionAssociation?> associate(CompanionAssociationRequest request) {
-    return _platform.companionAssociate(request);
+    return QuickBlueInstrumentation.observeFuture<CompanionAssociation?>(
+      kind: QuickBlueOperationKind.companionAssociate,
+      action: () => _platform.companionAssociate(request),
+    );
   }
 
   /// Removes the association with [associationId].
   Future<void> disassociate(int associationId) {
-    return _platform.companionDisassociate(associationId);
+    return QuickBlueInstrumentation.observeFuture<void>(
+      kind: QuickBlueOperationKind.companionDisassociate,
+      associationId: associationId,
+      action: () => _platform.companionDisassociate(associationId),
+    );
   }
 
   /// Returns current companion-device associations.
   Future<List<CompanionAssociation>> associations() {
-    return _platform.getCompanionAssociations();
+    return QuickBlueInstrumentation.observeFuture<List<CompanionAssociation>>(
+      kind: QuickBlueOperationKind.companionAssociations,
+      action: _platform.getCompanionAssociations,
+      measurements: (associations) => <QuickBlueOperationMeasurement, num>{
+        QuickBlueOperationMeasurement.resultCount: associations.length,
+      },
+    );
+  }
+}
+
+/// Apple AccessorySetupKit API for Bluetooth accessories.
+///
+/// The picker authorizes an accessory but does not establish a GATT
+/// connection. Use [QuickBlue.device] with the returned device identifier.
+class QuickBlueAppleAccessorySetup {
+  QuickBlueAppleAccessorySetup._();
+
+  /// Returns whether AccessorySetupKit is available on this platform.
+  Future<bool> isSupported() {
+    return QuickBlueInstrumentation.observeFuture<bool>(
+      kind: QuickBlueOperationKind.appleAccessorySetupIsSupported,
+      action: _platform.isAppleAccessorySetupSupported,
+    );
+  }
+
+  /// Shows the system picker and returns the selected accessory.
+  ///
+  /// Returns null when the picker closes without authorizing an accessory.
+  Future<AppleAccessory?> showPicker(List<AppleAccessoryPickerItem> items) {
+    if (items.isEmpty) {
+      throw ArgumentError.value(items, 'items', 'must not be empty');
+    }
+    return QuickBlueInstrumentation.observeFuture<AppleAccessory?>(
+      kind: QuickBlueOperationKind.appleAccessorySetupShowPicker,
+      action: () => _platform.showAppleAccessoryPicker(items),
+    );
+  }
+
+  /// Returns Bluetooth accessories authorized to this app.
+  Future<List<AppleAccessory>> accessories() {
+    return QuickBlueInstrumentation.observeFuture<List<AppleAccessory>>(
+      kind: QuickBlueOperationKind.appleAccessorySetupAccessories,
+      action: _platform.getAppleAccessories,
+      measurements: (accessories) => <QuickBlueOperationMeasurement, num>{
+        QuickBlueOperationMeasurement.resultCount: accessories.length,
+      },
+    );
+  }
+
+  /// Removes the authorized accessory with [deviceId].
+  Future<void> remove(String deviceId) {
+    return QuickBlueInstrumentation.observeFuture<void>(
+      kind: QuickBlueOperationKind.appleAccessorySetupRemove,
+      deviceId: deviceId,
+      action: () => _platform.removeAppleAccessory(deviceId),
+    );
   }
 }
 

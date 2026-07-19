@@ -234,6 +234,181 @@ class PlatformDarwinConfiguration {
   }
 }
 
+class PlatformAppleAccessoryDiscovery {
+  PlatformAppleAccessoryDiscovery({
+    required this.serviceUuid,
+    this.nameSubstring,
+    this.serviceData,
+    this.serviceDataMask,
+    required this.immediate,
+  });
+
+  String serviceUuid;
+
+  String? nameSubstring;
+
+  Uint8List? serviceData;
+
+  Uint8List? serviceDataMask;
+
+  bool immediate;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      serviceUuid,
+      nameSubstring,
+      serviceData,
+      serviceDataMask,
+      immediate,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformAppleAccessoryDiscovery decode(Object result) {
+    result as List<Object?>;
+    return PlatformAppleAccessoryDiscovery(
+      serviceUuid: result[0]! as String,
+      nameSubstring: result[1] as String?,
+      serviceData: result[2] as Uint8List?,
+      serviceDataMask: result[3] as Uint8List?,
+      immediate: result[4]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformAppleAccessoryDiscovery || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(serviceUuid, other.serviceUuid) && _deepEquals(nameSubstring, other.nameSubstring) && _deepEquals(serviceData, other.serviceData) && _deepEquals(serviceDataMask, other.serviceDataMask) && _deepEquals(immediate, other.immediate);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformAppleAccessoryDiscovery(serviceUuid: $serviceUuid, nameSubstring: $nameSubstring, serviceData: $serviceData, serviceDataMask: $serviceDataMask, immediate: $immediate)';
+  }
+}
+
+class PlatformAppleAccessoryPickerItem {
+  PlatformAppleAccessoryPickerItem({
+    required this.displayName,
+    required this.productImage,
+    required this.discovery,
+    this.migrationDeviceId,
+  });
+
+  String displayName;
+
+  Uint8List productImage;
+
+  PlatformAppleAccessoryDiscovery discovery;
+
+  String? migrationDeviceId;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      displayName,
+      productImage,
+      discovery,
+      migrationDeviceId,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformAppleAccessoryPickerItem decode(Object result) {
+    result as List<Object?>;
+    return PlatformAppleAccessoryPickerItem(
+      displayName: result[0]! as String,
+      productImage: result[1]! as Uint8List,
+      discovery: result[2]! as PlatformAppleAccessoryDiscovery,
+      migrationDeviceId: result[3] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformAppleAccessoryPickerItem || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(displayName, other.displayName) && _deepEquals(productImage, other.productImage) && _deepEquals(discovery, other.discovery) && _deepEquals(migrationDeviceId, other.migrationDeviceId);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformAppleAccessoryPickerItem(displayName: $displayName, productImage: $productImage, discovery: $discovery, migrationDeviceId: $migrationDeviceId)';
+  }
+}
+
+class PlatformAppleAccessory {
+  PlatformAppleAccessory({
+    required this.deviceId,
+    required this.displayName,
+  });
+
+  String deviceId;
+
+  String displayName;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      deviceId,
+      displayName,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformAppleAccessory decode(Object result) {
+    result as List<Object?>;
+    return PlatformAppleAccessory(
+      deviceId: result[0]! as String,
+      displayName: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformAppleAccessory || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(displayName, other.displayName);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformAppleAccessory(deviceId: $deviceId, displayName: $displayName)';
+  }
+}
+
 class Peripheral {
   Peripheral({
     required this.id,
@@ -708,26 +883,35 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformDarwinConfiguration) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is Peripheral) {
+    }    else if (value is PlatformAppleAccessoryDiscovery) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformScanResult) {
+    }    else if (value is PlatformAppleAccessoryPickerItem) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformConnectionStateChange) {
+    }    else if (value is PlatformAppleAccessory) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformServiceDiscovered) {
+    }    else if (value is Peripheral) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristic) {
+    }    else if (value is PlatformScanResult) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformConnectionStateChange) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformL2CapSocketEvent) {
+    }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformCharacteristic) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformCharacteristicValueChanged) {
+      buffer.putUint8(144);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformL2CapSocketEvent) {
+      buffer.putUint8(145);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -757,18 +941,24 @@ class _PigeonCodec extends StandardMessageCodec {
       case 135:
         return PlatformDarwinConfiguration.decode(readValue(buffer)!);
       case 136:
-        return Peripheral.decode(readValue(buffer)!);
+        return PlatformAppleAccessoryDiscovery.decode(readValue(buffer)!);
       case 137:
-        return PlatformScanResult.decode(readValue(buffer)!);
+        return PlatformAppleAccessoryPickerItem.decode(readValue(buffer)!);
       case 138:
-        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+        return PlatformAppleAccessory.decode(readValue(buffer)!);
       case 139:
-        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+        return Peripheral.decode(readValue(buffer)!);
       case 140:
-        return PlatformCharacteristic.decode(readValue(buffer)!);
+        return PlatformScanResult.decode(readValue(buffer)!);
       case 141:
-        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+        return PlatformConnectionStateChange.decode(readValue(buffer)!);
       case 142:
+        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+      case 143:
+        return PlatformCharacteristic.decode(readValue(buffer)!);
+      case 144:
+        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+      case 145:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -799,6 +989,81 @@ class QuickBlueApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[configuration]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<bool> isAppleAccessorySetupSupported() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.isAppleAccessorySetupSupported$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  Future<PlatformAppleAccessory?> showAppleAccessoryPicker(List<PlatformAppleAccessoryPickerItem> items) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.showAppleAccessoryPicker$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[items]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as PlatformAppleAccessory?;
+  }
+
+  Future<List<PlatformAppleAccessory>> getAppleAccessories() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.getAppleAccessories$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<PlatformAppleAccessory>();
+  }
+
+  Future<void> removeAppleAccessory(String deviceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.removeAppleAccessory$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

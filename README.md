@@ -45,6 +45,7 @@ example app includes working platform manifests and plist entries.
 | `readValue` / `writeValue` | yes | yes | yes | yes | yes |
 | `setNotifiable` | yes | yes | yes | yes | yes |
 | `requestMtu` | yes | yes | yes | yes | no[3] |
+| `appleAccessorySetup` | no | yes[4] | no | no | no |
 
 `bluetoothStateStream` emits the latest available Bluetooth state first for each
 listener. Android, iOS, macOS, and Linux then emit live state changes; Windows
@@ -60,6 +61,8 @@ automatically when an encrypted characteristic requires pairing.
 reliably retrieve the negotiated value and therefore reports the operation as
 unsupported.
 
+[4] AccessorySetupKit requires iOS 18 or later and explicit Info.plist setup.
+
 ## Example Usage
 
 Enable CoreBluetooth state preservation/restoration on iOS and macOS before any
@@ -71,6 +74,85 @@ await QuickBlue.configure(maintainState: true);
 
 On iOS, apps that rely on restoration after background termination also need the
 `bluetooth-central` background mode in `UIBackgroundModes`.
+
+If the app uses AccessorySetupKit, finish accessory setup before calling
+`configure`, observing Bluetooth state, scanning, or connecting.
+
+### Observability
+
+Set `QuickBlue.observer` to receive typed operation start and end events:
+
+```dart
+QuickBlue.observer = appTelemetry.quickBlueObserver;
+```
+
+The observer API models Quick Blue operations rather than OpenTelemetry export
+records. A Flutter timeline or OpenTelemetry adapter can retain its real task or
+span in the per-operation handle, then map typed outcomes and measurements to
+the signals it needs. Callback failures are ignored. Payload bytes are never
+included, and adapters should redact or hash device identifiers before export.
+Assign null to disable observation:
+
+```dart
+QuickBlue.observer = null;
+```
+
+### Apple AccessorySetupKit
+
+iOS 18 and later can use Apple's system picker to discover and authorize a
+known Bluetooth product. Declare every discovery value used by the app:
+
+```xml
+<key>NSAccessorySetupSupports</key>
+<array>
+  <string>Bluetooth</string>
+</array>
+<key>NSAccessorySetupBluetoothServices</key>
+<array>
+  <string>180D</string>
+</array>
+<key>NSAccessorySetupBluetoothNames</key>
+<array>
+  <string>Sensor</string>
+</array>
+```
+
+Then load product artwork and show the picker before any API that initializes
+CoreBluetooth:
+
+```dart
+import 'package:flutter/services.dart';
+
+final imageData = await rootBundle.load('assets/sensor.png');
+final imageBytes = imageData.buffer.asUint8List(
+  imageData.offsetInBytes,
+  imageData.lengthInBytes,
+);
+final accessory = await QuickBlue.appleAccessorySetup.showPicker([
+  AppleAccessoryPickerItem(
+    displayName: 'Sensor',
+    productImage: imageBytes,
+    discovery: AppleAccessoryDiscovery(
+      serviceUuid: '180d',
+      nameSubstring: 'Sensor',
+    ),
+  ),
+]);
+
+if (accessory != null) {
+  await QuickBlue.device(accessory.deviceId).connect();
+}
+```
+
+The picker authorizes the accessory but does not connect its GATT transport.
+Use `QuickBlue.appleAccessorySetup.accessories()` to list authorized Bluetooth
+accessories and `remove(deviceId)` to remove one. AccessorySetupKit opt-in also
+limits CoreBluetooth scans to accessories authorized for the app. Quick Blue
+checks the runtime service UUID and name substring against Info.plist before
+showing the picker.
+
+Set `migrationDeviceId` on a picker item to migrate a peripheral UUID that the
+app configured through CoreBluetooth before adopting AccessorySetupKit.
 
 Scan for nearby peripherals:
 
@@ -276,6 +358,10 @@ them. Omitted common options preserve Quick Blue's existing platform defaults.
   association UI, then call `associate()`, `associations()`, and
   `disassociate()`. The older static companion methods remain as deprecated
   compatibility wrappers.
+- Apple AccessorySetupKit discovery and authorization is available on iOS 18
+  and later through `QuickBlue.appleAccessorySetup`. It is separate from the
+  Android companion API because Apple requires product artwork and uses a
+  CoreBluetooth UUID rather than an integer association ID.
 - Android and Linux expose app-initiated BLE pairing through
   `BluetoothDevice.pair()`. Android shows the system pairing flow and the
   returned future completes when bonding succeeds or fails.

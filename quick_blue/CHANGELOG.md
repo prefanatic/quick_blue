@@ -8,6 +8,12 @@
 - Coordinate recovery for structured Android, Darwin, BlueZ, and WinRT
   security failures, pairing when supported and retrying rejected connect,
   read, notification, and acknowledged-write operations after recovery.
+- Add an optional typed operation observer that telemetry adapters can map to
+  Flutter timelines, OpenTelemetry, metrics, or logs without an SDK dependency.
+- Add opt-in iOS 18 AccessorySetupKit discovery and authorization with typed
+  picker items, authorized-accessory listing and removal, Info.plist
+  preflight checks, existing-peripheral migration, and CoreBluetooth device
+  identifiers.
 - Add consistent scan filtering by service-data UUID and optional payload
   prefix across platforms, including native Android scanner filtering.
 - Share Linux BlueZ and Windows WinRT connections across Flutter engines, with

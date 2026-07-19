@@ -296,6 +296,151 @@ struct PlatformDarwinConfiguration: Hashable, CustomStringConvertible {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct PlatformAppleAccessoryDiscovery: Hashable, CustomStringConvertible {
+  var serviceUuid: String
+  var nameSubstring: String? = nil
+  var serviceData: FlutterStandardTypedData? = nil
+  var serviceDataMask: FlutterStandardTypedData? = nil
+  var immediate: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformAppleAccessoryDiscovery? {
+    let serviceUuid = pigeonVar_list[0] as! String
+    let nameSubstring: String? = nilOrValue(pigeonVar_list[1])
+    let serviceData: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[2])
+    let serviceDataMask: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[3])
+    let immediate = pigeonVar_list[4] as! Bool
+
+    return PlatformAppleAccessoryDiscovery(
+      serviceUuid: serviceUuid,
+      nameSubstring: nameSubstring,
+      serviceData: serviceData,
+      serviceDataMask: serviceDataMask,
+      immediate: immediate
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      serviceUuid,
+      nameSubstring,
+      serviceData,
+      serviceDataMask,
+      immediate,
+    ]
+  }
+  static func == (lhs: PlatformAppleAccessoryDiscovery, rhs: PlatformAppleAccessoryDiscovery) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.serviceUuid, rhs.serviceUuid) && MessagesPigeonInternal.deepEquals(lhs.nameSubstring, rhs.nameSubstring) && MessagesPigeonInternal.deepEquals(lhs.serviceData, rhs.serviceData) && MessagesPigeonInternal.deepEquals(lhs.serviceDataMask, rhs.serviceDataMask) && MessagesPigeonInternal.deepEquals(lhs.immediate, rhs.immediate)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformAppleAccessoryDiscovery")
+    MessagesPigeonInternal.deepHash(value: serviceUuid, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: nameSubstring, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: serviceData, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: serviceDataMask, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: immediate, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformAppleAccessoryDiscovery(serviceUuid: \(String(describing: serviceUuid)), nameSubstring: \(String(describing: nameSubstring)), serviceData: \(String(describing: serviceData)), serviceDataMask: \(String(describing: serviceDataMask)), immediate: \(String(describing: immediate)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformAppleAccessoryPickerItem: Hashable, CustomStringConvertible {
+  var displayName: String
+  var productImage: FlutterStandardTypedData
+  var discovery: PlatformAppleAccessoryDiscovery
+  var migrationDeviceId: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformAppleAccessoryPickerItem? {
+    let displayName = pigeonVar_list[0] as! String
+    let productImage = pigeonVar_list[1] as! FlutterStandardTypedData
+    let discovery = pigeonVar_list[2] as! PlatformAppleAccessoryDiscovery
+    let migrationDeviceId: String? = nilOrValue(pigeonVar_list[3])
+
+    return PlatformAppleAccessoryPickerItem(
+      displayName: displayName,
+      productImage: productImage,
+      discovery: discovery,
+      migrationDeviceId: migrationDeviceId
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      displayName,
+      productImage,
+      discovery,
+      migrationDeviceId,
+    ]
+  }
+  static func == (lhs: PlatformAppleAccessoryPickerItem, rhs: PlatformAppleAccessoryPickerItem) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.displayName, rhs.displayName) && MessagesPigeonInternal.deepEquals(lhs.productImage, rhs.productImage) && MessagesPigeonInternal.deepEquals(lhs.discovery, rhs.discovery) && MessagesPigeonInternal.deepEquals(lhs.migrationDeviceId, rhs.migrationDeviceId)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformAppleAccessoryPickerItem")
+    MessagesPigeonInternal.deepHash(value: displayName, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: productImage, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: discovery, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: migrationDeviceId, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformAppleAccessoryPickerItem(displayName: \(String(describing: displayName)), productImage: \(String(describing: productImage)), discovery: \(String(describing: discovery)), migrationDeviceId: \(String(describing: migrationDeviceId)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformAppleAccessory: Hashable, CustomStringConvertible {
+  var deviceId: String
+  var displayName: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformAppleAccessory? {
+    let deviceId = pigeonVar_list[0] as! String
+    let displayName = pigeonVar_list[1] as! String
+
+    return PlatformAppleAccessory(
+      deviceId: deviceId,
+      displayName: displayName
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      deviceId,
+      displayName,
+    ]
+  }
+  static func == (lhs: PlatformAppleAccessory, rhs: PlatformAppleAccessory) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.displayName, rhs.displayName)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformAppleAccessory")
+    MessagesPigeonInternal.deepHash(value: deviceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: displayName, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformAppleAccessory(deviceId: \(String(describing: deviceId)), displayName: \(String(describing: displayName)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct Peripheral: Hashable, CustomStringConvertible {
   var id: String
   var name: String
@@ -708,18 +853,24 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 135:
       return PlatformDarwinConfiguration.fromList(self.readValue() as! [Any?])
     case 136:
-      return Peripheral.fromList(self.readValue() as! [Any?])
+      return PlatformAppleAccessoryDiscovery.fromList(self.readValue() as! [Any?])
     case 137:
-      return PlatformScanResult.fromList(self.readValue() as! [Any?])
+      return PlatformAppleAccessoryPickerItem.fromList(self.readValue() as! [Any?])
     case 138:
-      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
+      return PlatformAppleAccessory.fromList(self.readValue() as! [Any?])
     case 139:
-      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
+      return Peripheral.fromList(self.readValue() as! [Any?])
     case 140:
-      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
+      return PlatformScanResult.fromList(self.readValue() as! [Any?])
     case 141:
-      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
     case 142:
+      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
+    case 143:
+      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
+    case 144:
+      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+    case 145:
       return PlatformL2CapSocketEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -750,26 +901,35 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PlatformDarwinConfiguration {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? Peripheral {
+    } else if let value = value as? PlatformAppleAccessoryDiscovery {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformScanResult {
+    } else if let value = value as? PlatformAppleAccessoryPickerItem {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformConnectionStateChange {
+    } else if let value = value as? PlatformAppleAccessory {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformServiceDiscovered {
+    } else if let value = value as? Peripheral {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristic {
+    } else if let value = value as? PlatformScanResult {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristicValueChanged {
+    } else if let value = value as? PlatformConnectionStateChange {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformL2CapSocketEvent {
+    } else if let value = value as? PlatformServiceDiscovered {
       super.writeByte(142)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformCharacteristic {
+      super.writeByte(143)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformCharacteristicValueChanged {
+      super.writeByte(144)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformL2CapSocketEvent {
+      super.writeByte(145)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -797,6 +957,10 @@ var messagesPigeonMethodCodec = FlutterStandardMethodCodec(readerWriter: Message
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol QuickBlueApi {
   func configure(configuration: PlatformDarwinConfiguration) throws
+  func isAppleAccessorySetupSupported() throws -> Bool
+  func showAppleAccessoryPicker(items: [PlatformAppleAccessoryPickerItem], completion: @escaping (Result<PlatformAppleAccessory?, Error>) -> Void)
+  func getAppleAccessories(completion: @escaping (Result<[PlatformAppleAccessory], Error>) -> Void)
+  func removeAppleAccessory(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void)
   func getConnectedPeripherals(serviceUuids: [String]) throws -> [Peripheral]
   func isBluetoothAvailable() throws -> Bool
   func startScan(serviceUuids: [String]?, manufacturerData: [Int64: FlutterStandardTypedData]?, rssi: Int64?, options: PlatformDarwinScanOptions?) throws
@@ -833,6 +997,68 @@ class QuickBlueApiSetup {
       }
     } else {
       configureChannel.setMessageHandler(nil)
+    }
+    let isAppleAccessorySetupSupportedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.isAppleAccessorySetupSupported\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      isAppleAccessorySetupSupportedChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.isAppleAccessorySetupSupported()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      isAppleAccessorySetupSupportedChannel.setMessageHandler(nil)
+    }
+    let showAppleAccessoryPickerChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.showAppleAccessoryPicker\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      showAppleAccessoryPickerChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let itemsArg = args[0] as! [PlatformAppleAccessoryPickerItem]
+        api.showAppleAccessoryPicker(items: itemsArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      showAppleAccessoryPickerChannel.setMessageHandler(nil)
+    }
+    let getAppleAccessoriesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.getAppleAccessories\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getAppleAccessoriesChannel.setMessageHandler { _, reply in
+        api.getAppleAccessories { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getAppleAccessoriesChannel.setMessageHandler(nil)
+    }
+    let removeAppleAccessoryChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.removeAppleAccessory\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      removeAppleAccessoryChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        api.removeAppleAccessory(deviceId: deviceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      removeAppleAccessoryChannel.setMessageHandler(nil)
     }
     let getConnectedPeripheralsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.getConnectedPeripherals\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

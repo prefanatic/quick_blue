@@ -8,6 +8,7 @@ import '../models.dart';
 import 'bluetooth_uuid.dart';
 import 'bluetooth_device.dart';
 import 'callbacks.dart';
+import 'observability.dart';
 import 'quick_blue_exception.dart';
 import 'scan_filter.dart';
 import 'service_discovery_event.dart';
@@ -190,16 +191,56 @@ abstract class QuickBluePlatform extends PlatformInterface {
       scanFilter: _copyScanFilter(scanFilter),
       scanOptions: _copyScanOptions(scanOptions),
     );
+    final observation = QuickBlueInstrumentation.startOperation(
+      QuickBlueOperationKind.scan,
+      scanFilter: configuration.scanFilter,
+      scanOptions: configuration.scanOptions,
+    );
+    var resultCount = 0;
+    var sourceCompleted = false;
+    Object? failure;
+    StackTrace? failureStackTrace;
 
-    await _acquireScan(configuration);
     try {
-      final seenDeviceIds = <String>{};
-      yield* scanResultStream.where(
-        (result) =>
-            _matchesScanConfiguration(result, configuration, seenDeviceIds),
-      );
+      await _acquireScan(configuration);
+      try {
+        final seenDeviceIds = <String>{};
+        yield* scanResultStream
+            .where(
+              (result) => _matchesScanConfiguration(
+                result,
+                configuration,
+                seenDeviceIds,
+              ),
+            )
+            .map((result) {
+              resultCount++;
+              return result;
+            });
+        sourceCompleted = true;
+      } finally {
+        await _releaseScan();
+      }
+    } catch (error, stackTrace) {
+      failure = error;
+      failureStackTrace = stackTrace;
+      rethrow;
     } finally {
-      await _releaseScan();
+      observation.end(
+        outcome: failure != null
+            ? failure is QuickBlueException &&
+                      failure.code == QuickBlueErrorCode.cancelled
+                  ? QuickBlueOperationOutcome.cancelled
+                  : QuickBlueOperationOutcome.failed
+            : sourceCompleted
+            ? QuickBlueOperationOutcome.completed
+            : QuickBlueOperationOutcome.cancelled,
+        error: failure,
+        stackTrace: failureStackTrace,
+        measurements: <QuickBlueOperationMeasurement, num>{
+          QuickBlueOperationMeasurement.resultCount: resultCount,
+        },
+      );
     }
   }
 
@@ -435,6 +476,44 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// Returns current companion-device associations.
   Future<List<CompanionAssociation>> getCompanionAssociations();
 
+  /// Returns whether Apple AccessorySetupKit is available.
+  Future<bool> isAppleAccessorySetupSupported() async => false;
+
+  /// Presents the Apple AccessorySetupKit picker.
+  Future<AppleAccessory?> showAppleAccessoryPicker(
+    List<AppleAccessoryPickerItem> items,
+  ) {
+    return Future<AppleAccessory?>.error(
+      const QuickBlueException(
+        code: QuickBlueErrorCode.unsupported,
+        operation: 'showAppleAccessoryPicker',
+        message: 'Apple AccessorySetupKit is not supported on this platform.',
+      ),
+    );
+  }
+
+  /// Returns Bluetooth accessories authorized through AccessorySetupKit.
+  Future<List<AppleAccessory>> getAppleAccessories() {
+    return Future<List<AppleAccessory>>.error(
+      const QuickBlueException(
+        code: QuickBlueErrorCode.unsupported,
+        operation: 'getAppleAccessories',
+        message: 'Apple AccessorySetupKit is not supported on this platform.',
+      ),
+    );
+  }
+
+  /// Removes the AccessorySetupKit accessory with [deviceId].
+  Future<void> removeAppleAccessory(String deviceId) {
+    return Future<void>.error(
+      const QuickBlueException(
+        code: QuickBlueErrorCode.unsupported,
+        operation: 'removeAppleAccessory',
+        message: 'Apple AccessorySetupKit is not supported on this platform.',
+      ),
+    );
+  }
+
   final StreamController<BluetoothConnectionStateChange>
   _connectionStateController =
       StreamController<BluetoothConnectionStateChange>.broadcast();
@@ -586,18 +665,27 @@ abstract class QuickBluePlatform extends PlatformInterface {
     )
     operation,
   }) {
+    final observation = QuickBlueInstrumentation.startOperation(
+      operationName == 'connect'
+          ? QuickBlueOperationKind.connect
+          : QuickBlueOperationKind.disconnect,
+      deviceId: deviceId,
+    );
     final activeOperation = _activeConnectionOperations[deviceId];
     if (activeOperation != null) {
-      return Future<void>.error(
-        QuickBlueException(
-          code: QuickBlueErrorCode.invalidState,
-          operation: operationName,
-          deviceId: deviceId,
-          details: activeOperation.name,
-          message:
-              'Cannot $operationName Bluetooth device $deviceId while '
-              '${activeOperation.name} is pending.',
+      return QuickBlueInstrumentation.observeCompletion<void>(
+        Future<void>.error(
+          QuickBlueException(
+            code: QuickBlueErrorCode.invalidState,
+            operation: operationName,
+            deviceId: deviceId,
+            details: activeOperation.name,
+            message:
+                'Cannot $operationName Bluetooth device $deviceId while '
+                '${activeOperation.name} is pending.',
+          ),
         ),
+        observation,
       );
     }
     final connectionOperation = _ConnectionOperation(operationName);
@@ -609,7 +697,10 @@ abstract class QuickBluePlatform extends PlatformInterface {
       failureMessage: failureMessage,
       operation: operation,
     );
-    return connectionOperation.completed;
+    return QuickBlueInstrumentation.observeCompletion<void>(
+      connectionOperation.completed,
+      observation,
+    );
   }
 
   Future<void> _executeConnectionOperation({

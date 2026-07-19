@@ -17,9 +17,11 @@ void main() {
     previousPlatform = QuickBluePlatform.instance;
     platform = FakeQuickBluePlatform();
     QuickBluePlatform.instance = platform;
+    QuickBlue.observer = null;
   });
 
   tearDown(() async {
+    QuickBlue.observer = null;
     QuickBluePlatform.instance = previousPlatform;
     await platform.dispose();
   });
@@ -28,6 +30,113 @@ void main() {
     await QuickBlue.configure(maintainState: true);
 
     expect(platform.calls, <String>['configure true']);
+  });
+
+  test('instrumentation preserves future and stream identity', () async {
+    final completer = Completer<void>();
+    final streamController = StreamController<int>.broadcast();
+    final stream = streamController.stream;
+
+    expect(
+      identical(
+        QuickBlueInstrumentation.observeFuture<void>(
+          kind: QuickBlueOperationKind.configure,
+          action: () => completer.future,
+        ),
+        completer.future,
+      ),
+      isTrue,
+    );
+    expect(
+      identical(
+        QuickBlueInstrumentation.observeStream<int>(
+          kind: QuickBlueOperationKind.notifications,
+          stream: () => stream,
+        ),
+        stream,
+      ),
+      isTrue,
+    );
+
+    final observer = _RecordingObserver();
+    QuickBlue.observer = observer;
+    expect(
+      identical(
+        QuickBlueInstrumentation.observeFuture<void>(
+          kind: QuickBlueOperationKind.configure,
+          action: () => completer.future,
+        ),
+        completer.future,
+      ),
+      isTrue,
+    );
+
+    completer.complete();
+    await completer.future;
+    await streamController.close();
+  });
+
+  test('observer reports typed operation context and measurements', () async {
+    final observer = _RecordingObserver();
+    QuickBlue.observer = observer;
+
+    final mtu = await QuickBlue.device('private-device').requestMtu(128);
+
+    expect(mtu, 128);
+    final observed = observer.operations.single;
+    expect(observed.start.kind, QuickBlueOperationKind.requestMtu);
+    expect(observed.start.deviceId, 'private-device');
+    expect(observed.start.requestedMtu, 128);
+    expect(observed.start.startTime.isUtc, isTrue);
+    expect(observed.end!.outcome, QuickBlueOperationOutcome.completed);
+    expect(observed.end!.duration, greaterThanOrEqualTo(Duration.zero));
+    expect(observed.end!.measurements, <QuickBlueOperationMeasurement, num>{
+      QuickBlueOperationMeasurement.negotiatedMtu: 128,
+    });
+  });
+
+  test('observer records failed operations', () async {
+    final observer = _RecordingObserver();
+    QuickBlue.observer = observer;
+    final notification = Completer<void>();
+    platform.nextSetNotifiable = notification;
+
+    final operation = QuickBlue.device('device-a')
+        .characteristic('service-a', 'characteristic-a')
+        .setNotifiable(BleInputProperty.notification);
+    notification.completeError(StateError('notification setup failed'));
+
+    await expectLater(operation, throwsStateError);
+    final observed = observer.operations.single;
+    expect(observed.start.kind, QuickBlueOperationKind.setNotifiable);
+    expect(observed.start.serviceId, 'service-a');
+    expect(observed.start.characteristicId, 'characteristic-a');
+    expect(observed.end!.outcome, QuickBlueOperationOutcome.failed);
+    expect(observed.end!.error, isA<StateError>());
+  });
+
+  test('observer callback failures do not affect operations', () async {
+    QuickBlue.observer = _ThrowingObserver(throwOnStart: true);
+
+    await QuickBlue.configure();
+
+    QuickBlue.observer = _ThrowingObserver(throwOnStart: false);
+
+    await QuickBlue.configure();
+
+    expect(platform.calls, <String>['configure false', 'configure false']);
+  });
+
+  test('observer records the managed connection lifecycle', () async {
+    final observer = _RecordingObserver();
+    QuickBlue.observer = observer;
+
+    await QuickBlue.device('device-a').connect();
+
+    final observed = observer.operations.single;
+    expect(observed.start.kind, QuickBlueOperationKind.connect);
+    expect(observed.start.deviceId, 'device-a');
+    expect(observed.end!.outcome, QuickBlueOperationOutcome.completed);
   });
 
   test('connect waits for the connected state', () async {
@@ -225,6 +334,25 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
+  test('observer records scan cancellation and result count', () async {
+    final observer = _RecordingObserver();
+    QuickBlue.observer = observer;
+    final subscription = QuickBlue.scanResults().listen((_) {});
+
+    await pumpEventQueue();
+    platform.addScanResult('device-a');
+    await pumpEventQueue();
+    await subscription.cancel();
+
+    final observed = observer.operations.single;
+    expect(observed.start.kind, QuickBlueOperationKind.scan);
+    expect(observed.end!.outcome, QuickBlueOperationOutcome.cancelled);
+    expect(
+      observed.end!.measurements[QuickBlueOperationMeasurement.resultCount],
+      1,
+    );
+  });
+
   test('scanResults forwards scan options', () async {
     final subscription = QuickBlue.scanResults(
       scanOptions: const ScanOptions(scanMode: ScanMode.balanced),
@@ -416,4 +544,106 @@ void main() {
       expect(platform.calls, <String>['getCompanionAssociations']);
     },
   );
+
+  test('appleAccessorySetup delegates typed operations', () async {
+    const accessory = AppleAccessory(
+      deviceId: 'device-a',
+      displayName: 'Sensor',
+    );
+    platform
+      ..selectedAppleAccessory = accessory
+      ..appleAccessories = const <AppleAccessory>[accessory];
+    final item = AppleAccessoryPickerItem(
+      displayName: 'Sensor',
+      productImage: Uint8List.fromList(<int>[1, 2, 3]),
+      discovery: AppleAccessoryDiscovery(serviceUuid: '180d'),
+    );
+
+    expect(await QuickBlue.appleAccessorySetup.isSupported(), isTrue);
+    expect(
+      await QuickBlue.appleAccessorySetup.showPicker(<AppleAccessoryPickerItem>[
+        item,
+      ]),
+      accessory,
+    );
+    expect(await QuickBlue.appleAccessorySetup.accessories(), <AppleAccessory>[
+      accessory,
+    ]);
+    await QuickBlue.appleAccessorySetup.remove('device-a');
+
+    expect(platform.lastAppleAccessoryPickerItems, <AppleAccessoryPickerItem>[
+      item,
+    ]);
+    expect(platform.calls, <String>[
+      'isAppleAccessorySetupSupported',
+      'showAppleAccessoryPicker',
+      'getAppleAccessories',
+      'removeAppleAccessory device-a',
+    ]);
+  });
+
+  test('appleAccessorySetup rejects an empty picker', () {
+    expect(
+      () => QuickBlue.appleAccessorySetup.showPicker(
+        const <AppleAccessoryPickerItem>[],
+      ),
+      throwsArgumentError,
+    );
+  });
+}
+
+final class _RecordingObserver implements QuickBlueObserver {
+  final operations = <_ObservedOperation>[];
+
+  @override
+  QuickBlueOperationObservation onOperationStarted(
+    QuickBlueOperation operation,
+  ) {
+    final observed = _ObservedOperation(operation);
+    operations.add(observed);
+    return _RecordingOperationObservation(observed);
+  }
+}
+
+final class _ObservedOperation {
+  _ObservedOperation(this.start);
+
+  final QuickBlueOperation start;
+  QuickBlueOperationEnd? end;
+}
+
+final class _RecordingOperationObservation
+    implements QuickBlueOperationObservation {
+  _RecordingOperationObservation(this.observed);
+
+  final _ObservedOperation observed;
+
+  @override
+  void onOperationEnded(QuickBlueOperationEnd operation) {
+    observed.end = operation;
+  }
+}
+
+final class _ThrowingObserver implements QuickBlueObserver {
+  _ThrowingObserver({required this.throwOnStart});
+
+  final bool throwOnStart;
+
+  @override
+  QuickBlueOperationObservation onOperationStarted(
+    QuickBlueOperation operation,
+  ) {
+    if (throwOnStart) {
+      throw StateError('operation start failed');
+    }
+    return _ThrowingOperationObservation();
+  }
+}
+
+final class _ThrowingOperationObservation
+    implements QuickBlueOperationObservation {
+  @override
+  void onOperationEnded(QuickBlueOperationEnd operation) {
+    throw StateError('operation end failed');
+  }
 }
