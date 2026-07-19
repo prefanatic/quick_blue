@@ -136,6 +136,7 @@ class GattOperationQueueTest {
             deviceId: String,
             state: PlatformConnectionState,
             status: PlatformGattStatus,
+            nativeStatus: Int,
         ) = Unit
 
         override fun emitServices(

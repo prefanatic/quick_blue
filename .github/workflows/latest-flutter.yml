@@ -108,13 +108,16 @@ jobs:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Test Android plugin
+        working-directory: quick_blue/example/android
+        run: ./gradlew :quick_blue:testDebugUnitTest
+
       - name: Build example
-        run: |
-          set -euo pipefail
-
-          flutter pub get
-
-          (cd quick_blue/example && flutter build apk --debug)
+        working-directory: quick_blue/example
+        run: flutter build apk --debug
 
   build-linux:
     name: Build Linux
