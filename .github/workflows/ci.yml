@@ -343,6 +343,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Test Darwin connection ownership
+        if: ${{ matrix.target == 'macos' }}
+        working-directory: quick_blue_darwin/darwin/quick_blue_darwin/connection_ownership
+        run: swift test
+
       - name: Build example
         working-directory: quick_blue/example
         run: ${{ matrix.command }}
@@ -374,3 +379,8 @@ jobs:
       - name: Build example
         working-directory: quick_blue/example
         run: flutter build windows --debug
+
+      - name: Test Windows connection ownership
+        run: >-
+          ctest --test-dir quick_blue/example/build/windows/x64
+          -C Debug --output-on-failure

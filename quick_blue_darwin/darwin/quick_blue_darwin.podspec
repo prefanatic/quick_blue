@@ -13,7 +13,10 @@ Darwin implementation of the quick_blue Bluetooth LE plugin.
   s.license          = { :type => 'BSD-3-Clause', :file => '../LICENSE' }
   s.author           = { 'Cody Goldberg' => 'cody@goldberg.fyi' }
   s.source           = { :path => '.' }
-  s.source_files     = 'quick_blue_darwin/Sources/quick_blue_darwin/**/*.swift'
+  s.source_files     = [
+    'quick_blue_darwin/Sources/quick_blue_darwin/**/*.swift',
+    'quick_blue_darwin/connection_ownership/Sources/QuickBlueConnectionOwnership/**/*.swift',
+  ]
 
   s.ios.dependency 'Flutter'
   s.osx.dependency 'FlutterMacOS'

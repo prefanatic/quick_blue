@@ -1,6 +1,10 @@
 import CoreBluetooth
 import Foundation
 
+#if SWIFT_PACKAGE
+    import QuickBlueConnectionOwnership
+#endif
+
 #if os(iOS)
     import Flutter
     import UIKit
@@ -386,18 +390,12 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         let characteristic: String
     }
 
-    private struct SharedConnection {
-        let host: QuickBlueDarwinPlugin
-        var clients: [ObjectIdentifier: QuickBlueDarwinPlugin]
-        var notificationClaims: [NotificationKey: [ObjectIdentifier: PlatformBleInputProperty]] =
-            [:]
-    }
-
-    private struct DetachPlan {
-        let host: QuickBlueDarwinPlugin
-        let shouldDisconnect: Bool
-        let notificationsToDisable: [NotificationKey]
-    }
+    private typealias ConnectionOwnership = SharedConnectionOwnership<
+        String,
+        QuickBlueDarwinPlugin,
+        NotificationKey,
+        PlatformBleInputProperty
+    >
 
     private struct PendingNotificationUpdate {
         let client: QuickBlueDarwinPlugin
@@ -405,60 +403,34 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         let completion: (Result<Void, Error>) -> Void
     }
 
-    private static let connectionLock = NSLock()
-    private static var connections: [String: SharedConnection] = [:]
+    private static let connectionOwnership = ConnectionOwnership()
 
     /// Attaches an engine and returns the process-wide CoreBluetooth host.
     private static func attachConnection(
         _ deviceId: String,
         client: QuickBlueDarwinPlugin
     ) -> (host: QuickBlueDarwinPlugin, isNew: Bool) {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        let clientId = ObjectIdentifier(client)
-        if var connection = connections[deviceId] {
-            connection.clients[clientId] = client
-            connections[deviceId] = connection
-            return (connection.host, false)
-        }
-        connections[deviceId] = SharedConnection(
-            host: client,
-            clients: [clientId: client]
-        )
-        return (client, true)
+        let attachment = connectionOwnership.attach(deviceId, client: client)
+        return (attachment.host, attachment.isNew)
     }
 
     private static func host(
         for deviceId: String,
         client: QuickBlueDarwinPlugin
     ) -> QuickBlueDarwinPlugin? {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        guard
-            let connection = connections[deviceId],
-            connection.clients[ObjectIdentifier(client)] != nil
-        else { return nil }
-        return connection.host
+        connectionOwnership.host(for: deviceId, client: client)
     }
 
     private static func clients(for deviceId: String)
         -> [QuickBlueDarwinPlugin]
     {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        guard let connection = connections[deviceId] else { return [] }
-        return Array(connection.clients.values)
+        connectionOwnership.clients(for: deviceId)
     }
 
     private static func removeConnection(_ deviceId: String)
         -> [QuickBlueDarwinPlugin]
     {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        guard let connection = connections.removeValue(forKey: deviceId) else {
-            return []
-        }
-        return Array(connection.clients.values)
+        connectionOwnership.removeConnection(deviceId)
     }
 
     private static func detachConnection(
@@ -466,51 +438,12 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         client: QuickBlueDarwinPlugin,
         preserveFinalClient: Bool,
         preserveEmptyConnection: Bool = false
-    ) -> DetachPlan? {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        let clientId = ObjectIdentifier(client)
-        guard var connection = connections[deviceId],
-            connection.clients[clientId] != nil
-        else { return nil }
-
-        var notificationsToDisable: [NotificationKey] = []
-        for key in Array(connection.notificationClaims.keys) {
-            guard let claims = connection.notificationClaims[key] else { continue }
-            guard claims[clientId] != nil else { continue }
-            var remaining = claims
-            remaining.removeValue(forKey: clientId)
-            if remaining.isEmpty {
-                connection.notificationClaims.removeValue(forKey: key)
-                notificationsToDisable.append(key)
-            } else {
-                connection.notificationClaims[key] = remaining
-            }
-        }
-
-        if connection.clients.count == 1, preserveFinalClient {
-            connections[deviceId] = connection
-            return DetachPlan(
-                host: connection.host,
-                shouldDisconnect: true,
-                notificationsToDisable: notificationsToDisable
-            )
-        }
-
-        connection.clients.removeValue(forKey: clientId)
-        if connection.clients.isEmpty {
-            if preserveEmptyConnection {
-                connections[deviceId] = connection
-            } else {
-                connections.removeValue(forKey: deviceId)
-            }
-        } else {
-            connections[deviceId] = connection
-        }
-        return DetachPlan(
-            host: connection.host,
-            shouldDisconnect: connection.clients.isEmpty,
-            notificationsToDisable: notificationsToDisable
+    ) -> ConnectionOwnership.DetachPlan? {
+        connectionOwnership.detach(
+            deviceId,
+            client: client,
+            preserveFinalClient: preserveFinalClient,
+            preserveEmptyConnection: preserveEmptyConnection
         )
     }
 
@@ -520,14 +453,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         _ deviceId: String,
         host: QuickBlueDarwinPlugin
     ) -> Bool {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        guard let connection = connections[deviceId],
-            connection.host === host,
-            connection.clients.isEmpty
-        else { return false }
-        connections.removeValue(forKey: deviceId)
-        return true
+        connectionOwnership.takeUnclaimedConnection(deviceId, host: host)
     }
 
     private static func updateNotificationClaim(
@@ -538,43 +464,28 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         needsNativeWrite: Bool,
         previousProperty: PlatformBleInputProperty?
     ) {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        let clientId = ObjectIdentifier(client)
-        guard var connection = connections[key.deviceId],
-            connection.clients[clientId] != nil
-        else {
+        switch connectionOwnership.updateNotificationClaim(
+            deviceId: key.deviceId,
+            key: key,
+            client: client,
+            property: property,
+            disabledProperty: .disabled
+        ) {
+        case .notAttached:
             throw PigeonError(
                 code: "IllegalArgument",
                 message: "This Flutter engine is not connected to \(key.deviceId)",
                 details: nil
             )
-        }
-        var claims = connection.notificationClaims[key] ?? [:]
-        let previousProperty = claims[clientId]
-        if property == .disabled {
-            claims.removeValue(forKey: clientId)
-            if claims.isEmpty {
-                connection.notificationClaims.removeValue(forKey: key)
-                connections[key.deviceId] = connection
-                return (true, previousProperty)
-            }
-            connection.notificationClaims[key] = claims
-            connections[key.deviceId] = connection
-            return (false, previousProperty)
-        }
-        if let existing = claims.values.first, existing != property {
+        case .conflicting:
             throw PigeonError(
                 code: "InvalidState",
                 message: "Another Flutter engine configured \(key.characteristic) differently",
                 details: nil
             )
+        case .accepted(let needsNativeWrite, let previousProperty):
+            return (needsNativeWrite, previousProperty)
         }
-        let needsNativeWrite = claims.isEmpty
-        claims[clientId] = property
-        connection.notificationClaims[key] = claims
-        connections[key.deviceId] = connection
-        return (needsNativeWrite, previousProperty)
     }
 
     private static func restoreNotificationClaim(
@@ -582,32 +493,18 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         client: QuickBlueDarwinPlugin,
         property: PlatformBleInputProperty?
     ) {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        let clientId = ObjectIdentifier(client)
-        guard var connection = connections[key.deviceId],
-            connection.clients[clientId] != nil
-        else { return }
-        var claims = connection.notificationClaims[key] ?? [:]
-        if let property = property {
-            claims[clientId] = property
-        } else {
-            claims.removeValue(forKey: clientId)
-        }
-        if claims.isEmpty {
-            connection.notificationClaims.removeValue(forKey: key)
-        } else {
-            connection.notificationClaims[key] = claims
-        }
-        connections[key.deviceId] = connection
+        connectionOwnership.restoreNotificationClaim(
+            deviceId: key.deviceId,
+            key: key,
+            client: client,
+            property: property
+        )
     }
 
     private static func isHostingConnections(_ client: QuickBlueDarwinPlugin)
         -> Bool
     {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        return connections.values.contains { $0.host === client }
+        connectionOwnership.isHostingConnections(client)
     }
 
     private var isAttachedToEngine = true
@@ -1342,12 +1239,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private static func connectionDeviceIds(
         for client: QuickBlueDarwinPlugin
     ) -> [String] {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        let clientId = ObjectIdentifier(client)
-        return connections.compactMap { deviceId, connection in
-            connection.clients[clientId] == nil ? nil : deviceId
-        }
+        connectionOwnership.deviceIds(for: client)
     }
 
     private func disableNotifications(_ keys: [NotificationKey]) throws {

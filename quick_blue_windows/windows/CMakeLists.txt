@@ -35,6 +35,18 @@ target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin)
 
+if(include_quick_blue_tests)
+  enable_testing()
+  add_executable(${PROJECT_NAME}_connection_ownership_test
+    "test/connection_ownership_test.cpp"
+  )
+  apply_standard_settings(${PROJECT_NAME}_connection_ownership_test)
+  add_test(
+    NAME ${PROJECT_NAME}_connection_ownership_test
+    COMMAND ${PROJECT_NAME}_connection_ownership_test
+  )
+endif()
+
 # List of absolute paths to libraries that should be bundled with the plugin
 set(quick_blue_windows_bundled_libraries
   ""

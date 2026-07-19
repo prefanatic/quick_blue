@@ -54,6 +54,7 @@ add_subdirectory("runner")
 
 # Enable the test target.
 set(include_quick_blue_tests TRUE)
+enable_testing()
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.

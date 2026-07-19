@@ -28,6 +28,7 @@
 #include <string>
 #include <vector>
 
+#include "connection_ownership.h"
 #include "messages.g.h"
 
 #define GUID_FORMAT "%08x-%04hx-%04hx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
@@ -360,16 +361,14 @@ class QuickBlueWindowsPlugin : public flutter::Plugin,
   virtual ~QuickBlueWindowsPlugin();
 
  private:
-  struct SharedConnection {
-    QuickBlueWindowsPlugin* host;
-    std::set<QuickBlueWindowsPlugin*> clients;
-    std::map<std::string,
-             std::map<QuickBlueWindowsPlugin*, PlatformBleInputProperty>>
-        notification_claims;
-  };
+  using ConnectionOwnership =
+      quick_blue_windows::internal::ConnectionOwnership<
+          uint64_t,
+          QuickBlueWindowsPlugin*,
+          std::string,
+          PlatformBleInputProperty>;
 
-  static std::mutex connection_owner_mutex_;
-  static std::map<uint64_t, SharedConnection> shared_connections_;
+  static ConnectionOwnership connection_ownership_;
   QuickBlueWindowsPlugin* AttachConnection(uint64_t bluetooth_address,
                                            bool* is_new);
   bool OwnsConnection(uint64_t bluetooth_address);
@@ -499,9 +498,8 @@ class QuickBlueWindowsPlugin : public flutter::Plugin,
                                std::vector<uint8_t> value);
 };
 
-std::mutex QuickBlueWindowsPlugin::connection_owner_mutex_;
-std::map<uint64_t, QuickBlueWindowsPlugin::SharedConnection>
-    QuickBlueWindowsPlugin::shared_connections_;
+QuickBlueWindowsPlugin::ConnectionOwnership
+    QuickBlueWindowsPlugin::connection_ownership_;
 
 void QuickBlueWindowsPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows* registrar) {
@@ -549,110 +547,48 @@ QuickBlueWindowsPlugin::~QuickBlueWindowsPlugin() {
 QuickBlueWindowsPlugin* QuickBlueWindowsPlugin::AttachConnection(
     uint64_t bluetooth_address,
     bool* is_new) {
-  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  auto connection = shared_connections_.find(bluetooth_address);
-  if (connection == shared_connections_.end()) {
-    *is_new = true;
-    shared_connections_.emplace(
-        bluetooth_address,
-        SharedConnection{this, std::set<QuickBlueWindowsPlugin*>{this}, {}});
-    return this;
-  }
-  *is_new = false;
-  connection->second.clients.insert(this);
-  return connection->second.host;
+  const auto attachment = connection_ownership_.Attach(bluetooth_address, this);
+  *is_new = attachment.is_new;
+  return attachment.host;
 }
 
 bool QuickBlueWindowsPlugin::OwnsConnection(uint64_t bluetooth_address) {
-  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  const auto connection = shared_connections_.find(bluetooth_address);
-  return connection != shared_connections_.end() &&
-         connection->second.clients.count(this) != 0;
+  return connection_ownership_.Owns(bluetooth_address, this);
 }
 
 bool QuickBlueWindowsPlugin::IsConnectionHost(uint64_t bluetooth_address) {
-  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  const auto connection = shared_connections_.find(bluetooth_address);
-  return connection != shared_connections_.end() &&
-         connection->second.host == this;
+  return connection_ownership_.IsHost(bluetooth_address, this);
 }
 
 bool QuickBlueWindowsPlugin::ReleaseConnection(uint64_t bluetooth_address) {
-  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  const auto connection = shared_connections_.find(bluetooth_address);
-  if (connection == shared_connections_.end() ||
-      connection->second.host != this) {
-    return false;
-  }
-  shared_connections_.erase(connection);
-  return true;
+  return connection_ownership_.Release(bluetooth_address, this);
 }
 
 bool QuickBlueWindowsPlugin::DetachConnection(uint64_t bluetooth_address) {
-  QuickBlueWindowsPlugin* new_host = nullptr;
-  QuickBlueWindowsPlugin* notification_host = nullptr;
-  std::vector<std::string> notifications_to_disable;
-  bool final_client = false;
-  {
-    std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-    auto connection = shared_connections_.find(bluetooth_address);
-    if (connection == shared_connections_.end() ||
-        connection->second.clients.erase(this) == 0) {
-      return false;
-    }
-    for (auto claim = connection->second.notification_claims.begin();
-         claim != connection->second.notification_claims.end();) {
-      claim->second.erase(this);
-      if (claim->second.empty()) {
-        notifications_to_disable.push_back(claim->first);
-        claim = connection->second.notification_claims.erase(claim);
-      } else {
-        ++claim;
-      }
-    }
-    if (connection->second.clients.empty()) {
-      final_client = true;
-      shared_connections_.erase(connection);
-    } else if (connection->second.host == this) {
-      new_host = *connection->second.clients.begin();
-      connection->second.host = new_host;
-    }
-    if (!final_client) {
-      notification_host = connection->second.host;
-    }
+  auto plan = connection_ownership_.Detach(bluetooth_address, this);
+  if (!plan.has_value()) {
+    return false;
   }
-  if (final_client) {
+  if (plan->final_client) {
     CleanConnection(bluetooth_address);
-  } else if (new_host != nullptr) {
-    TransferConnection(bluetooth_address, new_host);
+  } else if (plan->new_host != nullptr) {
+    TransferConnection(bluetooth_address, plan->new_host);
   }
-  if (!final_client && !notifications_to_disable.empty()) {
-    notification_host->DisableNotifications(
-        bluetooth_address, std::move(notifications_to_disable));
+  if (!plan->final_client && !plan->notifications_to_disable.empty()) {
+    plan->notification_host->DisableNotifications(
+        bluetooth_address, std::move(plan->notifications_to_disable));
   }
   return true;
 }
 
 std::vector<uint64_t>
 QuickBlueWindowsPlugin::AttachedConnectionAddresses() {
-  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  std::vector<uint64_t> addresses;
-  for (const auto& connection : shared_connections_) {
-    if (connection.second.clients.count(this) != 0) {
-      addresses.push_back(connection.first);
-    }
-  }
-  return addresses;
+  return connection_ownership_.DeviceIdsFor(this);
 }
 
 std::vector<QuickBlueWindowsPlugin*>
 QuickBlueWindowsPlugin::ConnectionClients(uint64_t bluetooth_address) {
-  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  const auto connection = shared_connections_.find(bluetooth_address);
-  if (connection == shared_connections_.end()) {
-    return {};
-  }
-  return {connection->second.clients.begin(), connection->second.clients.end()};
+  return connection_ownership_.ClientsFor(bluetooth_address);
 }
 
 void QuickBlueWindowsPlugin::TransferConnection(
@@ -716,38 +652,22 @@ QuickBlueWindowsPlugin::PrepareNotificationChange(
     PlatformBleInputProperty property,
     bool* needs_native_write,
     QuickBlueWindowsPlugin** host) {
-  std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-  auto connection = shared_connections_.find(bluetooth_address);
-  if (connection == shared_connections_.end() ||
-      connection->second.clients.count(this) == 0) {
-    return illegal_argument("Unknown deviceId: " +
-                            std::to_string(bluetooth_address));
-  }
-  *host = connection->second.host;
-  auto claims = connection->second.notification_claims.find(key);
-  if (property == PlatformBleInputProperty::kDisabled) {
-    if (claims == connection->second.notification_claims.end() ||
-        claims->second.erase(this) == 0) {
-      *needs_native_write = false;
-      return std::nullopt;
-    }
-    *needs_native_write = claims->second.empty();
-    if (*needs_native_write) {
-      connection->second.notification_claims.erase(claims);
-    }
-    return std::nullopt;
-  }
-
-  auto& clients = connection->second.notification_claims[key];
-  for (const auto& claim : clients) {
-    if (claim.second != property) {
+  const auto update = connection_ownership_.UpdateNotificationClaim(
+      bluetooth_address, key, this, property,
+      PlatformBleInputProperty::kDisabled);
+  switch (update.status) {
+    case ConnectionOwnership::NotificationClaimStatus::kNotAttached:
+      return illegal_argument("Unknown deviceId: " +
+                              std::to_string(bluetooth_address));
+    case ConnectionOwnership::NotificationClaimStatus::kConflicting:
       return FlutterError(
           "InvalidState",
           "Another Flutter engine configured this characteristic differently");
-    }
+    case ConnectionOwnership::NotificationClaimStatus::kAccepted:
+      *host = update.host;
+      *needs_native_write = update.needs_native_write;
+      return std::nullopt;
   }
-  *needs_native_write = clients.empty();
-  clients[this] = property;
   return std::nullopt;
 }
 

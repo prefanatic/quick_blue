@@ -14,12 +14,20 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
+        .package(
+            name: "QuickBlueConnectionOwnership",
+            path: "connection_ownership"
+        ),
     ],
     targets: [
         .target(
             name: "quick_blue_darwin",
             dependencies: [
                 .product(name: "FlutterFramework", package: "FlutterFramework"),
+                .product(
+                    name: "QuickBlueConnectionOwnership",
+                    package: "QuickBlueConnectionOwnership"
+                ),
             ],
             cSettings: [
                 .headerSearchPath("include/quick_blue_darwin"),
