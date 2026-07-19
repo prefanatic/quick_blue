@@ -5,6 +5,7 @@ import 'package:meta/meta.dart';
 
 import '../models.dart';
 import 'bluetooth_uuid.dart';
+import 'observability.dart';
 import 'quick_blue_exception.dart';
 
 @internal
@@ -209,6 +210,12 @@ class CharacteristicLifecycleCoordinator {
     String characteristicId,
     Uint8List value,
   ) {
+    QuickBlueInstrumentation.recordCharacteristicValue(
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+      valueSize: value.length,
+    );
     _valueStreams[_CharacteristicValueKey.fromParts(
           deviceId,
           serviceId,

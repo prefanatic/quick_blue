@@ -32,49 +32,155 @@ void main() {
     expect(platform.calls, <String>['configure true']);
   });
 
-  test('instrumentation preserves future and stream identity', () async {
-    final completer = Completer<void>();
-    final streamController = StreamController<int>.broadcast();
-    final stream = streamController.stream;
+  test(
+    'disabled instrumentation preserves future and stream identity',
+    () async {
+      final completer = Completer<void>();
+      final streamController = StreamController<int>.broadcast();
+      final stream = streamController.stream;
 
-    expect(
-      identical(
-        QuickBlueInstrumentation.observeFuture<void>(
-          kind: QuickBlueOperationKind.configure,
-          action: () => completer.future,
+      expect(
+        identical(
+          QuickBlueInstrumentation.observeFuture<void>(
+            kind: QuickBlueOperationKind.configure,
+            action: () => completer.future,
+          ),
+          completer.future,
         ),
-        completer.future,
-      ),
-      isTrue,
-    );
-    expect(
-      identical(
-        QuickBlueInstrumentation.observeStream<int>(
-          kind: QuickBlueOperationKind.notifications,
-          stream: () => stream,
+        isTrue,
+      );
+      expect(
+        identical(
+          QuickBlueInstrumentation.observeStream<int>(
+            kind: QuickBlueOperationKind.notifications,
+            stream: () => stream,
+          ),
+          stream,
         ),
-        stream,
-      ),
-      isTrue,
-    );
+        isTrue,
+      );
 
-    final observer = _RecordingObserver();
-    QuickBlue.observer = observer;
-    expect(
-      identical(
-        QuickBlueInstrumentation.observeFuture<void>(
-          kind: QuickBlueOperationKind.configure,
-          action: () => completer.future,
-        ),
-        completer.future,
-      ),
-      isTrue,
-    );
+      completer.complete();
+      await completer.future;
+      await streamController.close();
+    },
+  );
 
-    completer.complete();
-    await completer.future;
-    await streamController.close();
-  });
+  test(
+    'future instrumentation preserves completion and uncaught errors',
+    () async {
+      final observer = _RecordingObserver();
+      QuickBlue.observer = observer;
+      final completer = Completer<int>();
+      final observedFuture = QuickBlueInstrumentation.observeFuture<int>(
+        kind: QuickBlueOperationKind.configure,
+        action: () => completer.future,
+      );
+
+      expect(identical(observedFuture, completer.future), isFalse);
+      completer.complete(42);
+      await expectLater(observedFuture, completion(42));
+
+      final error = StateError('unhandled operation failure');
+      final uncaughtError = Completer<Object>();
+      await runZonedGuarded(
+        () async {
+          final droppedFuture = QuickBlueInstrumentation.observeFuture<void>(
+            kind: QuickBlueOperationKind.configure,
+            action: () => Future<void>.error(error),
+          );
+          expect(droppedFuture, isA<Future<void>>());
+          await pumpEventQueue();
+        },
+        (error, _) {
+          if (!uncaughtError.isCompleted) {
+            uncaughtError.complete(error);
+          }
+        },
+      );
+
+      expect(uncaughtError.isCompleted, isTrue);
+      expect(await uncaughtError.future, same(error));
+    },
+  );
+
+  test(
+    'stream instrumentation preserves broadcast and synchronous delivery',
+    () async {
+      final observer = _RecordingObserver();
+      QuickBlue.observer = observer;
+      final controller = StreamController<int>.broadcast(sync: true);
+      final stream = QuickBlueInstrumentation.observeStream<int>(
+        kind: QuickBlueOperationKind.notifications,
+        stream: () => controller.stream,
+        valueSize: (value) => value,
+      );
+      final firstValues = <int>[];
+      final secondValues = <int>[];
+      final errors = <Object>[];
+      final firstSubscription = stream.listen(
+        firstValues.add,
+        onError: errors.add,
+      );
+      final secondSubscription = stream.listen(
+        secondValues.add,
+        onError: errors.add,
+      );
+
+      expect(stream.isBroadcast, isTrue);
+      controller.add(2);
+      expect(firstValues, <int>[2]);
+      expect(secondValues, <int>[2]);
+
+      final error = StateError('non-terminal stream error');
+      controller.addError(error);
+      controller.add(3);
+      expect(errors, <Object>[error, error]);
+      expect(firstValues, <int>[2, 3]);
+      expect(secondValues, <int>[2, 3]);
+
+      await controller.close();
+      await firstSubscription.cancel();
+      await secondSubscription.cancel();
+      expect(observer.operations, hasLength(2));
+      for (final operation in observer.operations) {
+        expect(operation.end!.outcome, QuickBlueOperationOutcome.failed);
+        expect(
+          operation.end!.measurements,
+          <QuickBlueOperationMeasurement, num>{
+            QuickBlueOperationMeasurement.valueCount: 2,
+            QuickBlueOperationMeasurement.byteCount: 5,
+          },
+        );
+      }
+    },
+  );
+
+  test(
+    'stream observation ends when cancelOnError cancels the source',
+    () async {
+      final observer = _RecordingObserver();
+      QuickBlue.observer = observer;
+      final controller = StreamController<int>();
+      final errors = <Object>[];
+      final stream = QuickBlueInstrumentation.observeStream<int>(
+        kind: QuickBlueOperationKind.notifications,
+        stream: () => controller.stream,
+      );
+      stream.listen(errors.add, onError: errors.add, cancelOnError: true);
+      final error = StateError('terminal stream error');
+
+      controller.addError(error);
+      await pumpEventQueue();
+
+      expect(errors, <Object>[error]);
+      expect(
+        observer.operations.single.end!.outcome,
+        QuickBlueOperationOutcome.failed,
+      );
+      await controller.close();
+    },
+  );
 
   test('observer reports typed operation context and measurements', () async {
     final observer = _RecordingObserver();
@@ -113,7 +219,90 @@ void main() {
     expect(observed.start.characteristicId, 'characteristic-a');
     expect(observed.end!.outcome, QuickBlueOperationOutcome.failed);
     expect(observed.end!.error, isA<StateError>());
+    expect(observed.end!.failure!.errorType, 'StateError');
+    expect(observed.end!.failure!.code, isNull);
   });
+
+  test('observer exposes redacted structured failure metadata', () async {
+    final observer = _RecordingObserver();
+    QuickBlue.observer = observer;
+    final notification = Completer<void>();
+    platform.nextSetNotifiable = notification;
+    final error = QuickBlueGattException(
+      status: 133,
+      message: 'private native message for device-a',
+      operation: 'setNotifiable',
+      deviceId: 'device-a',
+      serviceId: 'service-a',
+      characteristicId: 'characteristic-a',
+    );
+
+    final operation = QuickBlue.device('device-a')
+        .characteristic('service-a', 'characteristic-a')
+        .setNotifiable(BleInputProperty.notification);
+    notification.completeError(error);
+
+    await expectLater(operation, throwsA(same(error)));
+    final end = observer.operations.single.end!;
+    expect(end.error, same(error));
+    expect(end.failure!.errorType, 'QuickBlueGattException');
+    expect(end.failure!.code, QuickBlueErrorCode.operationFailed);
+    expect(end.failure!.nativeStatus, 133);
+    expect(end.failure!.nativeDomain, isNull);
+  });
+
+  test(
+    'composite observer isolates children and forwards value events',
+    () async {
+      final first = _RecordingObserver();
+      final second = _RecordingObserver();
+      QuickBlue.observer = CompositeQuickBlueObserver(<QuickBlueObserver>[
+        first,
+        _ThrowingObserver(throwOnStart: true),
+        _ThrowingObserver(throwOnStart: false),
+        _ThrowingValueObserver(),
+        second,
+      ]);
+
+      await QuickBlue.configure();
+      platform.handleCharacteristicValueChanged(
+        'device-a',
+        'service-a',
+        'characteristic-a',
+        Uint8List.fromList(<int>[1, 2, 3]),
+      );
+
+      expect(
+        first.operations.single.end!.outcome,
+        QuickBlueOperationOutcome.completed,
+      );
+      expect(
+        second.operations.single.end!.outcome,
+        QuickBlueOperationOutcome.completed,
+      );
+      expect(first.values.single.valueSize, 3);
+      expect(second.values.single.valueSize, 3);
+    },
+  );
+
+  test(
+    'connectedDevices observation includes requested service UUIDs',
+    () async {
+      final observer = _RecordingObserver();
+      QuickBlue.observer = observer;
+
+      await QuickBlue.connectedDevices(serviceUuids: <String>['180d', '180f']);
+
+      expect(observer.operations.single.start.serviceUuids, <String>[
+        '180d',
+        '180f',
+      ]);
+      expect(
+        () => observer.operations.single.start.serviceUuids!.add('1810'),
+        throwsUnsupportedError,
+      );
+    },
+  );
 
   test('observer callback failures do not affect operations', () async {
     QuickBlue.observer = _ThrowingObserver(throwOnStart: true);
@@ -334,19 +523,18 @@ void main() {
     expect(platform.calls, <String>['startScan', 'stopScan']);
   });
 
-  test('observer records scan cancellation and result count', () async {
+  test('observer records a consumed scan result as stopped', () async {
     final observer = _RecordingObserver();
     QuickBlue.observer = observer;
-    final subscription = QuickBlue.scanResults().listen((_) {});
+    final firstResult = QuickBlue.scanResults().first;
 
     await pumpEventQueue();
     platform.addScanResult('device-a');
-    await pumpEventQueue();
-    await subscription.cancel();
+    expect((await firstResult).deviceId, 'device-a');
 
     final observed = observer.operations.single;
     expect(observed.start.kind, QuickBlueOperationKind.scan);
-    expect(observed.end!.outcome, QuickBlueOperationOutcome.cancelled);
+    expect(observed.end!.outcome, QuickBlueOperationOutcome.stopped);
     expect(
       observed.end!.measurements[QuickBlueOperationMeasurement.resultCount],
       1,
@@ -438,6 +626,35 @@ void main() {
         'setNotifiable device-a service-a characteristic-a notification',
         'setNotifiable device-a service-a characteristic-a disabled',
       ]);
+    },
+  );
+
+  test(
+    'value observer reports passive characteristic traffic immediately',
+    () async {
+      final observer = _RecordingObserver();
+      QuickBlue.observer = observer;
+      final characteristic = QuickBlue.device(
+        'private-device',
+      ).characteristic('service-a', 'characteristic-a');
+      final subscription = characteristic.valueStream.listen((_) {});
+
+      platform.handleCharacteristicValueChanged(
+        'private-device',
+        'service-a',
+        'characteristic-a',
+        Uint8List.fromList(<int>[1, 2, 3, 4]),
+      );
+
+      final value = observer.values.single;
+      expect(value.time.isUtc, isTrue);
+      expect(value.deviceId, 'private-device');
+      expect(value.serviceId, 'service-a');
+      expect(value.characteristicId, 'characteristic-a');
+      expect(value.valueSize, 4);
+      expect(observer.operations, isEmpty);
+
+      await subscription.cancel();
     },
   );
 
@@ -592,8 +809,10 @@ void main() {
   });
 }
 
-final class _RecordingObserver implements QuickBlueObserver {
+final class _RecordingObserver
+    implements QuickBlueObserver, QuickBlueValueObserver {
   final operations = <_ObservedOperation>[];
+  final values = <QuickBlueValueObservation>[];
 
   @override
   QuickBlueOperationObservation onOperationStarted(
@@ -602,6 +821,11 @@ final class _RecordingObserver implements QuickBlueObserver {
     final observed = _ObservedOperation(operation);
     operations.add(observed);
     return _RecordingOperationObservation(observed);
+  }
+
+  @override
+  void onValueReceived(QuickBlueValueObservation observation) {
+    values.add(observation);
   }
 }
 
@@ -645,5 +869,18 @@ final class _ThrowingOperationObservation
   @override
   void onOperationEnded(QuickBlueOperationEnd operation) {
     throw StateError('operation end failed');
+  }
+}
+
+final class _ThrowingValueObserver
+    implements QuickBlueObserver, QuickBlueValueObserver {
+  @override
+  QuickBlueOperationObservation? onOperationStarted(
+    QuickBlueOperation operation,
+  ) => null;
+
+  @override
+  void onValueReceived(QuickBlueValueObservation observation) {
+    throw StateError('value observation failed');
   }
 }

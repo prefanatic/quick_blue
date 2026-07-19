@@ -86,10 +86,16 @@ final class _TimelineOperation implements QuickBlueOperationObservation {
 
   @override
   void onOperationEnded(QuickBlueOperationEnd operation) {
+    final failure = operation.failure;
     task.finish(arguments: <String, Object?>{
       'outcome': operation.outcome.name,
       'duration_us': operation.duration.inMicroseconds,
-      if (operation.error != null) 'error': operation.error.toString(),
+      if (failure != null) 'error_type': failure.errorType,
+      if (failure?.code != null) 'error_code': failure!.code!.name,
+      if (failure?.nativeDomain != null)
+        'native_domain': failure!.nativeDomain,
+      if (failure?.nativeStatus != null)
+        'native_status': failure!.nativeStatus,
     });
   }
 }
@@ -97,17 +103,41 @@ final class _TimelineOperation implements QuickBlueOperationObservation {
 QuickBlue.observer = TimelineQuickBlueObserver();
 ```
 
+Combine independent timeline, tracing, metrics, or test observers without
+making one adapter own the others:
+
+```dart
+QuickBlue.observer = CompositeQuickBlueObserver([
+  timelineObserver,
+  openTelemetryObserver,
+]);
+```
+
+An observer that also implements `QuickBlueValueObserver` receives one
+payload-free callback as soon as Quick Blue receives each characteristic value.
+The callback includes the device, service, and characteristic identifiers plus
+the byte count, so it covers both `notifications()` and the explicit
+`valueStream` / `setNotifiable()` lifecycle without waiting for a long-lived
+subscription to end.
+
 An OpenTelemetry adapter follows the same pattern: create a real SDK span in
 `onOperationStarted`, retain it in the returned handle, then record the typed
 outcome and measurements before ending it. The adapter—not Quick Blue—chooses
 span names, metric instruments, log severity, sampling, and export policy.
 
-Canceled subscriptions and superseded operations are reported as `cancelled`,
-not failed. Observer callback failures are ignored so diagnostics cannot change
-Bluetooth behavior. `QuickBlueOperation.deviceId` is available for in-process
-correlation but can identify a physical device; redact or hash it before
-exporting. Advertisement and characteristic payload bytes are never included.
-Set `QuickBlue.observer = null` to disable observation.
+Healthy streams stopped by their subscriber—including a scan consumed with
+`.first`—are reported as `stopped`. Operations superseded by Quick Blue are
+reported as `cancelled`, not failed. Observer callback failures are ignored so
+diagnostics cannot change Bluetooth behavior.
+
+`QuickBlueOperationEnd.failure` contains export-safe error type, portable code,
+and native status metadata. Its raw `error` and `stackTrace` remain available
+for local diagnostics but are sensitive: errors can contain device identifiers,
+native details, and local paths. `QuickBlueOperation.deviceId` and
+`QuickBlueValueObservation.deviceId` can identify a physical device, and scan
+filters can contain service/manufacturer data prefixes. Redact or hash sensitive
+context before export. Characteristic values and advertisement results are
+never included. Set `QuickBlue.observer = null` to disable observation.
 
 Use `scan()` when you only need `BluetoothDevice` handles. A handle is a
 lightweight reference to a platform device identifier; creating one does not

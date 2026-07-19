@@ -9,16 +9,20 @@ export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
         BluetoothCharacteristic,
         BluetoothDevice,
         BluetoothGatt,
+        CompositeQuickBlueObserver,
         QuickBlueErrorCode,
         QuickBlueException,
         QuickBlueGattException,
         QuickBlueObserver,
         QuickBlueOperation,
         QuickBlueOperationEnd,
+        QuickBlueOperationFailure,
         QuickBlueOperationKind,
         QuickBlueOperationMeasurement,
         QuickBlueOperationObservation,
         QuickBlueOperationOutcome,
+        QuickBlueValueObservation,
+        QuickBlueValueObserver,
         QuickBlueSecurityErrorReason,
         QuickBlueSecurityException,
         QuickBlueSecurityRecoveryResult;
@@ -30,6 +34,10 @@ QuickBluePlatform get _platform => QuickBluePlatform.instance;
 /// Entry point for Bluetooth LE operations.
 class QuickBlue {
   /// The optional observer for typed Quick Blue operation lifecycles.
+  ///
+  /// Use [CompositeQuickBlueObserver] to install multiple adapters. An observer
+  /// can also implement [QuickBlueValueObserver] for immediate payload-free
+  /// characteristic value measurements.
   ///
   /// Assign null to disable observation. Observer callback failures are
   /// ignored so diagnostics cannot change Bluetooth behavior.
@@ -140,6 +148,7 @@ class QuickBlue {
   }) {
     return QuickBlueInstrumentation.observeFuture<List<BluetoothDevice>>(
       kind: QuickBlueOperationKind.connectedDevices,
+      serviceUuids: serviceUuids,
       action: () => _platform.connectedDevices(serviceUuids: serviceUuids),
       measurements: (devices) => <QuickBlueOperationMeasurement, num>{
         QuickBlueOperationMeasurement.resultCount: devices.length,

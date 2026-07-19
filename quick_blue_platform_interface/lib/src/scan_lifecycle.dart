@@ -76,7 +76,7 @@ class ScanLifecycleCoordinator {
                   : QuickBlueOperationOutcome.failed
             : sourceCompleted
             ? QuickBlueOperationOutcome.completed
-            : QuickBlueOperationOutcome.cancelled,
+            : QuickBlueOperationOutcome.stopped,
         error: failure,
         stackTrace: failureStackTrace,
         measurements: <QuickBlueOperationMeasurement, num>{

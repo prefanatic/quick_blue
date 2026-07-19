@@ -10,6 +10,8 @@
   read, notification, and acknowledged-write operations after recovery.
 - Add an optional typed operation observer that telemetry adapters can map to
   Flutter timelines, OpenTelemetry, metrics, or logs without an SDK dependency.
+- Add composite observers, export-safe structured failures, connected-device
+  service UUID context, and payload-free characteristic value observations.
 - Add opt-in iOS 18 AccessorySetupKit discovery and authorization with typed
   picker items, authorized-accessory listing and removal, Info.plist
   preflight checks, existing-peripheral migration, and CoreBluetooth device
@@ -30,6 +32,9 @@
 
 ### Fixed
 
+- Report subscriber-stopped streams separately from superseded operations,
+  preserve broadcast and synchronous stream behavior during observation, and
+  keep unhandled Future failures visible to the active zone.
 - Let Darwin connect directly to a CoreBluetooth-known device UUID without a
   preceding scan or connected-device lookup.
 - Give a concurrently-starting Darwin engine a handoff opportunity before

@@ -20,10 +20,86 @@ abstract interface class QuickBlueObserver {
   );
 }
 
+/// Optionally receives payload-free characteristic value measurements.
+///
+/// An operation observer can also implement this interface when it needs
+/// timely metrics for long-lived notification subscriptions. Quick Blue calls
+/// this once for every characteristic value received from the platform,
+/// including values delivered through the explicit `valueStream` /
+/// `setNotifiable` lifecycle.
+abstract interface class QuickBlueValueObserver {
+  /// Called synchronously without exposing the characteristic payload.
+  void onValueReceived(QuickBlueValueObservation observation);
+}
+
 /// Receives the end of one observed Quick Blue operation.
 abstract interface class QuickBlueOperationObservation {
-  /// Called at most once when the operation completes, is canceled, or fails.
+  /// Called at most once when the operation completes, is stopped or
+  /// cancelled, or fails.
   void onOperationEnded(QuickBlueOperationEnd operation);
+}
+
+/// Dispatches observations to multiple independent observers.
+///
+/// A failure in one child observer does not prevent the remaining observers
+/// from receiving the event.
+final class CompositeQuickBlueObserver
+    implements QuickBlueObserver, QuickBlueValueObserver {
+  /// Creates an observer that fans out to [observers] in iteration order.
+  CompositeQuickBlueObserver(Iterable<QuickBlueObserver> observers)
+    : observers = List<QuickBlueObserver>.unmodifiable(observers);
+
+  /// The observers that receive each operation.
+  final List<QuickBlueObserver> observers;
+
+  @override
+  QuickBlueOperationObservation? onOperationStarted(
+    QuickBlueOperation operation,
+  ) {
+    final observations = <QuickBlueOperationObservation>[];
+    for (final observer in observers) {
+      try {
+        final observation = observer.onOperationStarted(operation);
+        if (observation != null) {
+          observations.add(observation);
+        }
+      } on Object {
+        // Diagnostics must never change the behavior of Bluetooth operations.
+      }
+    }
+    return observations.isEmpty
+        ? null
+        : _CompositeQuickBlueOperationObservation(observations);
+  }
+
+  @override
+  void onValueReceived(QuickBlueValueObservation observation) {
+    for (final observer in observers.whereType<QuickBlueValueObserver>()) {
+      try {
+        observer.onValueReceived(observation);
+      } on Object {
+        // Diagnostics must never change the behavior of Bluetooth operations.
+      }
+    }
+  }
+}
+
+final class _CompositeQuickBlueOperationObservation
+    implements QuickBlueOperationObservation {
+  _CompositeQuickBlueOperationObservation(this.observations);
+
+  final List<QuickBlueOperationObservation> observations;
+
+  @override
+  void onOperationEnded(QuickBlueOperationEnd operation) {
+    for (final observation in observations) {
+      try {
+        observation.onOperationEnded(operation);
+      } on Object {
+        // Keep dispatching to the remaining observers.
+      }
+    }
+  }
 }
 
 /// A stable kind of Quick Blue operation.
@@ -55,7 +131,19 @@ enum QuickBlueOperationKind {
 }
 
 /// How a Quick Blue operation ended.
-enum QuickBlueOperationOutcome { completed, cancelled, failed }
+enum QuickBlueOperationOutcome {
+  /// The operation or source stream completed normally.
+  completed,
+
+  /// A stream subscriber stopped consuming an otherwise healthy stream.
+  stopped,
+
+  /// The operation was superseded or explicitly cancelled by Quick Blue.
+  cancelled,
+
+  /// The operation failed.
+  failed,
+}
 
 /// A numeric result produced by an operation.
 ///
@@ -71,8 +159,10 @@ enum QuickBlueOperationMeasurement {
 /// Typed context captured when a Quick Blue operation starts.
 ///
 /// Device identifiers are useful for in-process correlation but can identify
-/// physical devices. Adapters should redact or hash them before export. Byte
-/// payloads are never included.
+/// physical devices. Adapters should redact or hash them before export.
+/// Characteristic values and advertisement results are never included, but a
+/// [scanFilter] can contain service/manufacturer data prefixes and must also be
+/// treated as sensitive context.
 final class QuickBlueOperation {
   @internal
   QuickBlueOperation({
@@ -91,7 +181,10 @@ final class QuickBlueOperation {
     this.requestedMtu,
     this.l2capPsm,
     this.associationId,
-  });
+    List<String>? serviceUuids,
+  }) : serviceUuids = serviceUuids == null
+           ? null
+           : List<String>.unmodifiable(serviceUuids);
 
   /// The API operation being performed.
   final QuickBlueOperationKind kind;
@@ -109,6 +202,9 @@ final class QuickBlueOperation {
   final String? characteristicId;
 
   /// The filter used by a managed scan.
+  ///
+  /// This can contain service/manufacturer data prefixes. Do not stringify or
+  /// export it without applying the application's privacy policy.
   final ScanFilter? scanFilter;
 
   /// The options used by a managed scan.
@@ -137,6 +233,74 @@ final class QuickBlueOperation {
 
   /// The companion-device association targeted by the operation.
   final int? associationId;
+
+  /// Service UUIDs supplied to a connected-device lookup.
+  final List<String>? serviceUuids;
+}
+
+/// Export-safe metadata derived from a failed Quick Blue operation.
+///
+/// This deliberately excludes messages, device identifiers, arbitrary native
+/// details, and stack traces. Use [QuickBlueOperationEnd.error] only for local
+/// diagnostics after applying the application's privacy policy.
+final class QuickBlueOperationFailure {
+  @internal
+  const QuickBlueOperationFailure({
+    required this.errorType,
+    this.code,
+    this.nativeDomain,
+    this.nativeStatus,
+    this.securityReason,
+    this.securityRecoveryResult,
+  });
+
+  /// The Dart error type without its message or fields.
+  final String errorType;
+
+  /// Portable Quick Blue error category, when available.
+  final QuickBlueErrorCode? code;
+
+  /// Native error domain, when exposed by a structured Quick Blue error.
+  final String? nativeDomain;
+
+  /// Native GATT status or platform error code, when available.
+  final int? nativeStatus;
+
+  /// Portable security failure category, when available.
+  final QuickBlueSecurityErrorReason? securityReason;
+
+  /// Result of automatic security recovery, when available.
+  final QuickBlueSecurityRecoveryResult? securityRecoveryResult;
+}
+
+/// Payload-free metadata for one characteristic value received by Quick Blue.
+final class QuickBlueValueObservation {
+  @internal
+  const QuickBlueValueObservation({
+    required this.time,
+    required this.deviceId,
+    required this.serviceId,
+    required this.characteristicId,
+    required this.valueSize,
+  });
+
+  /// UTC wall-clock time at which Quick Blue received the value.
+  final DateTime time;
+
+  /// Platform-specific device identifier.
+  ///
+  /// This can identify a physical device and must be redacted or hashed before
+  /// export.
+  final String deviceId;
+
+  /// GATT service UUID, or an empty string for a legacy unscoped event.
+  final String serviceId;
+
+  /// GATT characteristic UUID.
+  final String characteristicId;
+
+  /// Number of bytes in the value. The payload itself is never exposed.
+  final int valueSize;
 }
 
 /// The completion of an observed Quick Blue operation.
@@ -152,7 +316,8 @@ final class QuickBlueOperationEnd {
     this.stackTrace,
   }) : measurements = Map<QuickBlueOperationMeasurement, num>.unmodifiable(
          measurements,
-       );
+       ),
+       failure = _safeFailure(error);
 
   /// The UTC wall-clock time at which the operation ended.
   final DateTime endTime;
@@ -166,11 +331,50 @@ final class QuickBlueOperationEnd {
   /// Aggregate numeric results produced by the operation.
   final Map<QuickBlueOperationMeasurement, num> measurements;
 
-  /// The thrown error when [outcome] is not completed, when available.
+  /// Export-safe structured metadata for [error], when an error was reported.
+  final QuickBlueOperationFailure? failure;
+
+  /// The raw thrown error, when available.
+  ///
+  /// This is sensitive diagnostic data. Its message or string representation
+  /// can contain device identifiers and arbitrary native details. Never export
+  /// it without applying the application's privacy policy; prefer [failure].
   final Object? error;
 
-  /// The error's stack trace, when available.
+  /// The raw error stack trace, when available.
+  ///
+  /// Stack traces can contain local paths and other sensitive diagnostics.
   final StackTrace? stackTrace;
+}
+
+QuickBlueOperationFailure? _safeFailure(Object? error) {
+  if (error == null) {
+    return null;
+  }
+  if (error is QuickBlueSecurityException) {
+    return QuickBlueOperationFailure(
+      errorType: error.runtimeType.toString(),
+      code: error.code,
+      nativeDomain: error.nativeDomain,
+      nativeStatus: error.nativeCode,
+      securityReason: error.reason,
+      securityRecoveryResult: error.recoveryResult,
+    );
+  }
+  if (error is QuickBlueGattException) {
+    return QuickBlueOperationFailure(
+      errorType: error.runtimeType.toString(),
+      code: error.code,
+      nativeStatus: error.status,
+    );
+  }
+  if (error is QuickBlueException) {
+    return QuickBlueOperationFailure(
+      errorType: error.runtimeType.toString(),
+      code: error.code,
+    );
+  }
+  return QuickBlueOperationFailure(errorType: error.runtimeType.toString());
 }
 
 /// Shared instrumentation for Quick Blue and federated platform packages.
@@ -199,6 +403,7 @@ final class QuickBlueInstrumentation {
     int? requestedMtu,
     int? l2capPsm,
     int? associationId,
+    List<String>? serviceUuids,
     Map<QuickBlueOperationMeasurement, num> Function(T value)? measurements,
   }) {
     if (observer == null) {
@@ -219,6 +424,7 @@ final class QuickBlueInstrumentation {
       requestedMtu: requestedMtu,
       l2capPsm: l2capPsm,
       associationId: associationId,
+      serviceUuids: serviceUuids,
     );
     late final Future<T> future;
     try {
@@ -234,28 +440,38 @@ final class QuickBlueInstrumentation {
     return observeCompletion(future, scope, measurements: measurements);
   }
 
-  /// Observes [future] without wrapping or replacing it.
+  /// Observes [future] while preserving its value or original failure.
   ///
-  /// Preserving identity is required by the managed connection cancellation
-  /// lifecycle.
+  /// When observation is enabled, the returned Future forwards failures rather
+  /// than consuming them so uncaught asynchronous errors remain observable.
   static Future<T> observeCompletion<T>(
     Future<T> future,
     QuickBlueOperationScope scope, {
     Map<QuickBlueOperationMeasurement, num> Function(T value)? measurements,
   }) {
-    future
-        .then<void>(
-          (value) => scope.end(measurements: measurements?.call(value)),
-          onError: (Object error, StackTrace stackTrace) {
-            scope.end(
-              outcome: _outcomeForError(error),
-              error: error,
-              stackTrace: stackTrace,
-            );
-          },
-        )
-        .ignore();
-    return future;
+    if (!scope._isEnabled) {
+      return future;
+    }
+    return future.then<T>(
+      (value) {
+        Map<QuickBlueOperationMeasurement, num>? resultMeasurements;
+        try {
+          resultMeasurements = measurements?.call(value);
+        } on Object {
+          // Diagnostics must never change the operation's result.
+        }
+        scope.end(measurements: resultMeasurements);
+        return value;
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        scope.end(
+          outcome: _outcomeForError(error),
+          error: error,
+          stackTrace: stackTrace,
+        );
+        Error.throwWithStackTrace(error, stackTrace);
+      },
+    );
   }
 
   /// Records a stream subscription and its aggregate value measurements.
@@ -271,9 +487,9 @@ final class QuickBlueInstrumentation {
     if (observer == null) {
       return stream();
     }
-    return _observeStream(
+    return _ObservedStream<T>(
       kind: kind,
-      stream: stream,
+      source: stream(),
       deviceId: deviceId,
       serviceId: serviceId,
       characteristicId: characteristicId,
@@ -282,53 +498,30 @@ final class QuickBlueInstrumentation {
     );
   }
 
-  static Stream<T> _observeStream<T>({
-    required QuickBlueOperationKind kind,
-    required Stream<T> Function() stream,
-    String? deviceId,
-    String? serviceId,
-    String? characteristicId,
-    BleInputProperty? inputProperty,
-    int Function(T value)? valueSize,
-  }) async* {
-    final scope = startOperation(
-      kind,
-      deviceId: deviceId,
-      serviceId: serviceId,
-      characteristicId: characteristicId,
-      inputProperty: inputProperty,
-    );
-    var valueCount = 0;
-    var totalValueSize = 0;
-    var sourceCompleted = false;
-    Object? failure;
-    StackTrace? failureStackTrace;
+  /// Reports a payload-free characteristic value measurement.
+  static void recordCharacteristicValue({
+    required String deviceId,
+    required String serviceId,
+    required String characteristicId,
+    required int valueSize,
+  }) {
+    final currentObserver = observer;
+    if (currentObserver is! QuickBlueValueObserver) {
+      return;
+    }
+    final valueObserver = currentObserver as QuickBlueValueObserver;
     try {
-      yield* stream().map((value) {
-        valueCount++;
-        totalValueSize += valueSize?.call(value) ?? 0;
-        return value;
-      });
-      sourceCompleted = true;
-    } catch (error, stackTrace) {
-      failure = error;
-      failureStackTrace = stackTrace;
-      rethrow;
-    } finally {
-      scope.end(
-        outcome: failure != null
-            ? _outcomeForError(failure)
-            : sourceCompleted
-            ? QuickBlueOperationOutcome.completed
-            : QuickBlueOperationOutcome.cancelled,
-        error: failure,
-        stackTrace: failureStackTrace,
-        measurements: <QuickBlueOperationMeasurement, num>{
-          QuickBlueOperationMeasurement.valueCount: valueCount,
-          if (valueSize != null)
-            QuickBlueOperationMeasurement.byteCount: totalValueSize,
-        },
+      valueObserver.onValueReceived(
+        QuickBlueValueObservation(
+          time: DateTime.now().toUtc(),
+          deviceId: deviceId,
+          serviceId: serviceId,
+          characteristicId: characteristicId,
+          valueSize: valueSize,
+        ),
       );
+    } on Object {
+      // Diagnostics must never change characteristic value delivery.
     }
   }
 
@@ -348,6 +541,7 @@ final class QuickBlueInstrumentation {
     int? requestedMtu,
     int? l2capPsm,
     int? associationId,
+    List<String>? serviceUuids,
   }) {
     final currentObserver = observer;
     if (currentObserver == null) {
@@ -374,6 +568,7 @@ final class QuickBlueInstrumentation {
           requestedMtu: requestedMtu,
           l2capPsm: l2capPsm,
           associationId: associationId,
+          serviceUuids: serviceUuids,
         ),
       );
     } on Object {
@@ -414,6 +609,8 @@ final class QuickBlueOperationScope {
   final Stopwatch? _stopwatch;
   bool _ended = false;
 
+  bool get _isEnabled => _observation != null;
+
   /// Ends the operation and reports its typed result to the observer.
   void end({
     QuickBlueOperationOutcome outcome = QuickBlueOperationOutcome.completed,
@@ -442,5 +639,179 @@ final class QuickBlueOperationScope {
     } on Object {
       // Diagnostics must never change the behavior of Bluetooth operations.
     }
+  }
+}
+
+final class _ObservedStream<T> extends Stream<T> {
+  _ObservedStream({
+    required this.kind,
+    required this.source,
+    required this.deviceId,
+    required this.serviceId,
+    required this.characteristicId,
+    required this.inputProperty,
+    required this.valueSize,
+  });
+
+  final QuickBlueOperationKind kind;
+  final Stream<T> source;
+  final String? deviceId;
+  final String? serviceId;
+  final String? characteristicId;
+  final BleInputProperty? inputProperty;
+  final int Function(T value)? valueSize;
+
+  @override
+  bool get isBroadcast => source.isBroadcast;
+
+  @override
+  StreamSubscription<T> listen(
+    void Function(T event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    final scope = QuickBlueInstrumentation.startOperation(
+      kind,
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+      inputProperty: inputProperty,
+    );
+    var valueCount = 0;
+    var totalValueSize = 0;
+    Object? failure;
+    StackTrace? failureStackTrace;
+
+    Map<QuickBlueOperationMeasurement, num> measurements() =>
+        <QuickBlueOperationMeasurement, num>{
+          QuickBlueOperationMeasurement.valueCount: valueCount,
+          if (valueSize != null)
+            QuickBlueOperationMeasurement.byteCount: totalValueSize,
+        };
+
+    void end({required QuickBlueOperationOutcome outcome}) {
+      scope.end(
+        outcome: outcome,
+        error: failure,
+        stackTrace: failureStackTrace,
+        measurements: measurements(),
+      );
+    }
+
+    final transformed = source.transform(
+      StreamTransformer<T, T>.fromHandlers(
+        handleData: (value, sink) {
+          valueCount++;
+          try {
+            totalValueSize += valueSize?.call(value) ?? 0;
+          } on Object {
+            // Diagnostics must never change stream delivery.
+          }
+          sink.add(value);
+        },
+        handleError: (error, stackTrace, sink) {
+          failure ??= error;
+          failureStackTrace ??= stackTrace;
+          if (cancelOnError ?? false) {
+            end(outcome: QuickBlueInstrumentation._outcomeForError(error));
+          }
+          sink.addError(error, stackTrace);
+        },
+        handleDone: (sink) {
+          end(
+            outcome: failure == null
+                ? QuickBlueOperationOutcome.completed
+                : QuickBlueInstrumentation._outcomeForError(failure!),
+          );
+          sink.close();
+        },
+      ),
+    );
+
+    try {
+      final subscription = transformed.listen(
+        onData,
+        onError: onError,
+        onDone: onDone,
+        cancelOnError: cancelOnError,
+      );
+      return _ObservedStreamSubscription<T>(
+        subscription,
+        onCancel: () => end(
+          outcome: failure == null
+              ? QuickBlueOperationOutcome.stopped
+              : QuickBlueInstrumentation._outcomeForError(failure!),
+        ),
+        onCancelError: (error, stackTrace) {
+          failure = error;
+          failureStackTrace = stackTrace;
+          end(outcome: QuickBlueInstrumentation._outcomeForError(error));
+        },
+      );
+    } catch (error, stackTrace) {
+      failure = error;
+      failureStackTrace = stackTrace;
+      end(outcome: QuickBlueInstrumentation._outcomeForError(error));
+      rethrow;
+    }
+  }
+}
+
+final class _ObservedStreamSubscription<T> implements StreamSubscription<T> {
+  _ObservedStreamSubscription(
+    this._subscription, {
+    required this.onCancel,
+    required this.onCancelError,
+  });
+
+  final StreamSubscription<T> _subscription;
+  final void Function() onCancel;
+  final void Function(Object error, StackTrace stackTrace) onCancelError;
+
+  @override
+  Future<void> cancel() {
+    return _subscription.cancel().then<void>(
+      (_) {
+        onCancel();
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        onCancelError(error, stackTrace);
+        Error.throwWithStackTrace(error, stackTrace);
+      },
+    );
+  }
+
+  @override
+  void onData(void Function(T data)? handleData) {
+    _subscription.onData(handleData);
+  }
+
+  @override
+  void onError(Function? handleError) {
+    _subscription.onError(handleError);
+  }
+
+  @override
+  void onDone(void Function()? handleDone) {
+    _subscription.onDone(handleDone);
+  }
+
+  @override
+  void pause([Future<void>? resumeSignal]) {
+    _subscription.pause(resumeSignal);
+  }
+
+  @override
+  void resume() {
+    _subscription.resume();
+  }
+
+  @override
+  bool get isPaused => _subscription.isPaused;
+
+  @override
+  Future<E> asFuture<E>([E? futureValue]) {
+    return _subscription.asFuture<E>(futureValue);
   }
 }

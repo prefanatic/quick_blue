@@ -89,9 +89,20 @@ QuickBlue.observer = appTelemetry.quickBlueObserver;
 The observer API models Quick Blue operations rather than OpenTelemetry export
 records. A Flutter timeline or OpenTelemetry adapter can retain its real task or
 span in the per-operation handle, then map typed outcomes and measurements to
-the signals it needs. Callback failures are ignored. Payload bytes are never
-included, and adapters should redact or hash device identifiers before export.
-Assign null to disable observation:
+the signals it needs. Use `CompositeQuickBlueObserver` to install multiple
+adapters. An adapter can also implement `QuickBlueValueObserver` for immediate,
+payload-free characteristic value counts and byte sizes, including the explicit
+`valueStream` / `setNotifiable()` lifecycle.
+
+Callback failures are ignored. Use `QuickBlueOperationEnd.failure` for
+export-safe error codes and native status metadata. Raw errors and stack traces
+are sensitive, and adapters should redact or hash device identifiers and scan
+filter data before export. Payload values are never included. Assign null to
+disable observation:
+
+Healthy streams stopped by their subscriber, including scans consumed with
+`.first`, report `QuickBlueOperationOutcome.stopped`; Quick Blue supersession
+reports `cancelled`.
 
 ```dart
 QuickBlue.observer = null;

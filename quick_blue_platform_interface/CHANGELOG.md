@@ -6,6 +6,10 @@
   retries, explicit recovery results, and terminal user-action signaling.
 - Add SDK-neutral typed Bluetooth operation observation with lifecycle outcomes
   and aggregate measurements for telemetry adapters.
+- Add composite and characteristic-value observers, safe failure metadata,
+  connected-device service UUID context, and a distinct stopped-stream outcome.
+- Preserve Future error propagation and source stream broadcast, synchronous,
+  and non-terminal-error behavior while observing operations.
 - Add service-data UUID and payload-prefix filters to `ScanFilter`, with shared
   matching semantics for managed and raw platform scan streams.
 - Retry temporarily busy shared connections internally and remove the
