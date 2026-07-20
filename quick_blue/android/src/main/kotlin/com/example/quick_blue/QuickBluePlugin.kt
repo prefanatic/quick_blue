@@ -310,11 +310,11 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         mainThreadHandler.post {
             if (!isAttachedToEngine) return@post
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                mtuChangedListener.onScanResult(
+                mtuChangedListener.onMtuChanged(
                     PlatformMtuChange(deviceId = deviceId, mtu = mtu.toLong())
                 )
             } else {
-                mtuChangedListener.onScanError(status)
+                mtuChangedListener.onMtuError(status)
             }
         }
     }
@@ -1083,7 +1083,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                 client = this,
                 start = { it.requestMtu(expectedMtu.toInt()) },
                 onStartFailed = {
-                    mtuChangedListener.onScanError(BluetoothGatt.GATT_FAILURE)
+                    mtuChangedListener.onMtuError(BluetoothGatt.GATT_FAILURE)
                 },
             )
         )
@@ -1106,7 +1106,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             callback(Result.success(Unit))
         }, closedCallback = {
             mainThreadHandler.post {
-                l2CapSocketEventsListener.onScanResult(
+                l2CapSocketEventsListener.onSocketEvent(
                     PlatformL2CapSocketEvent(
                         deviceId = gatt.device.address,
                         closed = true,
@@ -1115,7 +1115,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             }
         }, streamCallback = {
             mainThreadHandler.post {
-                l2CapSocketEventsListener.onScanResult(
+                l2CapSocketEventsListener.onSocketEvent(
                     PlatformL2CapSocketEvent(
                         deviceId = gatt.device.address,
                         data = it,
@@ -1124,7 +1124,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             }
         }, errorCallback = {
             mainThreadHandler.post {
-                l2CapSocketEventsListener.onScanResult(
+                l2CapSocketEventsListener.onSocketEvent(
                     PlatformL2CapSocketEvent(
                         deviceId = gatt.device.address,
                         error = it.message ?: "",
@@ -1580,12 +1580,12 @@ class MtuChangedListener : MtuChangedStreamHandler() {
         eventSink = sink
     }
 
-    fun onScanResult(result: PlatformMtuChange) {
+    fun onMtuChanged(result: PlatformMtuChange) {
         eventSink?.success(result)
     }
 
-    fun onScanError(errorCode: Int) {
-        eventSink?.error("ScanError", "", errorCode)
+    fun onMtuError(errorCode: Int) {
+        eventSink?.error("MtuError", "Error while requesting MTU", errorCode)
     }
 
     fun onEventsDone() {
@@ -1601,12 +1601,8 @@ class L2CapSocketEventsListener : L2CapSocketEventsStreamHandler() {
         eventSink = sink
     }
 
-    fun onScanResult(result: PlatformL2CapSocketEvent) {
+    fun onSocketEvent(result: PlatformL2CapSocketEvent) {
         eventSink?.success(result)
-    }
-
-    fun onScanError(errorCode: Int) {
-        eventSink?.error("ScanError", "", errorCode)
     }
 
     fun onEventsDone() {
