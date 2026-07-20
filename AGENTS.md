@@ -32,6 +32,11 @@ Pigeon APIs are source-of-truth files and generated outputs must stay in sync.
 - Darwin generated outputs:
   - `quick_blue_darwin/lib/src/messages.g.dart`
   - `quick_blue_darwin/darwin/quick_blue_darwin/Sources/quick_blue_darwin/Messages.g.swift`
+- Windows Pigeon source: `quick_blue_windows/pigeons/messages.dart`
+- Windows generated outputs:
+  - `quick_blue_windows/lib/src/messages.g.dart`
+  - `quick_blue_windows/windows/messages.g.h`
+  - `quick_blue_windows/windows/messages.g.cpp`
 
 When changing a Pigeon schema, regenerate from the owning package directory:
 
@@ -40,6 +45,9 @@ cd quick_blue
 dart run pigeon --input pigeons/messages.dart
 
 cd ../quick_blue_darwin
+dart run pigeon --input pigeons/messages.dart
+
+cd ../quick_blue_windows
 dart run pigeon --input pigeons/messages.dart
 ```
 

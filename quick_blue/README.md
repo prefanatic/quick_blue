@@ -1,62 +1,397 @@
 # quick_blue
 
-A cross-platform (Android/iOS/macOS/Windows/Linux) BluetoothLE plugin for Flutter
+`quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
+Android, iOS, macOS, Windows, and Linux.
 
-# Usage
+- [Example app](https://github.com/prefanatic/quick_blue/tree/master/quick_blue/example)
+- [Changelog](https://github.com/prefanatic/quick_blue/blob/master/quick_blue/CHANGELOG.md)
+- [Issue tracker](https://github.com/prefanatic/quick_blue/issues)
 
-- [Scan BLE peripheral](#scan-ble-peripheral)
-- [Collect observability signals](#collect-observability-signals)
-- [Set up an Apple accessory](#set-up-an-apple-accessory)
-- [Use device handles](#use-device-handles)
-- [Observe Android bond state](#observe-android-bond-state)
-- [Discover services and characteristics](#discover-services-and-characteristics)
-- [Transfer characteristic data](#transfer-characteristic-data)
+> To use the code documented here, install this repository from Git. A hosted
+> `quick_blue` release may not contain the changes in this fork.
 
-| API | Android | iOS | macOS | Windows | Linux |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| isBluetoothAvailable | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| bluetoothStateStream | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| scan/scanResults | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| connectedDevices | ✔️ | ✔️* | ✔️* | ✔️ | ✔️ |
-| connect/disconnect | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| bondState/pair | ✔️ | — | — | — | ✔️ |
-| bondStateStream | ✔️ | — | — | — | — |
-| discoverServices | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| setNotifiable | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| readValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| writeValue | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| requestMtu | ✔️ | ✔️ | ✔️ | ✔️ | — |
-| appleAccessorySetup | — | ✔️† | — | — | — |
+## Contents
 
-`bluetoothStateStream` emits the latest available Bluetooth state first for each
-listener. Android, iOS, macOS, and Linux then emit live state changes; Windows
-currently emits only the current availability snapshot.
+- [Requirements](#requirements)
+- [Install](#install)
+- [Platform setup](#platform-setup)
+- [Quick start](#quick-start)
+- [Working with devices and characteristics](#working-with-devices-and-characteristics)
+- [Advanced usage](#advanced-usage)
+- [Platform support](#platform-support)
 
-* iOS and macOS require service UUIDs when looking up already connected
-  peripherals.
+## Requirements
 
-† AccessorySetupKit requires iOS 18 or later and explicit Info.plist setup.
+| Target | Minimum or runtime requirement |
+| :--- | :--- |
+| Flutter | 3.44.2 |
+| Dart | 3.12.2 |
+| Android | API 26 |
+| iOS | 13.0 |
+| macOS | 10.15 |
+| Windows | Windows 10 or 11 with a BLE adapter |
+| Linux | BlueZ with a BLE adapter |
 
-> * Windows' APIs are little different on `discoverServices`: https://github.com/prefanatic/quick_blue/issues/76
+## Install
 
-## Scan BLE peripheral
+Install this fork from Git. Override every federated package so Dart does not
+mix this fork's app-facing package with hosted platform implementations:
 
-Android/iOS/macOS/Windows/Linux
+```yaml
+dependencies:
+  quick_blue:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue
 
-Enable CoreBluetooth state preservation/restoration on iOS and macOS before any
-other Bluetooth call:
+dependency_overrides:
+  quick_blue_platform_interface:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_platform_interface
+  quick_blue_darwin:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_darwin
+  quick_blue_linux:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_linux
+  quick_blue_windows:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_windows
+```
+
+For reproducible builds, replace `master` with a tested commit SHA in all five
+entries. If these changes become available in a hosted release, replace the Git
+dependency and overrides with the corresponding version constraint.
+
+Then import it:
+
+```dart
+import 'package:quick_blue/quick_blue.dart';
+```
+
+## Platform setup
+
+### Android
+
+The plugin contributes the appropriate Bluetooth and legacy location
+permissions to the merged Android manifest. Your app must still request the
+dangerous permissions at runtime before using BLE; `quick_blue` reports a
+missing permission but does not show a permission prompt.
+
+- Android 12 and later: request `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`.
+- Android 11 and earlier: request location permission before scanning.
+
+If your app derives physical location from scan results, review Android's
+Bluetooth permission guidance and override the plugin's `neverForLocation`
+manifest declaration as appropriate for your use case.
+
+### iOS
+
+Add a Bluetooth usage description to `ios/Runner/Info.plist`:
+
+```xml
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>This app scans for and connects to nearby Bluetooth devices.</string>
+```
+
+State restoration is optional. Apps that need CoreBluetooth restoration after
+background termination must also add `bluetooth-central` to
+`UIBackgroundModes`, then call this before any other Quick Blue API:
 
 ```dart
 await QuickBlue.configure(maintainState: true);
 ```
 
-On iOS, apps that rely on restoration after background termination also need the
-`bluetooth-central` background mode in `UIBackgroundModes`.
+### macOS
 
-If the app uses AccessorySetupKit, finish accessory setup before calling
-`configure`, observing Bluetooth state, scanning, or connecting.
+Add `NSBluetoothAlwaysUsageDescription` to
+`macos/Runner/Info.plist`. Sandboxed apps must also enable Bluetooth in both
+debug and release entitlements:
 
-## Collect observability signals
+```xml
+<key>com.apple.security.device.bluetooth</key>
+<true/>
+```
+
+Call `QuickBlue.configure(maintainState: true)` before other Quick Blue APIs
+only if the app uses CoreBluetooth state restoration.
+
+### Windows
+
+No application manifest changes are normally required. The machine must have a
+working BLE adapter and Bluetooth must be enabled.
+
+### Linux
+
+BlueZ and a working BLE adapter are required. The BlueZ daemon must be running,
+and the application process must be allowed to access BlueZ on the system
+D-Bus.
+
+The [example app](https://github.com/prefanatic/quick_blue/tree/master/quick_blue/example)
+contains working Android, iOS, and macOS configuration.
+
+## Quick start
+
+`scanResults()` starts scanning when the stream is listened to and stops after
+the subscription is canceled:
+
+```dart
+final scanSubscription = QuickBlue.scanResults().listen((result) {
+  print('${result.deviceId} ${result.name} RSSI=${result.rssi}');
+});
+
+// Stop scanning when the UI no longer needs results.
+await scanSubscription.cancel();
+```
+
+Connect, discover services, and interact with a known characteristic. The
+service and characteristic UUIDs must identify a characteristic that supports
+the operations used below:
+
+```dart
+import 'dart:typed_data';
+
+import 'package:quick_blue/quick_blue.dart';
+
+Future<void> readWriteNotify({
+  required String deviceId,
+  required String serviceId,
+  required String characteristicId,
+}) async {
+  final device = QuickBlue.device(deviceId);
+
+  await device.connect().timeout(const Duration(seconds: 15));
+  try {
+    final services = await device.discoverServices();
+    for (final service in services) {
+      print('${service.uuid}: ${service.characteristicDetails}');
+    }
+
+    final characteristic = device.characteristic(serviceId, characteristicId);
+    final notifications = characteristic.notifications().listen((value) {
+      print('notification: $value');
+    });
+
+    try {
+      final currentValue = await characteristic.read();
+      print('read: $currentValue');
+
+      await characteristic.write(
+        Uint8List.fromList([0x01]),
+        BleOutputProperty.withResponse,
+      );
+    } finally {
+      await notifications.cancel();
+    }
+  } finally {
+    await device.disconnect().timeout(const Duration(seconds: 5));
+  }
+}
+```
+
+## Working with devices and characteristics
+
+### Scan options
+
+Use `QuickBlue.scan()` when you only need lightweight `BluetoothDevice`
+handles. Use `QuickBlue.scanResults()` for advertisement fields such as RSSI,
+service UUIDs, service data, or manufacturer data.
+
+Common filters and options are available across platforms:
+
+```dart
+final subscription = QuickBlue.scanResults(
+  scanFilter: ScanFilter(serviceUuids: ['180d'], rssi: -80),
+  scanOptions: const ScanOptions(
+    allowDuplicates: false,
+    scanMode: ScanMode.balanced,
+  ),
+).listen((result) {
+  print('${result.deviceId} ${result.name} RSSI=${result.rssi}');
+});
+```
+
+Filter service data separately from advertised service UUIDs. Values are
+payload prefixes, an empty value matches any service data for that UUID, and
+multiple entries use OR semantics:
+
+```dart
+import 'dart:typed_data';
+
+final subscription = QuickBlue.scanResults(
+  scanFilter: ScanFilter(
+    serviceData: <String, Uint8List>{'180a': Uint8List(0)},
+  ),
+).listen((result) {
+  print('onScanResult ${result.deviceId}');
+});
+```
+
+These result semantics are consistent across platforms. Android additionally
+applies the service-data filter through its native scanner.
+
+Platform-specific scan options expose controls such as Android PHY,
+CoreBluetooth solicited services, BlueZ pathloss, and Windows signal-strength
+timing. Omitted common options preserve the platform defaults.
+
+### Already-connected devices
+
+Get handles for peripherals that are already connected:
+
+```dart
+final devices = await QuickBlue.connectedDevices(
+  serviceUuids: ['0000180d-0000-1000-8000-00805f9b34fb'],
+);
+```
+
+iOS and macOS require service UUIDs because CoreBluetooth only returns
+system-connected peripherals that match the supplied services.
+
+### Discovering a characteristic
+
+When you know a characteristic UUID but not its service UUID, discover a GATT
+snapshot and resolve a service-scoped handle:
+
+```dart
+final gatt = await device.discoverGatt();
+final characteristic = gatt.characteristic(characteristicId);
+final value = await characteristic.read();
+```
+
+Use `gatt.hasCharacteristic(characteristicId, service: serviceId)` for a
+presence check. If the same characteristic UUID appears under multiple
+services, pass the service UUID to disambiguate:
+
+```dart
+final characteristic = gatt.characteristic(
+  characteristicId,
+  service: serviceId,
+);
+```
+
+`BluetoothService.characteristicDetails` reports whether each discovered
+characteristic supports reads, writes, notifications, or indications.
+
+### Notifications
+
+Use `characteristic.notifications()` when a stream subscription should own
+notification setup and teardown. Concurrent listeners for the same
+characteristic share one native subscription, which is disabled after the final
+listener cancels.
+
+Use `characteristic.valueStream` with
+`characteristic.setNotifiable(...)` when callers must listen before enabling
+updates or manage the notification lifetime separately.
+
+### Pairing
+
+Android and Linux expose app-initiated pairing:
+
+```dart
+final device = QuickBlue.device(deviceId);
+final state = await device.bondState();
+if (state != BluetoothBondState.bonded) {
+  await device.pair();
+}
+```
+
+iOS and macOS prompt automatically when an encrypted characteristic requires
+pairing. Windows app-initiated pairing is not currently implemented.
+
+## Advanced usage
+
+### Connection concurrency
+
+Prefer keeping a `BluetoothDevice` handle when performing more than one
+operation. The deprecated static connection, discovery, and characteristic
+methods delegate through the same handle API.
+
+Only one connect or disconnect operation may be pending for a device. Calling
+`disconnect()` during a pending `connect()` supersedes it: the connect completes
+with `QuickBlueErrorCode.cancelled`, then the native device disconnects. Other
+overlapping operations fail with `QuickBlueErrorCode.invalidState`. Different
+devices can connect concurrently.
+
+This makes it safe to follow a caller-side `connect().timeout(...)` with
+`disconnect()` before retrying.
+
+### Multiple Flutter engines
+
+Quick Blue coordinates each device connection across Flutter engines in the
+same application process, including foreground UI engines, Workmanager engines,
+and engines hosted by an Android foreground service.
+
+All supported platforms share one process-wide native GATT connection per
+device. `connect()` attaches the calling engine to that connection, while
+`disconnect()` detaches only that engine. The physical connection closes after
+the final engine detaches. Connection, discovery, MTU, and notification events
+are delivered to every attached engine, and notification ownership is
+reference-counted across engines.
+
+For a foreground handoff, attach the new engine before detaching the old one:
+
+```dart
+await foregroundDevice.connect();
+await backgroundNotifications.cancel();
+await backgroundDevice.disconnect();
+```
+
+Dart subscriptions and characteristic handles remain engine-local and must be
+created in each engine. On Darwin, a stable CoreBluetooth device UUID can be
+connected directly through `QuickBlue.device(id)` when CoreBluetooth already
+knows the peripheral; a preceding scan is not required.
+
+### Security recovery
+
+Android non-security GATT callback failures are exposed as
+`QuickBlueGattException`. Its `status` field is the unmodified numeric status,
+including vendor-specific values, so applications do not need to parse error
+messages.
+
+```dart
+try {
+  await device.readValue(serviceId, characteristicId);
+} on QuickBlueGattException catch (error) {
+  print('read failed with GATT status ${error.status}');
+}
+```
+
+Managed connect, characteristic read, notification setup, and acknowledged
+write operations use the same security-recovery contract across platforms.
+QuickBlue coordinates one recovery per device, pairs an unbonded device when
+the platform supports it, and retries the rejected operation once after
+successful recovery. This retry is safe for acknowledged writes because a
+security response means the peer rejected the write before applying it.
+
+If automatic recovery cannot proceed, QuickBlue exposes
+`QuickBlueSecurityException`. Its `reason` identifies authentication,
+authorization, encryption, encryption-key-size, encryption-timeout, and
+peer-removed-pairing failures. `nativeDomain` and `nativeCode` preserve native
+diagnostics when available, while `recoveryResult` reports whether user action
+is required or programmatic recovery is unsupported. Failed connection events
+also expose the exception through `BluetoothConnectionStateChange.error`.
+
+```dart
+try {
+  await device.readValue(serviceId, characteristicId);
+} on QuickBlueSecurityException catch (error) {
+  if (error.recoveryResult ==
+      QuickBlueSecurityRecoveryResult.userActionRequired) {
+    // Ask the user to forget and re-pair the device in system settings.
+  }
+}
+```
+
+### Observability
 
 Set `QuickBlue.observer` to receive typed Quick Blue operation lifecycles. The
 API is intentionally independent of traces, metrics, and logs: an adapter can
@@ -139,63 +474,7 @@ filters can contain service/manufacturer data prefixes. Redact or hash sensitive
 context before export. Characteristic values and advertisement results are
 never included. Set `QuickBlue.observer = null` to disable observation.
 
-Use `scan()` when you only need `BluetoothDevice` handles. A handle is a
-lightweight reference to a platform device identifier; creating one does not
-connect, scan, or validate that the peripheral is nearby.
-
-```dart
-final subscription = QuickBlue.scan().listen((device) {
-  print('onScanResult ${device.id}');
-});
-
-// ...
-await subscription.cancel();
-```
-
-Use `scanResults()` when you need advertisement payloads such as service data or
-manufacturer data. The scan starts when the stream is listened to and stops when
-the subscription is canceled.
-
-```dart
-final subscription = QuickBlue.scanResults().listen((result) {
-  print('onScanResult ${result.deviceId}, ${result.serviceData}');
-});
-
-// ...
-await subscription.cancel();
-```
-
-Filter service data separately from advertised service UUIDs. Values are
-payload prefixes, an empty value matches any service data for that UUID, and
-multiple entries use OR semantics:
-
-```dart
-import 'dart:typed_data';
-
-final subscription = QuickBlue.scanResults(
-  scanFilter: ScanFilter(
-    serviceData: <String, Uint8List>{'180a': Uint8List(0)},
-  ),
-).listen((result) {
-  print('onScanResult ${result.deviceId}');
-});
-```
-
-These result semantics are consistent across platforms. Android additionally
-applies the service-data filter through its native scanner.
-
-Get handles for peripherals that are already connected:
-
-```dart
-final devices = await QuickBlue.connectedDevices(
-  serviceUuids: ['0000180d-0000-1000-8000-00805f9b34fb'],
-);
-```
-
-Pass service UUIDs for iOS and macOS so CoreBluetooth can find matching
-system-connected peripherals.
-
-## Set up an Apple accessory
+### Apple AccessorySetupKit
 
 iOS 18 and later can use AccessorySetupKit to discover and authorize a known
 Bluetooth product with Apple's system picker. Add the product's discovery
@@ -257,221 +536,51 @@ CoreBluetooth scanning is limited to accessories authorized for the app. The
 runtime service UUID and name substring must match the Info.plist declarations;
 Quick Blue validates them before showing the picker.
 
-## Use device handles
+### Android companion-device association
 
-Create a handle from a scanned device or a known platform `deviceId`, then keep
-using that handle for connection state, service discovery, MTU, L2CAP, and
-characteristic operations.
+Android companion-device association is available through
+`QuickBlue.companion`. Call `isSupported()` before presenting Android-only
+association UI, then use `associate()`, `associations()`, and `disassociate()`.
 
-```dart
-final device = QuickBlue.device(deviceId);
+## Platform support
 
-final connectionSubscription = device.connectionStateStream.listen((event) {
-  print('connection ${event.deviceId}: ${event.state} (${event.status})');
-});
+| API | Android | iOS | macOS | Windows | Linux |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `isBluetoothAvailable` | yes | yes | yes | yes | yes |
+| `bluetoothStateStream` | yes | yes | yes | yes | yes |
+| `scan` / `scanResults` | yes | yes | yes | yes | yes |
+| `connectedDevices` | yes | yes [1] | yes [1] | yes | yes |
+| `connect` / `disconnect` | yes | yes | yes | yes | yes |
+| `bondState` / `pair` | yes | no [2] | no [2] | no | yes |
+| `bondStateStream` | yes | no | no | no | no |
+| `discoverServices` | yes | yes | yes | yes [3] | yes |
+| `readValue` / `writeValue` | yes | yes | yes | yes | yes |
+| `setNotifiable` | yes | yes | yes | yes | yes |
+| `requestMtu` | yes | yes [4] | yes [4] | yes | no [5] |
+| `appleAccessorySetup` | no | yes [6] | no | no | no |
 
-await device.connect().timeout(const Duration(seconds: 15));
-// ...
-await device.disconnect().timeout(const Duration(seconds: 5));
-await connectionSubscription.cancel();
-```
+[1] CoreBluetooth requires service UUIDs when looking up system-connected
+peripherals.
 
-The static `connect`, `disconnect`, `discoverServices`, `readValue`,
-`writeValue`, and `setNotifiable` methods delegate through the same handle API.
-They remain available as deprecated compatibility wrappers. Prefer keeping a
-`BluetoothDevice` when doing more than one operation.
-Only one connect or disconnect operation may be pending for a device at a time.
-Overlapping operations fail with `QuickBlueErrorCode.invalidState`; operations
-for different devices remain independent.
+[2] CoreBluetooth does not expose app-initiated BLE pairing.
 
-## Observe Android bond state
+[3] On Windows, failure to enumerate the characteristics of any returned
+service fails the whole discovery operation. Handle the discovery error and
+retry after the peripheral is ready.
 
-Android exposes live pairing/bonding transitions through each device handle.
-`waitForBondState()` subscribes before reading the current state, so it does not
-miss a transition racing with the snapshot. Calling `pair()` while Android is
-already bonding joins that in-progress operation.
+[4] CoreBluetooth reports the negotiated MTU but does not let an app request an
+exact value.
 
-```dart
-final device = QuickBlue.device(deviceId);
-final subscription = device.bondStateStream.listen((event) {
-  print('bond ${event.previousState} -> ${event.state}');
-});
+[5] BlueZ negotiates ATT MTU automatically, but this implementation cannot
+reliably retrieve the negotiated value and reports the operation as unsupported.
 
-await device.pair();
-await device.waitForBondState(BluetoothBondState.bonded);
-await subscription.cancel();
-```
+[6] AccessorySetupKit requires iOS 18 or later and explicit Info.plist setup.
 
-`bondState()` remains available for a one-time snapshot. App-initiated pairing
-and live bond-state events are not supported on iOS, macOS, or Windows.
+`bluetoothStateStream` emits the latest state first for every listener. Android,
+iOS, macOS, and Linux then emit live changes; Windows currently emits only the
+current availability snapshot.
 
-## Discover services and characteristics
+## License
 
-Discover services and characteristic metadata for a connected device.
-
-```dart
-final device = QuickBlue.device(deviceId);
-
-final services = await device.discoverServices().timeout(
-  const Duration(seconds: 15),
-);
-
-for (final service in services) {
-  print(service.uuid);
-  for (final characteristic in service.characteristicDetails) {
-    print(
-      '${characteristic.uuid}: '
-      'read=${characteristic.canRead}, '
-      'write=${characteristic.canWrite}, '
-      'notify=${characteristic.canNotify}, '
-      'indicate=${characteristic.canIndicate}',
-    );
-  }
-}
-```
-
-`BluetoothService.characteristics` remains available as the list of
-characteristic UUIDs. Use `BluetoothService.characteristicDetails` when you need
-read/write/notify/indicate capabilities.
-
-When you know a characteristic UUID but not its service UUID, discover a
-`BluetoothGatt` snapshot and resolve a service-scoped characteristic handle:
-
-```dart
-final gatt = await device.discoverGatt();
-final characteristic = gatt.characteristic(characteristicId);
-final value = await characteristic.read();
-```
-
-Use `gatt.hasCharacteristic(characteristicId, service: serviceId)` when you only
-need to check whether a discovered GATT view contains a characteristic.
-
-If the same characteristic UUID appears under multiple services, pass the
-service UUID to disambiguate:
-
-```dart
-final characteristic = gatt.characteristic(
-  characteristicId,
-  service: serviceId,
-);
-```
-
-## Transfer characteristic data
-
-Create a service-scoped `BluetoothCharacteristic` handle when you already know
-the service and characteristic UUIDs.
-
-```dart
-final characteristic = device.characteristic(serviceId, characteristicId);
-```
-
-- Read data from a characteristic.
-
-```dart
-final value = await characteristic.read().timeout(const Duration(seconds: 5));
-```
-
-- Write data to a characteristic.
-
-```dart
-await characteristic.write(value, BleOutputProperty.withResponse);
-```
-
-- Receive data from a characteristic.
-
-```dart
-final subscription = characteristic.notifications(
-  bleInputProperty: BleInputProperty.notification,
-).listen((value) {
-  print(hex.encode(value));
-});
-
-// ...
-await subscription.cancel();
-```
-
-When notification lifetime needs to be managed separately from one stream
-subscription, listen to `valueStream` and call `setNotifiable` explicitly:
-
-```dart
-final subscription = characteristic.valueStream.listen((value) {
-  print(hex.encode(value));
-});
-
-await characteristic.setNotifiable(BleInputProperty.notification);
-
-// ...
-await characteristic.setNotifiable(BleInputProperty.disabled);
-await subscription.cancel();
-```
-
-Characteristic value events are scoped by device, service, and characteristic.
-This matters for peripherals that reuse a characteristic UUID under multiple
-services.
-
-`notifications()` enables notifications before forwarding values and disables
-them after the final subscription for that characteristic is canceled.
-Concurrent listeners share one native notification lifecycle. On Android,
-GATT operations for a device
-are serialized and notification setup completes after the client characteristic
-configuration descriptor write is acknowledged; descriptor write failures are
-reported through the returned notification stream error.
-
-Linux relies on BlueZ's automatic ATT MTU negotiation. Because the negotiated
-value is not reliably available through this implementation, `requestMtu`
-reports an unsupported-operation error on Linux.
-
-The device handle also exposes one-off characteristic methods:
-
-```dart
-final value = await device.readValue(serviceId, characteristicId);
-await device.writeValue(
-  serviceId,
-  characteristicId,
-  value,
-  BleOutputProperty.withResponse,
-);
-```
-
-Android non-security GATT callback failures are exposed as
-`QuickBlueGattException`. Its `status` field is the unmodified numeric status,
-including vendor-specific values, so applications do not need to parse error
-messages.
-
-```dart
-try {
-  await device.readValue(serviceId, characteristicId);
-} on QuickBlueGattException catch (error) {
-  print('read failed with GATT status ${error.status}');
-}
-```
-
-Managed connect, characteristic read, notification setup, and acknowledged
-write operations use the same security-recovery contract across platforms.
-QuickBlue coordinates one recovery per device, pairs an unbonded device when
-the platform supports it, and retries the rejected operation once after
-successful recovery. This retry is safe for acknowledged writes because a
-security response means the peer rejected the write before applying it.
-
-If automatic recovery cannot proceed, QuickBlue exposes
-`QuickBlueSecurityException`. Its `reason` identifies authentication,
-authorization, encryption, encryption-key-size, encryption-timeout, and
-peer-removed-pairing failures. `nativeDomain` and `nativeCode` preserve native
-diagnostics when available, while `recoveryResult` reports whether user action
-is required or programmatic recovery is unsupported. Failed connection events
-also expose the exception through `BluetoothConnectionStateChange.error`.
-
-```dart
-try {
-  await device.readValue(serviceId, characteristicId);
-} on QuickBlueSecurityException catch (error) {
-  if (error.recoveryResult ==
-      QuickBlueSecurityRecoveryResult.userActionRequired) {
-    // Ask the user to forget and re-pair the device in system settings.
-  }
-}
-```
-
-The older static read, write, notify, MTU, L2CAP, and service-discovery helpers
-remain available as deprecated compatibility wrappers around the device and
-characteristic APIs.
+This project is licensed under the terms of the
+[BSD 3-Clause License](https://github.com/prefanatic/quick_blue/blob/master/LICENSE).
