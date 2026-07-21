@@ -32,6 +32,8 @@
 
 ### Fixed
 
+- Cancel pending service discovery when its device disconnects so a caller
+  timeout cannot leave later discovery attempts stuck on a stale future.
 - Report subscriber-stopped streams separately from superseded operations,
   preserve broadcast and synchronous stream behavior during observation, and
   keep unhandled Future failures visible to the active zone.

@@ -16,7 +16,7 @@ class ServiceDiscoveryLifecycleCoordinator {
   final _serviceController = StreamController<BluetoothService>.broadcast();
   final _completeController = StreamController<String>.broadcast();
   final _eventController = StreamController<ServiceDiscoveryEvent>.broadcast();
-  final _pendingDiscoveries = <String, Future<List<BluetoothService>>>{};
+  final _pendingDiscoveries = <String, _ServiceDiscoveryOperation>{};
 
   Stream<BluetoothService> get serviceStream => _serviceController.stream;
 
@@ -49,32 +49,44 @@ class ServiceDiscoveryLifecycleCoordinator {
     _completeController.add(deviceId);
   }
 
+  void handleDisconnected(String deviceId) {
+    final operation = _pendingDiscoveries.remove(deviceId);
+    if (operation == null) {
+      return;
+    }
+    operation.cancel();
+    _eventController.add(_ServiceDiscoveryDisconnectedEvent(deviceId));
+  }
+
   Future<List<BluetoothService>> discover(String deviceId) {
     final pending = _pendingDiscoveries[deviceId];
     if (pending != null) {
-      return pending;
+      return pending.completed;
     }
 
-    late Future<List<BluetoothService>> discovery;
-    discovery = () async {
+    final operation = _ServiceDiscoveryOperation(deviceId);
+    _pendingDiscoveries[deviceId] = operation;
+    operation.completed = () async {
       try {
-        return await _run(deviceId);
+        return await _run(deviceId, operation);
       } finally {
-        if (identical(_pendingDiscoveries[deviceId], discovery)) {
+        if (identical(_pendingDiscoveries[deviceId], operation)) {
           _pendingDiscoveries.remove(deviceId);
         }
       }
     }();
-    _pendingDiscoveries[deviceId] = discovery;
-    return discovery;
+    return operation.completed;
   }
 
-  Future<List<BluetoothService>> _run(String deviceId) async {
+  Future<List<BluetoothService>> _run(
+    String deviceId,
+    _ServiceDiscoveryOperation operation,
+  ) async {
     final services = <BluetoothService>[];
     final events = StreamQueue(_events(deviceId));
 
     try {
-      await startDiscovery(deviceId);
+      await operation.untilCancelled(startDiscovery(deviceId));
 
       while (await events.hasNext) {
         switch (await events.next) {
@@ -82,6 +94,8 @@ class ServiceDiscoveryLifecycleCoordinator {
             services.add(service);
           case ServiceDiscoveryCompleteEvent():
             return List<BluetoothService>.unmodifiable(services);
+          case _ServiceDiscoveryDisconnectedEvent():
+            throw operation.cancellationError;
         }
       }
 
@@ -101,4 +115,37 @@ class ServiceDiscoveryLifecycleCoordinator {
   Stream<ServiceDiscoveryEvent> _events(String deviceId) {
     return _eventController.stream.where((event) => event.deviceId == deviceId);
   }
+}
+
+class _ServiceDiscoveryOperation {
+  _ServiceDiscoveryOperation(String deviceId)
+    : cancellationError = QuickBlueException(
+        code: QuickBlueErrorCode.cancelled,
+        operation: 'discoverServices',
+        deviceId: deviceId,
+        message:
+            'Service discovery for Bluetooth device $deviceId was cancelled '
+            'because the device disconnected.',
+      );
+
+  final QuickBlueException cancellationError;
+  final _cancelled = Completer<void>();
+  late final Future<List<BluetoothService>> completed;
+
+  void cancel() {
+    if (!_cancelled.isCompleted) {
+      _cancelled.complete();
+    }
+  }
+
+  Future<T> untilCancelled<T>(Future<T> operation) {
+    return Future.any<T>(<Future<T>>[
+      operation,
+      _cancelled.future.then<T>((_) => throw cancellationError),
+    ]);
+  }
+}
+
+class _ServiceDiscoveryDisconnectedEvent extends ServiceDiscoveryEvent {
+  const _ServiceDiscoveryDisconnectedEvent(super.deviceId);
 }

@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Cancel pending service discovery when its device disconnects and allow a
+  later discovery attempt to start a new platform request.
 - Add `QuickBlueSecurityException` and portable security-error reasons with
   original native error identity.
 - Add per-device security recovery coordination, bounded managed-operation

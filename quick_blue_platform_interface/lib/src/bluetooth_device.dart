@@ -85,6 +85,8 @@ class BluetoothDevice {
   ///
   /// If a connect is pending, this call cancels it before disconnecting. Other
   /// overlapping connection operations still throw [QuickBlueException].
+  /// Pending service discovery is cancelled when the disconnected state is
+  /// reported, allowing a later discovery attempt to start fresh.
   ///
   /// Timeouts are left to callers with normal `Future.timeout` composition.
   Future<void> disconnect() => _platform.disconnectDevice(deviceId);
@@ -158,7 +160,9 @@ class BluetoothDevice {
 
   /// Discovers services and characteristics for this device.
   ///
-  /// Completes after the platform reports discovery completion.
+  /// Completes after the platform reports discovery completion. Concurrent
+  /// calls share one discovery. Disconnecting the device cancels a pending
+  /// discovery with [QuickBlueErrorCode.cancelled].
   Future<List<BluetoothService>> discoverServices() {
     return QuickBlueInstrumentation.observeFuture<List<BluetoothService>>(
       kind: QuickBlueOperationKind.discoverServices,

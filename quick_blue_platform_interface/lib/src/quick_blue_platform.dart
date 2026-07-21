@@ -604,6 +604,9 @@ abstract class QuickBluePlatform extends PlatformInterface {
     BleStatus status, [
     QuickBlueException? error,
   ]) {
+    if (state == BlueConnectionState.disconnected) {
+      _serviceDiscoveryLifecycleCoordinator.handleDisconnected(deviceId);
+    }
     _connectionStateController.add(
       BluetoothConnectionStateChange(
         deviceId: deviceId,

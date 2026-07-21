@@ -421,6 +421,51 @@ void main() {
     ]);
   });
 
+  test(
+    'BluetoothDevice.discoverServices retries after timeout and disconnect',
+    () async {
+      final platform = FakeQuickBluePlatform(completesServiceDiscovery: false);
+      addTearDown(platform.dispose);
+
+      final device = platform.device('device-a');
+      await device.connect();
+      final discovery = device.discoverServices();
+      await expectLater(
+        discovery.timeout(Duration.zero),
+        throwsA(isA<TimeoutException>()),
+      );
+      final cancellationExpectation = expectLater(
+        discovery,
+        throwsA(
+          isA<QuickBlueException>()
+              .having(
+                (error) => error.code,
+                'code',
+                QuickBlueErrorCode.cancelled,
+              )
+              .having(
+                (error) => error.operation,
+                'operation',
+                'discoverServices',
+              )
+              .having((error) => error.deviceId, 'deviceId', 'device-a'),
+        ),
+      );
+
+      await device.disconnect();
+      await cancellationExpectation;
+
+      platform.completesServiceDiscovery = true;
+      final services = await device.discoverServices();
+
+      expect(services, isEmpty);
+      expect(
+        platform.calls.where((call) => call == 'discoverServices device-a'),
+        hasLength(2),
+      );
+    },
+  );
+
   test('BluetoothDevice.setNotifiable propagates platform errors', () async {
     final error = StateError('notify failed');
     final platform = FakeQuickBluePlatform(setNotifiableError: error);

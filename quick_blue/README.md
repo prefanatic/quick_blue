@@ -324,6 +324,11 @@ devices can connect concurrently.
 This makes it safe to follow a caller-side `connect().timeout(...)` with
 `disconnect()` before retrying.
 
+Concurrent service-discovery calls for one device share the same result. A
+disconnect cancels any pending discovery with `QuickBlueErrorCode.cancelled`,
+so discovery can start fresh after reconnecting even when the original caller
+timed out.
+
 ### Multiple Flutter engines
 
 Quick Blue coordinates each device connection across Flutter engines in the

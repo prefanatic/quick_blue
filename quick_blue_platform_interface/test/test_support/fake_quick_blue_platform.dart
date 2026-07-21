@@ -12,6 +12,7 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
     List<Completer<void>> startScanCompletions = const <Completer<void>>[],
     List<Completer<void>> setNotifiableCompletions = const <Completer<void>>[],
     this.discoverServicesCompletion,
+    this.completesServiceDiscovery = true,
     this.discoverServicesError,
     this.setNotifiableError,
     this.readValueError,
@@ -39,6 +40,7 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   final List<Completer<void>> startScanCompletions;
   final List<Completer<void>> setNotifiableCompletions;
   final Completer<void>? discoverServicesCompletion;
+  bool completesServiceDiscovery;
   Object? discoverServicesError;
   Object? setNotifiableError;
   Object? readValueError;
@@ -212,6 +214,9 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
     final error = discoverServicesError;
     if (error != null) {
       throw error;
+    }
+    if (!completesServiceDiscovery) {
+      return;
     }
     await discoverServicesCompletion?.future;
     for (final service in discoveredServices) {
