@@ -311,12 +311,14 @@ Useful Dart defines:
 ## BLE lifecycle stress test
 
 The hardware-backed lifecycle stress test repeatedly restarts scanning,
-connects, performs concurrent service discovery and a characteristic read, and
-disconnects. It also covers overlapping connects, connect/disconnect and
-discovery/disconnect races, and verifies that reconnecting starts fresh. When a
-second target is configured, it connects to both at once and verifies that
-disconnecting and reconnecting one device does not break GATT operations on the
-other.
+connects, performs concurrent service discovery and characteristic reads, and
+disconnects. It also covers overlapping connects, connection and GATT teardown
+races, notification-state churn, rejected writes to read-only characteristics,
+concurrent oversized-write failures, and verifies that reconnecting starts
+fresh. When a second target is configured, it verifies shared scan listeners
+and connected-device lookup during active GATT work, then connects to both
+targets and confirms that disconnecting and reconnecting one device does not
+break GATT operations on the other.
 
 ```sh
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
@@ -327,8 +329,9 @@ QUICK_BLUE_HIDE_TEST_WINDOW=1 \
 ```
 
 Both targets must be connectable and expose at least one readable
-characteristic. Omit `QUICK_BLUE_STRESS_SECOND_NAME_PATTERN` to run only the
-single-device reconnect and discovery/disconnect scenarios.
+characteristic. Notifiable and read-only characteristics are exercised when
+available. Omit `QUICK_BLUE_STRESS_SECOND_NAME_PATTERN` to run only the
+single-device scenarios.
 
 ## Getting Started
 

@@ -350,34 +350,59 @@ Future<T> _runDarwinGattOperation<T>({
     return await action();
   } on PlatformException catch (error, stackTrace) {
     final details = error.details;
-    if (details is! Map<Object?, Object?>) {
-      rethrow;
-    }
-    final nativeDomain = details['domain'];
-    final nativeCode = details['code'];
-    if (nativeDomain is! String || nativeCode is! num) {
-      rethrow;
-    }
-    final reason = _securityErrorReason(nativeDomain, nativeCode.toInt());
-    if (reason == null) {
-      rethrow;
+    if (details is Map<Object?, Object?>) {
+      final nativeDomain = details['domain'];
+      final nativeCode = details['code'];
+      if (nativeDomain is String && nativeCode is num) {
+        final reason = _securityErrorReason(nativeDomain, nativeCode.toInt());
+        if (reason != null) {
+          Error.throwWithStackTrace(
+            _securityException(
+              nativeDomain: nativeDomain,
+              nativeCode: nativeCode.toInt(),
+              reason: reason,
+              operation: operation,
+              deviceId: deviceId,
+              serviceId: serviceId,
+              characteristicId: characteristicId,
+              message:
+                  error.message ??
+                  '$operation failed with $nativeDomain error $nativeCode.',
+            ),
+            stackTrace,
+          );
+        }
+      }
     }
     Error.throwWithStackTrace(
-      _securityException(
-        nativeDomain: nativeDomain,
-        nativeCode: nativeCode.toInt(),
-        reason: reason,
+      QuickBlueException(
+        code: _darwinErrorCode(error.code),
         operation: operation,
         deviceId: deviceId,
         serviceId: serviceId,
         characteristicId: characteristicId,
-        message:
-            error.message ??
-            '$operation failed with $nativeDomain error $nativeCode.',
+        message: error.message ?? '$operation failed on CoreBluetooth.',
+        details: <String, Object?>{
+          'platformCode': error.code,
+          'native': ?details,
+        },
       ),
       stackTrace,
     );
   }
+}
+
+QuickBlueErrorCode _darwinErrorCode(String code) {
+  return switch (code) {
+    'Unsupported' => QuickBlueErrorCode.unsupported,
+    'NotFound' => QuickBlueErrorCode.notFound,
+    'InvalidState' ||
+    'Disconnected' ||
+    'IllegalArgument' ||
+    'InvalidArgument' ||
+    'InvalidConfiguration' => QuickBlueErrorCode.invalidState,
+    _ => QuickBlueErrorCode.operationFailed,
+  };
 }
 
 QuickBlueSecurityErrorReason? _securityErrorReason(

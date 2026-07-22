@@ -852,7 +852,7 @@ void main() {
     ]);
   });
 
-  test('writeValue throws when the host replies with an error', () async {
+  test('writeValue maps a native failure with operation context', () async {
     const channel = BasicMessageChannel<Object?>(
       writeValueChannelName,
       messages.QuickBlueApi.pigeonChannelCodec,
@@ -875,11 +875,59 @@ void main() {
         BleOutputProperty.withResponse,
       ),
       throwsA(
-        isA<PlatformException>().having(
-          (error) => error.details,
-          'details',
-          <String, Object>{'domain': 'CBATTErrorDomain', 'code': 2},
-        ),
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.operationFailed,
+            )
+            .having((error) => error.operation, 'operation', 'writeValue')
+            .having((error) => error.deviceId, 'deviceId', 'device-a')
+            .having((error) => error.serviceId, 'serviceId', '180d')
+            .having(
+              (error) => error.characteristicId,
+              'characteristicId',
+              '2a37',
+            )
+            .having((error) => error.details, 'details', <String, Object?>{
+              'platformCode': 'WriteFailed',
+              'native': <String, Object>{
+                'domain': 'CBATTErrorDomain',
+                'code': 2,
+              },
+            }),
+      ),
+    );
+  });
+
+  test('readValue maps a context-only native state failure', () async {
+    const channel = BasicMessageChannel<Object?>(
+      readValueChannelName,
+      messages.QuickBlueApi.pigeonChannelCodec,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(
+          channel,
+          (_) async => <Object?>[
+            'InvalidState',
+            'The device disconnected.',
+            null,
+          ],
+        );
+
+    await expectLater(
+      QuickBlueDarwin().readCharacteristicValue('device-a', '180d', '2a37'),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.invalidState,
+            )
+            .having((error) => error.operation, 'operation', 'readValue')
+            .having((error) => error.details, 'details', <String, Object?>{
+              'platformCode': 'InvalidState',
+            }),
       ),
     );
   });

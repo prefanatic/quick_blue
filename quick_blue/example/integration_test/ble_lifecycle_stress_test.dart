@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -95,6 +97,24 @@ void main() {
         );
       }
 
+      for (var iteration = 1; iteration <= iterations; iteration += 1) {
+        final failedOperations = await _exerciseGattDisconnectRace(first);
+        debugPrint(
+          'BLE lifecycle stress: GATT/disconnect iteration '
+          '$iteration/$iterations settled with $failedOperations cancelled '
+          'operation(s) for ${first.deviceId}.',
+        );
+      }
+
+      for (var iteration = 1; iteration <= iterations; iteration += 1) {
+        final rejectedWrites = await _exerciseOversizedWriteFailures(first);
+        debugPrint(
+          'BLE lifecycle stress: oversized-write iteration '
+          '$iteration/$iterations rejected $rejectedWrites operation(s) for '
+          '${first.deviceId}.',
+        );
+      }
+
       var cancelledDiscoveries = 0;
       for (var iteration = 1; iteration <= iterations; iteration += 1) {
         final outcome = await _exerciseDiscoveryDisconnectRace(first);
@@ -108,6 +128,13 @@ void main() {
       }
 
       if (second != null) {
+        for (var iteration = 1; iteration <= iterations; iteration += 1) {
+          await _exerciseScanDuringConnection(first, second);
+          debugPrint(
+            'BLE lifecycle stress: completed shared scan during connection '
+            '$iteration/$iterations.',
+          );
+        }
         await _exerciseTwoDeviceIsolation(first, second);
       }
 
@@ -143,6 +170,9 @@ Future<List<BluetoothService>> _exerciseCleanLifecycle(
   expect(discoveries.first, isNotEmpty);
   expect(discoveries.last, discoveries.first);
   await _readFirstReadable(device, discoveries.first);
+  await _readFirstReadableConcurrently(device, discoveries.first);
+  await _exerciseRejectedWrites(device, discoveries.first);
+  await _exerciseNotificationToggleRace(device, discoveries.first);
 
   await device.disconnect().timeout(_operationTimeout);
   return discoveries.first;
@@ -220,6 +250,96 @@ Future<_DiscoveryRaceOutcome> _exerciseDiscoveryDisconnectRace(
   return outcome;
 }
 
+Future<int> _exerciseGattDisconnectRace(BluetoothDevice device) async {
+  await device.connect().timeout(_operationTimeout);
+  final services = await device.discoverServices().timeout(_operationTimeout);
+  final readable = _firstReadable(services);
+  final operations = <Future<_OperationResult>>[
+    for (var index = 0; index < 8; index += 1)
+      device
+          .readValue(readable.serviceUuid, readable.characteristic.uuid)
+          .then<_OperationResult>(
+            (_) => const _OperationResult.completed(),
+            onError: (Object error, StackTrace _) =>
+                _OperationResult.failed(error),
+          ),
+  ];
+  final notifiable = _firstNotifiable(services);
+  if (notifiable != null) {
+    operations.add(
+      device
+          .setNotifiable(
+            notifiable.serviceUuid,
+            notifiable.characteristic.uuid,
+            notifiable.characteristic.canNotify
+                ? BleInputProperty.notification
+                : BleInputProperty.indication,
+          )
+          .then<_OperationResult>(
+            (_) => const _OperationResult.completed(),
+            onError: (Object error, StackTrace _) =>
+                _OperationResult.failed(error),
+          ),
+    );
+  }
+
+  await Future<void>.delayed(const Duration(milliseconds: 1));
+  await device.disconnect().timeout(_operationTimeout);
+  final outcomes = await Future.wait(operations).timeout(_operationTimeout);
+
+  await _exerciseCleanLifecycle(device);
+  return outcomes.where((outcome) => outcome.error != null).length;
+}
+
+Future<int> _exerciseOversizedWriteFailures(BluetoothDevice device) async {
+  await device.connect().timeout(_operationTimeout);
+  try {
+    final services = await device.discoverServices().timeout(_operationTimeout);
+    final target = _firstWritableWithResponse(services);
+    if (target == null) {
+      return 0;
+    }
+
+    final oversizedValue = Uint8List(513);
+    final outcomes = await Future.wait(<Future<_OperationResult>>[
+      for (var index = 0; index < 8; index += 1)
+        device
+            .writeValue(
+              target.serviceUuid,
+              target.characteristic.uuid,
+              oversizedValue,
+              BleOutputProperty.withResponse,
+            )
+            .then<_OperationResult>(
+              (_) => const _OperationResult.completed(),
+              onError: (Object error, StackTrace _) =>
+                  _OperationResult.failed(error),
+            ),
+    ]).timeout(_operationTimeout);
+    expect(
+      outcomes.map((outcome) => outcome.error),
+      everyElement(isA<QuickBlueException>()),
+      reason:
+          'Every rejected 513-byte acknowledged write should surface as a '
+          'QuickBlueException for ${target.characteristic.uuid}.',
+    );
+
+    try {
+      await _readFirstReadable(device, services);
+    } on QuickBlueException catch (error) {
+      expect(error.code, QuickBlueErrorCode.invalidState);
+      await device.connect().timeout(_operationTimeout);
+      final rediscovered = await device.discoverServices().timeout(
+        _operationTimeout,
+      );
+      await _readFirstReadable(device, rediscovered);
+    }
+    return outcomes.length;
+  } finally {
+    await _bestEffortDisconnect(device);
+  }
+}
+
 Future<void> _exerciseTwoDeviceIsolation(
   BluetoothDevice first,
   BluetoothDevice second,
@@ -257,21 +377,229 @@ Future<void> _exerciseTwoDeviceIsolation(
   ]).timeout(_operationTimeout);
 }
 
+Future<void> _exerciseScanDuringConnection(
+  BluetoothDevice connectedDevice,
+  BluetoothDevice advertisingDevice,
+) async {
+  await connectedDevice.connect().timeout(_operationTimeout);
+  StreamSubscription<BlueScanResult>? firstSubscription;
+  StreamSubscription<BlueScanResult>? secondSubscription;
+  try {
+    final services = await connectedDevice.discoverServices().timeout(
+      _operationTimeout,
+    );
+    expect(services, isNotEmpty);
+
+    final connectedDevices = await QuickBlue.connectedDevices(
+      serviceUuids: <String>[services.first.uuid],
+    ).timeout(_operationTimeout);
+    expect(
+      connectedDevices.map((device) => device.deviceId),
+      contains(connectedDevice.deviceId),
+      reason:
+          '${connectedDevice.deviceId} was not returned by a connected-device '
+          'lookup for discovered service ${services.first.uuid}.',
+    );
+
+    final firstSeen = Completer<void>();
+    final secondSeen = Completer<void>();
+    Completer<void>? secondContinued;
+    final scanErrors = <Object>[];
+
+    firstSubscription = QuickBlue.scanResults().listen((result) {
+      if (result.deviceId == advertisingDevice.deviceId &&
+          !firstSeen.isCompleted) {
+        firstSeen.complete();
+      }
+    }, onError: scanErrors.add);
+    secondSubscription = QuickBlue.scanResults().listen((result) {
+      if (result.deviceId != advertisingDevice.deviceId) {
+        return;
+      }
+      if (!secondSeen.isCompleted) {
+        secondSeen.complete();
+      }
+      final continued = secondContinued;
+      if (continued != null && !continued.isCompleted) {
+        continued.complete();
+      }
+    }, onError: scanErrors.add);
+
+    await Future.wait(<Future<void>>[
+      firstSeen.future,
+      secondSeen.future,
+    ]).timeout(_scanTimeout);
+    await firstSubscription.cancel();
+    firstSubscription = null;
+
+    secondContinued = Completer<void>();
+    await Future.wait(<Future<void>>[
+      secondContinued.future,
+      _readFirstReadable(connectedDevice, services),
+    ]).timeout(_scanTimeout);
+    expect(scanErrors, isEmpty, reason: 'Shared BLE scan emitted an error.');
+  } finally {
+    await firstSubscription?.cancel();
+    await secondSubscription?.cancel();
+    await connectedDevice.disconnect().timeout(_operationTimeout);
+  }
+}
+
 Future<void> _readFirstReadable(
   BluetoothDevice device,
   List<BluetoothService> services,
 ) async {
+  final target = _firstReadable(services);
+  await device
+      .readValue(target.serviceUuid, target.characteristic.uuid)
+      .timeout(_operationTimeout);
+}
+
+Future<void> _readFirstReadableConcurrently(
+  BluetoothDevice device,
+  List<BluetoothService> services,
+) async {
+  final target = _firstReadable(services);
+  final values = await Future.wait(
+    List.generate(
+      8,
+      (_) => device.readValue(target.serviceUuid, target.characteristic.uuid),
+    ),
+  ).timeout(_operationTimeout);
+  expect(values, hasLength(8));
+}
+
+Future<void> _exerciseNotificationToggleRace(
+  BluetoothDevice device,
+  List<BluetoothService> services,
+) async {
+  final target = _firstNotifiable(services);
+  if (target == null) {
+    return;
+  }
+  final property = target.characteristic.canNotify
+      ? BleInputProperty.notification
+      : BleInputProperty.indication;
+  final updates = <Future<void>>[];
+  for (var iteration = 0; iteration < 8; iteration += 1) {
+    updates
+      ..add(
+        device.setNotifiable(
+          target.serviceUuid,
+          target.characteristic.uuid,
+          property,
+        ),
+      )
+      ..add(
+        device.setNotifiable(
+          target.serviceUuid,
+          target.characteristic.uuid,
+          BleInputProperty.disabled,
+        ),
+      );
+  }
+  await Future.wait(updates).timeout(_operationTimeout);
+
+  await device
+      .setNotifiable(target.serviceUuid, target.characteristic.uuid, property)
+      .timeout(_operationTimeout);
+  await device
+      .setNotifiable(
+        target.serviceUuid,
+        target.characteristic.uuid,
+        BleInputProperty.disabled,
+      )
+      .timeout(_operationTimeout);
+}
+
+Future<void> _exerciseRejectedWrites(
+  BluetoothDevice device,
+  List<BluetoothService> services,
+) async {
+  final target = _firstReadOnly(services);
+  if (target == null) {
+    return;
+  }
+  final originalValue = await device
+      .readValue(target.serviceUuid, target.characteristic.uuid)
+      .timeout(_operationTimeout);
+  for (final property in <BleOutputProperty>[
+    BleOutputProperty.withResponse,
+    BleOutputProperty.withoutResponse,
+  ]) {
+    final outcome = await device
+        .writeValue(
+          target.serviceUuid,
+          target.characteristic.uuid,
+          originalValue,
+          property,
+        )
+        .then<_OperationResult>(
+          (_) => const _OperationResult.completed(),
+          onError: (Object error, StackTrace _) =>
+              _OperationResult.failed(error),
+        )
+        .timeout(_operationTimeout);
+    expect(
+      outcome.error,
+      isNotNull,
+      reason:
+          'A ${property.value} write to non-writable '
+          '${target.characteristic.uuid} unexpectedly succeeded.',
+    );
+  }
+  expect(
+    await device
+        .readValue(target.serviceUuid, target.characteristic.uuid)
+        .timeout(_operationTimeout),
+    originalValue,
+  );
+}
+
+_GattTarget _firstReadable(List<BluetoothService> services) {
   for (final service in services) {
     for (final characteristic in service.characteristicDetails) {
       if (characteristic.canRead) {
-        await device
-            .readValue(service.uuid, characteristic.uuid)
-            .timeout(_operationTimeout);
-        return;
+        return _GattTarget(service.uuid, characteristic);
       }
     }
   }
-  fail('No readable characteristic was discovered for ${device.deviceId}.');
+  fail('No readable characteristic was discovered.');
+}
+
+_GattTarget? _firstNotifiable(List<BluetoothService> services) {
+  for (final service in services) {
+    for (final characteristic in service.characteristicDetails) {
+      if (characteristic.canNotify || characteristic.canIndicate) {
+        return _GattTarget(service.uuid, characteristic);
+      }
+    }
+  }
+  return null;
+}
+
+_GattTarget? _firstReadOnly(List<BluetoothService> services) {
+  for (final service in services) {
+    for (final characteristic in service.characteristicDetails) {
+      if (characteristic.canRead &&
+          !characteristic.canWriteWithResponse &&
+          !characteristic.canWriteWithoutResponse) {
+        return _GattTarget(service.uuid, characteristic);
+      }
+    }
+  }
+  return null;
+}
+
+_GattTarget? _firstWritableWithResponse(List<BluetoothService> services) {
+  for (final service in services) {
+    for (final characteristic in service.characteristicDetails) {
+      if (characteristic.canWriteWithResponse) {
+        return _GattTarget(service.uuid, characteristic);
+      }
+    }
+  }
+  return null;
 }
 
 Future<_StressTargets> _scanForTargets() async {
@@ -347,6 +675,8 @@ Future<void> _bestEffortDisconnect(BluetoothDevice device) async {
 Duration get _operationTimeout =>
     Duration(seconds: _positive(_operationTimeoutSeconds, 15));
 
+Duration get _scanTimeout => Duration(seconds: _positive(_scanSeconds, 15));
+
 int _positive(int value, int fallback) => value > 0 ? value : fallback;
 
 String _describeScanResult(BlueScanResult result) {
@@ -380,4 +710,11 @@ class _StressTargets {
 
   final BlueScanResult first;
   final BlueScanResult? second;
+}
+
+class _GattTarget {
+  const _GattTarget(this.serviceUuid, this.characteristic);
+
+  final String serviceUuid;
+  final BluetoothCharacteristicInfo characteristic;
 }

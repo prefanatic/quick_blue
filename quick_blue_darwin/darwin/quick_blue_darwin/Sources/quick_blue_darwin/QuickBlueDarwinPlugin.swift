@@ -1144,6 +1144,19 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                         details: nil
                     )
                 }
+                let requiredProperty: CBCharacteristicProperties =
+                    isWithResponse ? .write : .writeWithoutResponse
+                guard cbCharacteristic.properties.contains(requiredProperty)
+                else {
+                    let mode = isWithResponse
+                        ? "with response" : "without response"
+                    throw PigeonError(
+                        code: "InvalidState",
+                        message:
+                            "Characteristic \(characteristic) does not support writes \(mode)",
+                        details: nil
+                    )
+                }
                 if isWithResponse {
                     // Resolved when didWriteValueFor fires for this write.
                     host.pendingWrites[

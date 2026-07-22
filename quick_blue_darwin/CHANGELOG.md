@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Reject writes when a CoreBluetooth characteristic does not advertise the
+  selected write-with-response or write-without-response capability.
+- Convert non-security GATT failures into contextual `QuickBlueException`s
+  while preserving CoreBluetooth error details.
 - Preserve CoreBluetooth `NSError` domains and codes, map security failures to
   `QuickBlueSecurityException`, and await native read and notification results
   so their failures complete with errors instead of leaving callers waiting or

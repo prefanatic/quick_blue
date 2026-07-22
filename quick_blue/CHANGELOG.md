@@ -34,6 +34,11 @@
 
 ### Fixed
 
+- Reject Darwin writes when the characteristic does not advertise support for
+  the requested response mode instead of falsely completing unsupported
+  writes-without-response.
+- Convert non-security Darwin GATT failures into contextual
+  `QuickBlueException`s instead of leaking Flutter `PlatformException`s.
 - Keep rapid Darwin reconnect/cancel sequences from hanging when CoreBluetooth
   has not settled after its disconnect callback.
 - Cancel pending service discovery when its device disconnects so a caller
