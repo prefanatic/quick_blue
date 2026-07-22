@@ -29,9 +29,13 @@
 - Add an iOS integration harness that launches a production-shaped headless
   Flutter engine, and align Android and iOS coverage for shared discovery,
   explicit disconnect, reattachment, and engine detach.
+- Add a hardware BLE lifecycle stress test for repeated reconnects,
+  discovery/disconnect races, and concurrent two-device isolation.
 
 ### Fixed
 
+- Keep rapid Darwin reconnect/cancel sequences from hanging when CoreBluetooth
+  has not settled after its disconnect callback.
 - Cancel pending service discovery when its device disconnects so a caller
   timeout cannot leave later discovery attempts stuck on a stale future.
 - Report subscriber-stopped streams separately from superseded operations,

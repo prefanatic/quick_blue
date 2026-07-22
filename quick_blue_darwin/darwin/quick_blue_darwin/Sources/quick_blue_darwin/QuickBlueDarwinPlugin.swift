@@ -384,6 +384,8 @@ extension CBManagerState {
 #endif
 
 public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
+    private static let minimumReconnectInterval: TimeInterval = 0.1
+
     private struct NotificationKey: Hashable {
         let deviceId: String
         let service: String
@@ -575,6 +577,8 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var pendingWrites: [String: [(Result<Void, Error>) -> Void]] = [:]
     private var pendingNotificationUpdates:
         [NotificationKey: [[PendingNotificationUpdate]]] = [:]
+    private var pendingDisconnects: Set<String> = []
+    private var lastDisconnectTimes: [String: TimeInterval] = [:]
 
     private var targetManufacturerData: Data?
     private var targetRssi: Int64?
@@ -944,7 +948,36 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             if !attachment.isNew || sharedPeripheral.state == .connecting {
                 return
             }
-            host.getManager().connect(sharedPeripheral)
+            let reconnectDelay = host.lastDisconnectTimes[deviceId].map {
+                max(
+                    0,
+                    Self.minimumReconnectInterval
+                        - (ProcessInfo.processInfo.systemUptime - $0)
+                )
+            } ?? 0
+            if reconnectDelay > 0 {
+                DispatchQueue.main.asyncAfter(
+                    deadline: .now() + reconnectDelay
+                ) { [weak self, weak host, weak sharedPeripheral] in
+                    guard
+                        let self,
+                        let host,
+                        let sharedPeripheral,
+                        Self.host(for: deviceId, client: self) === host
+                    else { return }
+                    host.stateQueue.sync {
+                        guard
+                            !host.pendingDisconnects.contains(deviceId),
+                            sharedPeripheral.state == .disconnected
+                        else { return }
+                        host.lastDisconnectTimes.removeValue(forKey: deviceId)
+                        host.getManager().connect(sharedPeripheral)
+                    }
+                }
+            } else {
+                host.lastDisconnectTimes.removeValue(forKey: deviceId)
+                host.getManager().connect(sharedPeripheral)
+            }
         }
     }
 
@@ -1262,11 +1295,67 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     }
 
     private func cleanConnection(_ peripheral: CBPeripheral) {
+        pendingDisconnects.insert(peripheral.identifier.uuidString)
         if let delegate = streamDelegates[peripheral.identifier.uuidString] {
             delegate.close()
             streamDelegates.removeValue(forKey: peripheral.identifier.uuidString)
         }
         manager?.cancelPeripheralConnection(peripheral)
+        schedulePendingDisconnectCheck(peripheral)
+    }
+
+    /// CoreBluetooth can transition a cancelled connection attempt to
+    /// `.disconnected` without delivering either terminal central-manager
+    /// callback. Reconcile the observable state so the Dart disconnect future
+    /// cannot remain pending, and reissue cancellation if a late connection
+    /// wins the race.
+    private func schedulePendingDisconnectCheck(
+        _ peripheral: CBPeripheral,
+        delayMilliseconds: Int = 50
+    ) {
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + .milliseconds(delayMilliseconds)
+        ) { [weak self, weak peripheral] in
+            guard let self, let peripheral else { return }
+            let deviceId = peripheral.identifier.uuidString
+            let pending = self.stateQueue.sync {
+                self.pendingDisconnects.contains(deviceId)
+            }
+            guard pending else { return }
+
+            if peripheral.state == .disconnected {
+                let clients = Self.removeConnection(deviceId)
+                let shouldEmit = self.stateQueue.sync {
+                    guard self.pendingDisconnects.remove(deviceId) != nil else {
+                        return false
+                    }
+                    self.lastDisconnectTimes[deviceId] =
+                        ProcessInfo.processInfo.systemUptime
+                    return true
+                }
+                if shouldEmit {
+                    for client in clients {
+                        client.emitConnectionState(
+                            deviceId: deviceId,
+                            state: .disconnected,
+                            status: .success
+                        )
+                    }
+                    self.failPendingGattOperations(
+                        forDeviceId: deviceId,
+                        reason:
+                            "Peripheral disconnected before the GATT operation completed"
+                    )
+                }
+                return
+            }
+
+            self.manager?.cancelPeripheralConnection(peripheral)
+            self.schedulePendingDisconnectCheck(
+                peripheral,
+                delayMilliseconds: min(delayMilliseconds * 2, 1_000)
+            )
+        }
     }
 
     /// Fails characteristic operations still awaiting callbacks for `deviceId`;
@@ -1447,8 +1536,19 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         _ central: CBCentralManager,
         didConnect peripheral: CBPeripheral
     ) {
+        let deviceId = peripheral.identifier.uuidString
+        let disconnectRequested = stateQueue.sync {
+            pendingDisconnects.contains(deviceId)
+        }
+        if disconnectRequested {
+            // CoreBluetooth can finish a connection after cancellation was
+            // requested. Cancel again from the terminal connect callback so a
+            // superseding Dart disconnect always receives a disconnect event.
+            central.cancelPeripheralConnection(peripheral)
+            return
+        }
         Self.emitConnectionState(
-            deviceId: peripheral.identifier.uuidString,
+            deviceId: deviceId,
             state: .connected,
             status: .success
         )
@@ -1460,13 +1560,19 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         didFailToConnect peripheral: CBPeripheral,
         error: Error?
     ) {
-        let clients = Self.removeConnection(peripheral.identifier.uuidString)
+        let deviceId = peripheral.identifier.uuidString
+        let disconnectRequested = stateQueue.sync {
+            let requested = pendingDisconnects.remove(deviceId) != nil
+            lastDisconnectTimes[deviceId] = ProcessInfo.processInfo.systemUptime
+            return requested
+        }
+        let clients = Self.removeConnection(deviceId)
         for client in clients {
             client.emitConnectionState(
-                deviceId: peripheral.identifier.uuidString,
+                deviceId: deviceId,
                 state: .disconnected,
-                status: .failure,
-                error: error
+                status: disconnectRequested ? .success : .failure,
+                error: disconnectRequested ? nil : error
             )
         }
     }
@@ -1476,9 +1582,12 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         didDisconnectPeripheral peripheral: CBPeripheral,
         error: Error?
     ) {
-        let clients = Self.removeConnection(peripheral.identifier.uuidString)
+        let deviceId = peripheral.identifier.uuidString
+        let clients = Self.removeConnection(deviceId)
         stateQueue.sync {
-            if error != nil {
+            let disconnectRequested = pendingDisconnects.remove(deviceId) != nil
+            lastDisconnectTimes[deviceId] = ProcessInfo.processInfo.systemUptime
+            if error != nil, !disconnectRequested {
                 central.cancelPeripheralConnection(peripheral)
                 if let streamDelegate = streamDelegates[peripheral.identifier.uuidString] {
                     streamDelegate.close()
@@ -1486,10 +1595,11 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
             }
             for client in clients {
                 client.emitConnectionState(
-                    deviceId: peripheral.identifier.uuidString,
+                    deviceId: deviceId,
                     state: .disconnected,
-                    status: error == nil ? .success : .failure,
-                    error: error
+                    status: error == nil || disconnectRequested
+                        ? .success : .failure,
+                    error: disconnectRequested ? nil : error
                 )
             }
         }

@@ -308,6 +308,28 @@ Useful Dart defines:
 - `QUICK_BLUE_SWITCH_DELAY_MILLISECONDS`: delay between starting the first
   connection and switching devices.
 
+## BLE lifecycle stress test
+
+The hardware-backed lifecycle stress test repeatedly restarts scanning,
+connects, performs concurrent service discovery and a characteristic read, and
+disconnects. It also covers overlapping connects, connect/disconnect and
+discovery/disconnect races, and verifies that reconnecting starts fresh. When a
+second target is configured, it connects to both at once and verifies that
+disconnecting and reconnecting one device does not break GATT operations on the
+other.
+
+```sh
+QUICK_BLUE_HIDE_TEST_WINDOW=1 \
+  flutter test integration_test/ble_lifecycle_stress_test.dart -d macos \
+    --dart-define=QUICK_BLUE_STRESS_FIRST_NAME_PATTERN='^device-a$' \
+    --dart-define=QUICK_BLUE_STRESS_SECOND_NAME_PATTERN='^device-b$' \
+    --dart-define=QUICK_BLUE_STRESS_ITERATIONS=10
+```
+
+Both targets must be connectable and expose at least one readable
+characteristic. Omit `QUICK_BLUE_STRESS_SECOND_NAME_PATTERN` to run only the
+single-device reconnect and discovery/disconnect scenarios.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
