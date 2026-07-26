@@ -27,6 +27,12 @@ import PlatformConnectionStateChange
 import PlatformGattStatus
 import PlatformL2CapSocketEvent
 import PlatformMtuChange
+import PlatformRangingAvailability
+import PlatformRangingCapabilities
+import PlatformRangingConfidence
+import PlatformRangingMeasurement
+import PlatformRangingOptions
+import PlatformRangingUpdateRate
 import PlatformScanResult
 import PlatformServiceDiscovered
 import QuickBlueApi
@@ -60,7 +66,19 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
+import android.ranging.RangingCapabilities
+import android.ranging.RangingData
+import android.ranging.RangingDevice
+import android.ranging.RangingManager
+import android.ranging.RangingMeasurement
+import android.ranging.RangingPreference
+import android.ranging.RangingSession
+import android.ranging.SessionConfig
+import android.ranging.ble.cs.BleCsRangingParams
+import android.ranging.raw.RawInitiatorRangingConfig
+import android.ranging.raw.RawRangingDevice
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat.startIntentSenderForResult
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -162,6 +180,10 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         bondStateChangesListener.onEventsDone()
         mtuChangedListener.onEventsDone()
         l2CapSocketEventsListener.onEventsDone()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            channelSounding?.close()
+        }
+        channelSounding = null
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
@@ -205,6 +227,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private var activeScanRssi: Long? = null
 
     private var activity: Activity? = null
+    private var channelSounding: AndroidChannelSounding? = null
 
     private val executor: Executor = Executor { it.run() }
     private val streamDelegates = mutableMapOf<String, L2CapStreamDelegate>()
@@ -499,6 +522,101 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     override fun stopScan() {
         activeScanRssi = null
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
+    }
+
+    override fun getRangingCapabilities(
+        callback: (Result<PlatformRangingCapabilities>) -> Unit
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) {
+            callback(Result.success(unsupportedRangingCapabilities()))
+            return
+        }
+
+        try {
+            getChannelSounding().getCapabilities(callback)
+        } catch (error: Exception) {
+            callback(Result.failure(error))
+        }
+    }
+
+    override fun startRanging(deviceId: String, options: PlatformRangingOptions) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) {
+            throw FlutterError(
+                "Unsupported",
+                "Bluetooth LE Channel Sounding requires Android 16 or later.",
+                null
+            )
+        }
+        ensureRangingPermission()
+        if (options.requestDirection) {
+            throw FlutterError(
+                "DirectionUnsupported",
+                "Android Bluetooth Channel Sounding does not expose direction.",
+                null
+            )
+        }
+        val gatt = attachedGatt(deviceId)
+            ?: throw FlutterError(
+                "NotConnected",
+                "Connect to $deviceId before starting Channel Sounding.",
+                null
+            )
+        if (gatt.device.address != deviceId) {
+            throw FlutterError(
+                "InvalidState",
+                "The connected Bluetooth address does not match $deviceId.",
+                null
+            )
+        }
+        getChannelSounding().start(deviceId, options)
+    }
+
+    override fun stopRanging(deviceId: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) {
+            return
+        }
+        getChannelSounding().stop(deviceId)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
+    private fun getChannelSounding(): AndroidChannelSounding {
+        val existing = channelSounding
+        if (existing != null) {
+            return existing
+        }
+        val created = AndroidChannelSounding(
+            context = context,
+            onMeasurement = ::emitRangingMeasurement,
+            onError = ::emitRangingError,
+        )
+        channelSounding = created
+        return created
+    }
+
+    private fun emitRangingMeasurement(measurement: PlatformRangingMeasurement) {
+        if (!isAttachedToEngine) return
+        mainThreadHandler.post {
+            if (!isAttachedToEngine) return@post
+            quickBlueFlutterApi?.onRangingMeasurement(measurement) {}
+        }
+    }
+
+    private fun emitRangingError(
+        deviceId: String,
+        code: String,
+        message: String,
+        nativeReason: Int?,
+    ) {
+        if (!isAttachedToEngine) return
+        mainThreadHandler.post {
+            if (!isAttachedToEngine) return@post
+            quickBlueFlutterApi?.onRangingError(
+                deviceId,
+                code,
+                message,
+                nativeReason?.toLong(),
+            ) {}
+        }
     }
 
     override fun connectedDeviceIds(serviceUuids: List<String>): List<String> {
@@ -1193,6 +1311,24 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         )
     }
 
+    private fun ensureRangingPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) {
+            return
+        }
+        if (
+            ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.RANGING
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            throw FlutterError(
+                "PermissionDenied",
+                "Missing android.permission.RANGING runtime permission.",
+                null
+            )
+        }
+    }
+
     private fun remoteDevice(deviceId: String): BluetoothDevice {
         return try {
             bluetoothManager.adapter.getRemoteDevice(deviceId)
@@ -1528,6 +1664,237 @@ private fun PlatformAndroidScanPhy.toAndroidScanPhy(): Int {
         PlatformAndroidScanPhy.LE1M -> BluetoothDevice.PHY_LE_1M
         PlatformAndroidScanPhy.LE_CODED -> BluetoothDevice.PHY_LE_CODED
         PlatformAndroidScanPhy.ALL_SUPPORTED -> ScanSettings.PHY_LE_ALL_SUPPORTED
+    }
+}
+
+private fun unsupportedRangingCapabilities() = PlatformRangingCapabilities(
+    availability = PlatformRangingAvailability.UNSUPPORTED,
+    supportsDirection = false,
+)
+
+@RequiresApi(Build.VERSION_CODES.BAKLAVA)
+private class AndroidChannelSounding(
+    context: Context,
+    private val onMeasurement: (PlatformRangingMeasurement) -> Unit,
+    private val onError: (String, String, String, Int?) -> Unit,
+) {
+    private val manager = context.getSystemService(RangingManager::class.java)
+        ?: throw FlutterError(
+            "Unsupported",
+            "Android did not provide the Ranging service.",
+            null
+        )
+    private val executor = context.mainExecutor
+    private val activeSessions = mutableMapOf<String, RangingSession>()
+
+    fun getCapabilities(
+        completion: (Result<PlatformRangingCapabilities>) -> Unit
+    ) {
+        var completed = false
+        lateinit var callback: RangingManager.RangingCapabilitiesCallback
+        callback = object : RangingManager.RangingCapabilitiesCallback {
+            override fun onRangingCapabilities(capabilities: RangingCapabilities) {
+                if (completed) return
+                completed = true
+                manager.unregisterCapabilitiesCallback(callback)
+                val availability =
+                    capabilities.technologyAvailability[RangingManager.BLE_CS]
+                        ?: RangingCapabilities.NOT_SUPPORTED
+                completion(
+                    Result.success(
+                        PlatformRangingCapabilities(
+                            availability = availability.toPlatformRangingAvailability(),
+                            // The Android BLE CS capability object currently
+                            // exposes security levels, not angle support.
+                            supportsDirection = false,
+                        )
+                    )
+                )
+            }
+        }
+        manager.registerCapabilitiesCallback(executor, callback)
+    }
+
+    fun start(deviceId: String, options: PlatformRangingOptions) {
+        synchronized(activeSessions) {
+            if (activeSessions.containsKey(deviceId)) {
+                throw FlutterError(
+                    "AlreadyActive",
+                    "A Channel Sounding session is already active for $deviceId.",
+                    null
+                )
+            }
+        }
+
+        val rangingDevice = RangingDevice.Builder()
+            .setUuid(UUID.nameUUIDFromBytes(deviceId.toByteArray()))
+            .build()
+        val csParams = BleCsRangingParams.Builder(deviceId.uppercase())
+            .setRangingUpdateRate(options.updateRate.toAndroidRangingUpdateRate())
+            .build()
+        val rawDevice = RawRangingDevice.Builder()
+            .setRangingDevice(rangingDevice)
+            .setCsRangingParams(csParams)
+            .build()
+        val rawConfig = RawInitiatorRangingConfig.Builder()
+            .addRawRangingDevice(rawDevice)
+            .build()
+        val sessionConfig = SessionConfig.Builder()
+            .setAngleOfArrivalNeeded(options.requestDirection)
+            .build()
+        val preference = RangingPreference.Builder(
+            RangingPreference.DEVICE_ROLE_INITIATOR,
+            rawConfig,
+        ).setSessionConfig(sessionConfig).build()
+
+        var session: RangingSession? = null
+        val callback = object : RangingSession.Callback {
+            override fun onOpened() {}
+
+            override fun onOpenFailed(reason: Int) {
+                removeSession(deviceId, session)
+                onError(
+                    deviceId,
+                    reason.toRangingErrorCode(),
+                    "Channel Sounding failed to open: ${reason.rangingReasonName()}.",
+                    reason,
+                )
+            }
+
+            override fun onStarted(device: RangingDevice, technology: Int) {}
+
+            override fun onResults(device: RangingDevice, data: RangingData) {
+                val distance = data.distance
+                val azimuth = data.azimuth
+                val elevation = data.elevation
+                onMeasurement(
+                    PlatformRangingMeasurement(
+                        deviceId = deviceId,
+                        distanceMeters = distance?.measurement,
+                        azimuthDegrees = azimuth?.measurement,
+                        elevationDegrees = elevation?.measurement,
+                        rssi = if (data.hasRssi()) data.rssi.toLong() else null,
+                        distanceConfidence = distance?.confidence
+                            .toPlatformRangingConfidence(),
+                        azimuthConfidence = azimuth?.confidence
+                            .toPlatformRangingConfidence(),
+                        elevationConfidence = elevation?.confidence
+                            .toPlatformRangingConfidence(),
+                    )
+                )
+            }
+
+            override fun onStopped(device: RangingDevice, technology: Int) {}
+
+            override fun onClosed(reason: Int) {
+                removeSession(deviceId, session)
+                if (reason != RangingSession.Callback.REASON_LOCAL_REQUEST) {
+                    onError(
+                        deviceId,
+                        reason.toRangingErrorCode(),
+                        "Channel Sounding closed: ${reason.rangingReasonName()}.",
+                        reason,
+                    )
+                }
+            }
+        }
+
+        val createdSession = manager.createRangingSession(executor, callback)
+            ?: throw FlutterError(
+                "Unavailable",
+                "Android did not create a Channel Sounding session.",
+                null
+            )
+        session = createdSession
+        synchronized(activeSessions) {
+            activeSessions[deviceId] = createdSession
+        }
+        try {
+            createdSession.start(preference)
+        } catch (error: Exception) {
+            removeSession(deviceId, createdSession)
+            createdSession.close()
+            throw error
+        }
+    }
+
+    fun stop(deviceId: String) {
+        val session = synchronized(activeSessions) {
+            activeSessions.remove(deviceId)
+        } ?: return
+        session.stop()
+        session.close()
+    }
+
+    fun close() {
+        val sessions = synchronized(activeSessions) {
+            val current = activeSessions.values.toList()
+            activeSessions.clear()
+            current
+        }
+        sessions.forEach { session ->
+            session.stop()
+            session.close()
+        }
+    }
+
+    private fun removeSession(deviceId: String, session: RangingSession?) {
+        synchronized(activeSessions) {
+            if (activeSessions[deviceId] === session) {
+                activeSessions.remove(deviceId)
+            }
+        }
+    }
+}
+
+private fun Int.toPlatformRangingAvailability(): PlatformRangingAvailability {
+    return when (this) {
+        RangingCapabilities.ENABLED -> PlatformRangingAvailability.AVAILABLE
+        RangingCapabilities.DISABLED_USER ->
+            PlatformRangingAvailability.DISABLED_BY_USER
+        RangingCapabilities.DISABLED_REGULATORY ->
+            PlatformRangingAvailability.DISABLED_BY_REGULATION
+        RangingCapabilities.DISABLED_USER_RESTRICTIONS ->
+            PlatformRangingAvailability.RESTRICTED
+        else -> PlatformRangingAvailability.UNSUPPORTED
+    }
+}
+
+private fun PlatformRangingUpdateRate.toAndroidRangingUpdateRate(): Int {
+    return when (this) {
+        PlatformRangingUpdateRate.INFREQUENT ->
+            RawRangingDevice.UPDATE_RATE_INFREQUENT
+        PlatformRangingUpdateRate.NORMAL -> RawRangingDevice.UPDATE_RATE_NORMAL
+        PlatformRangingUpdateRate.FREQUENT ->
+            RawRangingDevice.UPDATE_RATE_FREQUENT
+    }
+}
+
+private fun Int?.toPlatformRangingConfidence(): PlatformRangingConfidence {
+    return when (this) {
+        RangingMeasurement.CONFIDENCE_LOW -> PlatformRangingConfidence.LOW
+        RangingMeasurement.CONFIDENCE_MEDIUM -> PlatformRangingConfidence.MEDIUM
+        RangingMeasurement.CONFIDENCE_HIGH -> PlatformRangingConfidence.HIGH
+        else -> PlatformRangingConfidence.UNKNOWN
+    }
+}
+
+private fun Int.toRangingErrorCode(): String {
+    return when (this) {
+        RangingSession.Callback.REASON_UNSUPPORTED -> "Unsupported"
+        RangingSession.Callback.REASON_SYSTEM_POLICY -> "Unavailable"
+        else -> "RangingFailed"
+    }
+}
+
+private fun Int.rangingReasonName(): String {
+    return when (this) {
+        RangingSession.Callback.REASON_LOCAL_REQUEST -> "local request"
+        RangingSession.Callback.REASON_REMOTE_REQUEST -> "remote request"
+        RangingSession.Callback.REASON_UNSUPPORTED -> "unsupported"
+        RangingSession.Callback.REASON_SYSTEM_POLICY -> "system policy"
+        RangingSession.Callback.REASON_NO_PEERS_FOUND -> "no peers found"
+        else -> "unknown reason $this"
     }
 }
 

@@ -33,7 +33,9 @@ const _minDetailPaneWidth = 360.0;
 const _resizeHandleExtent = 12.0;
 
 class BleExplorerPage extends StatefulWidget {
-  const BleExplorerPage({super.key});
+  const BleExplorerPage({super.key, this.controller});
+
+  final BleExplorerController? controller;
 
   @override
   State<BleExplorerPage> createState() => _BleExplorerPageState();
@@ -48,7 +50,7 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
   @override
   void initState() {
     super.initState();
-    _controller = BleExplorerController();
+    _controller = widget.controller ?? BleExplorerController();
     _controller.addListener(_showControllerMessage);
   }
 
@@ -271,6 +273,13 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
       connectionState: _controller.connectionState,
       connecting: _controller.connecting,
       discovering: _controller.discovering,
+      checkingRangingCapabilities: _controller.checkingRangingCapabilities,
+      startingRanging: _controller.startingRanging,
+      ranging: _controller.ranging,
+      rangingCapabilities: _controller.rangingCapabilities,
+      rangingMeasurement: _controller.latestRangingMeasurement,
+      rangingUpdateRate: _controller.rangingUpdateRate,
+      requestRangingDirection: _controller.requestRangingDirection,
       services: _controller.services,
       latestValues: _controller.latestValues,
       notificationKeys: _controller.notificationKeys,
@@ -278,6 +287,11 @@ class _BleExplorerPageState extends State<BleExplorerPage> {
       onConnect: _controller.connectSelected,
       onDisconnect: _controller.disconnectSelected,
       onDiscoverServices: _controller.discoverServices,
+      onRefreshRangingCapabilities: _controller.refreshRangingCapabilities,
+      onStartRanging: _controller.startRanging,
+      onStopRanging: _controller.stopRanging,
+      onRangingUpdateRateChanged: _controller.setRangingUpdateRate,
+      onRequestRangingDirectionChanged: _controller.setRequestRangingDirection,
       onRead: _controller.readCharacteristic,
       onWrite: _controller.writeCharacteristic,
       onToggleNotify: _controller.toggleNotify,

@@ -54,6 +54,13 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   final List<Object> connectErrors;
   ScanFilter? lastScanFilter;
   ScanOptions? lastScanOptions;
+  BleRangingCapabilities rangingCapabilitiesResult =
+      const BleRangingCapabilities(
+        availability: BleRangingAvailability.available,
+        supportsDirection: true,
+      );
+  BleRangingOptions? lastRangingOptions;
+  Object? startRangingError;
   int _startScanCallCount = 0;
   int _setNotifiableCallCount = 0;
 
@@ -81,6 +88,14 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
       currentBondState = state;
     }
     handleBondStateChanged(deviceId, state, previousState);
+  }
+
+  void addRangingMeasurement(BleRangingMeasurement measurement) {
+    handleRangingMeasurement(measurement);
+  }
+
+  void addRangingError(String deviceId, QuickBlueException error) {
+    handleRangingError(deviceId, error);
   }
 
   Future<void> dispose() {
@@ -124,6 +139,27 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   }) async {
     calls.add('connectedDevices $serviceUuids');
     return connectedDeviceIds.map(device).toList(growable: false);
+  }
+
+  @override
+  Future<BleRangingCapabilities> rangingCapabilities(String deviceId) async {
+    calls.add('rangingCapabilities $deviceId');
+    return rangingCapabilitiesResult;
+  }
+
+  @override
+  Future<void> startRanging(String deviceId, BleRangingOptions options) async {
+    calls.add('startRanging $deviceId');
+    lastRangingOptions = options;
+    final error = startRangingError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
+  Future<void> stopRanging(String deviceId) async {
+    calls.add('stopRanging $deviceId');
   }
 
   @override

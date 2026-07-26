@@ -163,6 +163,46 @@ class QuickBlueDarwin extends QuickBluePlatform {
   }
 
   @override
+  Future<BleRangingCapabilities> rangingCapabilities(String deviceId) async {
+    _ensureInitialized();
+    final capabilities = await _runDarwinRangingOperation(
+      operation: 'rangingCapabilities',
+      deviceId: deviceId,
+      action: _api.getRangingCapabilities,
+    );
+    return BleRangingCapabilities(
+      availability: capabilities.availability.toBleRangingAvailability(),
+      supportsDirection: capabilities.supportsDirection,
+    );
+  }
+
+  @override
+  Future<void> startRanging(String deviceId, BleRangingOptions options) {
+    _ensureInitialized();
+    return _runDarwinRangingOperation(
+      operation: 'startRanging',
+      deviceId: deviceId,
+      action: () => _api.startRanging(
+        deviceId,
+        messages.PlatformRangingOptions(
+          requestDirection: options.requestDirection,
+          updateRate: options.updateRate.toPlatformRangingUpdateRate(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<void> stopRanging(String deviceId) {
+    _ensureInitialized();
+    return _runDarwinRangingOperation(
+      operation: 'stopRanging',
+      deviceId: deviceId,
+      action: () => _api.stopRanging(deviceId),
+    );
+  }
+
+  @override
   Future<void> connect(String deviceId) {
     _ensureInitialized();
     return _api.connect(deviceId);
@@ -603,6 +643,131 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
   @override
   void onServiceDiscoveryComplete(String deviceId) {
     platform.onServiceDiscoveryComplete(deviceId);
+  }
+
+  @override
+  void onRangingMeasurement(messages.PlatformRangingMeasurement measurement) {
+    platform.handleRangingMeasurement(measurement.toBleRangingMeasurement());
+  }
+
+  @override
+  void onRangingError(
+    String deviceId,
+    String code,
+    String message,
+    int? nativeReason,
+  ) {
+    platform.handleRangingError(
+      deviceId,
+      _darwinRangingException(
+        operation: 'ranging',
+        deviceId: deviceId,
+        platformCode: code,
+        message: message,
+        details: nativeReason,
+      ),
+    );
+  }
+}
+
+Future<T> _runDarwinRangingOperation<T>({
+  required String operation,
+  required String deviceId,
+  required Future<T> Function() action,
+}) async {
+  try {
+    return await action();
+  } on PlatformException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      _darwinRangingException(
+        operation: operation,
+        deviceId: deviceId,
+        platformCode: error.code,
+        message: error.message ?? '$operation failed.',
+        details: error.details,
+      ),
+      stackTrace,
+    );
+  }
+}
+
+QuickBlueException _darwinRangingException({
+  required String operation,
+  required String deviceId,
+  required String platformCode,
+  required String message,
+  Object? details,
+}) {
+  final code = switch (platformCode) {
+    'Unsupported' || 'DirectionUnsupported' => QuickBlueErrorCode.unsupported,
+    'Unavailable' => QuickBlueErrorCode.unavailable,
+    'AlreadyActive' => QuickBlueErrorCode.deviceBusy,
+    'NotConnected' || 'InvalidState' => QuickBlueErrorCode.invalidState,
+    _ => QuickBlueErrorCode.operationFailed,
+  };
+  return QuickBlueException(
+    code: code,
+    operation: operation,
+    deviceId: deviceId,
+    message: message,
+    details: <String, Object?>{'platformCode': platformCode, 'native': details},
+  );
+}
+
+extension on messages.PlatformRangingAvailability {
+  BleRangingAvailability toBleRangingAvailability() {
+    return switch (this) {
+      messages.PlatformRangingAvailability.available =>
+        BleRangingAvailability.available,
+      messages.PlatformRangingAvailability.unsupported =>
+        BleRangingAvailability.unsupported,
+      messages.PlatformRangingAvailability.disabledByUser =>
+        BleRangingAvailability.disabledByUser,
+      messages.PlatformRangingAvailability.disabledByRegulation =>
+        BleRangingAvailability.disabledByRegulation,
+      messages.PlatformRangingAvailability.restricted =>
+        BleRangingAvailability.restricted,
+    };
+  }
+}
+
+extension on BleRangingUpdateRate {
+  messages.PlatformRangingUpdateRate toPlatformRangingUpdateRate() {
+    return switch (this) {
+      BleRangingUpdateRate.infrequent =>
+        messages.PlatformRangingUpdateRate.infrequent,
+      BleRangingUpdateRate.normal => messages.PlatformRangingUpdateRate.normal,
+      BleRangingUpdateRate.frequent =>
+        messages.PlatformRangingUpdateRate.frequent,
+    };
+  }
+}
+
+extension on messages.PlatformRangingConfidence {
+  BleRangingConfidence toBleRangingConfidence() {
+    return switch (this) {
+      messages.PlatformRangingConfidence.unknown =>
+        BleRangingConfidence.unknown,
+      messages.PlatformRangingConfidence.low => BleRangingConfidence.low,
+      messages.PlatformRangingConfidence.medium => BleRangingConfidence.medium,
+      messages.PlatformRangingConfidence.high => BleRangingConfidence.high,
+    };
+  }
+}
+
+extension on messages.PlatformRangingMeasurement {
+  BleRangingMeasurement toBleRangingMeasurement() {
+    return BleRangingMeasurement(
+      deviceId: deviceId,
+      timestamp: DateTime.now(),
+      distanceMeters: distanceMeters,
+      azimuthDegrees: azimuthDegrees,
+      elevationDegrees: elevationDegrees,
+      rssi: rssi,
+      distanceConfidence: distanceConfidence.toBleRangingConfidence(),
+      azimuthConfidence: azimuthConfidence.toBleRangingConfidence(),
+      elevationConfidence: elevationConfidence.toBleRangingConfidence(),
+    );
   }
 }
 

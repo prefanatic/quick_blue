@@ -2,6 +2,10 @@
 
 ### Added
 
+- Add capability-gated Bluetooth LE Channel Sounding sessions with distance
+  measurements on Android 16 and distance plus optional camera-assisted
+  direction on iOS 27, plus capability, session, and measurement controls in
+  the example explorer.
 - Add `QuickBlueSecurityException` for recoverable Darwin authentication,
   encryption, and peer-removed-pairing failures while preserving the native
   `NSError` domain and code.

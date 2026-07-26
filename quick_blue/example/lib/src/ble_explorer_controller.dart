@@ -7,12 +7,15 @@ import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
     show QuickBluePlatform;
 
 import 'ble_gatt_session.dart';
+import 'ble_ranging_permission.dart';
 import 'ble_scan_configuration.dart';
 import 'ble_value_codec.dart';
 
 const scanDuration = Duration(seconds: 10);
 const defaultConnectTimeout = Duration(seconds: 15);
 const deviceSwitchDisconnectTimeout = Duration(seconds: 3);
+
+typedef RangingPermissionRequester = Future<bool> Function();
 
 class BleEvent {
   const BleEvent({
@@ -29,7 +32,11 @@ class BleEvent {
 enum BleEventSeverity { info, warning, error }
 
 class BleExplorerController extends ChangeNotifier {
-  BleExplorerController({this.connectTimeout = defaultConnectTimeout}) {
+  BleExplorerController({
+    this.connectTimeout = defaultConnectTimeout,
+    RangingPermissionRequester? requestRangingPermission,
+  }) : _requestRangingPermission =
+           requestRangingPermission ?? requestBleRangingPermission {
     final completer = Completer<void>();
     _initialBluetoothCheck = completer;
     initialBluetoothCheck = completer.future;
@@ -37,6 +44,7 @@ class BleExplorerController extends ChangeNotifier {
   }
 
   final Duration connectTimeout;
+  final RangingPermissionRequester _requestRangingPermission;
   final devices = <String, BlueScanResult>{};
   final events = <BleEvent>[];
 
@@ -49,6 +57,8 @@ class BleExplorerController extends ChangeNotifier {
   StreamSubscription<BlueBluetoothState>? _bluetoothStateSubscription;
   StreamSubscription<BlueScanResult>? _scanSubscription;
   StreamSubscription<BluetoothConnectionStateChange>? _connectionSubscription;
+  StreamSubscription<BleRangingMeasurement>? _rangingSubscription;
+  BleRangingSession? _rangingSession;
   Timer? _scanTimer;
   Future<void> _connectionRelease = Future<void>.value();
   var _connectionAttempt = 0;
@@ -59,9 +69,15 @@ class BleExplorerController extends ChangeNotifier {
   bool scanning = false;
   bool connecting = false;
   bool discovering = false;
+  bool checkingRangingCapabilities = false;
+  bool startingRanging = false;
+  bool requestRangingDirection = false;
   Duration scanRemaining = Duration.zero;
   String? selectedDeviceId;
   BlueConnectionState connectionState = BlueConnectionState.disconnected;
+  BleRangingCapabilities? rangingCapabilities;
+  BleRangingMeasurement? latestRangingMeasurement;
+  BleRangingUpdateRate rangingUpdateRate = BleRangingUpdateRate.normal;
   String? status;
 
   bool _disposed = false;
@@ -149,6 +165,8 @@ class BleExplorerController extends ChangeNotifier {
   }
 
   bool get connected => connectionState == BlueConnectionState.connected;
+
+  bool get ranging => _rangingSession != null;
 
   Future<void> toggleScan() {
     return scanning ? stopScan() : startScan();
@@ -243,6 +261,7 @@ class BleExplorerController extends ChangeNotifier {
         previousDeviceId != null &&
         (connecting || connectionState != BlueConnectionState.disconnected);
     _connectionAttempt++;
+    await stopRanging();
     if (shouldReleasePrevious) {
       _connectionRelease = _connectionRelease.then(
         (_) => _releaseDeviceConnection(previousDeviceId),
@@ -255,14 +274,26 @@ class BleExplorerController extends ChangeNotifier {
     final device = QuickBlue.device(deviceId);
     _connectionSubscription = device.connectionStateStream.listen(
       (event) {
+        final stoppedUnexpectedly =
+            event.state == BlueConnectionState.disconnected && ranging;
+        final releaseRangingSession = stoppedUnexpectedly
+            ? _releaseRangingSession()
+            : null;
         _mutate(() {
           connectionState = event.state;
           status = 'Connection ${event.state.value} (${event.status.name}).';
           _log(status!, BleEventSeverity.info);
           if (event.state == BlueConnectionState.disconnected) {
             _clearGattState(disposeControllers: true);
+            _clearRangingState();
           }
         });
+        if (releaseRangingSession != null) {
+          _reportCancelError(
+            'while stopping ranging after device disconnect',
+            releaseRangingSession,
+          );
+        }
       },
       onError: (Object error) {
         _setError('Connection state failed', error);
@@ -275,6 +306,7 @@ class BleExplorerController extends ChangeNotifier {
       discovering = false;
       connectionState = BlueConnectionState.disconnected;
       _clearGattState(disposeControllers: false);
+      _clearRangingState();
       status = 'Selected ${deviceTitle(deviceId)}.';
       _log(status!, BleEventSeverity.info);
     });
@@ -312,6 +344,9 @@ class BleExplorerController extends ChangeNotifier {
           connecting = false;
         });
         await _discoverServices(deviceId);
+        if (_isCurrentConnectionAttempt(deviceId, attempt) && connected) {
+          await refreshRangingCapabilities();
+        }
       }
     } on TimeoutException {
       if (_isCurrentConnectionAttempt(deviceId, attempt)) {
@@ -343,6 +378,7 @@ class BleExplorerController extends ChangeNotifier {
     }
 
     try {
+      await stopRanging();
       await QuickBlue.device(deviceId).disconnect();
       _mutate(() {
         _clearGattState(disposeControllers: true);
@@ -361,6 +397,186 @@ class BleExplorerController extends ChangeNotifier {
     }
 
     await _discoverServices(deviceId);
+  }
+
+  Future<void> refreshRangingCapabilities() async {
+    final deviceId = selectedDeviceId;
+    if (deviceId == null ||
+        !connected ||
+        checkingRangingCapabilities ||
+        ranging) {
+      return;
+    }
+
+    _mutate(() {
+      checkingRangingCapabilities = true;
+      status = 'Checking Channel Sounding support...';
+    });
+
+    try {
+      final capabilities = await QuickBlue.device(
+        deviceId,
+      ).rangingCapabilities();
+      if (selectedDeviceId != deviceId || !connected) {
+        return;
+      }
+      _mutate(() {
+        rangingCapabilities = capabilities;
+        requestRangingDirection =
+            requestRangingDirection && capabilities.supportsDirection;
+        status = capabilities.isAvailable
+            ? 'This device supports Channel Sounding; '
+                  'peer support is unverified.'
+            : 'Channel Sounding is ${capabilities.availability.name}.';
+        _log(status!, BleEventSeverity.info);
+      });
+    } catch (error) {
+      if (selectedDeviceId == deviceId) {
+        _setError('Ranging capability check failed', error);
+      }
+    } finally {
+      if (selectedDeviceId == deviceId) {
+        _mutate(() {
+          checkingRangingCapabilities = false;
+        });
+      }
+    }
+  }
+
+  Future<void> startRanging() async {
+    final deviceId = selectedDeviceId;
+    if (deviceId == null || !connected || startingRanging || ranging) {
+      return;
+    }
+
+    var capabilities = rangingCapabilities;
+    if (capabilities == null) {
+      await refreshRangingCapabilities();
+      capabilities = rangingCapabilities;
+    }
+    if (capabilities == null || !capabilities.isAvailable) {
+      _mutate(() {
+        message =
+            'Channel Sounding is not available: '
+            '${capabilities?.availability.name ?? 'unknown'}.';
+        status = 'Ranging unavailable.';
+        _log(message!, BleEventSeverity.warning);
+      });
+      return;
+    }
+
+    _mutate(() {
+      startingRanging = true;
+      latestRangingMeasurement = null;
+      status = 'Starting Channel Sounding...';
+    });
+
+    try {
+      final permissionGranted = await _requestRangingPermission();
+      if (!permissionGranted) {
+        throw StateError('Android ranging permission was denied.');
+      }
+      final session = await QuickBlue.device(deviceId).startRanging(
+        options: BleRangingOptions(
+          requestDirection:
+              requestRangingDirection && capabilities.supportsDirection,
+          updateRate: rangingUpdateRate,
+        ),
+      );
+      if (selectedDeviceId != deviceId || !connected) {
+        await session.stop();
+        return;
+      }
+
+      late final StreamSubscription<BleRangingMeasurement> subscription;
+      subscription = session.measurements.listen(
+        (measurement) {
+          if (_rangingSession != session) {
+            return;
+          }
+          _mutate(() {
+            latestRangingMeasurement = measurement;
+            status = measurement.distanceMeters == null
+                ? 'Ranging update received.'
+                : 'Distance ${measurement.distanceMeters!.toStringAsFixed(2)} m.';
+          });
+        },
+        onError: (Object error) {
+          if (_rangingSession == session) {
+            final releaseRangingSession = _releaseRangingSession();
+            _setRangingError(error);
+            _reportCancelError(
+              'while stopping a failed ranging session',
+              releaseRangingSession,
+            );
+          }
+        },
+        onDone: () {
+          if (_rangingSession == session) {
+            _mutate(() {
+              _rangingSession = null;
+              _rangingSubscription = null;
+              status = 'Ranging stopped.';
+            });
+          }
+        },
+      );
+      _mutate(() {
+        _rangingSession = session;
+        _rangingSubscription = subscription;
+        status = 'Channel Sounding started.';
+        _log(
+          'Started Channel Sounding for ${deviceTitle(deviceId)}.',
+          BleEventSeverity.info,
+        );
+      });
+    } catch (error) {
+      if (selectedDeviceId == deviceId) {
+        _setError('Start ranging failed', error);
+      }
+    } finally {
+      if (selectedDeviceId == deviceId) {
+        _mutate(() {
+          startingRanging = false;
+        });
+      }
+    }
+  }
+
+  Future<void> stopRanging() async {
+    if (!ranging) {
+      return;
+    }
+
+    try {
+      await _releaseRangingSession();
+      _mutate(() {
+        status = 'Ranging stopped.';
+        _log('Stopped Channel Sounding.', BleEventSeverity.info);
+      });
+    } catch (error) {
+      _setError('Stop ranging failed', error);
+    }
+  }
+
+  void setRangingUpdateRate(BleRangingUpdateRate rate) {
+    if (ranging || startingRanging) {
+      return;
+    }
+    _mutate(() {
+      rangingUpdateRate = rate;
+    });
+  }
+
+  void setRequestRangingDirection(bool enabled) {
+    if (ranging ||
+        startingRanging ||
+        rangingCapabilities?.supportsDirection != true) {
+      return;
+    }
+    _mutate(() {
+      requestRangingDirection = enabled;
+    });
   }
 
   Future<void> _discoverServices(String deviceId) async {
@@ -685,6 +901,15 @@ class BleExplorerController extends ChangeNotifier {
     await subscription?.cancel();
   }
 
+  Future<void> _releaseRangingSession() async {
+    final subscription = _rangingSubscription;
+    final session = _rangingSession;
+    _rangingSubscription = null;
+    _rangingSession = null;
+    await subscription?.cancel();
+    await session?.stop();
+  }
+
   void _setScanOptionError(String text) {
     _mutate(() {
       message = 'Invalid scan option: $text';
@@ -847,10 +1072,32 @@ class BleExplorerController extends ChangeNotifier {
     _gattSession.clear(disposeControllers: disposeControllers);
   }
 
+  void _clearRangingState() {
+    rangingCapabilities = null;
+    latestRangingMeasurement = null;
+    checkingRangingCapabilities = false;
+    startingRanging = false;
+    requestRangingDirection = false;
+  }
+
   void _setError(String label, Object error) {
     _mutate(() {
       message = '$label: $error';
       status = '$label.';
+      _log(message!, BleEventSeverity.error);
+    });
+  }
+
+  void _setRangingError(Object error) {
+    _mutate(() {
+      message = 'Ranging failed: $error';
+      status =
+          error is QuickBlueException &&
+              error.code == QuickBlueErrorCode.unsupported
+          ? 'Peer or ranging parameters are unsupported.'
+          : error is QuickBlueException
+          ? error.message
+          : 'Ranging failed.';
       _log(message!, BleEventSeverity.error);
     });
   }
@@ -910,6 +1157,10 @@ class BleExplorerController extends ChangeNotifier {
     _reportCancelError(
       'while canceling BLE notification subscriptions',
       _gattSession.cancelNotifications(),
+    );
+    _reportCancelError(
+      'while stopping BLE ranging session',
+      _releaseRangingSession(),
     );
     _gattSession.disposeWriteControllers();
     _scanConfiguration.dispose();

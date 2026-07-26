@@ -207,6 +207,27 @@ enum PlatformBluetoothState: Int, CaseIterable {
   case poweredOn = 4
 }
 
+enum PlatformRangingAvailability: Int, CaseIterable {
+  case available = 0
+  case unsupported = 1
+  case disabledByUser = 2
+  case disabledByRegulation = 3
+  case restricted = 4
+}
+
+enum PlatformRangingUpdateRate: Int, CaseIterable {
+  case infrequent = 0
+  case normal = 1
+  case frequent = 2
+}
+
+enum PlatformRangingConfidence: Int, CaseIterable {
+  case unknown = 0
+  case low = 1
+  case medium = 2
+  case high = 3
+}
+
 enum PlatformConnectionState: Int, CaseIterable {
   case disconnected = 0
   case connecting = 1
@@ -218,6 +239,156 @@ enum PlatformConnectionState: Int, CaseIterable {
 enum PlatformGattStatus: Int, CaseIterable {
   case success = 0
   case failure = 1
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformRangingCapabilities: Hashable, CustomStringConvertible {
+  var availability: PlatformRangingAvailability
+  var supportsDirection: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformRangingCapabilities? {
+    let availability = pigeonVar_list[0] as! PlatformRangingAvailability
+    let supportsDirection = pigeonVar_list[1] as! Bool
+
+    return PlatformRangingCapabilities(
+      availability: availability,
+      supportsDirection: supportsDirection
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      availability,
+      supportsDirection,
+    ]
+  }
+  static func == (lhs: PlatformRangingCapabilities, rhs: PlatformRangingCapabilities) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.availability, rhs.availability) && MessagesPigeonInternal.deepEquals(lhs.supportsDirection, rhs.supportsDirection)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformRangingCapabilities")
+    MessagesPigeonInternal.deepHash(value: availability, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: supportsDirection, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformRangingCapabilities(availability: \(String(describing: availability)), supportsDirection: \(String(describing: supportsDirection)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformRangingOptions: Hashable, CustomStringConvertible {
+  var requestDirection: Bool
+  var updateRate: PlatformRangingUpdateRate
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformRangingOptions? {
+    let requestDirection = pigeonVar_list[0] as! Bool
+    let updateRate = pigeonVar_list[1] as! PlatformRangingUpdateRate
+
+    return PlatformRangingOptions(
+      requestDirection: requestDirection,
+      updateRate: updateRate
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      requestDirection,
+      updateRate,
+    ]
+  }
+  static func == (lhs: PlatformRangingOptions, rhs: PlatformRangingOptions) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.requestDirection, rhs.requestDirection) && MessagesPigeonInternal.deepEquals(lhs.updateRate, rhs.updateRate)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformRangingOptions")
+    MessagesPigeonInternal.deepHash(value: requestDirection, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: updateRate, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformRangingOptions(requestDirection: \(String(describing: requestDirection)), updateRate: \(String(describing: updateRate)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformRangingMeasurement: Hashable, CustomStringConvertible {
+  var deviceId: String
+  var distanceMeters: Double? = nil
+  var azimuthDegrees: Double? = nil
+  var elevationDegrees: Double? = nil
+  var rssi: Int64? = nil
+  var distanceConfidence: PlatformRangingConfidence
+  var azimuthConfidence: PlatformRangingConfidence
+  var elevationConfidence: PlatformRangingConfidence
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformRangingMeasurement? {
+    let deviceId = pigeonVar_list[0] as! String
+    let distanceMeters: Double? = nilOrValue(pigeonVar_list[1])
+    let azimuthDegrees: Double? = nilOrValue(pigeonVar_list[2])
+    let elevationDegrees: Double? = nilOrValue(pigeonVar_list[3])
+    let rssi: Int64? = nilOrValue(pigeonVar_list[4])
+    let distanceConfidence = pigeonVar_list[5] as! PlatformRangingConfidence
+    let azimuthConfidence = pigeonVar_list[6] as! PlatformRangingConfidence
+    let elevationConfidence = pigeonVar_list[7] as! PlatformRangingConfidence
+
+    return PlatformRangingMeasurement(
+      deviceId: deviceId,
+      distanceMeters: distanceMeters,
+      azimuthDegrees: azimuthDegrees,
+      elevationDegrees: elevationDegrees,
+      rssi: rssi,
+      distanceConfidence: distanceConfidence,
+      azimuthConfidence: azimuthConfidence,
+      elevationConfidence: elevationConfidence
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      deviceId,
+      distanceMeters,
+      azimuthDegrees,
+      elevationDegrees,
+      rssi,
+      distanceConfidence,
+      azimuthConfidence,
+      elevationConfidence,
+    ]
+  }
+  static func == (lhs: PlatformRangingMeasurement, rhs: PlatformRangingMeasurement) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.distanceMeters, rhs.distanceMeters) && MessagesPigeonInternal.deepEquals(lhs.azimuthDegrees, rhs.azimuthDegrees) && MessagesPigeonInternal.deepEquals(lhs.elevationDegrees, rhs.elevationDegrees) && MessagesPigeonInternal.deepEquals(lhs.rssi, rhs.rssi) && MessagesPigeonInternal.deepEquals(lhs.distanceConfidence, rhs.distanceConfidence) && MessagesPigeonInternal.deepEquals(lhs.azimuthConfidence, rhs.azimuthConfidence) && MessagesPigeonInternal.deepEquals(lhs.elevationConfidence, rhs.elevationConfidence)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformRangingMeasurement")
+    MessagesPigeonInternal.deepHash(value: deviceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: distanceMeters, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: azimuthDegrees, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: elevationDegrees, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: rssi, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: distanceConfidence, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: azimuthConfidence, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: elevationConfidence, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformRangingMeasurement(deviceId: \(String(describing: deviceId)), distanceMeters: \(String(describing: distanceMeters)), azimuthDegrees: \(String(describing: azimuthDegrees)), elevationDegrees: \(String(describing: elevationDegrees)), rssi: \(String(describing: rssi)), distanceConfidence: \(String(describing: distanceConfidence)), azimuthConfidence: \(String(describing: azimuthConfidence)), elevationConfidence: \(String(describing: elevationConfidence)))"
+  }
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
@@ -909,40 +1080,64 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 132:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return PlatformConnectionState(rawValue: enumResultAsInt)
+        return PlatformRangingAvailability(rawValue: enumResultAsInt)
       }
       return nil
     case 133:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return PlatformGattStatus(rawValue: enumResultAsInt)
+        return PlatformRangingUpdateRate(rawValue: enumResultAsInt)
       }
       return nil
     case 134:
-      return PlatformDarwinScanOptions.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PlatformRangingConfidence(rawValue: enumResultAsInt)
+      }
+      return nil
     case 135:
-      return PlatformDarwinConfiguration.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PlatformConnectionState(rawValue: enumResultAsInt)
+      }
+      return nil
     case 136:
-      return PlatformDarwinRestorationEvent.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PlatformGattStatus(rawValue: enumResultAsInt)
+      }
+      return nil
     case 137:
-      return PlatformAppleAccessoryDiscovery.fromList(self.readValue() as! [Any?])
+      return PlatformRangingCapabilities.fromList(self.readValue() as! [Any?])
     case 138:
-      return PlatformAppleAccessoryPickerItem.fromList(self.readValue() as! [Any?])
+      return PlatformRangingOptions.fromList(self.readValue() as! [Any?])
     case 139:
-      return PlatformAppleAccessory.fromList(self.readValue() as! [Any?])
+      return PlatformRangingMeasurement.fromList(self.readValue() as! [Any?])
     case 140:
-      return Peripheral.fromList(self.readValue() as! [Any?])
+      return PlatformDarwinScanOptions.fromList(self.readValue() as! [Any?])
     case 141:
-      return PlatformScanResult.fromList(self.readValue() as! [Any?])
+      return PlatformDarwinConfiguration.fromList(self.readValue() as! [Any?])
     case 142:
-      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
+      return PlatformDarwinRestorationEvent.fromList(self.readValue() as! [Any?])
     case 143:
-      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
+      return PlatformAppleAccessoryDiscovery.fromList(self.readValue() as! [Any?])
     case 144:
-      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
+      return PlatformAppleAccessoryPickerItem.fromList(self.readValue() as! [Any?])
     case 145:
-      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+      return PlatformAppleAccessory.fromList(self.readValue() as! [Any?])
     case 146:
+      return Peripheral.fromList(self.readValue() as! [Any?])
+    case 147:
+      return PlatformScanResult.fromList(self.readValue() as! [Any?])
+    case 148:
+      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
+    case 149:
+      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
+    case 150:
+      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
+    case 151:
+      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+    case 152:
       return PlatformL2CapSocketEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -961,50 +1156,68 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PlatformBluetoothState {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? PlatformConnectionState {
+    } else if let value = value as? PlatformRangingAvailability {
       super.writeByte(132)
       super.writeValue(value.rawValue)
-    } else if let value = value as? PlatformGattStatus {
+    } else if let value = value as? PlatformRangingUpdateRate {
       super.writeByte(133)
       super.writeValue(value.rawValue)
-    } else if let value = value as? PlatformDarwinScanOptions {
+    } else if let value = value as? PlatformRangingConfidence {
       super.writeByte(134)
-      super.writeValue(value.toList())
-    } else if let value = value as? PlatformDarwinConfiguration {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? PlatformConnectionState {
       super.writeByte(135)
-      super.writeValue(value.toList())
-    } else if let value = value as? PlatformDarwinRestorationEvent {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? PlatformGattStatus {
       super.writeByte(136)
-      super.writeValue(value.toList())
-    } else if let value = value as? PlatformAppleAccessoryDiscovery {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? PlatformRangingCapabilities {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformAppleAccessoryPickerItem {
+    } else if let value = value as? PlatformRangingOptions {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformAppleAccessory {
+    } else if let value = value as? PlatformRangingMeasurement {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? Peripheral {
+    } else if let value = value as? PlatformDarwinScanOptions {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformScanResult {
+    } else if let value = value as? PlatformDarwinConfiguration {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformConnectionStateChange {
+    } else if let value = value as? PlatformDarwinRestorationEvent {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformServiceDiscovered {
+    } else if let value = value as? PlatformAppleAccessoryDiscovery {
       super.writeByte(143)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristic {
+    } else if let value = value as? PlatformAppleAccessoryPickerItem {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristicValueChanged {
+    } else if let value = value as? PlatformAppleAccessory {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformL2CapSocketEvent {
+    } else if let value = value as? Peripheral {
       super.writeByte(146)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformScanResult {
+      super.writeByte(147)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformConnectionStateChange {
+      super.writeByte(148)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformServiceDiscovered {
+      super.writeByte(149)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformCharacteristic {
+      super.writeByte(150)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformCharacteristicValueChanged {
+      super.writeByte(151)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformL2CapSocketEvent {
+      super.writeByte(152)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1040,6 +1253,9 @@ protocol QuickBlueApi {
   func isBluetoothAvailable() throws -> Bool
   func startScan(serviceUuids: [String]?, manufacturerData: [Int64: FlutterStandardTypedData]?, rssi: Int64?, options: PlatformDarwinScanOptions?) throws
   func stopScan() throws
+  func getRangingCapabilities(completion: @escaping (Result<PlatformRangingCapabilities, Error>) -> Void)
+  func startRanging(deviceId: String, options: PlatformRangingOptions) throws
+  func stopRanging(deviceId: String) throws
   func connect(deviceId: String) throws
   func disconnect(deviceId: String) throws
   func discoverServices(deviceId: String) throws
@@ -1193,6 +1409,52 @@ class QuickBlueApiSetup {
       }
     } else {
       stopScanChannel.setMessageHandler(nil)
+    }
+    let getRangingCapabilitiesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.getRangingCapabilities\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getRangingCapabilitiesChannel.setMessageHandler { _, reply in
+        api.getRangingCapabilities { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getRangingCapabilitiesChannel.setMessageHandler(nil)
+    }
+    let startRangingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.startRanging\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      startRangingChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        let optionsArg = args[1] as! PlatformRangingOptions
+        do {
+          try api.startRanging(deviceId: deviceIdArg, options: optionsArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      startRangingChannel.setMessageHandler(nil)
+    }
+    let stopRangingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.stopRanging\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      stopRangingChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        do {
+          try api.stopRanging(deviceId: deviceIdArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      stopRangingChannel.setMessageHandler(nil)
     }
     let connectChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.connect\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -1477,6 +1739,8 @@ protocol QuickBlueFlutterApiProtocol {
   func onServiceDiscovered(serviceDiscovered serviceDiscoveredArg: PlatformServiceDiscovered, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onServiceDiscoveryComplete(deviceId deviceIdArg: String, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onCharacteristicValueChanged(valueChanged valueChangedArg: PlatformCharacteristicValueChanged, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func onRangingMeasurement(measurement measurementArg: PlatformRangingMeasurement, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func onRangingError(deviceId deviceIdArg: String, code codeArg: String, message messageArg: String, nativeReason nativeReasonArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
 class QuickBlueFlutterApi: QuickBlueFlutterApiProtocol {
   private let binaryMessenger: FlutterBinaryMessenger
@@ -1546,6 +1810,42 @@ class QuickBlueFlutterApi: QuickBlueFlutterApiProtocol {
     let channelName: String = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onCharacteristicValueChanged\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([valueChangedArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        completion(.success(()))
+      }
+    }
+  }
+  func onRangingMeasurement(measurement measurementArg: PlatformRangingMeasurement, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onRangingMeasurement\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage([measurementArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        completion(.success(()))
+      }
+    }
+  }
+  func onRangingError(deviceId deviceIdArg: String, code codeArg: String, message messageArg: String, nativeReason nativeReasonArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onRangingError\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage([deviceIdArg, codeArg, messageArg, nativeReasonArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

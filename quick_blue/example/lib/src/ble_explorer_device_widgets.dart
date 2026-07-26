@@ -116,17 +116,19 @@ class _CheckboxRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     required this.label,
+    this.enabled = true,
   });
 
   final bool value;
   final ValueChanged<bool> onChanged;
   final String label;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(6),
-      onTap: () => onChanged(!value),
+      onTap: enabled ? () => onChanged(!value) : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
@@ -134,7 +136,9 @@ class _CheckboxRow extends StatelessWidget {
           children: [
             Checkbox(
               value: value,
-              onChanged: (nextValue) => onChanged(nextValue ?? false),
+              onChanged: enabled
+                  ? (nextValue) => onChanged(nextValue ?? false)
+                  : null,
               visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
@@ -156,6 +160,13 @@ class _DevicePane extends StatelessWidget {
     required this.connectionState,
     required this.connecting,
     required this.discovering,
+    required this.checkingRangingCapabilities,
+    required this.startingRanging,
+    required this.ranging,
+    required this.rangingCapabilities,
+    required this.rangingMeasurement,
+    required this.rangingUpdateRate,
+    required this.requestRangingDirection,
     required this.services,
     required this.latestValues,
     required this.notificationKeys,
@@ -163,6 +174,11 @@ class _DevicePane extends StatelessWidget {
     required this.onConnect,
     required this.onDisconnect,
     required this.onDiscoverServices,
+    required this.onRefreshRangingCapabilities,
+    required this.onStartRanging,
+    required this.onStopRanging,
+    required this.onRangingUpdateRateChanged,
+    required this.onRequestRangingDirectionChanged,
     required this.onRead,
     required this.onWrite,
     required this.onToggleNotify,
@@ -176,6 +192,13 @@ class _DevicePane extends StatelessWidget {
   final BlueConnectionState connectionState;
   final bool connecting;
   final bool discovering;
+  final bool checkingRangingCapabilities;
+  final bool startingRanging;
+  final bool ranging;
+  final BleRangingCapabilities? rangingCapabilities;
+  final BleRangingMeasurement? rangingMeasurement;
+  final BleRangingUpdateRate rangingUpdateRate;
+  final bool requestRangingDirection;
   final List<BluetoothService> services;
   final Map<String, Uint8List> latestValues;
   final Set<String> notificationKeys;
@@ -183,6 +206,11 @@ class _DevicePane extends StatelessWidget {
   final DeviceActionCallback onConnect;
   final DeviceActionCallback onDisconnect;
   final DeviceActionCallback onDiscoverServices;
+  final DeviceActionCallback onRefreshRangingCapabilities;
+  final DeviceActionCallback onStartRanging;
+  final DeviceActionCallback onStopRanging;
+  final ValueChanged<BleRangingUpdateRate> onRangingUpdateRateChanged;
+  final ValueChanged<bool> onRequestRangingDirectionChanged;
   final CharacteristicActionCallback onRead;
   final CharacteristicActionCallback onWrite;
   final CharacteristicActionCallback onToggleNotify;
@@ -305,6 +333,22 @@ class _DevicePane extends StatelessWidget {
           ),
         ),
         const Divider(height: 1),
+        _RangingPanel(
+          connected: _connected,
+          checkingCapabilities: checkingRangingCapabilities,
+          starting: startingRanging,
+          ranging: ranging,
+          capabilities: rangingCapabilities,
+          measurement: rangingMeasurement,
+          updateRate: rangingUpdateRate,
+          requestDirection: requestRangingDirection,
+          onRefreshCapabilities: onRefreshRangingCapabilities,
+          onStart: onStartRanging,
+          onStop: onStopRanging,
+          onUpdateRateChanged: onRangingUpdateRateChanged,
+          onRequestDirectionChanged: onRequestRangingDirectionChanged,
+        ),
+        const Divider(height: 1),
         Expanded(
           child: services.isEmpty
               ? _EmptyState(
@@ -335,6 +379,222 @@ class _DevicePane extends StatelessWidget {
       ],
     );
   }
+}
+
+class _RangingPanel extends StatelessWidget {
+  const _RangingPanel({
+    required this.connected,
+    required this.checkingCapabilities,
+    required this.starting,
+    required this.ranging,
+    required this.capabilities,
+    required this.measurement,
+    required this.updateRate,
+    required this.requestDirection,
+    required this.onRefreshCapabilities,
+    required this.onStart,
+    required this.onStop,
+    required this.onUpdateRateChanged,
+    required this.onRequestDirectionChanged,
+  });
+
+  final bool connected;
+  final bool checkingCapabilities;
+  final bool starting;
+  final bool ranging;
+  final BleRangingCapabilities? capabilities;
+  final BleRangingMeasurement? measurement;
+  final BleRangingUpdateRate updateRate;
+  final bool requestDirection;
+  final DeviceActionCallback onRefreshCapabilities;
+  final DeviceActionCallback onStart;
+  final DeviceActionCallback onStop;
+  final ValueChanged<BleRangingUpdateRate> onUpdateRateChanged;
+  final ValueChanged<bool> onRequestDirectionChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final capabilities = this.capabilities;
+    final supportsDirection = capabilities?.supportsDirection == true;
+    final canStart =
+        connected &&
+        capabilities?.isAvailable == true &&
+        !checkingCapabilities &&
+        !starting;
+    final status = !connected
+        ? 'Connect to check support.'
+        : checkingCapabilities
+        ? 'Checking local capabilities…'
+        : capabilities == null
+        ? 'Support has not been checked.'
+        : capabilities.isAvailable
+        ? supportsDirection
+              ? 'This device supports distance and direction; '
+                    'peer support unverified.'
+              : 'This device supports Channel Sounding; '
+                    'peer support unverified.'
+        : 'Unavailable: ${capabilities.availability.name}.';
+
+    return ExpansionTile(
+      key: const ValueKey('ble_ranging_panel'),
+      initiallyExpanded: true,
+      leading: const Icon(Icons.radar),
+      title: const Text('Channel Sounding'),
+      subtitle: Text(status),
+      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 200,
+                child: DropdownButtonFormField<BleRangingUpdateRate>(
+                  key: const ValueKey('ble_ranging_update_rate'),
+                  isExpanded: true,
+                  initialValue: updateRate,
+                  decoration: const InputDecoration(
+                    labelText: 'Update rate',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (final rate in BleRangingUpdateRate.values)
+                      DropdownMenuItem(
+                        value: rate,
+                        child: Text(_rangingUpdateRateLabel(rate)),
+                      ),
+                  ],
+                  onChanged: ranging || starting
+                      ? null
+                      : (rate) {
+                          if (rate != null) {
+                            onUpdateRateChanged(rate);
+                          }
+                        },
+                ),
+              ),
+              _CheckboxRow(
+                value: requestDirection,
+                onChanged: onRequestDirectionChanged,
+                label: 'Direction',
+                enabled: supportsDirection && !ranging && !starting,
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('ble_ranging_refresh_button'),
+                onPressed:
+                    connected && !checkingCapabilities && !ranging && !starting
+                    ? onRefreshCapabilities
+                    : null,
+                icon: checkingCapabilities
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                label: const Text('Check support'),
+              ),
+              FilledButton.icon(
+                key: const ValueKey('ble_ranging_toggle_button'),
+                onPressed: ranging
+                    ? onStop
+                    : canStart
+                    ? onStart
+                    : null,
+                icon: starting
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(ranging ? Icons.stop : Icons.play_arrow),
+                label: Text(
+                  starting
+                      ? 'Starting'
+                      : ranging
+                      ? 'Stop ranging'
+                      : 'Start ranging',
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (ranging && measurement == null)
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Waiting for the first measurement…'),
+          )
+        else if (measurement != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              key: const ValueKey('ble_ranging_measurement'),
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _MeasurementChip(
+                  label: 'Distance',
+                  value: measurement!.distanceMeters == null
+                      ? '—'
+                      : '${measurement!.distanceMeters!.toStringAsFixed(2)} m',
+                  confidence: measurement!.distanceConfidence,
+                ),
+                if (measurement!.azimuthDegrees != null)
+                  _MeasurementChip(
+                    label: 'Azimuth',
+                    value:
+                        '${measurement!.azimuthDegrees!.toStringAsFixed(1)}°',
+                    confidence: measurement!.azimuthConfidence,
+                  ),
+                if (measurement!.elevationDegrees != null)
+                  _MeasurementChip(
+                    label: 'Elevation',
+                    value:
+                        '${measurement!.elevationDegrees!.toStringAsFixed(1)}°',
+                    confidence: measurement!.elevationConfidence,
+                  ),
+                if (measurement!.rssi != null)
+                  _MeasurementChip(
+                    label: 'RSSI',
+                    value: '${measurement!.rssi} dBm',
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MeasurementChip extends StatelessWidget {
+  const _MeasurementChip({
+    required this.label,
+    required this.value,
+    this.confidence = BleRangingConfidence.unknown,
+  });
+
+  final String label;
+  final String value;
+  final BleRangingConfidence confidence;
+
+  @override
+  Widget build(BuildContext context) {
+    final confidenceLabel = confidence == BleRangingConfidence.unknown
+        ? ''
+        : ' · ${confidence.name} confidence';
+    return Chip(label: Text('$label: $value$confidenceLabel'));
+  }
+}
+
+String _rangingUpdateRateLabel(BleRangingUpdateRate rate) {
+  return switch (rate) {
+    BleRangingUpdateRate.infrequent => 'Infrequent',
+    BleRangingUpdateRate.normal => 'Normal',
+    BleRangingUpdateRate.frequent => 'Frequent',
+  };
 }
 
 class _ServiceTile extends StatelessWidget {

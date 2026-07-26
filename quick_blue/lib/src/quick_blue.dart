@@ -6,6 +6,13 @@ import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
 export 'package:quick_blue_platform_interface/models.dart';
 export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart'
     show
+        BleRangingAvailability,
+        BleRangingCapabilities,
+        BleRangingConfidence,
+        BleRangingMeasurement,
+        BleRangingOptions,
+        BleRangingSession,
+        BleRangingUpdateRate,
         BluetoothCharacteristic,
         BluetoothDevice,
         BluetoothGatt,

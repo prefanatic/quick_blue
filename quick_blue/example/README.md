@@ -2,6 +2,32 @@
 
 Demonstrates how to use the quick_blue plugin.
 
+## Channel Sounding
+
+The device detail pane includes a Channel Sounding panel on supported Android
+and iOS devices. Scan for a peripheral, select it, and connect. The example
+checks the local device's ranging capabilities after service discovery and
+enables **Start ranging** when Channel Sounding is locally available. Android
+does not verify peer support during this check; the peer and session parameters
+are validated when the session starts.
+
+On Android 16 or newer, the first session requests the system `RANGING`
+permission. The Android phone acts as the Channel Sounding initiator, so a
+second Bluetooth LE device with Channel Sounding reflector support is required
+to receive distance measurements. A connected phone by itself is sufficient to
+verify that the app builds, launches, requests permission, and reports
+capability status, but not to produce a distance.
+
+Run the explorer on a connected Android device:
+
+```sh
+flutter run -d ANDROID_DEVICE
+```
+
+The panel lets you select the measurement update rate and, when supported by
+the platform and peer, request direction measurements. Distance, confidence,
+RSSI, and available azimuth/elevation values update in place.
+
 ## BLE smoke test
 
 The integration smoke test scans for nearby BLE advertisements, tries to connect

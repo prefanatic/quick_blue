@@ -36,6 +36,60 @@ enum PlatformAndroidScanNumOfMatches { one, few, max }
 
 enum PlatformAndroidScanPhy { le1m, leCoded, allSupported }
 
+enum PlatformRangingAvailability {
+  available,
+  unsupported,
+  disabledByUser,
+  disabledByRegulation,
+  restricted,
+}
+
+enum PlatformRangingUpdateRate { infrequent, normal, frequent }
+
+enum PlatformRangingConfidence { unknown, low, medium, high }
+
+class PlatformRangingCapabilities {
+  PlatformRangingCapabilities({
+    required this.availability,
+    required this.supportsDirection,
+  });
+
+  final PlatformRangingAvailability availability;
+  final bool supportsDirection;
+}
+
+class PlatformRangingOptions {
+  PlatformRangingOptions({
+    required this.requestDirection,
+    required this.updateRate,
+  });
+
+  final bool requestDirection;
+  final PlatformRangingUpdateRate updateRate;
+}
+
+class PlatformRangingMeasurement {
+  PlatformRangingMeasurement({
+    required this.deviceId,
+    this.distanceMeters,
+    this.azimuthDegrees,
+    this.elevationDegrees,
+    this.rssi,
+    required this.distanceConfidence,
+    required this.azimuthConfidence,
+    required this.elevationConfidence,
+  });
+
+  final String deviceId;
+  final double? distanceMeters;
+  final double? azimuthDegrees;
+  final double? elevationDegrees;
+  final int? rssi;
+  final PlatformRangingConfidence distanceConfidence;
+  final PlatformRangingConfidence azimuthConfidence;
+  final PlatformRangingConfidence elevationConfidence;
+}
+
 class PlatformAndroidScanOptions {
   PlatformAndroidScanOptions({
     required this.scanMode,
@@ -105,6 +159,10 @@ abstract class QuickBlueApi {
     PlatformAndroidScanOptions? options,
   });
   void stopScan();
+  @async
+  PlatformRangingCapabilities getRangingCapabilities();
+  void startRanging(String deviceId, PlatformRangingOptions options);
+  void stopRanging(String deviceId);
   List<String> connectedDeviceIds(List<String> serviceUuids);
   void connect(String deviceId);
   void disconnect(String deviceId);
@@ -291,5 +349,12 @@ abstract class QuickBlueFlutterApi {
   void onServiceDiscoveryComplete(String deviceId);
   void onCharacteristicValueChanged(
     PlatformCharacteristicValueChanged valueChanged,
+  );
+  void onRangingMeasurement(PlatformRangingMeasurement measurement);
+  void onRangingError(
+    String deviceId,
+    String code,
+    String message,
+    int? nativeReason,
   );
 }

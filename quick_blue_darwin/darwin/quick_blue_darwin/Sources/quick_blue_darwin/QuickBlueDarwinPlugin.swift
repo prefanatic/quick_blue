@@ -11,6 +11,9 @@ import Foundation
     import UIKit
     #if !targetEnvironment(macCatalyst)
         import AccessorySetupKit
+        #if compiler(>=6.4)
+            import NearbyInteraction
+        #endif
     #endif
 #elseif os(OSX)
     import FlutterMacOS
@@ -714,6 +717,13 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var targetManufacturerData: Data?
     private var targetRssi: Int64?
 
+    #if os(iOS) && !targetEnvironment(macCatalyst) && compiler(>=6.4)
+        @available(iOS 27.0, *)
+        private var nearbyRangingSessions: [String: NISession] = [:]
+        @available(iOS 27.0, *)
+        private var coreBluetoothRangingDeviceIds: Set<String> = []
+    #endif
+
     private func writeKey(_ deviceId: String, _ characteristicId: String)
         -> String
     {
@@ -831,6 +841,55 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             valueChanged: value,
             completion: { _ in }
         )
+    }
+
+    private func emitRangingMeasurement(
+        _ measurement: PlatformRangingMeasurement
+    ) {
+        guard attachedToEngine else { return }
+        flutterApi.onRangingMeasurement(
+            measurement: measurement,
+            completion: { _ in }
+        )
+    }
+
+    private static func emitRangingMeasurement(
+        deviceId: String,
+        measurement: PlatformRangingMeasurement
+    ) {
+        for client in clients(for: deviceId) {
+            client.emitRangingMeasurement(measurement)
+        }
+    }
+
+    private func emitRangingError(
+        deviceId: String,
+        code: String,
+        error: Error
+    ) {
+        guard attachedToEngine else { return }
+        let nativeError = error as NSError
+        flutterApi.onRangingError(
+            deviceId: deviceId,
+            code: code,
+            message: nativeError.localizedDescription,
+            nativeReason: Int64(nativeError.code),
+            completion: { _ in }
+        )
+    }
+
+    private static func emitRangingError(
+        deviceId: String,
+        code: String,
+        error: Error
+    ) {
+        for client in clients(for: deviceId) {
+            client.emitRangingError(
+                deviceId: deviceId,
+                code: code,
+                error: error
+            )
+        }
     }
 
     init(
@@ -1207,6 +1266,163 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         if !Self.managerRegistry.setActive(false, for: self) {
             Self.managerRegistry.managerIfCreated?.stopScan()
         }
+    }
+
+    func getRangingCapabilities(
+        completion: @escaping (
+            Result<PlatformRangingCapabilities, Error>
+        ) -> Void
+    ) {
+        #if os(iOS) && !targetEnvironment(macCatalyst) && compiler(>=6.4)
+            if #available(iOS 27.0, *) {
+                let manager = getManager()
+                guard manager.state == .poweredOn else {
+                    let availability: PlatformRangingAvailability
+                    switch manager.state {
+                    case .poweredOff:
+                        availability = .disabledByUser
+                    case .unsupported:
+                        availability = .unsupported
+                    default:
+                        availability = .restricted
+                    }
+                    completion(
+                        .success(
+                            PlatformRangingCapabilities(
+                                availability: availability,
+                                supportsDirection: false
+                            )
+                        )
+                    )
+                    return
+                }
+                let supportsDistance = CBCentralManager.supports(
+                    .channelSounding
+                )
+                let capabilities = NISession.deviceCapabilities
+                completion(
+                    .success(
+                        PlatformRangingCapabilities(
+                            availability: supportsDistance
+                                ? .available : .unsupported,
+                            supportsDirection:
+                                supportsDistance
+                                && capabilities.supportsBluetoothChannelSounding
+                                && capabilities.supportsCameraAssistance
+                        )
+                    )
+                )
+                return
+            }
+        #endif
+        completion(
+            .success(
+                PlatformRangingCapabilities(
+                    availability: .unsupported,
+                    supportsDirection: false
+                )
+            )
+        )
+    }
+
+    func startRanging(
+        deviceId: String,
+        options: PlatformRangingOptions
+    ) throws {
+        #if os(iOS) && !targetEnvironment(macCatalyst) && compiler(>=6.4)
+            if #available(iOS 27.0, *) {
+                try withHostPeripheral(deviceId) { host, peripheral in
+                    guard peripheral.state == .connected else {
+                        throw PigeonError(
+                            code: "NotConnected",
+                            message:
+                                "Connect to \(deviceId) before starting Channel Sounding.",
+                            details: nil
+                        )
+                    }
+                    guard CBCentralManager.supports(.channelSounding) else {
+                        throw PigeonError(
+                            code: "Unsupported",
+                            message:
+                                "Channel Sounding is not supported on this iPhone.",
+                            details: nil
+                        )
+                    }
+                    guard
+                        host.nearbyRangingSessions[deviceId] == nil,
+                        !host.coreBluetoothRangingDeviceIds.contains(deviceId)
+                    else {
+                        throw PigeonError(
+                            code: "AlreadyActive",
+                            message:
+                                "A Channel Sounding session is already active for \(deviceId).",
+                            details: nil
+                        )
+                    }
+
+                    if options.requestDirection {
+                        let capabilities = NISession.deviceCapabilities
+                        guard
+                            capabilities.supportsBluetoothChannelSounding,
+                            capabilities.supportsCameraAssistance
+                        else {
+                            throw PigeonError(
+                                code: "DirectionUnsupported",
+                                message:
+                                    "Nearby Interaction direction is not supported on this iPhone.",
+                                details: nil
+                            )
+                        }
+                        let configuration = NINearbyAccessoryConfiguration(
+                            bluetoothChannelSoundingIdentifier:
+                                peripheral.identifier,
+                            previousBluetoothIdentifier: nil
+                        )
+                        configuration.isCameraAssistanceEnabled = true
+                        let session = NISession()
+                        session.delegate = host
+                        host.nearbyRangingSessions[deviceId] = session
+                        session.run(configuration)
+                    } else {
+                        host.coreBluetoothRangingDeviceIds.insert(deviceId)
+                        let configuration =
+                            CBChannelSoundingSessionConfiguration(
+                                role: .initiator
+                            )
+                        peripheral.startChannelSoundingSession(configuration)
+                    }
+                }
+                return
+            }
+        #endif
+        throw PigeonError(
+            code: "Unsupported",
+            message:
+                "Bluetooth LE Channel Sounding requires iOS 27 and compatible hardware.",
+            details: nil
+        )
+    }
+
+    func stopRanging(deviceId: String) throws {
+        #if os(iOS) && !targetEnvironment(macCatalyst) && compiler(>=6.4)
+            if #available(iOS 27.0, *) {
+                try withHostPeripheral(deviceId) { host, peripheral in
+                    if let session =
+                        host.nearbyRangingSessions.removeValue(
+                            forKey: deviceId
+                        )
+                    {
+                        session.invalidate()
+                    }
+                    if host.coreBluetoothRangingDeviceIds.remove(deviceId)
+                        != nil
+                    {
+                        peripheral.cancelChannelSoundingSession()
+                    }
+                }
+                return
+            }
+        #endif
     }
 
     func connect(deviceId: String) throws {
@@ -2210,7 +2426,130 @@ extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
             streamDelegates[peripheral.identifier.uuidString] = streamDelegate
         }
     }
+
+    #if os(iOS) && !targetEnvironment(macCatalyst) && compiler(>=6.4)
+        @available(iOS 27.0, *)
+        public func peripheral(
+            _ peripheral: CBPeripheral,
+            didReceive results: CBChannelSoundingProcedureResults?,
+            error: Error?
+        ) {
+            let deviceId = peripheral.identifier.uuidString
+            let isActive = stateQueue.sync {
+                coreBluetoothRangingDeviceIds.contains(deviceId)
+            }
+            guard isActive else { return }
+            if let error {
+                Self.emitRangingError(
+                    deviceId: deviceId,
+                    code: "RangingFailed",
+                    error: error
+                )
+                return
+            }
+            guard let distance = results?.distance, distance > 0 else {
+                return
+            }
+            Self.emitRangingMeasurement(
+                deviceId: deviceId,
+                measurement: PlatformRangingMeasurement(
+                    deviceId: deviceId,
+                    distanceMeters: distance,
+                    azimuthDegrees: nil,
+                    elevationDegrees: nil,
+                    rssi: nil,
+                    distanceConfidence: .unknown,
+                    azimuthConfidence: .unknown,
+                    elevationConfidence: .unknown
+                )
+            )
+        }
+
+        @available(iOS 27.0, *)
+        public func peripheral(
+            _ peripheral: CBPeripheral,
+            didCompleteChannelSoundingSession error: Error?
+        ) {
+            let deviceId = peripheral.identifier.uuidString
+            let wasActive = stateQueue.sync {
+                coreBluetoothRangingDeviceIds.remove(deviceId) != nil
+            }
+            guard wasActive else { return }
+            let completionError =
+                error
+                ?? NSError(
+                    domain: "quick_blue.ranging",
+                    code: 0,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "The Channel Sounding session completed."
+                    ]
+                )
+            Self.emitRangingError(
+                deviceId: deviceId,
+                code: "RangingStopped",
+                error: completionError
+            )
+        }
+    #endif
 }
+
+#if os(iOS) && !targetEnvironment(macCatalyst) && compiler(>=6.4)
+    @available(iOS 27.0, *)
+    extension QuickBlueDarwinPlugin: NISessionDelegate {
+        public func session(
+            _ session: NISession,
+            didUpdate nearbyObjects: [NINearbyObject]
+        ) {
+            let entry = stateQueue.sync {
+                nearbyRangingSessions.first { $0.value === session }
+            }
+            guard
+                let (deviceId, _) = entry,
+                let object = nearbyObjects.last
+            else { return }
+            let distance = object.distance.map(Double.init)
+            let azimuthDegrees = object.horizontalAngle.map {
+                Double($0) * 180 / Double.pi
+            }
+            guard distance != nil || azimuthDegrees != nil else { return }
+            Self.emitRangingMeasurement(
+                deviceId: deviceId,
+                measurement: PlatformRangingMeasurement(
+                    deviceId: deviceId,
+                    distanceMeters: distance,
+                    azimuthDegrees: azimuthDegrees,
+                    elevationDegrees: nil,
+                    rssi: nil,
+                    distanceConfidence: .unknown,
+                    azimuthConfidence: .unknown,
+                    elevationConfidence: .unknown
+                )
+            )
+        }
+
+        public func session(
+            _ session: NISession,
+            didInvalidateWith error: Error
+        ) {
+            let deviceId = stateQueue.sync {
+                guard
+                    let entry = nearbyRangingSessions.first(where: {
+                        $0.value === session
+                    })
+                else { return nil as String? }
+                nearbyRangingSessions.removeValue(forKey: entry.key)
+                return entry.key
+            }
+            guard let deviceId else { return }
+            Self.emitRangingError(
+                deviceId: deviceId,
+                code: "RangingFailed",
+                error: error
+            )
+        }
+    }
+#endif
 
 class L2CapStreamDelegate: NSObject, @preconcurrency StreamDelegate {
     // MARK: - Properties

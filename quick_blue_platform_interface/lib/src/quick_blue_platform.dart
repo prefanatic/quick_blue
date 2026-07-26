@@ -6,6 +6,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import '../models.dart';
 import 'bluetooth_device.dart';
+import 'bluetooth_ranging.dart';
 import 'callbacks.dart';
 import 'characteristic_lifecycle.dart';
 import 'connection_lifecycle.dart';
@@ -208,6 +209,121 @@ abstract class QuickBluePlatform extends PlatformInterface {
   Future<List<BluetoothDevice>> connectedDevices({
     List<String> serviceUuids = const <String>[],
   });
+
+  /// Returns local Bluetooth LE Channel Sounding capabilities.
+  ///
+  /// Platform implementations with public Channel Sounding APIs should
+  /// override this method.
+  Future<BleRangingCapabilities> rangingCapabilities(String deviceId) async {
+    return BleRangingCapabilities.unsupported;
+  }
+
+  /// Starts native initiator-role Channel Sounding for [deviceId].
+  ///
+  /// Platform implementations report measurements through
+  /// [handleRangingMeasurement] and asynchronous failures through
+  /// [handleRangingError].
+  Future<void> startRanging(String deviceId, BleRangingOptions options) {
+    return Future<void>.error(
+      QuickBlueException(
+        code: QuickBlueErrorCode.unsupported,
+        operation: 'startRanging',
+        deviceId: deviceId,
+        message: 'Bluetooth LE Channel Sounding is not supported.',
+      ),
+    );
+  }
+
+  /// Stops native Channel Sounding for [deviceId].
+  Future<void> stopRanging(String deviceId) async {}
+
+  final Map<String, _ActiveRangingSession> _activeRangingSessions =
+      <String, _ActiveRangingSession>{};
+
+  /// Opens one managed Channel Sounding session for [deviceId].
+  Future<BleRangingSession> openRangingSession(
+    String deviceId,
+    BleRangingOptions options,
+  ) async {
+    if (_activeRangingSessions.containsKey(deviceId)) {
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.deviceBusy,
+        operation: 'startRanging',
+        deviceId: deviceId,
+        message: 'A ranging session is already active for $deviceId.',
+      );
+    }
+
+    late final _ActiveRangingSession activeSession;
+    final controller = StreamController<BleRangingMeasurement>(
+      onListen: () {
+        activeSession.hasBeenListened = true;
+      },
+    );
+    final session = BleRangingSession.internal(
+      deviceId: deviceId,
+      measurements: controller.stream,
+      stop: () => _closeRangingSession(deviceId, activeSession),
+    );
+    activeSession = _ActiveRangingSession(controller: controller);
+    _activeRangingSessions[deviceId] = activeSession;
+
+    try {
+      await startRanging(deviceId, options);
+      return session;
+    } on Object {
+      if (identical(_activeRangingSessions[deviceId], activeSession)) {
+        _activeRangingSessions.remove(deviceId);
+      }
+      await _closeRangingStream(activeSession);
+      rethrow;
+    }
+  }
+
+  Future<void> _closeRangingSession(
+    String deviceId,
+    _ActiveRangingSession activeSession,
+  ) async {
+    if (!identical(_activeRangingSessions[deviceId], activeSession)) {
+      return;
+    }
+
+    try {
+      await stopRanging(deviceId);
+    } finally {
+      if (identical(_activeRangingSessions[deviceId], activeSession)) {
+        _activeRangingSessions.remove(deviceId);
+      }
+      await _closeRangingStream(activeSession);
+    }
+  }
+
+  Future<void> _closeRangingStream(_ActiveRangingSession activeSession) async {
+    Future<void>? drainFuture;
+    if (!activeSession.hasBeenListened) {
+      // A single-subscription controller does not finish closing until its
+      // stream has been listened to at least once. Drain buffered events so a
+      // caller can stop a session without first installing a listener.
+      drainFuture = activeSession.controller.stream
+          .handleError((Object _) {})
+          .drain<void>();
+    }
+    await activeSession.controller.close();
+    await drainFuture;
+  }
+
+  /// Reports one native Channel Sounding measurement.
+  void handleRangingMeasurement(BleRangingMeasurement measurement) {
+    _activeRangingSessions[measurement.deviceId]?.controller.add(measurement);
+  }
+
+  /// Reports a native Channel Sounding failure.
+  ///
+  /// The session remains active so the caller can decide whether the failure
+  /// is recoverable. Callers should stop the session after terminal errors.
+  void handleRangingError(String deviceId, QuickBlueException error) {
+    _activeRangingSessions[deviceId]?.controller.addError(error);
+  }
 
   /// Connects to [deviceId].
   Future<void> connect(String deviceId);
@@ -693,4 +809,11 @@ abstract class QuickBluePlatform extends PlatformInterface {
   ) {
     _handleValueChanged(deviceId, serviceId, characteristicId, value);
   }
+}
+
+class _ActiveRangingSession {
+  _ActiveRangingSession({required this.controller});
+
+  final StreamController<BleRangingMeasurement> controller;
+  bool hasBeenListened = false;
 }

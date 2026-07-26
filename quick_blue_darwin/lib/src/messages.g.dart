@@ -126,6 +126,27 @@ enum PlatformBluetoothState {
   poweredOn,
 }
 
+enum PlatformRangingAvailability {
+  available,
+  unsupported,
+  disabledByUser,
+  disabledByRegulation,
+  restricted,
+}
+
+enum PlatformRangingUpdateRate {
+  infrequent,
+  normal,
+  frequent,
+}
+
+enum PlatformRangingConfidence {
+  unknown,
+  low,
+  medium,
+  high,
+}
+
 enum PlatformConnectionState {
   disconnected,
   connecting,
@@ -137,6 +158,186 @@ enum PlatformConnectionState {
 enum PlatformGattStatus {
   success,
   failure,
+}
+
+class PlatformRangingCapabilities {
+  PlatformRangingCapabilities({
+    required this.availability,
+    required this.supportsDirection,
+  });
+
+  PlatformRangingAvailability availability;
+
+  bool supportsDirection;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      availability,
+      supportsDirection,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformRangingCapabilities decode(Object result) {
+    result as List<Object?>;
+    return PlatformRangingCapabilities(
+      availability: result[0]! as PlatformRangingAvailability,
+      supportsDirection: result[1]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformRangingCapabilities || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(availability, other.availability) && _deepEquals(supportsDirection, other.supportsDirection);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformRangingCapabilities(availability: $availability, supportsDirection: $supportsDirection)';
+  }
+}
+
+class PlatformRangingOptions {
+  PlatformRangingOptions({
+    required this.requestDirection,
+    required this.updateRate,
+  });
+
+  bool requestDirection;
+
+  PlatformRangingUpdateRate updateRate;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      requestDirection,
+      updateRate,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformRangingOptions decode(Object result) {
+    result as List<Object?>;
+    return PlatformRangingOptions(
+      requestDirection: result[0]! as bool,
+      updateRate: result[1]! as PlatformRangingUpdateRate,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformRangingOptions || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(requestDirection, other.requestDirection) && _deepEquals(updateRate, other.updateRate);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformRangingOptions(requestDirection: $requestDirection, updateRate: $updateRate)';
+  }
+}
+
+class PlatformRangingMeasurement {
+  PlatformRangingMeasurement({
+    required this.deviceId,
+    this.distanceMeters,
+    this.azimuthDegrees,
+    this.elevationDegrees,
+    this.rssi,
+    required this.distanceConfidence,
+    required this.azimuthConfidence,
+    required this.elevationConfidence,
+  });
+
+  String deviceId;
+
+  double? distanceMeters;
+
+  double? azimuthDegrees;
+
+  double? elevationDegrees;
+
+  int? rssi;
+
+  PlatformRangingConfidence distanceConfidence;
+
+  PlatformRangingConfidence azimuthConfidence;
+
+  PlatformRangingConfidence elevationConfidence;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      deviceId,
+      distanceMeters,
+      azimuthDegrees,
+      elevationDegrees,
+      rssi,
+      distanceConfidence,
+      azimuthConfidence,
+      elevationConfidence,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformRangingMeasurement decode(Object result) {
+    result as List<Object?>;
+    return PlatformRangingMeasurement(
+      deviceId: result[0]! as String,
+      distanceMeters: result[1] as double?,
+      azimuthDegrees: result[2] as double?,
+      elevationDegrees: result[3] as double?,
+      rssi: result[4] as int?,
+      distanceConfidence: result[5]! as PlatformRangingConfidence,
+      azimuthConfidence: result[6]! as PlatformRangingConfidence,
+      elevationConfidence: result[7]! as PlatformRangingConfidence,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformRangingMeasurement || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(distanceMeters, other.distanceMeters) && _deepEquals(azimuthDegrees, other.azimuthDegrees) && _deepEquals(elevationDegrees, other.elevationDegrees) && _deepEquals(rssi, other.rssi) && _deepEquals(distanceConfidence, other.distanceConfidence) && _deepEquals(azimuthConfidence, other.azimuthConfidence) && _deepEquals(elevationConfidence, other.elevationConfidence);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformRangingMeasurement(deviceId: $deviceId, distanceMeters: $distanceMeters, azimuthDegrees: $azimuthDegrees, elevationDegrees: $elevationDegrees, rssi: $rssi, distanceConfidence: $distanceConfidence, azimuthConfidence: $azimuthConfidence, elevationConfidence: $elevationConfidence)';
+  }
 }
 
 class PlatformDarwinScanOptions {
@@ -951,50 +1152,68 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformBluetoothState) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformConnectionState) {
+    }    else if (value is PlatformRangingAvailability) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformGattStatus) {
+    }    else if (value is PlatformRangingUpdateRate) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformDarwinScanOptions) {
+    }    else if (value is PlatformRangingConfidence) {
       buffer.putUint8(134);
-      writeValue(buffer, value.encode());
-    }    else if (value is PlatformDarwinConfiguration) {
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformConnectionState) {
       buffer.putUint8(135);
-      writeValue(buffer, value.encode());
-    }    else if (value is PlatformDarwinRestorationEvent) {
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformGattStatus) {
       buffer.putUint8(136);
-      writeValue(buffer, value.encode());
-    }    else if (value is PlatformAppleAccessoryDiscovery) {
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformRangingCapabilities) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformAppleAccessoryPickerItem) {
+    }    else if (value is PlatformRangingOptions) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformAppleAccessory) {
+    }    else if (value is PlatformRangingMeasurement) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is Peripheral) {
+    }    else if (value is PlatformDarwinScanOptions) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformScanResult) {
+    }    else if (value is PlatformDarwinConfiguration) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformConnectionStateChange) {
+    }    else if (value is PlatformDarwinRestorationEvent) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformServiceDiscovered) {
+    }    else if (value is PlatformAppleAccessoryDiscovery) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristic) {
+    }    else if (value is PlatformAppleAccessoryPickerItem) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformAppleAccessory) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformL2CapSocketEvent) {
+    }    else if (value is Peripheral) {
       buffer.putUint8(146);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformScanResult) {
+      buffer.putUint8(147);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformConnectionStateChange) {
+      buffer.putUint8(148);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformServiceDiscovered) {
+      buffer.putUint8(149);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformCharacteristic) {
+      buffer.putUint8(150);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformCharacteristicValueChanged) {
+      buffer.putUint8(151);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformL2CapSocketEvent) {
+      buffer.putUint8(152);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1015,35 +1234,50 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : PlatformBluetoothState.values[value];
       case 132:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlatformConnectionState.values[value];
+        return value == null ? null : PlatformRangingAvailability.values[value];
       case 133:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlatformGattStatus.values[value];
+        return value == null ? null : PlatformRangingUpdateRate.values[value];
       case 134:
-        return PlatformDarwinScanOptions.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformRangingConfidence.values[value];
       case 135:
-        return PlatformDarwinConfiguration.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformConnectionState.values[value];
       case 136:
-        return PlatformDarwinRestorationEvent.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformGattStatus.values[value];
       case 137:
-        return PlatformAppleAccessoryDiscovery.decode(readValue(buffer)!);
+        return PlatformRangingCapabilities.decode(readValue(buffer)!);
       case 138:
-        return PlatformAppleAccessoryPickerItem.decode(readValue(buffer)!);
+        return PlatformRangingOptions.decode(readValue(buffer)!);
       case 139:
-        return PlatformAppleAccessory.decode(readValue(buffer)!);
+        return PlatformRangingMeasurement.decode(readValue(buffer)!);
       case 140:
-        return Peripheral.decode(readValue(buffer)!);
+        return PlatformDarwinScanOptions.decode(readValue(buffer)!);
       case 141:
-        return PlatformScanResult.decode(readValue(buffer)!);
+        return PlatformDarwinConfiguration.decode(readValue(buffer)!);
       case 142:
-        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+        return PlatformDarwinRestorationEvent.decode(readValue(buffer)!);
       case 143:
-        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+        return PlatformAppleAccessoryDiscovery.decode(readValue(buffer)!);
       case 144:
-        return PlatformCharacteristic.decode(readValue(buffer)!);
+        return PlatformAppleAccessoryPickerItem.decode(readValue(buffer)!);
       case 145:
-        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+        return PlatformAppleAccessory.decode(readValue(buffer)!);
       case 146:
+        return Peripheral.decode(readValue(buffer)!);
+      case 147:
+        return PlatformScanResult.decode(readValue(buffer)!);
+      case 148:
+        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+      case 149:
+        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+      case 150:
+        return PlatformCharacteristic.decode(readValue(buffer)!);
+      case 151:
+        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+      case 152:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1223,6 +1457,61 @@ class QuickBlueApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<PlatformRangingCapabilities> getRangingCapabilities() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.getRangingCapabilities$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as PlatformRangingCapabilities;
+  }
+
+  Future<void> startRanging(String deviceId, PlatformRangingOptions options) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.startRanging$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, options]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> stopRanging(String deviceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.stopRanging$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -1496,6 +1785,10 @@ abstract class QuickBlueFlutterApi {
 
   void onCharacteristicValueChanged(PlatformCharacteristicValueChanged valueChanged);
 
+  void onRangingMeasurement(PlatformRangingMeasurement measurement);
+
+  void onRangingError(String deviceId, String code, String message, int? nativeReason);
+
   static void setUp(QuickBlueFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
     messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
@@ -1573,6 +1866,51 @@ abstract class QuickBlueFlutterApi {
           final PlatformCharacteristicValueChanged arg_valueChanged = args[0]! as PlatformCharacteristicValueChanged;
           try {
             api.onCharacteristicValueChanged(arg_valueChanged);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onRangingMeasurement$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final PlatformRangingMeasurement arg_measurement = args[0]! as PlatformRangingMeasurement;
+          try {
+            api.onRangingMeasurement(arg_measurement);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onRangingError$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final String arg_deviceId = args[0]! as String;
+          final String arg_code = args[1]! as String;
+          final String arg_message = args[2]! as String;
+          final int? arg_nativeReason = args[3] as int?;
+          try {
+            api.onRangingError(arg_deviceId, arg_code, arg_message, arg_nativeReason);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

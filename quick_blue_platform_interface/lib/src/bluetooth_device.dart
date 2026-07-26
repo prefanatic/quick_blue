@@ -6,6 +6,7 @@ import 'package:meta/meta.dart';
 import '../models.dart';
 import 'bluetooth_characteristic.dart';
 import 'bluetooth_gatt.dart';
+import 'bluetooth_ranging.dart';
 import 'observability.dart';
 import 'quick_blue_platform.dart';
 import 'quick_blue_exception.dart';
@@ -59,6 +60,26 @@ class BluetoothDevice {
     return _platform.characteristicValueStream.where(
       (event) => event.deviceId == deviceId,
     );
+  }
+
+  /// Returns local Bluetooth LE Channel Sounding capabilities.
+  ///
+  /// Availability also depends on the operating-system version and Bluetooth
+  /// controller. A supported local device can still fail to range a peer that
+  /// lacks compatible Channel Sounding hardware or configuration.
+  Future<BleRangingCapabilities> rangingCapabilities() {
+    return _platform.rangingCapabilities(deviceId);
+  }
+
+  /// Starts an initiator-role Bluetooth LE Channel Sounding session.
+  ///
+  /// The device must already be paired and connected when required by the
+  /// platform. Only one Quick Blue ranging session may be active for this
+  /// device. Call [BleRangingSession.stop] to release it.
+  Future<BleRangingSession> startRanging({
+    BleRangingOptions options = const BleRangingOptions(),
+  }) {
+    return _platform.openRangingSession(deviceId, options);
   }
 
   /// Connects and waits for a connected state event.

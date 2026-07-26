@@ -305,6 +305,45 @@ enum class PlatformAndroidScanPhy(val raw: Int) {
   }
 }
 
+enum class PlatformRangingAvailability(val raw: Int) {
+  AVAILABLE(0),
+  UNSUPPORTED(1),
+  DISABLED_BY_USER(2),
+  DISABLED_BY_REGULATION(3),
+  RESTRICTED(4);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformRangingAvailability? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+enum class PlatformRangingUpdateRate(val raw: Int) {
+  INFREQUENT(0),
+  NORMAL(1),
+  FREQUENT(2);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformRangingUpdateRate? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+enum class PlatformRangingConfidence(val raw: Int) {
+  UNKNOWN(0),
+  LOW(1),
+  MEDIUM(2),
+  HIGH(3);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformRangingConfidence? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 enum class PlatformConnectionState(val raw: Int) {
   DISCONNECTED(0),
   CONNECTING(1),
@@ -327,6 +366,153 @@ enum class PlatformGattStatus(val raw: Int) {
     fun ofRaw(raw: Int): PlatformGattStatus? {
       return values().firstOrNull { it.raw == raw }
     }
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformRangingCapabilities (
+  val availability: PlatformRangingAvailability,
+  val supportsDirection: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformRangingCapabilities {
+      val availability = pigeonVar_list[0] as PlatformRangingAvailability
+      val supportsDirection = pigeonVar_list[1] as Boolean
+      return PlatformRangingCapabilities(availability, supportsDirection)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      availability,
+      supportsDirection,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformRangingCapabilities
+    return MessagesPigeonUtils.deepEquals(this.availability, other.availability) && MessagesPigeonUtils.deepEquals(this.supportsDirection, other.supportsDirection)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.availability)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.supportsDirection)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformRangingCapabilities(availability=$availability, supportsDirection=$supportsDirection)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformRangingOptions (
+  val requestDirection: Boolean,
+  val updateRate: PlatformRangingUpdateRate
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformRangingOptions {
+      val requestDirection = pigeonVar_list[0] as Boolean
+      val updateRate = pigeonVar_list[1] as PlatformRangingUpdateRate
+      return PlatformRangingOptions(requestDirection, updateRate)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      requestDirection,
+      updateRate,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformRangingOptions
+    return MessagesPigeonUtils.deepEquals(this.requestDirection, other.requestDirection) && MessagesPigeonUtils.deepEquals(this.updateRate, other.updateRate)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.requestDirection)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.updateRate)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformRangingOptions(requestDirection=$requestDirection, updateRate=$updateRate)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformRangingMeasurement (
+  val deviceId: String,
+  val distanceMeters: Double? = null,
+  val azimuthDegrees: Double? = null,
+  val elevationDegrees: Double? = null,
+  val rssi: Long? = null,
+  val distanceConfidence: PlatformRangingConfidence,
+  val azimuthConfidence: PlatformRangingConfidence,
+  val elevationConfidence: PlatformRangingConfidence
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformRangingMeasurement {
+      val deviceId = pigeonVar_list[0] as String
+      val distanceMeters = pigeonVar_list[1] as Double?
+      val azimuthDegrees = pigeonVar_list[2] as Double?
+      val elevationDegrees = pigeonVar_list[3] as Double?
+      val rssi = pigeonVar_list[4] as Long?
+      val distanceConfidence = pigeonVar_list[5] as PlatformRangingConfidence
+      val azimuthConfidence = pigeonVar_list[6] as PlatformRangingConfidence
+      val elevationConfidence = pigeonVar_list[7] as PlatformRangingConfidence
+      return PlatformRangingMeasurement(deviceId, distanceMeters, azimuthDegrees, elevationDegrees, rssi, distanceConfidence, azimuthConfidence, elevationConfidence)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      deviceId,
+      distanceMeters,
+      azimuthDegrees,
+      elevationDegrees,
+      rssi,
+      distanceConfidence,
+      azimuthConfidence,
+      elevationConfidence,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformRangingMeasurement
+    return MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.distanceMeters, other.distanceMeters) && MessagesPigeonUtils.deepEquals(this.azimuthDegrees, other.azimuthDegrees) && MessagesPigeonUtils.deepEquals(this.elevationDegrees, other.elevationDegrees) && MessagesPigeonUtils.deepEquals(this.rssi, other.rssi) && MessagesPigeonUtils.deepEquals(this.distanceConfidence, other.distanceConfidence) && MessagesPigeonUtils.deepEquals(this.azimuthConfidence, other.azimuthConfidence) && MessagesPigeonUtils.deepEquals(this.elevationConfidence, other.elevationConfidence)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.distanceMeters)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.azimuthDegrees)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.elevationDegrees)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.rssi)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.distanceConfidence)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.azimuthConfidence)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.elevationConfidence)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformRangingMeasurement(deviceId=$deviceId, distanceMeters=$distanceMeters, azimuthDegrees=$azimuthDegrees, elevationDegrees=$elevationDegrees, rssi=$rssi, distanceConfidence=$distanceConfidence, azimuthConfidence=$azimuthConfidence, elevationConfidence=$elevationConfidence)"
   }
 }
 
@@ -979,70 +1165,100 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       138.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformConnectionState.ofRaw(it.toInt())
+          PlatformRangingAvailability.ofRaw(it.toInt())
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformGattStatus.ofRaw(it.toInt())
+          PlatformRangingUpdateRate.ofRaw(it.toInt())
         }
       }
       140.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformAndroidScanOptions.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformRangingConfidence.ofRaw(it.toInt())
         }
       }
       141.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformBleCompanionFilter.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformConnectionState.ofRaw(it.toInt())
         }
       }
       142.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCompanionAssociationRequest.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformGattStatus.ofRaw(it.toInt())
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCompanionAssociation.fromList(it)
+          PlatformRangingCapabilities.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformScanResult.fromList(it)
+          PlatformRangingOptions.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformConnectionStateChange.fromList(it)
+          PlatformRangingMeasurement.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformBondStateChange.fromList(it)
+          PlatformAndroidScanOptions.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformServiceDiscovered.fromList(it)
+          PlatformBleCompanionFilter.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristic.fromList(it)
+          PlatformCompanionAssociationRequest.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformMtuChange.fromList(it)
+          PlatformCompanionAssociation.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristicValueChanged.fromList(it)
+          PlatformScanResult.fromList(it)
         }
       }
       151.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformConnectionStateChange.fromList(it)
+        }
+      }
+      152.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformBondStateChange.fromList(it)
+        }
+      }
+      153.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformServiceDiscovered.fromList(it)
+        }
+      }
+      154.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCharacteristic.fromList(it)
+        }
+      }
+      155.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformMtuChange.fromList(it)
+        }
+      }
+      156.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCharacteristicValueChanged.fromList(it)
+        }
+      }
+      157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformL2CapSocketEvent.fromList(it)
         }
@@ -1088,60 +1304,84 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(137)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformConnectionState -> {
+      is PlatformRangingAvailability -> {
         stream.write(138)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformGattStatus -> {
+      is PlatformRangingUpdateRate -> {
         stream.write(139)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformAndroidScanOptions -> {
+      is PlatformRangingConfidence -> {
         stream.write(140)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformBleCompanionFilter -> {
+      is PlatformConnectionState -> {
         stream.write(141)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformCompanionAssociationRequest -> {
+      is PlatformGattStatus -> {
         stream.write(142)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformCompanionAssociation -> {
+      is PlatformRangingCapabilities -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is PlatformScanResult -> {
+      is PlatformRangingOptions -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is PlatformConnectionStateChange -> {
+      is PlatformRangingMeasurement -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is PlatformBondStateChange -> {
+      is PlatformAndroidScanOptions -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is PlatformServiceDiscovered -> {
+      is PlatformBleCompanionFilter -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristic -> {
+      is PlatformCompanionAssociationRequest -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is PlatformMtuChange -> {
+      is PlatformCompanionAssociation -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristicValueChanged -> {
+      is PlatformScanResult -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is PlatformL2CapSocketEvent -> {
+      is PlatformConnectionStateChange -> {
         stream.write(151)
+        writeValue(stream, value.toList())
+      }
+      is PlatformBondStateChange -> {
+        stream.write(152)
+        writeValue(stream, value.toList())
+      }
+      is PlatformServiceDiscovered -> {
+        stream.write(153)
+        writeValue(stream, value.toList())
+      }
+      is PlatformCharacteristic -> {
+        stream.write(154)
+        writeValue(stream, value.toList())
+      }
+      is PlatformMtuChange -> {
+        stream.write(155)
+        writeValue(stream, value.toList())
+      }
+      is PlatformCharacteristicValueChanged -> {
+        stream.write(156)
+        writeValue(stream, value.toList())
+      }
+      is PlatformL2CapSocketEvent -> {
+        stream.write(157)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1157,6 +1397,9 @@ interface QuickBlueApi {
   fun isBluetoothAvailable(): Boolean
   fun startScan(serviceUuids: List<String>?, serviceData: Map<String, ByteArray>?, manufacturerData: Map<Long, ByteArray>?, rssi: Long?, options: PlatformAndroidScanOptions?)
   fun stopScan()
+  fun getRangingCapabilities(callback: (Result<PlatformRangingCapabilities>) -> Unit)
+  fun startRanging(deviceId: String, options: PlatformRangingOptions)
+  fun stopRanging(deviceId: String)
   fun connectedDeviceIds(serviceUuids: List<String>): List<String>
   fun connect(deviceId: String)
   fun disconnect(deviceId: String)
@@ -1227,6 +1470,61 @@ interface QuickBlueApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               api.stopScan()
+              listOf(null)
+            } catch (exception: Throwable) {
+              MessagesPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.quick_blue.QuickBlueApi.getRangingCapabilities$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getRangingCapabilities{ result: Result<PlatformRangingCapabilities> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.quick_blue.QuickBlueApi.startRanging$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            val optionsArg = args[1] as PlatformRangingOptions
+            val wrapped: List<Any?> = try {
+              api.startRanging(deviceIdArg, optionsArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              MessagesPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.quick_blue.QuickBlueApi.stopRanging$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              api.stopRanging(deviceIdArg)
               listOf(null)
             } catch (exception: Throwable) {
               MessagesPigeonUtils.wrapError(exception)
@@ -1747,6 +2045,40 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
     val channelName = "dev.flutter.pigeon.quick_blue.QuickBlueFlutterApi.onCharacteristicValueChanged$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
     channel.send(listOf(valueChangedArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  fun onRangingMeasurement(measurementArg: PlatformRangingMeasurement, callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.quick_blue.QuickBlueFlutterApi.onRangingMeasurement$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(measurementArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  fun onRangingError(deviceIdArg: String, codeArg: String, messageArg: String, nativeReasonArg: Long?, callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.quick_blue.QuickBlueFlutterApi.onRangingError$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(deviceIdArg, codeArg, messageArg, nativeReasonArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

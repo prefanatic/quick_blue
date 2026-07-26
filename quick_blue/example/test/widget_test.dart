@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:quick_blue_example/main.dart';
+import 'package:quick_blue_example/src/ble_explorer_controller.dart';
 import 'package:quick_blue_example/src/ble_explorer_page.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
@@ -200,5 +201,51 @@ void main() {
     await tester.pump();
 
     expect(tester.getSize(panel).width, greaterThan(before));
+  });
+
+  testWidgets('starts ranging and renders distance measurements', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = BleExplorerController(
+      requestRangingPermission: () async => true,
+    );
+    await controller.initialBluetoothCheck;
+    await controller.selectDevice('device-a');
+    await controller.connectSelected();
+
+    await tester.pumpWidget(
+      MaterialApp(home: BleExplorerPage(controller: controller)),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('ble_ranging_panel')), findsOneWidget);
+    expect(
+      find.text(
+        'This device supports Channel Sounding; peer support unverified.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('ble_ranging_toggle_button')));
+    await tester.pump();
+
+    expect(find.text('Stop ranging'), findsOneWidget);
+    platform.addRangingMeasurement(
+      BleRangingMeasurement(
+        deviceId: 'device-a',
+        timestamp: DateTime(2026, 7, 25),
+        distanceMeters: 2.4,
+        rssi: -44,
+        distanceConfidence: BleRangingConfidence.high,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Distance: 2.40 m · high confidence'), findsOneWidget);
+    expect(find.text('RSSI: -44 dBm'), findsOneWidget);
   });
 }

@@ -17,6 +17,7 @@ Android, iOS, macOS, Windows, and Linux.
 - [Platform setup](#platform-setup)
 - [Quick start](#quick-start)
 - [Working with devices and characteristics](#working-with-devices-and-characteristics)
+- [Channel Sounding ranging](#channel-sounding-ranging)
 - [Advanced usage](#advanced-usage)
 - [Platform support](#platform-support)
 
@@ -26,8 +27,8 @@ Android, iOS, macOS, Windows, and Linux.
 | :--- | :--- |
 | Flutter | 3.44.2 |
 | Dart | 3.12.2 |
-| Android | API 26 |
-| iOS | 13.0 |
+| Android | API 26; API 36 for Channel Sounding |
+| iOS | 13.0; iOS 27 for Channel Sounding |
 | macOS | 10.15 |
 | Windows | Windows 10 or 11 with a BLE adapter |
 | Linux | BlueZ with a BLE adapter |
@@ -89,6 +90,7 @@ missing permission but does not show a permission prompt.
 
 - Android 12 and later: request `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`.
 - Android 11 and earlier: request location permission before scanning.
+- Android 16 and later: request `RANGING` before starting Channel Sounding.
 
 If your app derives physical location from scan results, review Android's
 Bluetooth permission guidance and override the plugin's `neverForLocation`
@@ -325,6 +327,74 @@ if (state != BluetoothBondState.bonded) {
 
 iOS and macOS prompt automatically when an encrypted characteristic requires
 pairing. Windows app-initiated pairing is not currently implemented.
+
+## Channel Sounding ranging
+
+Quick Blue exposes capability-gated Bluetooth LE Channel Sounding for precise
+distance measurements. Android 16 supports distance; iOS 27 supports distance
+and can optionally use Nearby Interaction camera assistance for horizontal
+direction. Windows, Linux, macOS, older operating systems, and devices without
+compatible Bluetooth hardware report the feature as unsupported.
+
+The peer must also implement Bluetooth Channel Sounding in the reflector role.
+Connect the device first, check the local capability, and keep the session in
+the foreground:
+
+```dart
+final device = QuickBlue.device(deviceId);
+await device.connect();
+
+final capabilities = await device.rangingCapabilities();
+if (!capabilities.isAvailable) {
+  throw StateError(
+    'Channel Sounding is ${capabilities.availability.name}',
+  );
+}
+
+final session = await device.startRanging(
+  options: BleRangingOptions(
+    requestDirection: capabilities.supportsDirection,
+    updateRate: BleRangingUpdateRate.normal,
+  ),
+);
+final subscription = session.measurements.listen(
+  (measurement) {
+    print('distance: ${measurement.distanceMeters} m');
+    print('azimuth: ${measurement.azimuthDegrees}°');
+  },
+  onError: (Object error) {
+    print('ranging failed: $error');
+  },
+);
+
+try {
+  // Keep using measurements while this feature is active.
+} finally {
+  await subscription.cancel();
+  await session.stop();
+  await device.disconnect();
+}
+```
+
+Only one Quick Blue ranging session can be active for a device. Always call
+`stop()`, including after a terminal stream error. The update rate is a
+preference; the platform may reduce it. Missing distance, direction, RSSI, or
+confidence values are returned as `null` or `BleRangingConfidence.unknown`;
+Quick Blue does not estimate meters from advertisement RSSI.
+
+On Android, the plugin declares `android.permission.RANGING`, but the app must
+request this dangerous runtime permission before `startRanging()`. Direction
+requests fail because Android's public BLE Channel Sounding API does not expose
+a supported direction contract here.
+
+On iOS, distance-only sessions use CoreBluetooth. Direction uses Nearby
+Interaction camera assistance and requires both
+`NSNearbyInteractionUsageDescription` and `NSCameraUsageDescription` in the
+app's Info.plist. AccessorySetupKit pairing is required before Channel Sounding;
+run the [AccessorySetupKit flow](#apple-accessorysetupkit) before Quick Blue
+initializes CoreBluetooth. The initiator must be an iOS 27 iPhone with an N1
+chip (iPhone 17 or later), and the reflector must support Bluetooth 6.3 Channel
+Sounding.
 
 ## Advanced usage
 
@@ -672,6 +742,8 @@ association UI, then use `associate()`, `associations()`, and `disassociate()`.
 | `setNotifiable` | yes | yes | yes | yes | yes |
 | `requestMtu` | yes | yes [4] | yes [4] | yes | no [5] |
 | `appleAccessorySetup` | no | yes [6] | no | no | no |
+| `rangingCapabilities` | yes [7] | yes [7] | no | no | no |
+| `startRanging` | yes [7] | yes [7] | no | no | no |
 
 [1] CoreBluetooth requires service UUIDs when looking up system-connected
 peripherals.
@@ -689,6 +761,11 @@ exact value.
 reliably retrieve the negotiated value and reports the operation as unsupported.
 
 [6] AccessorySetupKit requires iOS 18 or later and explicit Info.plist setup.
+
+[7] Bluetooth Channel Sounding requires Android 16 or iOS 27, compatible local
+and peer hardware, foreground operation, and platform authorization. Android
+returns distance only; iOS can optionally return camera-assisted horizontal
+direction.
 
 `bluetoothStateStream` emits the latest state first for every listener. Android,
 iOS, macOS, and Linux then emit live changes; Windows currently emits only the

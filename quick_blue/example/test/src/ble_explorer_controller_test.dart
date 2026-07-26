@@ -371,10 +371,102 @@ void main() {
       containsAllInOrder(<String>[
         'connect device-a',
         'discoverServices device-a',
+        'rangingCapabilities device-a',
       ]),
     );
     expect(controller.connecting, isFalse);
     expect(controller.discovering, isFalse);
-    expect(controller.status, 'Found 0 service(s).');
+    expect(
+      controller.status,
+      'This device supports Channel Sounding; peer support is unverified.',
+    );
+  });
+
+  test('starts, displays, and stops a ranging session', () async {
+    final controller = BleExplorerController(
+      requestRangingPermission: () async => true,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialBluetoothCheck;
+
+    await controller.selectDevice('device-a');
+    await controller.connectSelected();
+    controller.setRangingUpdateRate(BleRangingUpdateRate.frequent);
+    await controller.startRanging();
+
+    expect(controller.ranging, isTrue);
+    expect(
+      platform.lastRangingOptions?.updateRate,
+      BleRangingUpdateRate.frequent,
+    );
+    expect(platform.lastRangingOptions?.requestDirection, isFalse);
+
+    final timestamp = DateTime(2026, 7, 25);
+    platform.addRangingMeasurement(
+      BleRangingMeasurement(
+        deviceId: 'device-a',
+        timestamp: timestamp,
+        distanceMeters: 1.25,
+        rssi: -42,
+        distanceConfidence: BleRangingConfidence.high,
+      ),
+    );
+    await pumpEventQueue();
+
+    expect(controller.latestRangingMeasurement?.timestamp, timestamp);
+    expect(controller.latestRangingMeasurement?.distanceMeters, 1.25);
+    expect(controller.status, 'Distance 1.25 m.');
+
+    await controller.stopRanging();
+
+    expect(controller.ranging, isFalse);
+    expect(
+      platform.calls,
+      containsAllInOrder(<String>[
+        'rangingCapabilities device-a',
+        'startRanging device-a',
+        'stopRanging device-a',
+      ]),
+    );
+  });
+
+  test('does not start ranging when Android permission is denied', () async {
+    final controller = BleExplorerController(
+      requestRangingPermission: () async => false,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialBluetoothCheck;
+
+    await controller.selectDevice('device-a');
+    await controller.connectSelected();
+    await controller.startRanging();
+
+    expect(controller.ranging, isFalse);
+    expect(platform.calls, isNot(contains('startRanging device-a')));
+    expect(controller.status, 'Start ranging failed.');
+  });
+
+  test('releases a ranging session after a native error', () async {
+    final controller = BleExplorerController(
+      requestRangingPermission: () async => true,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialBluetoothCheck;
+
+    await controller.selectDevice('device-a');
+    await controller.connectSelected();
+    await controller.startRanging();
+    platform.addRangingError(
+      'device-a',
+      const QuickBlueException(
+        code: QuickBlueErrorCode.unsupported,
+        message: 'Channel Sounding closed: unsupported.',
+      ),
+    );
+    await pumpEventQueue();
+
+    expect(controller.ranging, isFalse);
+    expect(controller.status, 'Peer or ranging parameters are unsupported.');
+    expect(platform.calls, contains('stopRanging device-a'));
   });
 }
