@@ -553,7 +553,14 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         #endif
 
         let flutterApi = QuickBlueFlutterApi(binaryMessenger: messenger)
-        let instance = QuickBlueDarwinPlugin(flutterApi: flutterApi)
+        let restorationBootstrapPolicy =
+            CoreBluetoothRestorationBootstrapPolicy(
+                infoDictionary: Bundle.main.infoDictionary ?? [:]
+            )
+        let instance = QuickBlueDarwinPlugin(
+            flutterApi: flutterApi,
+            restorationBootstrapPolicy: restorationBootstrapPolicy
+        )
         QuickBlueApiSetup.setUp(binaryMessenger: messenger, api: instance)
         BluetoothStateStreamHandler.register(
             with: messenger,
@@ -571,6 +578,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             with: messenger,
             streamHandler: instance.restorationEventListener
         )
+        instance.bootstrapStateRestorationIfEnabled()
         registrar.publish(instance)
     }
 
@@ -582,9 +590,11 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var l2CapSocketEventsListener: L2CapSocketEventsListener
     private var restorationEventListener: RestorationEventListener
 
+    private let restorationBootstrapPolicy:
+        CoreBluetoothRestorationBootstrapPolicy
     private var manager: CBCentralManager?
     private var appleAccessorySetupCoordinator: AnyObject?
-    private var maintainState = false
+    private var maintainState: Bool
     private let restorationIdentifier =
         "\(Bundle.main.bundleIdentifier ?? "quick_blue").quick_blue.central"
     private var discoveredPeripherals: [String: CBPeripheral]!
@@ -713,12 +723,17 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         )
     }
 
-    init(flutterApi: QuickBlueFlutterApi) {
+    init(
+        flutterApi: QuickBlueFlutterApi,
+        restorationBootstrapPolicy: CoreBluetoothRestorationBootstrapPolicy
+    ) {
         self.flutterApi = flutterApi
         self.bluetoothStateListener = BluetoothStateListener()
         self.scanResultListener = ScanResultListener()
         self.l2CapSocketEventsListener = L2CapSocketEventsListener()
         self.restorationEventListener = RestorationEventListener()
+        self.restorationBootstrapPolicy = restorationBootstrapPolicy
+        self.maintainState = restorationBootstrapPolicy.persistentOptIn
 
         super.init()
         bluetoothStateListener.currentStateProvider = { [weak self] in
@@ -729,9 +744,20 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         pendingServiceDiscovery = Dictionary()
     }
 
+    private func bootstrapStateRestorationIfEnabled() {
+        guard restorationBootstrapPolicy.shouldBootstrapAtRegistration else {
+            return
+        }
+        _ = getManager()
+    }
+
     func configure(configuration: PlatformDarwinConfiguration) throws {
+        let effectiveMaintainState =
+            restorationBootstrapPolicy.effectiveMaintainState(
+                requestedByDart: configuration.maintainState
+            )
         try stateQueue.sync {
-            if manager != nil, configuration.maintainState != maintainState {
+            if manager != nil, effectiveMaintainState != maintainState {
                 throw PigeonError(
                     code: "InvalidState",
                     message:
@@ -739,10 +765,10 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                     details: nil
                 )
             }
-            maintainState = configuration.maintainState
+            maintainState = effectiveMaintainState
         }
 
-        if configuration.maintainState {
+        if effectiveMaintainState {
             _ = getManager()
         }
     }
@@ -767,8 +793,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                         .failure(
                             PigeonError(
                                 code: "InvalidState",
-                                message:
-                                    "AccessorySetupKit must run before Quick Blue initializes CoreBluetooth.",
+                                message: accessorySetupInitializationErrorMessage(),
                                 details: nil
                             )
                         )
@@ -813,6 +838,15 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             }
         #endif
         completion(.failure(appleAccessorySetupUnsupportedError()))
+    }
+
+    private func accessorySetupInitializationErrorMessage() -> String {
+        if restorationBootstrapPolicy.persistentOptIn {
+            return
+                "AccessorySetupKit cannot run when \(CoreBluetoothRestorationBootstrapPolicy.infoPlistKey) is true because persistent restoration initializes CoreBluetooth during plugin registration."
+        }
+        return
+            "AccessorySetupKit must run before Quick Blue initializes CoreBluetooth."
     }
 
     private func appleAccessorySetupUnsupportedError() -> PigeonError {

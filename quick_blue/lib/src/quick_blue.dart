@@ -70,6 +70,10 @@ class QuickBlue {
   /// When [maintainState] is true, iOS and macOS opt into CoreBluetooth state
   /// preservation and restoration. Call this before other Bluetooth APIs, but
   /// after Apple AccessorySetupKit setup when the app uses it.
+  ///
+  /// A native `QuickBlueCoreBluetoothStateRestorationEnabled` Info.plist value
+  /// takes precedence over [maintainState] and initializes CoreBluetooth before
+  /// Dart starts.
   static Future<void> configure({bool maintainState = false}) {
     return QuickBlueInstrumentation.observeFuture<void>(
       kind: QuickBlueOperationKind.configure,

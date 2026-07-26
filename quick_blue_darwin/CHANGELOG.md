@@ -2,6 +2,8 @@
 
 - Emit and buffer privacy-safe aggregate CoreBluetooth restoration callbacks
   until Dart subscribes.
+- Add `QuickBlueCoreBluetoothStateRestorationEnabled` as a persistent native
+  opt-in that bootstraps CoreBluetooth during plugin registration.
 - Reject writes when a CoreBluetooth characteristic does not advertise the
   selected write-with-response or write-without-response capability.
 - Convert non-security GATT failures into contextual `QuickBlueException`s

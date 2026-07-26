@@ -15,6 +15,8 @@
 - Add privacy-safe Darwin restoration observations with native and Dart
   buffering, aggregate connection/scan counts, and exactly-once callback
   delivery.
+- Add an Info.plist-backed persistent Darwin restoration opt-in that creates
+  CoreBluetooth during native plugin registration before Dart starts.
 - Add opt-in iOS 18 AccessorySetupKit discovery and authorization with typed
   picker items, authorized-accessory listing and removal, Info.plist
   preflight checks, existing-peripheral migration, and CoreBluetooth device

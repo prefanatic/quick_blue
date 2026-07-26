@@ -103,18 +103,29 @@ Add a Bluetooth usage description to `ios/Runner/Info.plist`:
 <string>This app scans for and connects to nearby Bluetooth devices.</string>
 ```
 
-State restoration is optional. Apps that need CoreBluetooth restoration after
-background termination must also add `bluetooth-central` to
-`UIBackgroundModes`, then call this before any other Quick Blue API:
+State restoration is optional. Apps that need reliable CoreBluetooth
+restoration after background termination must add `bluetooth-central` to
+`UIBackgroundModes` and enable Quick Blue's persistent native opt-in:
 
-```dart
-await QuickBlue.configure(maintainState: true);
+```xml
+<key>UIBackgroundModes</key>
+<array>
+  <string>bluetooth-central</string>
+</array>
+<key>QuickBlueCoreBluetoothStateRestorationEnabled</key>
+<true/>
 ```
 
-`configure` is a runtime opt-in. It is sufficient only when Dart runs early
-enough to create the central manager before iOS needs to restore it. See
-[Darwin restoration launch correctness](#darwin-restoration-launch-correctness)
-for the native bootstrap proposal for background relaunches.
+The plugin reads this setting during native registration and immediately
+creates its `CBCentralManager` with Quick Blue's stable restoration identifier,
+before the Dart entrypoint runs. The persistent setting is authoritative:
+`QuickBlue.configure(maintainState: false)` does not disable it.
+
+`QuickBlue.configure(maintainState: true)` remains available as a runtime-only
+opt-in when the Info.plist setting is absent. It must run before other Quick
+Blue APIs, but it is not sufficient for a reliable iOS background relaunch
+because Dart may start too late. See
+[Darwin restoration launch correctness](#darwin-restoration-launch-correctness).
 
 ### macOS
 
@@ -127,8 +138,11 @@ debug and release entitlements:
 <true/>
 ```
 
-Call `QuickBlue.configure(maintainState: true)` before other Quick Blue APIs
-only if the app uses CoreBluetooth state restoration.
+Apps that want restoration initialized before Dart can add
+`QuickBlueCoreBluetoothStateRestorationEnabled` to the macOS Info.plist as
+shown for iOS. A runtime-only
+`QuickBlue.configure(maintainState: true)` remains available when early native
+bootstrap is unnecessary.
 
 ### Windows
 
@@ -506,7 +520,7 @@ These lifecycle facts are distinct:
 | Fact | How to observe it |
 | --- | --- |
 | Restoration was requested from Dart | `QuickBlueOperation.kind` is `configure` and `maintainState` is `true`. |
-| The manager was initialized with Quick Blue's restoration identifier | That configure operation completes successfully. `configure(maintainState: true)` creates the manager before completing. |
+| The manager was initialized with Quick Blue's restoration identifier | The persistent Info.plist key is `true` and native plugin registration completed, or `configure(maintainState: true)` completed successfully without the persistent setting. |
 | CoreBluetooth had state to restore | `onDarwinStateRestored` runs. A successful configure does not imply this callback will occur. |
 
 An OpenTelemetry adapter follows the same pattern: create a real SDK span in
@@ -538,31 +552,34 @@ initialization callbacks, so relying on Dart to call
 `configure(maintainState: true)` after the app reaches `resumed` is too late
 for a robust iOS background-relaunch path.
 
-Quick Blue's current restoration identifier is stable across executions, but
-manager creation is still initiated from Dart. The proposed native persistent
-opt-in is:
+Quick Blue provides a native persistent opt-in:
 
 ```xml
 <key>QuickBlueCoreBluetoothStateRestorationEnabled</key>
 <true/>
 ```
 
-When implemented, plugin registration would read this setting and create the
-central manager immediately with the stable identifier, before the Dart
-entrypoint runs. The setting would be persistent app configuration rather than
-a per-process Dart call. Apps that delay Flutter engine/plugin registration
-would additionally call a public native bootstrap from
-`application(_:didFinishLaunchingWithOptions:)`; the bootstrap would own the
-manager until a Flutter engine attaches.
+Plugin registration reads this setting and creates the central manager
+immediately with the stable identifier, before the Dart entrypoint runs. The
+setting is persistent app configuration rather than a per-process Dart call.
+The native restoration-event buffer is installed before manager creation, so a
+restoration callback delivered before Dart attaches remains available.
 
-The native opt-in needs explicit interaction rules with AccessorySetupKit:
-automatic manager creation prevents a later system picker from running first.
-An app should therefore use either launch-time restoration bootstrap or an
-AccessorySetupKit-first startup flow, unless a future bootstrap API accepts
-AccessorySetupKit configuration natively before creating the manager.
+Automatic manager creation prevents a later AccessorySetupKit system picker
+from running first. An app must therefore use either the persistent restoration
+opt-in or an AccessorySetupKit-first startup flow. Leave
+`QuickBlueCoreBluetoothStateRestorationEnabled` absent or `false` while using
+the picker, then use the runtime configuration path after setup. A single app
+build cannot currently combine the persistent bootstrap with Quick Blue's
+AccessorySetupKit picker.
 
-This section is a design proposal; the Info.plist key and native bootstrap API
-are not implemented yet. The behavior is based on Apple's
+Registration-time bootstrap assumes the Flutter engine and plugins are
+registered during application launch, as in a standard Flutter app. Add-to-app
+integrations that intentionally delay Flutter engine creation still need an
+application-owned native `CBCentralManager` bootstrap; Quick Blue does not yet
+provide a pre-engine AppDelegate API.
+
+This behavior is based on Apple's
 [Core Bluetooth restoration guide](https://developer.apple.com/library/archive/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/CoreBluetoothBackgroundProcessingForIOSApps/PerformingTasksWhileYourAppIsInTheBackground.html)
 and
 [`CBCentralManagerOptionRestoreIdentifierKey` documentation](https://developer.apple.com/documentation/corebluetooth/cbcentralmanageroptionrestoreidentifierkey).
@@ -572,6 +589,10 @@ and
 iOS 18 and later can use AccessorySetupKit to discover and authorize a known
 Bluetooth product with Apple's system picker. Add the product's discovery
 values to the app's Info.plist:
+
+Do not enable `QuickBlueCoreBluetoothStateRestorationEnabled` before showing
+the picker. Persistent restoration creates CoreBluetooth during native plugin
+registration, while AccessorySetupKit must run first.
 
 ```xml
 <key>NSAccessorySetupSupports</key>
