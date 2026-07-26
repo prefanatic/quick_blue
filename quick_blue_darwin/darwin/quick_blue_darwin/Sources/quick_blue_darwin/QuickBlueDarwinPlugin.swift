@@ -404,6 +404,81 @@ extension CBManagerState {
 public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private static let minimumReconnectInterval: TimeInterval = 0.1
 
+    private final class CentralManagerDelegate: NSObject,
+        CBCentralManagerDelegate
+    {
+        func centralManagerDidUpdateState(_ central: CBCentralManager) {
+            managerRegistry.publishState(
+                central.state.platformBluetoothState
+            ) { client, state in
+                client.bluetoothStateListener.onEvent(event: state)
+            }
+        }
+
+        func centralManager(
+            _ central: CBCentralManager,
+            willRestoreState dict: [String: Any]
+        ) {
+            publishRestorationEvent(from: dict)
+            managerRegistry.firstRegisteredClient?.centralManager(
+                central,
+                willRestoreState: dict
+            )
+        }
+
+        func centralManager(
+            _ central: CBCentralManager,
+            didDiscover peripheral: CBPeripheral,
+            advertisementData: [String: Any],
+            rssi RSSI: NSNumber
+        ) {
+            managerRegistry.firstRegisteredClient?.centralManager(
+                central,
+                didDiscover: peripheral,
+                advertisementData: advertisementData,
+                rssi: RSSI
+            )
+        }
+
+        func centralManager(
+            _ central: CBCentralManager,
+            didConnect peripheral: CBPeripheral
+        ) {
+            host(for: peripheral.identifier.uuidString)?.centralManager(
+                central,
+                didConnect: peripheral
+            )
+        }
+
+        func centralManager(
+            _ central: CBCentralManager,
+            didFailToConnect peripheral: CBPeripheral,
+            error: Error?
+        ) {
+            host(for: peripheral.identifier.uuidString)?.centralManager(
+                central,
+                didFailToConnect: peripheral,
+                error: error
+            )
+        }
+
+        func centralManager(
+            _ central: CBCentralManager,
+            didDisconnectPeripheral peripheral: CBPeripheral,
+            error: Error?
+        ) {
+            host(for: peripheral.identifier.uuidString)?.centralManager(
+                central,
+                didDisconnectPeripheral: peripheral,
+                error: error
+            )
+        }
+    }
+
+    private struct CentralManagerConfiguration: Equatable {
+        let restorationIdentifier: String?
+    }
+
     private struct NotificationKey: Hashable {
         let deviceId: String
         let service: String
@@ -424,6 +499,14 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     }
 
     private static let connectionOwnership = ConnectionOwnership()
+    private static let centralManagerDelegate = CentralManagerDelegate()
+    private static let managerRegistry = ProcessWideManagerRegistry<
+        CBCentralManager,
+        QuickBlueDarwinPlugin,
+        CentralManagerConfiguration,
+        PlatformBluetoothState,
+        PlatformDarwinRestorationEvent
+    >()
 
     /// Attaches an engine and returns the process-wide CoreBluetooth host.
     private static func attachConnection(
@@ -439,6 +522,10 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         client: QuickBlueDarwinPlugin
     ) -> QuickBlueDarwinPlugin? {
         connectionOwnership.host(for: deviceId, client: client)
+    }
+
+    private static func host(for deviceId: String) -> QuickBlueDarwinPlugin? {
+        connectionOwnership.host(for: deviceId)
     }
 
     private static func clients(for deviceId: String)
@@ -527,6 +614,14 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         connectionOwnership.isHostingConnections(client)
     }
 
+    private static func resetNonRestoringManagerIfUnused() {
+        guard !connectionOwnership.hasConnections else { return }
+        managerRegistry.resetIfUnused {
+            $0.restorationIdentifier == nil
+        }
+    }
+
+    private let lifecycleLock = NSLock()
     private var isAttachedToEngine = true
 
     func getConnectedPeripherals(serviceUuids: [String]) throws -> [Peripheral] {
@@ -578,11 +673,15 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             with: messenger,
             streamHandler: instance.restorationEventListener
         )
+        instance.replay(
+            registration: managerRegistry.register(instance)
+        )
         instance.bootstrapStateRestorationIfEnabled()
         registrar.publish(instance)
     }
 
     private let stateQueue = DispatchQueue(label: "quick_blue.state.queue")
+    private let configurationLock = NSLock()
 
     private var flutterApi: QuickBlueFlutterApi
     private var bluetoothStateListener: BluetoothStateListener
@@ -592,7 +691,6 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
 
     private let restorationBootstrapPolicy:
         CoreBluetoothRestorationBootstrapPolicy
-    private var manager: CBCentralManager?
     private var appleAccessorySetupCoordinator: AnyObject?
     private var maintainState: Bool
     private let restorationIdentifier =
@@ -620,6 +718,18 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         -> String
     {
         "\(deviceId)/\(characteristicId)"
+    }
+
+    private var attachedToEngine: Bool {
+        lifecycleLock.lock()
+        defer { lifecycleLock.unlock() }
+        return isAttachedToEngine
+    }
+
+    private func markDetachedFromEngine() {
+        lifecycleLock.lock()
+        isAttachedToEngine = false
+        lifecycleLock.unlock()
     }
 
     private func withHostPeripheral<T>(
@@ -651,7 +761,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         status: PlatformGattStatus,
         error: Error? = nil
     ) {
-        guard isAttachedToEngine else { return }
+        guard attachedToEngine else { return }
         let nativeError = error as NSError?
         flutterApi.onConnectionStateChange(
             stateChange: PlatformConnectionStateChange(
@@ -683,7 +793,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     }
 
     private func emitServiceDiscovered(_ service: PlatformServiceDiscovered) {
-        guard isAttachedToEngine else { return }
+        guard attachedToEngine else { return }
         flutterApi.onServiceDiscovered(
             serviceDiscovered: service,
             completion: { _ in }
@@ -700,7 +810,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     }
 
     private func emitServiceDiscoveryComplete(deviceId: String) {
-        guard isAttachedToEngine else { return }
+        guard attachedToEngine else { return }
         flutterApi.onServiceDiscoveryComplete(
             deviceId: deviceId,
             completion: { _ in }
@@ -716,7 +826,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private func emitCharacteristicValue(
         _ value: PlatformCharacteristicValueChanged
     ) {
-        guard isAttachedToEngine else { return }
+        guard attachedToEngine else { return }
         flutterApi.onCharacteristicValueChanged(
             valueChanged: value,
             completion: { _ in }
@@ -744,6 +854,63 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         pendingServiceDiscovery = Dictionary()
     }
 
+    private func replay(
+        registration: ProcessWideManagerRegistry<
+            CBCentralManager,
+            QuickBlueDarwinPlugin,
+            CentralManagerConfiguration,
+            PlatformBluetoothState,
+            PlatformDarwinRestorationEvent
+        >.Registration
+    ) {
+        if let currentState = registration.currentState {
+            bluetoothStateListener.onEvent(event: currentState)
+        }
+        for event in registration.restorationEvents {
+            restorationEventListener.onEvent(event: event)
+        }
+    }
+
+    private static func publishRestorationEvent(from dict: [String: Any]) {
+        let peripherals =
+            dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]
+            ?? []
+        let restoredScanServicesValue =
+            dict[CBCentralManagerRestoredStateScanServicesKey]
+        let restoredScanServices = restoredScanServicesValue as? [CBUUID]
+        let summary = CoreBluetoothRestorationSummary(
+            peripheralStates: peripherals.map {
+                $0.state.restoredPeripheralConnectionState
+            },
+            hasRestoredScanServices: restoredScanServicesValue != nil,
+            restoredScanServiceCount: restoredScanServices?.count ?? 0,
+            hasRestoredScanOptions:
+                dict[CBCentralManagerRestoredStateScanOptionsKey] != nil
+        )
+        let event = PlatformDarwinRestorationEvent(
+            restoredPeripheralCount:
+                Int64(summary.restoredPeripheralCount),
+            disconnectedPeripheralCount:
+                Int64(summary.disconnectedPeripheralCount),
+            connectingPeripheralCount:
+                Int64(summary.connectingPeripheralCount),
+            connectedPeripheralCount:
+                Int64(summary.connectedPeripheralCount),
+            disconnectingPeripheralCount:
+                Int64(summary.disconnectingPeripheralCount),
+            unknownPeripheralCount:
+                Int64(summary.unknownPeripheralCount),
+            scanningRestored: summary.scanningRestored,
+            restoredScanServiceCount:
+                Int64(summary.restoredScanServiceCount)
+        )
+        managerRegistry.publishRestorationEvent(event) {
+            client,
+            event in
+            client.restorationEventListener.onEvent(event: event)
+        }
+    }
+
     private func bootstrapStateRestorationIfEnabled() {
         guard restorationBootstrapPolicy.shouldBootstrapAtRegistration else {
             return
@@ -756,8 +923,48 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             restorationBootstrapPolicy.effectiveMaintainState(
                 requestedByDart: configuration.maintainState
             )
-        try stateQueue.sync {
-            if manager != nil, effectiveMaintainState != maintainState {
+        let desiredConfiguration = centralManagerConfiguration(
+            maintainState: effectiveMaintainState
+        )
+        if let existingConfiguration =
+            Self.managerRegistry.configurationIfCreated,
+            !canUseExistingConfiguration(
+                existingConfiguration,
+                for: desiredConfiguration
+            )
+        {
+            throw PigeonError(
+                code: "InvalidState",
+                message:
+                    "QuickBlue.configure(maintainState:) must be called before other Bluetooth APIs.",
+                details: nil
+            )
+        }
+        configurationLock.lock()
+        maintainState = effectiveMaintainState
+        configurationLock.unlock()
+
+        if let existingConfiguration =
+            Self.managerRegistry.configurationIfCreated,
+            !canUseExistingConfiguration(
+                existingConfiguration,
+                for: desiredConfiguration
+            )
+        {
+            throw PigeonError(
+                code: "InvalidState",
+                message:
+                    "QuickBlue.configure(maintainState:) must be called before other Bluetooth APIs.",
+                details: nil
+            )
+        }
+
+        if effectiveMaintainState {
+            let access = getManagerAccess()
+            if !canUseExistingConfiguration(
+                access.configuration,
+                for: desiredConfiguration
+            ) {
                 throw PigeonError(
                     code: "InvalidState",
                     message:
@@ -765,11 +972,6 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                     details: nil
                 )
             }
-            maintainState = effectiveMaintainState
-        }
-
-        if effectiveMaintainState {
-            _ = getManager()
         }
     }
 
@@ -788,7 +990,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     ) {
         #if os(iOS) && !targetEnvironment(macCatalyst)
             if #available(iOS 18.0, *) {
-                guard manager == nil else {
+                guard Self.managerRegistry.managerIfCreated == nil else {
                     completion(
                         .failure(
                             PigeonError(
@@ -875,20 +1077,52 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         }
     #endif
 
-    private func getManager() -> CBCentralManager {
-        if let manager = manager {
-            return manager
+    private func centralManagerConfiguration(
+        maintainState: Bool
+    ) -> CentralManagerConfiguration {
+        CentralManagerConfiguration(
+            restorationIdentifier: maintainState ? restorationIdentifier : nil
+        )
+    }
+
+    private func canUseExistingConfiguration(
+        _ existing: CentralManagerConfiguration,
+        for desired: CentralManagerConfiguration
+    ) -> Bool {
+        desired.restorationIdentifier == nil || existing == desired
+    }
+
+    private func getManagerAccess() -> ProcessWideManagerRegistry<
+        CBCentralManager,
+        QuickBlueDarwinPlugin,
+        CentralManagerConfiguration,
+        PlatformBluetoothState,
+        PlatformDarwinRestorationEvent
+    >.ManagerAccess {
+        configurationLock.lock()
+        let shouldMaintainState = self.maintainState
+        configurationLock.unlock()
+        let configuration = centralManagerConfiguration(
+            maintainState: shouldMaintainState
+        )
+        return Self.managerRegistry.getOrCreateManager(
+            for: self,
+            configuration: configuration
+        ) { _ in
+            let options: [String: Any]? =
+                configuration.restorationIdentifier.map {
+                    [CBCentralManagerOptionRestoreIdentifierKey: $0]
+                }
+            return CBCentralManager(
+                delegate: Self.centralManagerDelegate,
+                queue: nil,
+                options: options
+            )
         }
-        let options: [String: Any]? =
-            maintainState
-            ? [
-                CBCentralManagerOptionRestoreIdentifierKey:
-                    restorationIdentifier
-            ]
-            : nil
-        let manager = CBCentralManager(delegate: self, queue: nil, options: options)
-        self.manager = manager
-        return manager
+    }
+
+    private func getManager() -> CBCentralManager {
+        getManagerAccess().manager
     }
 
     /// Resolves a stable CoreBluetooth identifier without requiring this
@@ -920,8 +1154,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         } else {
             withServices = nil
         }
-        targetManufacturerData = nil
-        targetRssi = rssi
+        var targetManufacturerData: Data?
 
         // Handle manufacturer data if provided
         if let manufacturerData = manufacturerData,
@@ -934,8 +1167,11 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             ) { Array($0) }
             mByteArray.append(contentsOf: data.data)
 
-            let givenManufacturerData = Data(_: mByteArray)
-            targetManufacturerData = givenManufacturerData
+            targetManufacturerData = Data(_: mByteArray)
+        }
+        stateQueue.sync {
+            self.targetManufacturerData = targetManufacturerData
+            targetRssi = rssi
         }
 
         let scanOptions =
@@ -956,6 +1192,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             }
         }
 
+        Self.managerRegistry.setActive(true, for: self)
         getManager().scanForPeripherals(
             withServices: withServices,
             options: nativeOptions
@@ -963,8 +1200,13 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     }
 
     func stopScan() throws {
-        targetRssi = nil
-        manager?.stopScan()
+        stateQueue.sync {
+            targetManufacturerData = nil
+            targetRssi = nil
+        }
+        if !Self.managerRegistry.setActive(false, for: self) {
+            Self.managerRegistry.managerIfCreated?.stopScan()
+        }
     }
 
     func connect(deviceId: String) throws {
@@ -1291,10 +1533,13 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     }
 
     public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
-        manager?.stopScan()
+        markDetachedFromEngine()
+        let hasActiveScans = Self.managerRegistry.unregister(self)
+        if !hasActiveScans {
+            Self.managerRegistry.managerIfCreated?.stopScan()
+        }
         bluetoothStateListener.onEventsDone()
 
-        isAttachedToEngine = false
         let deviceIds = Self.connectionDeviceIds(for: self)
         for deviceId in deviceIds {
             guard
@@ -1329,15 +1574,11 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                             plan.host.cleanConnection(peripheral)
                         }
                     }
-                    if !Self.isHostingConnections(plan.host) {
-                        plan.host.manager = nil
-                    }
+                    Self.resetNonRestoringManagerIfUnused()
                 }
             }
         }
-        if !Self.isHostingConnections(self) {
-            manager = nil
-        }
+        Self.resetNonRestoringManagerIfUnused()
     }
 
     private static func connectionDeviceIds(
@@ -1371,7 +1612,9 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             delegate.close()
             streamDelegates.removeValue(forKey: peripheral.identifier.uuidString)
         }
-        manager?.cancelPeripheralConnection(peripheral)
+        Self.managerRegistry.managerIfCreated?.cancelPeripheralConnection(
+            peripheral
+        )
         schedulePendingDisconnectCheck(peripheral)
     }
 
@@ -1417,11 +1660,14 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                         reason:
                             "Peripheral disconnected before the GATT operation completed"
                     )
+                    Self.resetNonRestoringManagerIfUnused()
                 }
                 return
             }
 
-            self.manager?.cancelPeripheralConnection(peripheral)
+            Self.managerRegistry.managerIfCreated?.cancelPeripheralConnection(
+                peripheral
+            )
             self.schedulePendingDisconnectCheck(
                 peripheral,
                 delayMilliseconds: min(delayMilliseconds * 2, 1_000)
@@ -1494,49 +1740,14 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     }
 }
 
-extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
-    public func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        bluetoothStateListener.onEvent(event: central.state.platformBluetoothState)
-    }
-
-    public func centralManager(
+extension QuickBlueDarwinPlugin {
+    private func centralManager(
         _ central: CBCentralManager,
         willRestoreState dict: [String: Any]
     ) {
         let peripherals =
             dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]
             ?? []
-        let restoredScanServicesValue =
-            dict[CBCentralManagerRestoredStateScanServicesKey]
-        let restoredScanServices = restoredScanServicesValue as? [CBUUID]
-        let summary = CoreBluetoothRestorationSummary(
-            peripheralStates: peripherals.map {
-                $0.state.restoredPeripheralConnectionState
-            },
-            hasRestoredScanServices: restoredScanServicesValue != nil,
-            restoredScanServiceCount: restoredScanServices?.count ?? 0,
-            hasRestoredScanOptions:
-                dict[CBCentralManagerRestoredStateScanOptionsKey] != nil
-        )
-        restorationEventListener.onEvent(
-            event: PlatformDarwinRestorationEvent(
-                restoredPeripheralCount:
-                    Int64(summary.restoredPeripheralCount),
-                disconnectedPeripheralCount:
-                    Int64(summary.disconnectedPeripheralCount),
-                connectingPeripheralCount:
-                    Int64(summary.connectingPeripheralCount),
-                connectedPeripheralCount:
-                    Int64(summary.connectedPeripheralCount),
-                disconnectingPeripheralCount:
-                    Int64(summary.disconnectingPeripheralCount),
-                unknownPeripheralCount:
-                    Int64(summary.unknownPeripheralCount),
-                scanningRestored: summary.scanningRestored,
-                restoredScanServiceCount:
-                    Int64(summary.restoredScanServiceCount)
-            )
-        )
         stateQueue.sync {
             for peripheral in peripherals {
                 if peripheral.state != .disconnected {
@@ -1577,9 +1788,23 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         }
     }
 
-    public func centralManager(
+    private func centralManager(
         _ central: CBCentralManager,
         didDiscover peripheral: CBPeripheral,
+        advertisementData: [String: Any],
+        rssi RSSI: NSNumber
+    ) {
+        Self.managerRegistry.forEachActiveClient { client in
+            client.handleDiscoveredPeripheral(
+                peripheral,
+                advertisementData: advertisementData,
+                rssi: RSSI
+            )
+        }
+    }
+
+    private func handleDiscoveredPeripheral(
+        _ peripheral: CBPeripheral,
         advertisementData: [String: Any],
         rssi RSSI: NSNumber
     ) {
@@ -1634,11 +1859,16 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         }
     }
 
-    public func centralManager(
+    private func centralManager(
         _ central: CBCentralManager,
         didConnect peripheral: CBPeripheral
     ) {
         let deviceId = peripheral.identifier.uuidString
+        guard let host = Self.host(for: deviceId) else { return }
+        if host !== self {
+            host.centralManager(central, didConnect: peripheral)
+            return
+        }
         let disconnectRequested = stateQueue.sync {
             pendingDisconnects.contains(deviceId)
         }
@@ -1657,12 +1887,21 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
 
     }
 
-    public func centralManager(
+    private func centralManager(
         _ central: CBCentralManager,
         didFailToConnect peripheral: CBPeripheral,
         error: Error?
     ) {
         let deviceId = peripheral.identifier.uuidString
+        guard let host = Self.host(for: deviceId) else { return }
+        if host !== self {
+            host.centralManager(
+                central,
+                didFailToConnect: peripheral,
+                error: error
+            )
+            return
+        }
         let disconnectRequested = stateQueue.sync {
             let requested = pendingDisconnects.remove(deviceId) != nil
             lastDisconnectTimes[deviceId] = ProcessInfo.processInfo.systemUptime
@@ -1677,14 +1916,24 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
                 error: disconnectRequested ? nil : error
             )
         }
+        Self.resetNonRestoringManagerIfUnused()
     }
 
-    public func centralManager(
+    private func centralManager(
         _ central: CBCentralManager,
         didDisconnectPeripheral peripheral: CBPeripheral,
         error: Error?
     ) {
         let deviceId = peripheral.identifier.uuidString
+        guard let host = Self.host(for: deviceId) else { return }
+        if host !== self {
+            host.centralManager(
+                central,
+                didDisconnectPeripheral: peripheral,
+                error: error
+            )
+            return
+        }
         let clients = Self.removeConnection(deviceId)
         stateQueue.sync {
             let disconnectRequested = pendingDisconnects.remove(deviceId) != nil
@@ -1710,6 +1959,7 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
             forDeviceId: peripheral.identifier.uuidString,
             reason: "Peripheral disconnected before the GATT operation completed"
         )
+        Self.resetNonRestoringManagerIfUnused()
     }
 }
 

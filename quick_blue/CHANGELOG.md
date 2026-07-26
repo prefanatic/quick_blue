@@ -39,6 +39,8 @@
 
 ### Fixed
 
+- Share the Darwin restoration manager across Flutter engines so eager
+  restoration bootstrap cannot create competing CoreBluetooth managers.
 - Reject Darwin writes when the characteristic does not advertise support for
   the requested response mode instead of falsely completing unsupported
   writes-without-response.

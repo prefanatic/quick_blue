@@ -22,6 +22,16 @@ void main() {
     await stopSecondaryEngine();
   });
 
+  testWidgets('both iOS engines observe powered-on Bluetooth', (_) async {
+    expect(await _waitForBluetooth(), isTrue);
+    await startSecondaryEngine();
+    try {
+      expect(await callMultiEngineWorker<bool>('waitForBluetooth', ''), isTrue);
+    } finally {
+      await stopSecondaryEngine();
+    }
+  });
+
   testWidgets('two iOS engines share one CoreBluetooth connection', (_) async {
     await runMultiEngineConnectionScenario(
       targetDescription: 'BLE device UUID',
@@ -216,12 +226,9 @@ Future<void> _requireBluetoothTarget({
     );
   }
 
-  final deadline = DateTime.now().add(const Duration(seconds: 8));
-  do {
-    if (await QuickBlue.isBluetoothAvailable()) return;
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-  } while (DateTime.now().isBefore(deadline));
-  fail('Bluetooth is unavailable or permission was denied.');
+  if (!await _waitForBluetooth()) {
+    fail('Bluetooth is unavailable or permission was denied.');
+  }
 }
 
 Future<void> _primeKnownPeripheral() async {
@@ -230,4 +237,13 @@ Future<void> _primeKnownPeripheral() async {
         (result) => result.deviceId.toLowerCase() == _deviceId.toLowerCase(),
       )
       .timeout(const Duration(seconds: 15));
+}
+
+Future<bool> _waitForBluetooth() async {
+  final deadline = DateTime.now().add(const Duration(seconds: 8));
+  do {
+    if (await QuickBlue.isBluetoothAvailable()) return true;
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+  } while (DateTime.now().isBefore(deadline));
+  return false;
 }

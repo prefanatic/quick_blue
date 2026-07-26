@@ -65,6 +65,12 @@ public final class SharedConnectionOwnership<
         }
     }
 
+    public func host(for deviceId: DeviceID) -> Client? {
+        withLock {
+            connections[deviceId]?.host
+        }
+    }
+
     public func clients(for deviceId: DeviceID) -> [Client] {
         withLock {
             guard let connection = connections[deviceId] else { return [] }
@@ -222,6 +228,12 @@ public final class SharedConnectionOwnership<
     public func isHostingConnections(_ client: Client) -> Bool {
         withLock {
             connections.values.contains { $0.host === client }
+        }
+    }
+
+    public var hasConnections: Bool {
+        withLock {
+            !connections.isEmpty
         }
     }
 

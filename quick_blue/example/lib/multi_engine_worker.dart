@@ -20,6 +20,13 @@ Future<void> multiEngineWorkerMain() async {
   }
   _workerChannel.setMethodCallHandler((call) async {
     final arguments = (call.arguments as Map<Object?, Object?>?) ?? const {};
+    if (call.method == 'isBluetoothAvailable') {
+      return QuickBlue.isBluetoothAvailable();
+    }
+    if (call.method == 'waitForBluetooth') {
+      await _waitForBluetooth();
+      return true;
+    }
     final deviceId = arguments['deviceId'] as String;
     final device = QuickBlue.device(deviceId);
     switch (call.method) {

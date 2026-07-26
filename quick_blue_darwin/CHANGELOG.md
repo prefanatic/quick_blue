@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Share the CoreBluetooth restoration manager across Flutter engines and replay
+  Bluetooth state and restoration callbacks to each registered engine.
 - Emit and buffer privacy-safe aggregate CoreBluetooth restoration callbacks
   until Dart subscribes.
 - Add `QuickBlueCoreBluetoothStateRestorationEnabled` as a persistent native
