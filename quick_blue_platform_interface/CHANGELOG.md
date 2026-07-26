@@ -10,6 +10,7 @@
   and aggregate measurements for telemetry adapters.
 - Add composite and characteristic-value observers, safe failure metadata,
   connected-device service UUID context, and a distinct stopped-stream outcome.
+- Add typed, aggregate-only Darwin CoreBluetooth restoration observations.
 - Preserve Future error propagation and source stream broadcast, synchronous,
   and non-terminal-error behavior while observing operations.
 - Add service-data UUID and payload-prefix filters to `ScanFilter`, with shared

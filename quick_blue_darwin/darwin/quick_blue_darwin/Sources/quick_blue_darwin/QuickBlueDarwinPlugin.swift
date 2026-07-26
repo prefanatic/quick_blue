@@ -3,6 +3,7 @@ import Foundation
 
 #if SWIFT_PACKAGE
     import QuickBlueConnectionOwnership
+    import QuickBlueRestorationSummary
 #endif
 
 #if os(iOS)
@@ -80,6 +81,23 @@ extension CBPeripheral {
             bleInputProperty != PlatformBleInputProperty.disabled,
             for: getCharacteristic(characteristic, of: service)!
         )
+    }
+}
+
+extension CBPeripheralState {
+    var restoredPeripheralConnectionState: RestoredPeripheralConnectionState {
+        switch self {
+        case .disconnected:
+            return .disconnected
+        case .connecting:
+            return .connecting
+        case .connected:
+            return .connected
+        case .disconnecting:
+            return .disconnecting
+        @unknown default:
+            return .unknown
+        }
     }
 }
 
@@ -549,6 +567,10 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
             with: messenger,
             streamHandler: instance.l2CapSocketEventsListener
         )
+        RestorationEventsStreamHandler.register(
+            with: messenger,
+            streamHandler: instance.restorationEventListener
+        )
         registrar.publish(instance)
     }
 
@@ -558,6 +580,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var bluetoothStateListener: BluetoothStateListener
     private var scanResultListener: ScanResultListener
     private var l2CapSocketEventsListener: L2CapSocketEventsListener
+    private var restorationEventListener: RestorationEventListener
 
     private var manager: CBCentralManager?
     private var appleAccessorySetupCoordinator: AnyObject?
@@ -695,6 +718,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         self.bluetoothStateListener = BluetoothStateListener()
         self.scanResultListener = ScanResultListener()
         self.l2CapSocketEventsListener = L2CapSocketEventsListener()
+        self.restorationEventListener = RestorationEventListener()
 
         super.init()
         bluetoothStateListener.currentStateProvider = { [weak self] in
@@ -1448,6 +1472,37 @@ extension QuickBlueDarwinPlugin: CBCentralManagerDelegate {
         let peripherals =
             dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]
             ?? []
+        let restoredScanServicesValue =
+            dict[CBCentralManagerRestoredStateScanServicesKey]
+        let restoredScanServices = restoredScanServicesValue as? [CBUUID]
+        let summary = CoreBluetoothRestorationSummary(
+            peripheralStates: peripherals.map {
+                $0.state.restoredPeripheralConnectionState
+            },
+            hasRestoredScanServices: restoredScanServicesValue != nil,
+            restoredScanServiceCount: restoredScanServices?.count ?? 0,
+            hasRestoredScanOptions:
+                dict[CBCentralManagerRestoredStateScanOptionsKey] != nil
+        )
+        restorationEventListener.onEvent(
+            event: PlatformDarwinRestorationEvent(
+                restoredPeripheralCount:
+                    Int64(summary.restoredPeripheralCount),
+                disconnectedPeripheralCount:
+                    Int64(summary.disconnectedPeripheralCount),
+                connectingPeripheralCount:
+                    Int64(summary.connectingPeripheralCount),
+                connectedPeripheralCount:
+                    Int64(summary.connectedPeripheralCount),
+                disconnectingPeripheralCount:
+                    Int64(summary.disconnectingPeripheralCount),
+                unknownPeripheralCount:
+                    Int64(summary.unknownPeripheralCount),
+                scanningRestored: summary.scanningRestored,
+                restoredScanServiceCount:
+                    Int64(summary.restoredScanServiceCount)
+            )
+        )
         stateQueue.sync {
             for peripheral in peripherals {
                 if peripheral.state != .disconnected {
@@ -2129,5 +2184,29 @@ class L2CapSocketEventsListener: L2CapSocketEventsStreamHandler {
     func onEventsDone() {
         eventSink?.endOfStream()
         eventSink = nil
+    }
+}
+
+/// Buffers restoration callbacks until Dart listens, then emits each callback
+/// exactly once through the event sink.
+class RestorationEventListener: RestorationEventsStreamHandler {
+    private let delivery =
+        BufferedRestorationEventDelivery<PlatformDarwinRestorationEvent>()
+
+    override func onListen(
+        withArguments arguments: Any?,
+        sink: PigeonEventSink<PlatformDarwinRestorationEvent>
+    ) {
+        delivery.start { event in
+            sink.success(event)
+        }
+    }
+
+    override func onCancel(withArguments arguments: Any?) {
+        delivery.stop()
+    }
+
+    func onEvent(event: PlatformDarwinRestorationEvent) {
+        delivery.emit(event)
     }
 }

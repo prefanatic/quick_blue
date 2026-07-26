@@ -16,6 +16,7 @@ Darwin implementation of the quick_blue Bluetooth LE plugin.
   s.source_files     = [
     'quick_blue_darwin/Sources/quick_blue_darwin/**/*.swift',
     'quick_blue_darwin/connection_ownership/Sources/QuickBlueConnectionOwnership/**/*.swift',
+    'quick_blue_darwin/restoration_summary/Sources/QuickBlueRestorationSummary/**/*.swift',
   ]
 
   s.ios.dependency 'Flutter'

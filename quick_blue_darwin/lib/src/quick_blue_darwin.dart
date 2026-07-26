@@ -10,6 +10,8 @@ class QuickBlueDarwin extends QuickBluePlatform {
 
   final messages.QuickBlueApi _api = messages.QuickBlueApi();
   messages.QuickBlueFlutterApi? _flutterApi;
+  StreamSubscription<messages.PlatformDarwinRestorationEvent>?
+  _restorationEventSubscription;
   late final Stream<BlueBluetoothState> _bluetoothStateEvents = messages
       .bluetoothState()
       .map((state) => state.toBlueBluetoothState());
@@ -27,13 +29,44 @@ class QuickBlueDarwin extends QuickBluePlatform {
       .l2CapSocketEvents();
 
   static void registerWith() {
-    QuickBluePlatform.instance = QuickBlueDarwin();
+    final platform = QuickBlueDarwin();
+    QuickBluePlatform.instance = platform;
+    if (QuickBlueInstrumentation.observer
+        is QuickBlueDarwinRestorationObserver) {
+      platform.startObservingDarwinRestoration();
+    }
   }
 
   void _ensureInitialized() {
-    if (_flutterApi != null) return;
+    if (_restorationEventSubscription != null) return;
     _flutterApi = _FlutterApi(this);
     messages.QuickBlueFlutterApi.setUp(_flutterApi);
+    _restorationEventSubscription = messages.restorationEvents().listen(
+      _handleRestorationEvent,
+      onError: (Object _, StackTrace _) {
+        // Restoration telemetry must not affect Bluetooth behavior.
+      },
+    );
+  }
+
+  @override
+  void startObservingDarwinRestoration() {
+    _ensureInitialized();
+  }
+
+  void _handleRestorationEvent(messages.PlatformDarwinRestorationEvent event) {
+    QuickBlueInstrumentation.recordDarwinRestoration(
+      QuickBlueDarwinRestorationEvent(
+        restoredPeripheralCount: event.restoredPeripheralCount,
+        disconnectedPeripheralCount: event.disconnectedPeripheralCount,
+        connectingPeripheralCount: event.connectingPeripheralCount,
+        connectedPeripheralCount: event.connectedPeripheralCount,
+        disconnectingPeripheralCount: event.disconnectingPeripheralCount,
+        unknownPeripheralCount: event.unknownPeripheralCount,
+        scanningRestored: event.scanningRestored,
+        restoredScanServiceCount: event.restoredScanServiceCount,
+      ),
+    );
   }
 
   // This API remains Android-specific. Apple AccessorySetupKit is exposed

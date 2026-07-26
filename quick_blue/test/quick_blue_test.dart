@@ -21,6 +21,8 @@ void main() {
   });
 
   tearDown(() async {
+    // Drain restoration events left buffered by a failed test.
+    QuickBlue.observer = _RecordingObserver();
     QuickBlue.observer = null;
     QuickBluePlatform.instance = previousPlatform;
     await platform.dispose();
@@ -30,6 +32,36 @@ void main() {
     await QuickBlue.configure(maintainState: true);
 
     expect(platform.calls, <String>['configure true']);
+  });
+
+  test('buffers and replays Darwin restoration events exactly once', () {
+    final event = _restorationEvent(restoredPeripheralCount: 2);
+
+    QuickBlueInstrumentation.recordDarwinRestoration(event);
+
+    final firstObserver = _RecordingObserver();
+    QuickBlue.observer = firstObserver;
+    expect(firstObserver.restorations, hasLength(1));
+    expect(firstObserver.restorations.single, same(event));
+
+    final secondObserver = _RecordingObserver();
+    QuickBlue.observer = secondObserver;
+    expect(secondObserver.restorations, isEmpty);
+  });
+
+  test('delivers live Darwin restoration events through the observer', () {
+    final observer = _RecordingObserver();
+    QuickBlue.observer = observer;
+    final event = _restorationEvent(
+      restoredPeripheralCount: 4,
+      scanningRestored: true,
+      restoredScanServiceCount: 3,
+    );
+
+    QuickBlueInstrumentation.recordDarwinRestoration(event);
+
+    expect(observer.restorations, hasLength(1));
+    expect(observer.restorations.single, same(event));
   });
 
   test(
@@ -271,6 +303,8 @@ void main() {
         'characteristic-a',
         Uint8List.fromList(<int>[1, 2, 3]),
       );
+      final restoration = _restorationEvent(restoredPeripheralCount: 1);
+      QuickBlueInstrumentation.recordDarwinRestoration(restoration);
 
       expect(
         first.operations.single.end!.outcome,
@@ -282,6 +316,8 @@ void main() {
       );
       expect(first.values.single.valueSize, 3);
       expect(second.values.single.valueSize, 3);
+      expect(first.restorations.single, same(restoration));
+      expect(second.restorations.single, same(restoration));
     },
   );
 
@@ -810,9 +846,13 @@ void main() {
 }
 
 final class _RecordingObserver
-    implements QuickBlueObserver, QuickBlueValueObserver {
+    implements
+        QuickBlueObserver,
+        QuickBlueValueObserver,
+        QuickBlueDarwinRestorationObserver {
   final operations = <_ObservedOperation>[];
   final values = <QuickBlueValueObservation>[];
+  final restorations = <QuickBlueDarwinRestorationEvent>[];
 
   @override
   QuickBlueOperationObservation onOperationStarted(
@@ -827,6 +867,28 @@ final class _RecordingObserver
   void onValueReceived(QuickBlueValueObservation observation) {
     values.add(observation);
   }
+
+  @override
+  void onDarwinStateRestored(QuickBlueDarwinRestorationEvent event) {
+    restorations.add(event);
+  }
+}
+
+QuickBlueDarwinRestorationEvent _restorationEvent({
+  required int restoredPeripheralCount,
+  bool scanningRestored = false,
+  int restoredScanServiceCount = 0,
+}) {
+  return QuickBlueDarwinRestorationEvent(
+    restoredPeripheralCount: restoredPeripheralCount,
+    disconnectedPeripheralCount: 1,
+    connectingPeripheralCount: 0,
+    connectedPeripheralCount: restoredPeripheralCount - 1,
+    disconnectingPeripheralCount: 0,
+    unknownPeripheralCount: 0,
+    scanningRestored: scanningRestored,
+    restoredScanServiceCount: restoredScanServiceCount,
+  );
 }
 
 final class _ObservedOperation {

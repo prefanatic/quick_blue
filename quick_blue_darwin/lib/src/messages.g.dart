@@ -234,6 +234,86 @@ class PlatformDarwinConfiguration {
   }
 }
 
+class PlatformDarwinRestorationEvent {
+  PlatformDarwinRestorationEvent({
+    required this.restoredPeripheralCount,
+    required this.disconnectedPeripheralCount,
+    required this.connectingPeripheralCount,
+    required this.connectedPeripheralCount,
+    required this.disconnectingPeripheralCount,
+    required this.unknownPeripheralCount,
+    required this.scanningRestored,
+    required this.restoredScanServiceCount,
+  });
+
+  int restoredPeripheralCount;
+
+  int disconnectedPeripheralCount;
+
+  int connectingPeripheralCount;
+
+  int connectedPeripheralCount;
+
+  int disconnectingPeripheralCount;
+
+  int unknownPeripheralCount;
+
+  bool scanningRestored;
+
+  int restoredScanServiceCount;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      restoredPeripheralCount,
+      disconnectedPeripheralCount,
+      connectingPeripheralCount,
+      connectedPeripheralCount,
+      disconnectingPeripheralCount,
+      unknownPeripheralCount,
+      scanningRestored,
+      restoredScanServiceCount,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformDarwinRestorationEvent decode(Object result) {
+    result as List<Object?>;
+    return PlatformDarwinRestorationEvent(
+      restoredPeripheralCount: result[0]! as int,
+      disconnectedPeripheralCount: result[1]! as int,
+      connectingPeripheralCount: result[2]! as int,
+      connectedPeripheralCount: result[3]! as int,
+      disconnectingPeripheralCount: result[4]! as int,
+      unknownPeripheralCount: result[5]! as int,
+      scanningRestored: result[6]! as bool,
+      restoredScanServiceCount: result[7]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformDarwinRestorationEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(restoredPeripheralCount, other.restoredPeripheralCount) && _deepEquals(disconnectedPeripheralCount, other.disconnectedPeripheralCount) && _deepEquals(connectingPeripheralCount, other.connectingPeripheralCount) && _deepEquals(connectedPeripheralCount, other.connectedPeripheralCount) && _deepEquals(disconnectingPeripheralCount, other.disconnectingPeripheralCount) && _deepEquals(unknownPeripheralCount, other.unknownPeripheralCount) && _deepEquals(scanningRestored, other.scanningRestored) && _deepEquals(restoredScanServiceCount, other.restoredScanServiceCount);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformDarwinRestorationEvent(restoredPeripheralCount: $restoredPeripheralCount, disconnectedPeripheralCount: $disconnectedPeripheralCount, connectingPeripheralCount: $connectingPeripheralCount, connectedPeripheralCount: $connectedPeripheralCount, disconnectingPeripheralCount: $disconnectingPeripheralCount, unknownPeripheralCount: $unknownPeripheralCount, scanningRestored: $scanningRestored, restoredScanServiceCount: $restoredScanServiceCount)';
+  }
+}
+
 class PlatformAppleAccessoryDiscovery {
   PlatformAppleAccessoryDiscovery({
     required this.serviceUuid,
@@ -883,35 +963,38 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformDarwinConfiguration) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformAppleAccessoryDiscovery) {
+    }    else if (value is PlatformDarwinRestorationEvent) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformAppleAccessoryPickerItem) {
+    }    else if (value is PlatformAppleAccessoryDiscovery) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformAppleAccessory) {
+    }    else if (value is PlatformAppleAccessoryPickerItem) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is Peripheral) {
+    }    else if (value is PlatformAppleAccessory) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformScanResult) {
+    }    else if (value is Peripheral) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformConnectionStateChange) {
+    }    else if (value is PlatformScanResult) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformServiceDiscovered) {
+    }    else if (value is PlatformConnectionStateChange) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristic) {
+    }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformCharacteristic) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformL2CapSocketEvent) {
+    }    else if (value is PlatformCharacteristicValueChanged) {
       buffer.putUint8(145);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformL2CapSocketEvent) {
+      buffer.putUint8(146);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -941,24 +1024,26 @@ class _PigeonCodec extends StandardMessageCodec {
       case 135:
         return PlatformDarwinConfiguration.decode(readValue(buffer)!);
       case 136:
-        return PlatformAppleAccessoryDiscovery.decode(readValue(buffer)!);
+        return PlatformDarwinRestorationEvent.decode(readValue(buffer)!);
       case 137:
-        return PlatformAppleAccessoryPickerItem.decode(readValue(buffer)!);
+        return PlatformAppleAccessoryDiscovery.decode(readValue(buffer)!);
       case 138:
-        return PlatformAppleAccessory.decode(readValue(buffer)!);
+        return PlatformAppleAccessoryPickerItem.decode(readValue(buffer)!);
       case 139:
-        return Peripheral.decode(readValue(buffer)!);
+        return PlatformAppleAccessory.decode(readValue(buffer)!);
       case 140:
-        return PlatformScanResult.decode(readValue(buffer)!);
+        return Peripheral.decode(readValue(buffer)!);
       case 141:
-        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+        return PlatformScanResult.decode(readValue(buffer)!);
       case 142:
-        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+        return PlatformConnectionStateChange.decode(readValue(buffer)!);
       case 143:
-        return PlatformCharacteristic.decode(readValue(buffer)!);
+        return PlatformServiceDiscovered.decode(readValue(buffer)!);
       case 144:
-        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+        return PlatformCharacteristic.decode(readValue(buffer)!);
       case 145:
+        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+      case 146:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1379,6 +1464,23 @@ Stream<PlatformL2CapSocketEvent> l2CapSocketEvents( {String instanceName = ''}) 
       EventChannel('dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.l2CapSocketEvents$instanceName', pigeonMethodCodec);
   return l2CapSocketEventsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as PlatformL2CapSocketEvent;
+  });
+}
+    
+/// Returns a broadcast [Stream] of events from the `restorationEvents` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<PlatformDarwinRestorationEvent> restorationEvents( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel restorationEventsChannel =
+      EventChannel('dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.restorationEvents$instanceName', pigeonMethodCodec);
+  return restorationEventsChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as PlatformDarwinRestorationEvent;
   });
 }
     

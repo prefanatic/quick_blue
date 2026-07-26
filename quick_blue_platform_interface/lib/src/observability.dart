@@ -32,6 +32,16 @@ abstract interface class QuickBlueValueObserver {
   void onValueReceived(QuickBlueValueObservation observation);
 }
 
+/// Optionally receives privacy-safe Darwin state-restoration events.
+///
+/// An operation observer can implement this interface to distinguish an actual
+/// CoreBluetooth restoration callback from an app requesting restoration in
+/// `QuickBlue.configure(maintainState: true)`.
+abstract interface class QuickBlueDarwinRestorationObserver {
+  /// Called once for each native `willRestoreState` callback.
+  void onDarwinStateRestored(QuickBlueDarwinRestorationEvent event);
+}
+
 /// Receives the end of one observed Quick Blue operation.
 abstract interface class QuickBlueOperationObservation {
   /// Called at most once when the operation completes, is stopped or
@@ -44,7 +54,10 @@ abstract interface class QuickBlueOperationObservation {
 /// A failure in one child observer does not prevent the remaining observers
 /// from receiving the event.
 final class CompositeQuickBlueObserver
-    implements QuickBlueObserver, QuickBlueValueObserver {
+    implements
+        QuickBlueObserver,
+        QuickBlueValueObserver,
+        QuickBlueDarwinRestorationObserver {
   /// Creates an observer that fans out to [observers] in iteration order.
   CompositeQuickBlueObserver(Iterable<QuickBlueObserver> observers)
     : observers = List<QuickBlueObserver>.unmodifiable(observers);
@@ -79,6 +92,18 @@ final class CompositeQuickBlueObserver
         observer.onValueReceived(observation);
       } on Object {
         // Diagnostics must never change the behavior of Bluetooth operations.
+      }
+    }
+  }
+
+  @override
+  void onDarwinStateRestored(QuickBlueDarwinRestorationEvent event) {
+    for (final observer
+        in observers.whereType<QuickBlueDarwinRestorationObserver>()) {
+      try {
+        observer.onDarwinStateRestored(event);
+      } on Object {
+        // Keep dispatching to the remaining restoration observers.
       }
     }
   }
@@ -303,6 +328,48 @@ final class QuickBlueValueObservation {
   final int valueSize;
 }
 
+/// Privacy-safe aggregate metadata from one CoreBluetooth restoration callback.
+///
+/// This type deliberately excludes the CoreBluetooth restoration identifier,
+/// peripheral identifiers, names, advertisement data, and GATT payloads.
+final class QuickBlueDarwinRestorationEvent {
+  /// Creates aggregate metadata for a native Darwin restoration callback.
+  const QuickBlueDarwinRestorationEvent({
+    required this.restoredPeripheralCount,
+    required this.disconnectedPeripheralCount,
+    required this.connectingPeripheralCount,
+    required this.connectedPeripheralCount,
+    required this.disconnectingPeripheralCount,
+    required this.unknownPeripheralCount,
+    required this.scanningRestored,
+    required this.restoredScanServiceCount,
+  });
+
+  /// Number of peripherals supplied by CoreBluetooth.
+  final int restoredPeripheralCount;
+
+  /// Number of restored peripherals in the disconnected state.
+  final int disconnectedPeripheralCount;
+
+  /// Number of restored peripherals in the connecting state.
+  final int connectingPeripheralCount;
+
+  /// Number of restored peripherals in the connected state.
+  final int connectedPeripheralCount;
+
+  /// Number of restored peripherals in the disconnecting state.
+  final int disconnectingPeripheralCount;
+
+  /// Number of restored peripherals whose state was not recognized.
+  final int unknownPeripheralCount;
+
+  /// Whether CoreBluetooth supplied restored scan services or scan options.
+  final bool scanningRestored;
+
+  /// Number of service UUIDs in CoreBluetooth's restored scan-services list.
+  final int restoredScanServiceCount;
+}
+
 /// The completion of an observed Quick Blue operation.
 final class QuickBlueOperationEnd {
   @internal
@@ -383,8 +450,50 @@ QuickBlueOperationFailure? _safeFailure(Object? error) {
 final class QuickBlueInstrumentation {
   QuickBlueInstrumentation._();
 
-  /// The process-local operation observer.
-  static QuickBlueObserver? observer;
+  static QuickBlueObserver? _observer;
+  static final List<QuickBlueDarwinRestorationEvent>
+  _pendingDarwinRestorationEvents = <QuickBlueDarwinRestorationEvent>[];
+
+  /// The process-local observer.
+  static QuickBlueObserver? get observer => _observer;
+
+  /// Installs the process-local observer and replays pending restoration events.
+  static set observer(QuickBlueObserver? observer) {
+    _observer = observer;
+    if (observer is! QuickBlueDarwinRestorationObserver ||
+        _pendingDarwinRestorationEvents.isEmpty) {
+      return;
+    }
+    final restorationObserver = observer as QuickBlueDarwinRestorationObserver;
+
+    final pending = List<QuickBlueDarwinRestorationEvent>.of(
+      _pendingDarwinRestorationEvents,
+    );
+    _pendingDarwinRestorationEvents.clear();
+    for (final event in pending) {
+      try {
+        restorationObserver.onDarwinStateRestored(event);
+      } on Object {
+        // Diagnostics must never change restoration or later event delivery.
+      }
+    }
+  }
+
+  /// Reports or buffers one privacy-safe Darwin restoration callback.
+  static void recordDarwinRestoration(QuickBlueDarwinRestorationEvent event) {
+    final currentObserver = _observer;
+    if (currentObserver is! QuickBlueDarwinRestorationObserver) {
+      _pendingDarwinRestorationEvents.add(event);
+      return;
+    }
+    final restorationObserver =
+        currentObserver as QuickBlueDarwinRestorationObserver;
+    try {
+      restorationObserver.onDarwinStateRestored(event);
+    } on Object {
+      // Diagnostics must never change restored CoreBluetooth state handling.
+    }
+  }
 
   /// Records the lifecycle of an asynchronous [action].
   static Future<T> observeFuture<T>({

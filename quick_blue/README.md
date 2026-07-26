@@ -111,6 +111,11 @@ background termination must also add `bluetooth-central` to
 await QuickBlue.configure(maintainState: true);
 ```
 
+`configure` is a runtime opt-in. It is sufficient only when Dart runs early
+enough to create the central manager before iOS needs to restore it. See
+[Darwin restoration launch correctness](#darwin-restoration-launch-correctness)
+for the native bootstrap proposal for background relaunches.
+
 ### macOS
 
 Add `NSBluetoothAlwaysUsageDescription` to
@@ -460,6 +465,50 @@ the byte count, so it covers both `notifications()` and the explicit
 `valueStream` / `setNotifiable()` lifecycle without waiting for a long-lived
 subscription to end.
 
+An observer can separately implement `QuickBlueDarwinRestorationObserver` to
+learn when CoreBluetooth actually invokes `centralManager(_:willRestoreState:)`:
+
+```dart
+final class BluetoothTelemetryObserver
+    implements QuickBlueObserver, QuickBlueDarwinRestorationObserver {
+  @override
+  QuickBlueOperationObservation? onOperationStarted(
+    QuickBlueOperation operation,
+  ) {
+    // A configure operation whose maintainState field is true means the app
+    // requested restoration during this Dart process.
+    return null;
+  }
+
+  @override
+  void onDarwinStateRestored(QuickBlueDarwinRestorationEvent event) {
+    restorationCallbacks.add(<String, Object>{
+      'peripheral_count': event.restoredPeripheralCount,
+      'disconnected_count': event.disconnectedPeripheralCount,
+      'connecting_count': event.connectingPeripheralCount,
+      'connected_count': event.connectedPeripheralCount,
+      'disconnecting_count': event.disconnectingPeripheralCount,
+      'unknown_count': event.unknownPeripheralCount,
+      'scanning_restored': event.scanningRestored,
+      'scan_service_count': event.restoredScanServiceCount,
+    });
+  }
+}
+```
+
+Native callbacks are buffered until Dart subscribes, then buffered again until
+a restoration observer is installed. Each native callback is delivered once.
+The restoration event is export-safe: it contains aggregate counts only and
+never contains the restoration identifier or peripheral identifiers.
+
+These lifecycle facts are distinct:
+
+| Fact | How to observe it |
+| --- | --- |
+| Restoration was requested from Dart | `QuickBlueOperation.kind` is `configure` and `maintainState` is `true`. |
+| The manager was initialized with Quick Blue's restoration identifier | That configure operation completes successfully. `configure(maintainState: true)` creates the manager before completing. |
+| CoreBluetooth had state to restore | `onDarwinStateRestored` runs. A successful configure does not imply this callback will occur. |
+
 An OpenTelemetry adapter follows the same pattern: create a real SDK span in
 `onOperationStarted`, retain it in the returned handle, then record the typed
 outcome and measurements before ending it. The adapter—not Quick Blue—chooses
@@ -478,6 +527,45 @@ native details, and local paths. `QuickBlueOperation.deviceId` and
 filters can contain service/manufacturer data prefixes. Redact or hash sensitive
 context before export. Characteristic values and advertisement results are
 never included. Set `QuickBlue.observer = null` to disable observation.
+
+### Darwin restoration launch correctness
+
+Apple requires an app relaunched for Bluetooth work to recreate its
+`CBCentralManager` with the same restoration identifier. In a scene-based app,
+the identifier must be persisted or otherwise stable because launch options do
+not supply it. CoreBluetooth may invoke `willRestoreState` before ordinary app
+initialization callbacks, so relying on Dart to call
+`configure(maintainState: true)` after the app reaches `resumed` is too late
+for a robust iOS background-relaunch path.
+
+Quick Blue's current restoration identifier is stable across executions, but
+manager creation is still initiated from Dart. The proposed native persistent
+opt-in is:
+
+```xml
+<key>QuickBlueCoreBluetoothStateRestorationEnabled</key>
+<true/>
+```
+
+When implemented, plugin registration would read this setting and create the
+central manager immediately with the stable identifier, before the Dart
+entrypoint runs. The setting would be persistent app configuration rather than
+a per-process Dart call. Apps that delay Flutter engine/plugin registration
+would additionally call a public native bootstrap from
+`application(_:didFinishLaunchingWithOptions:)`; the bootstrap would own the
+manager until a Flutter engine attaches.
+
+The native opt-in needs explicit interaction rules with AccessorySetupKit:
+automatic manager creation prevents a later system picker from running first.
+An app should therefore use either launch-time restoration bootstrap or an
+AccessorySetupKit-first startup flow, unless a future bootstrap API accepts
+AccessorySetupKit configuration natively before creating the manager.
+
+This section is a design proposal; the Info.plist key and native bootstrap API
+are not implemented yet. The behavior is based on Apple's
+[Core Bluetooth restoration guide](https://developer.apple.com/library/archive/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/CoreBluetoothBackgroundProcessingForIOSApps/PerformingTasksWhileYourAppIsInTheBackground.html)
+and
+[`CBCentralManagerOptionRestoreIdentifierKey` documentation](https://developer.apple.com/documentation/corebluetooth/cbcentralmanageroptionrestoreidentifierkey).
 
 ### Apple AccessorySetupKit
 

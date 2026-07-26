@@ -10,6 +10,8 @@ export 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
         BluetoothDevice,
         BluetoothGatt,
         CompositeQuickBlueObserver,
+        QuickBlueDarwinRestorationEvent,
+        QuickBlueDarwinRestorationObserver,
         QuickBlueErrorCode,
         QuickBlueException,
         QuickBlueGattException,
@@ -37,7 +39,8 @@ class QuickBlue {
   ///
   /// Use [CompositeQuickBlueObserver] to install multiple adapters. An observer
   /// can also implement [QuickBlueValueObserver] for immediate payload-free
-  /// characteristic value measurements.
+  /// characteristic value measurements or [QuickBlueDarwinRestorationObserver]
+  /// for privacy-safe CoreBluetooth restoration callbacks.
   ///
   /// Assign null to disable observation. Observer callback failures are
   /// ignored so diagnostics cannot change Bluetooth behavior.
@@ -45,6 +48,9 @@ class QuickBlue {
 
   static set observer(QuickBlueObserver? observer) {
     QuickBlueInstrumentation.observer = observer;
+    if (observer is QuickBlueDarwinRestorationObserver) {
+      _platform.startObservingDarwinRestoration();
+    }
   }
 
   /// Android companion-device association APIs.

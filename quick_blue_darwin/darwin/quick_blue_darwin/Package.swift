@@ -18,6 +18,10 @@ let package = Package(
             name: "QuickBlueConnectionOwnership",
             path: "connection_ownership"
         ),
+        .package(
+            name: "QuickBlueRestorationSummary",
+            path: "restoration_summary"
+        ),
     ],
     targets: [
         .target(
@@ -27,6 +31,10 @@ let package = Package(
                 .product(
                     name: "QuickBlueConnectionOwnership",
                     package: "QuickBlueConnectionOwnership"
+                ),
+                .product(
+                    name: "QuickBlueRestorationSummary",
+                    package: "QuickBlueRestorationSummary"
                 ),
             ],
             cSettings: [

@@ -296,6 +296,76 @@ struct PlatformDarwinConfiguration: Hashable, CustomStringConvertible {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct PlatformDarwinRestorationEvent: Hashable, CustomStringConvertible {
+  var restoredPeripheralCount: Int64
+  var disconnectedPeripheralCount: Int64
+  var connectingPeripheralCount: Int64
+  var connectedPeripheralCount: Int64
+  var disconnectingPeripheralCount: Int64
+  var unknownPeripheralCount: Int64
+  var scanningRestored: Bool
+  var restoredScanServiceCount: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformDarwinRestorationEvent? {
+    let restoredPeripheralCount = pigeonVar_list[0] as! Int64
+    let disconnectedPeripheralCount = pigeonVar_list[1] as! Int64
+    let connectingPeripheralCount = pigeonVar_list[2] as! Int64
+    let connectedPeripheralCount = pigeonVar_list[3] as! Int64
+    let disconnectingPeripheralCount = pigeonVar_list[4] as! Int64
+    let unknownPeripheralCount = pigeonVar_list[5] as! Int64
+    let scanningRestored = pigeonVar_list[6] as! Bool
+    let restoredScanServiceCount = pigeonVar_list[7] as! Int64
+
+    return PlatformDarwinRestorationEvent(
+      restoredPeripheralCount: restoredPeripheralCount,
+      disconnectedPeripheralCount: disconnectedPeripheralCount,
+      connectingPeripheralCount: connectingPeripheralCount,
+      connectedPeripheralCount: connectedPeripheralCount,
+      disconnectingPeripheralCount: disconnectingPeripheralCount,
+      unknownPeripheralCount: unknownPeripheralCount,
+      scanningRestored: scanningRestored,
+      restoredScanServiceCount: restoredScanServiceCount
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      restoredPeripheralCount,
+      disconnectedPeripheralCount,
+      connectingPeripheralCount,
+      connectedPeripheralCount,
+      disconnectingPeripheralCount,
+      unknownPeripheralCount,
+      scanningRestored,
+      restoredScanServiceCount,
+    ]
+  }
+  static func == (lhs: PlatformDarwinRestorationEvent, rhs: PlatformDarwinRestorationEvent) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.restoredPeripheralCount, rhs.restoredPeripheralCount) && MessagesPigeonInternal.deepEquals(lhs.disconnectedPeripheralCount, rhs.disconnectedPeripheralCount) && MessagesPigeonInternal.deepEquals(lhs.connectingPeripheralCount, rhs.connectingPeripheralCount) && MessagesPigeonInternal.deepEquals(lhs.connectedPeripheralCount, rhs.connectedPeripheralCount) && MessagesPigeonInternal.deepEquals(lhs.disconnectingPeripheralCount, rhs.disconnectingPeripheralCount) && MessagesPigeonInternal.deepEquals(lhs.unknownPeripheralCount, rhs.unknownPeripheralCount) && MessagesPigeonInternal.deepEquals(lhs.scanningRestored, rhs.scanningRestored) && MessagesPigeonInternal.deepEquals(lhs.restoredScanServiceCount, rhs.restoredScanServiceCount)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformDarwinRestorationEvent")
+    MessagesPigeonInternal.deepHash(value: restoredPeripheralCount, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: disconnectedPeripheralCount, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: connectingPeripheralCount, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: connectedPeripheralCount, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: disconnectingPeripheralCount, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: unknownPeripheralCount, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: scanningRestored, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: restoredScanServiceCount, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformDarwinRestorationEvent(restoredPeripheralCount: \(String(describing: restoredPeripheralCount)), disconnectedPeripheralCount: \(String(describing: disconnectedPeripheralCount)), connectingPeripheralCount: \(String(describing: connectingPeripheralCount)), connectedPeripheralCount: \(String(describing: connectedPeripheralCount)), disconnectingPeripheralCount: \(String(describing: disconnectingPeripheralCount)), unknownPeripheralCount: \(String(describing: unknownPeripheralCount)), scanningRestored: \(String(describing: scanningRestored)), restoredScanServiceCount: \(String(describing: restoredScanServiceCount)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct PlatformAppleAccessoryDiscovery: Hashable, CustomStringConvertible {
   var serviceUuid: String
   var nameSubstring: String? = nil
@@ -853,24 +923,26 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 135:
       return PlatformDarwinConfiguration.fromList(self.readValue() as! [Any?])
     case 136:
-      return PlatformAppleAccessoryDiscovery.fromList(self.readValue() as! [Any?])
+      return PlatformDarwinRestorationEvent.fromList(self.readValue() as! [Any?])
     case 137:
-      return PlatformAppleAccessoryPickerItem.fromList(self.readValue() as! [Any?])
+      return PlatformAppleAccessoryDiscovery.fromList(self.readValue() as! [Any?])
     case 138:
-      return PlatformAppleAccessory.fromList(self.readValue() as! [Any?])
+      return PlatformAppleAccessoryPickerItem.fromList(self.readValue() as! [Any?])
     case 139:
-      return Peripheral.fromList(self.readValue() as! [Any?])
+      return PlatformAppleAccessory.fromList(self.readValue() as! [Any?])
     case 140:
-      return PlatformScanResult.fromList(self.readValue() as! [Any?])
+      return Peripheral.fromList(self.readValue() as! [Any?])
     case 141:
-      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
+      return PlatformScanResult.fromList(self.readValue() as! [Any?])
     case 142:
-      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
+      return PlatformConnectionStateChange.fromList(self.readValue() as! [Any?])
     case 143:
-      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
+      return PlatformServiceDiscovered.fromList(self.readValue() as! [Any?])
     case 144:
-      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+      return PlatformCharacteristic.fromList(self.readValue() as! [Any?])
     case 145:
+      return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
+    case 146:
       return PlatformL2CapSocketEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -901,35 +973,38 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PlatformDarwinConfiguration {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformAppleAccessoryDiscovery {
+    } else if let value = value as? PlatformDarwinRestorationEvent {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformAppleAccessoryPickerItem {
+    } else if let value = value as? PlatformAppleAccessoryDiscovery {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformAppleAccessory {
+    } else if let value = value as? PlatformAppleAccessoryPickerItem {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? Peripheral {
+    } else if let value = value as? PlatformAppleAccessory {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformScanResult {
+    } else if let value = value as? Peripheral {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformConnectionStateChange {
+    } else if let value = value as? PlatformScanResult {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformServiceDiscovered {
+    } else if let value = value as? PlatformConnectionStateChange {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristic {
+    } else if let value = value as? PlatformServiceDiscovered {
       super.writeByte(143)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformCharacteristicValueChanged {
+    } else if let value = value as? PlatformCharacteristic {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformL2CapSocketEvent {
+    } else if let value = value as? PlatformCharacteristicValueChanged {
       super.writeByte(145)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformL2CapSocketEvent {
+      super.writeByte(146)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1376,6 +1451,20 @@ class L2CapSocketEventsStreamHandler: PigeonEventChannelWrapper<PlatformL2CapSoc
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<PlatformL2CapSocketEvent>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class RestorationEventsStreamHandler: PigeonEventChannelWrapper<PlatformDarwinRestorationEvent> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: RestorationEventsStreamHandler) {
+    var channelName = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.restorationEvents"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<PlatformDarwinRestorationEvent>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }

@@ -37,6 +37,12 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// requested option may ignore it when there is no native equivalent.
   Future<void> configure({bool maintainState = false}) async {}
 
+  /// Starts native-to-Dart delivery of Darwin restoration observations.
+  ///
+  /// Darwin implementations override this to drain events that CoreBluetooth
+  /// may have produced before Dart installed an observer.
+  void startObservingDarwinRestoration() {}
+
   /// Returns whether Bluetooth is currently powered on and usable.
   Future<bool> isBluetoothAvailable();
 

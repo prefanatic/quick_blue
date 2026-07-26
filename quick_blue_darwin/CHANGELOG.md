@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Emit and buffer privacy-safe aggregate CoreBluetooth restoration callbacks
+  until Dart subscribes.
 - Reject writes when a CoreBluetooth characteristic does not advertise the
   selected write-with-response or write-without-response capability.
 - Convert non-security GATT failures into contextual `QuickBlueException`s

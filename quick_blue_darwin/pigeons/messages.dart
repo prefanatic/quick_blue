@@ -37,6 +37,28 @@ class PlatformDarwinConfiguration {
   final bool maintainState;
 }
 
+class PlatformDarwinRestorationEvent {
+  PlatformDarwinRestorationEvent({
+    required this.restoredPeripheralCount,
+    required this.disconnectedPeripheralCount,
+    required this.connectingPeripheralCount,
+    required this.connectedPeripheralCount,
+    required this.disconnectingPeripheralCount,
+    required this.unknownPeripheralCount,
+    required this.scanningRestored,
+    required this.restoredScanServiceCount,
+  });
+
+  final int restoredPeripheralCount;
+  final int disconnectedPeripheralCount;
+  final int connectingPeripheralCount;
+  final int connectedPeripheralCount;
+  final int disconnectingPeripheralCount;
+  final int unknownPeripheralCount;
+  final bool scanningRestored;
+  final int restoredScanServiceCount;
+}
+
 class PlatformAppleAccessoryDiscovery {
   PlatformAppleAccessoryDiscovery({
     required this.serviceUuid,
@@ -255,6 +277,7 @@ abstract class QuickBlueEventApi {
   PlatformBluetoothState bluetoothState();
   PlatformScanResult scanResults();
   PlatformL2CapSocketEvent l2CapSocketEvents();
+  PlatformDarwinRestorationEvent restorationEvents();
 }
 
 @FlutterApi()

@@ -12,6 +12,9 @@
   Flutter timelines, OpenTelemetry, metrics, or logs without an SDK dependency.
 - Add composite observers, export-safe structured failures, connected-device
   service UUID context, and payload-free characteristic value observations.
+- Add privacy-safe Darwin restoration observations with native and Dart
+  buffering, aggregate connection/scan counts, and exactly-once callback
+  delivery.
 - Add opt-in iOS 18 AccessorySetupKit discovery and authorization with typed
   picker items, authorized-accessory listing and removal, Info.plist
   preflight checks, existing-peripheral migration, and CoreBluetooth device

@@ -184,6 +184,11 @@ jobs:
         working-directory: quick_blue_darwin/darwin/quick_blue_darwin/connection_ownership
         run: swift test
 
+      - name: Test Darwin restoration summaries
+        if: ${{ matrix.target == 'macos' }}
+        working-directory: quick_blue_darwin/darwin/quick_blue_darwin/restoration_summary
+        run: swift test
+
       - name: Build example
         working-directory: quick_blue/example
         run: ${{ matrix.command }}

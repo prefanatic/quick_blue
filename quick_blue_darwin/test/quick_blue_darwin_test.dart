@@ -47,6 +47,9 @@ void main() {
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.scanResults';
   const l2capSocketEventsChannelName =
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.l2CapSocketEvents';
+  const restorationEventsChannelName =
+      'dev.flutter.pigeon.quick_blue_darwin.QuickBlueEventApi.'
+      'restorationEvents';
   const openL2capChannelName =
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.openL2cap';
   const writeL2capChannelName =
@@ -86,11 +89,14 @@ void main() {
       bluetoothStateChannelName,
       scanResultChannelName,
       l2capSocketEventsChannelName,
+      restorationEventsChannelName,
     ]) {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMessageHandler(name, null);
     }
     messages.QuickBlueFlutterApi.setUp(null);
+    QuickBlueInstrumentation.observer = _RestorationRecordingObserver();
+    QuickBlueInstrumentation.observer = null;
   });
 
   test('registers as platform implementation', () {
@@ -373,6 +379,41 @@ void main() {
         BlueBluetoothState.poweredOn,
       ]),
     );
+  });
+
+  test('maps aggregate restoration callbacks to the typed observer', () async {
+    _mockEventChannel(restorationEventsChannelName, <Object?>[
+      messages.PlatformDarwinRestorationEvent(
+        restoredPeripheralCount: 5,
+        disconnectedPeripheralCount: 1,
+        connectingPeripheralCount: 1,
+        connectedPeripheralCount: 2,
+        disconnectingPeripheralCount: 0,
+        unknownPeripheralCount: 1,
+        scanningRestored: true,
+        restoredScanServiceCount: 3,
+      ),
+    ]);
+    final observer = _RestorationRecordingObserver();
+    QuickBlueInstrumentation.observer = observer;
+
+    final platform = QuickBlueDarwin();
+    platform.startObservingDarwinRestoration();
+    await pumpEventQueue();
+
+    final event = observer.events.single;
+    expect(event.restoredPeripheralCount, 5);
+    expect(event.disconnectedPeripheralCount, 1);
+    expect(event.connectingPeripheralCount, 1);
+    expect(event.connectedPeripheralCount, 2);
+    expect(event.disconnectingPeripheralCount, 0);
+    expect(event.unknownPeripheralCount, 1);
+    expect(event.scanningRestored, isTrue);
+    expect(event.restoredScanServiceCount, 3);
+
+    platform.startObservingDarwinRestoration();
+    await pumpEventQueue();
+    expect(observer.events, hasLength(1));
   });
 
   test('maps scan result events', () async {
@@ -1236,4 +1277,19 @@ void _mockEventChannel(String channelName, List<Object?> events) {
 
         fail('Unexpected method call for $channelName: ${methodCall.method}');
       });
+}
+
+final class _RestorationRecordingObserver
+    implements QuickBlueObserver, QuickBlueDarwinRestorationObserver {
+  final events = <QuickBlueDarwinRestorationEvent>[];
+
+  @override
+  QuickBlueOperationObservation? onOperationStarted(
+    QuickBlueOperation operation,
+  ) => null;
+
+  @override
+  void onDarwinStateRestored(QuickBlueDarwinRestorationEvent event) {
+    events.add(event);
+  }
 }
