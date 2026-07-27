@@ -69,6 +69,17 @@ class ConnectionOwnership {
            connection->second.host == client;
   }
 
+  std::optional<Client> HostFor(const DeviceId& device_id,
+                                Client client) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto connection = connections_.find(device_id);
+    if (connection == connections_.end() ||
+        connection->second.clients.count(client) == 0) {
+      return std::nullopt;
+    }
+    return connection->second.host;
+  }
+
   bool Release(const DeviceId& device_id, Client host) {
     std::lock_guard<std::mutex> lock(mutex_);
     const auto connection = connections_.find(device_id);

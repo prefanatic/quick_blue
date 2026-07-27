@@ -270,13 +270,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Test Android plugin
-        working-directory: quick_blue/example/android
-        run: ./gradlew :quick_blue:testDebugUnitTest
-
       - name: Build example
         working-directory: quick_blue/example
         run: flutter build apk --debug
+
+      - name: Test Android plugin
+        working-directory: quick_blue/example/android
+        run: ./gradlew :quick_blue:testDebugUnitTest
 
   build-linux:
     name: Build Linux

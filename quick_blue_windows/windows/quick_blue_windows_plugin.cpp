@@ -832,18 +832,12 @@ std::optional<FlutterError> QuickBlueWindowsPlugin::Disconnect(
 BluetoothDeviceAgent* QuickBlueWindowsPlugin::FindConnectedDevice(
     const std::string& device_id) {
   const auto address = parse_bluetooth_address(device_id);
-  QuickBlueWindowsPlugin* host = nullptr;
-  {
-    std::lock_guard<std::mutex> lock(connection_owner_mutex_);
-    const auto connection = shared_connections_.find(address);
-    if (connection == shared_connections_.end() ||
-        connection->second.clients.count(this) == 0) {
-      return nullptr;
-    }
-    host = connection->second.host;
+  const auto host = connection_ownership_.HostFor(address, this);
+  if (!host.has_value()) {
+    return nullptr;
   }
-  auto it = host->connectedDevices.find(address);
-  if (it == host->connectedDevices.end()) {
+  auto it = (*host)->connectedDevices.find(address);
+  if (it == (*host)->connectedDevices.end()) {
     return nullptr;
   }
   return it->second.get();

@@ -32,6 +32,8 @@ void TestAttachAndHostTransfer() {
   assert(!second_attachment.is_new);
   assert(second_attachment.host == &first);
   assert(ownership.Owns(1, &second));
+  assert(ownership.HostFor(1, &first) == &first);
+  assert(ownership.HostFor(1, &second) == &first);
 
   const auto plan = ownership.Detach(1, &first);
   assert(plan.has_value());
@@ -40,6 +42,8 @@ void TestAttachAndHostTransfer() {
   assert(plan->new_host == &second);
   assert(plan->notification_host == &second);
   assert(ownership.IsHost(1, &second));
+  assert(!ownership.HostFor(1, &first).has_value());
+  assert(ownership.HostFor(1, &second) == &second);
 }
 
 void TestNotificationClaimsAndFinalDetach() {
