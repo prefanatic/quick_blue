@@ -39,6 +39,8 @@
 
 ### Fixed
 
+- Recover from missing Android terminal disconnect callbacks without poisoning
+  later reconnects, while ignoring late callbacks from the retired GATT.
 - Share the Darwin restoration manager across Flutter engines so eager
   restoration bootstrap cannot create competing CoreBluetooth managers.
 - Reject Darwin writes when the characteristic does not advertise support for

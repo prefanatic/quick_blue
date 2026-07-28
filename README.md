@@ -3,6 +3,10 @@
 `quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
 Android, iOS, macOS, Windows, and Linux.
 
+Connection ownership is shared safely across Flutter engines, and bounded
+disconnect reconciliation keeps missing native callbacks from blocking later
+reconnects.
+
 - [Install, platform setup, and usage](quick_blue/README.md)
 - [Changelog](quick_blue/CHANGELOG.md)
 - [Contributing and verification](CONTRIBUTING.md)

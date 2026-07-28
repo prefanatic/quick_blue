@@ -65,8 +65,10 @@ class BluetoothDevice {
   ///
   /// Throws [QuickBlueException] when another connection operation for this
   /// device is already pending. A later [disconnect] supersedes this operation
-  /// and completes it with [QuickBlueErrorCode.cancelled]. A temporarily busy
-  /// shared native connection is retried automatically.
+  /// and completes it with [QuickBlueErrorCode.cancelled]. Likewise, a later
+  /// connect supersedes a disconnect still waiting for its terminal native
+  /// event. A temporarily busy shared native connection is retried
+  /// automatically.
   /// Structured security failures trigger one coordinated recovery attempt and
   /// retry before a terminal exception is reported.
   ///
@@ -83,8 +85,10 @@ class BluetoothDevice {
   /// A platform may retain a process-wide physical connection while another
   /// Flutter engine remains attached to the same device.
   ///
-  /// If a connect is pending, this call cancels it before disconnecting. Other
-  /// overlapping connection operations still throw [QuickBlueException].
+  /// If a connect is pending, this call cancels it before disconnecting. A
+  /// later connect similarly cancels this operation if its terminal native
+  /// event never arrives. Other overlapping operations of the same kind still
+  /// throw [QuickBlueException].
   /// Pending service discovery is cancelled when the disconnected state is
   /// reported, allowing a later discovery attempt to start fresh.
   ///

@@ -462,6 +462,100 @@ void main() {
     },
   );
 
+  test(
+    'BluetoothDevice.connect supersedes a timed-out disconnect with no callback',
+    () async {
+      final platform = FakeQuickBluePlatform(
+        connectsImmediately: false,
+        disconnectsImmediately: false,
+      );
+      addTearDown(platform.dispose);
+
+      final device = platform.device('device-a');
+      final disconnect = device.disconnect();
+      final disconnectExpectation = expectLater(
+        disconnect,
+        throwsA(
+          isA<QuickBlueException>()
+              .having(
+                (error) => error.code,
+                'code',
+                QuickBlueErrorCode.cancelled,
+              )
+              .having((error) => error.operation, 'operation', 'disconnect'),
+        ),
+      );
+      await expectLater(
+        disconnect.timeout(Duration.zero),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      final reconnect = device.connect();
+      await pumpEventQueue();
+      expect(platform.calls, <String>[
+        'disconnect device-a',
+        'connect device-a',
+      ]);
+      await disconnectExpectation;
+
+      platform.onConnectionChanged!(
+        'device-a',
+        BlueConnectionState.connected,
+        BleStatus.success,
+      );
+      await reconnect;
+    },
+  );
+
+  test(
+    'BluetoothDevice.connect ignores a late successful disconnect callback',
+    () async {
+      final platform = FakeQuickBluePlatform(
+        connectsImmediately: false,
+        disconnectsImmediately: false,
+      );
+      addTearDown(platform.dispose);
+
+      final device = platform.device('device-a');
+      final disconnect = device.disconnect();
+      final disconnectExpectation = expectLater(
+        disconnect,
+        throwsA(
+          isA<QuickBlueException>().having(
+            (error) => error.code,
+            'code',
+            QuickBlueErrorCode.cancelled,
+          ),
+        ),
+      );
+      await expectLater(
+        disconnect.timeout(Duration.zero),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      var reconnectCompleted = false;
+      final reconnect = device.connect().then((_) => reconnectCompleted = true);
+      await pumpEventQueue();
+      await disconnectExpectation;
+
+      platform.onConnectionChanged!(
+        'device-a',
+        BlueConnectionState.disconnected,
+        BleStatus.success,
+      );
+      await pumpEventQueue();
+      expect(reconnectCompleted, isFalse);
+
+      platform.onConnectionChanged!(
+        'device-a',
+        BlueConnectionState.connected,
+        BleStatus.success,
+      );
+      await reconnect;
+      expect(reconnectCompleted, isTrue);
+    },
+  );
+
   test('BluetoothDevice.disconnect stops an automatic busy retry', () async {
     final platform = FakeQuickBluePlatform(
       connectErrors: <Object>[

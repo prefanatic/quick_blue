@@ -75,16 +75,84 @@ private data class DisconnectPlan(
     val unclaimedNotifications: List<NotificationKey>,
 )
 
+/** Converts an omitted native disconnect callback into one bounded completion. */
+internal class PendingDisconnectReconciler<Resource : Any>(
+    private val timeoutMilliseconds: Long,
+    private val schedule: (delayMilliseconds: Long, action: () -> Unit) -> Unit,
+) {
+    private val lock = Any()
+    private val pending = mutableMapOf<String, Resource>()
+
+    fun start(
+        deviceId: String,
+        resource: Resource,
+        onExpired: (Resource) -> Unit,
+    ) {
+        synchronized(lock) {
+            pending[deviceId] = resource
+        }
+        schedule(timeoutMilliseconds) {
+            if (finish(deviceId, resource)) {
+                onExpired(resource)
+            }
+        }
+    }
+
+    fun finish(deviceId: String, resource: Resource): Boolean = synchronized(lock) {
+        if (pending[deviceId] !== resource) {
+            false
+        } else {
+            pending.remove(deviceId)
+            true
+        }
+    }
+}
+
+/** Rejects callbacks from a retired resource after a replacement is installed. */
+internal class IdentityResourceRegistry<Resource : Any> {
+    private val resources = mutableMapOf<String, Resource>()
+
+    val values: Collection<Resource>
+        get() = resources.values
+
+    operator fun get(deviceId: String): Resource? = resources[deviceId]
+
+    operator fun set(deviceId: String, resource: Resource) {
+        resources[deviceId] = resource
+    }
+
+    fun isCurrent(deviceId: String, resource: Resource): Boolean =
+        resources[deviceId] === resource
+
+    fun remove(deviceId: String): Resource? = resources.remove(deviceId)
+
+    fun removeIfCurrent(deviceId: String, resource: Resource): Boolean {
+        if (!isCurrent(deviceId, resource)) return false
+        resources.remove(deviceId)
+        return true
+    }
+}
+
 /** Process-wide owner of Android GATT connections shared by Flutter engines. */
 @SuppressLint("MissingPermission")
 internal object AndroidGattBroker {
+    // Leave enough time for normal stacks while completing before the common
+    // three-second application timeout.
+    private const val DISCONNECT_RECONCILIATION_TIMEOUT_MILLISECONDS = 2_000L
+
     private val lock = Any()
-    private val knownGatts = mutableMapOf<String, BluetoothGatt>()
+    private val knownGatts = IdentityResourceRegistry<BluetoothGatt>()
     private val connectionStates = mutableMapOf<String, Int>()
     private val connectionClients = ConnectionClientSet<AndroidGattClient>()
     private val notificationClaims =
         NotificationClaimSet<NotificationKey, AndroidGattClient, PlatformBleInputProperty>()
     private val operationQueue = GattOperationQueue(::gatt)
+    private val pendingDisconnects = PendingDisconnectReconciler<BluetoothGatt>(
+        timeoutMilliseconds = DISCONNECT_RECONCILIATION_TIMEOUT_MILLISECONDS,
+        schedule = { delayMilliseconds, action ->
+            Handler(Looper.getMainLooper()).postDelayed(action, delayMilliseconds)
+        },
+    )
 
     fun connectedGatts(): List<BluetoothGatt> = synchronized(lock) {
         knownGatts.values.toList()
@@ -180,9 +248,26 @@ internal object AndroidGattBroker {
                 BluetoothGatt.GATT_SUCCESS,
             )
         } else {
-            (plan.gatt
-                ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null))
-                .disconnect()
+            val gatt = plan.gatt
+                ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
+            pendingDisconnects.start(deviceId, gatt) {
+                completeDisconnection(
+                    gatt = it,
+                    status = BluetoothGatt.GATT_SUCCESS,
+                    disconnectRequested = true,
+                )
+            }
+            try {
+                gatt.disconnect()
+            } catch (error: Throwable) {
+                pendingDisconnects.finish(deviceId, gatt)
+                completeDisconnection(
+                    gatt = gatt,
+                    status = BluetoothGatt.GATT_SUCCESS,
+                    disconnectRequested = true,
+                )
+                throw error
+            }
         }
         return if (plan.detachOnly) plan.unclaimedNotifications else emptyList()
     }
@@ -194,7 +279,10 @@ internal object AndroidGattBroker {
                 if (connectionClients.detach(deviceId, client)) {
                     operationQueue.failPending(deviceId)
                     connectionStates.remove(deviceId)
-                    knownGatts.remove(deviceId)?.let(gattsToClose::add)
+                    knownGatts.remove(deviceId)?.let { gatt ->
+                        pendingDisconnects.finish(deviceId, gatt)
+                        gattsToClose.add(gatt)
+                    }
                 }
             }
             notificationClaims.removeClient(client)
@@ -252,7 +340,41 @@ internal object AndroidGattBroker {
     }
 
     private fun isCurrentGatt(gatt: BluetoothGatt): Boolean = synchronized(lock) {
-        knownGatts[gatt.device.address] === gatt
+        knownGatts.isCurrent(gatt.device.address, gatt)
+    }
+
+    private fun completeDisconnection(
+        gatt: BluetoothGatt,
+        status: Int,
+        disconnectRequested: Boolean,
+    ) {
+        val deviceId = gatt.device.address
+        val clients = synchronized(lock) {
+            if (!knownGatts.removeIfCurrent(deviceId, gatt)) {
+                null
+            } else {
+                operationQueue.failPending(deviceId)
+                connectionStates.remove(deviceId)
+                notificationClaims.removeMatching { it.deviceId == deviceId }
+                connectionClients.removeAll(deviceId)
+            }
+        }
+        if (clients == null) return
+
+        clients.forEach { it.closeGattStreams(deviceId) }
+        gatt.close()
+        clients.forEach {
+            it.emitConnectionState(
+                deviceId,
+                PlatformConnectionState.DISCONNECTED,
+                if (status == BluetoothGatt.GATT_SUCCESS || disconnectRequested) {
+                    PlatformGattStatus.SUCCESS
+                } else {
+                    PlatformGattStatus.FAILURE
+                },
+                status,
+            )
+        }
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -272,25 +394,13 @@ internal object AndroidGattBroker {
             val deviceId = gatt.device.address
 
             if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-                val clients = synchronized(lock) {
-                    if (knownGatts[deviceId] !== gatt) {
-                        emptyList()
-                    } else {
-                        operationQueue.failPending(deviceId)
-                        knownGatts.remove(deviceId)
-                        connectionStates.remove(deviceId)
-                        notificationClaims.removeMatching { it.deviceId == deviceId }
-                        connectionClients.removeAll(deviceId)
-                    }
-                }
-                clients.forEach { it.closeGattStreams(deviceId) }
-                gatt.close()
-                clients.forEach { it.emitConnectionState(deviceId, state, gattStatus, status) }
+                val disconnectRequested = pendingDisconnects.finish(deviceId, gatt)
+                completeDisconnection(gatt, status, disconnectRequested)
                 return
             }
 
             val clients = synchronized(lock) {
-                if (knownGatts[deviceId] === gatt) {
+                if (knownGatts.isCurrent(deviceId, gatt)) {
                     connectionStates[deviceId] = newState
                     connectionClients.clients(deviceId)
                 } else {

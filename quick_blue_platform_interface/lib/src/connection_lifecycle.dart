@@ -20,7 +20,18 @@ class ConnectionLifecycleCoordinator {
 
   final _activeOperations = <String, _ConnectionOperation>{};
 
-  Future<void> connectDevice(String deviceId) {
+  Future<void> connectDevice(String deviceId) async {
+    final activeOperation = _activeOperations[deviceId];
+    if (activeOperation?.name == 'disconnect') {
+      activeOperation!.cancellation.cancel();
+      try {
+        await activeOperation.completed;
+      } on Object {
+        // The reconnect is authoritative even if the superseded disconnect
+        // fails or was abandoned by a caller-side timeout.
+      }
+    }
+
     return _runOperation(
       deviceId: deviceId,
       operationName: 'connect',

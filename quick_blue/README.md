@@ -336,12 +336,15 @@ methods delegate through the same handle API.
 
 Only one connect or disconnect operation may be pending for a device. Calling
 `disconnect()` during a pending `connect()` supersedes it: the connect completes
-with `QuickBlueErrorCode.cancelled`, then the native device disconnects. Other
-overlapping operations fail with `QuickBlueErrorCode.invalidState`. Different
-devices can connect concurrently.
+with `QuickBlueErrorCode.cancelled`, then the native device disconnects. A later
+`connect()` likewise supersedes a disconnect still waiting for its terminal
+native callback. Other overlapping operations of the same kind fail with
+`QuickBlueErrorCode.invalidState`. Different devices can connect concurrently.
 
 This makes it safe to follow a caller-side `connect().timeout(...)` with
-`disconnect()` before retrying.
+`disconnect()` before retrying, or to reconnect after a caller-side disconnect
+timeout. Android bounds final-client native teardown and ignores callbacks from
+the retired GATT after a replacement connection starts.
 
 Concurrent service-discovery calls for one device share the same result. A
 disconnect cancels any pending discovery with `QuickBlueErrorCode.cancelled`,
