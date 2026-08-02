@@ -155,6 +155,8 @@ class QuickBlueLinux extends QuickBluePlatform {
   final Map<String, Future<void>> _serviceDiscoveryEmits =
       <String, Future<void>>{};
   final Map<String, bool> _lastConnectionState = <String, bool>{};
+  final Map<String, bool> _servicesResolvedStates = <String, bool>{};
+  final Map<String, String> _gattFingerprints = <String, String>{};
   final Map<String, _ResolvedCharacteristic> _resolvedCharacteristics =
       <String, _ResolvedCharacteristic>{};
 
@@ -948,6 +950,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   Future<void> _watchDeviceProperties(BlueZDevice device) async {
     final deviceId = device.address;
     await _cancelMappedSubscription(_devicePropertySubscriptions, deviceId);
+    _servicesResolvedStates[deviceId] = device.servicesResolved;
 
     final subscription = device.propertiesChanged.listen(
       (properties) {
@@ -966,6 +969,21 @@ class QuickBlueLinux extends QuickBluePlatform {
               'Unable to clear notification subscriptions for $deviceId',
             );
             _clearResolvedCharacteristics(deviceId);
+          }
+        }
+        if (properties.contains('ServicesResolved') && device.connected) {
+          final wasResolved = _servicesResolvedStates[deviceId] ?? false;
+          final isResolved = device.servicesResolved;
+          _servicesResolvedStates[deviceId] = isResolved;
+          final fingerprint = isResolved ? _gattFingerprint(device) : null;
+          final previousFingerprint = _gattFingerprints[deviceId];
+          if ((wasResolved && !isResolved) ||
+              (isResolved &&
+                  previousFingerprint != null &&
+                  previousFingerprint != fingerprint)) {
+            _gattFingerprints.remove(deviceId);
+            _clearResolvedCharacteristics(deviceId);
+            handleGattServicesChanged(deviceId);
           }
         }
       },
@@ -1028,7 +1046,21 @@ class QuickBlueLinux extends QuickBluePlatform {
           .toList(growable: false);
       handleServiceDiscovered(device.address, serviceId, characteristics);
     }
+    _servicesResolvedStates[device.address] = device.servicesResolved;
+    _gattFingerprints[device.address] = _gattFingerprint(device);
     onServiceDiscoveryComplete(device.address);
+  }
+
+  String _gattFingerprint(BlueZDevice device) {
+    final services = device.gattServices.map((service) {
+      final characteristics =
+          service.characteristics
+              .map((characteristic) => _formatUuid(characteristic.uuid))
+              .toList()
+            ..sort();
+      return '${_formatUuid(service.uuid)}:${characteristics.join(',')}';
+    }).toList()..sort();
+    return services.join('|');
   }
 
   Future<void> _waitForConnected(
@@ -1193,6 +1225,8 @@ class QuickBlueLinux extends QuickBluePlatform {
     }
 
     _lastConnectionState.remove(deviceId);
+    _servicesResolvedStates.remove(deviceId);
+    _gattFingerprints.remove(deviceId);
     _serviceDiscoveryEmits.remove(deviceId);
     _clearResolvedCharacteristics(deviceId);
 

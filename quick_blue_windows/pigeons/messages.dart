@@ -164,9 +164,20 @@ abstract class QuickBlueApi {
   int requestMtu(String deviceId, int expectedMtu);
 }
 
+class PlatformGattServiceChange {
+  PlatformGattServiceChange({
+    required this.deviceId,
+    required this.invalidatedServiceUuids,
+  });
+
+  final String deviceId;
+  final List<String> invalidatedServiceUuids;
+}
+
 @FlutterApi()
 abstract class QuickBlueFlutterApi {
   void onConnectionStateChange(PlatformConnectionStateChange stateChange);
+  void onGattServicesChanged(PlatformGattServiceChange serviceChange);
   void onServiceDiscovered(PlatformServiceDiscovered serviceDiscovered);
   void onServiceDiscoveryComplete(String deviceId);
   void onCharacteristicValueChanged(

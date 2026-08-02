@@ -25,6 +25,15 @@ void main() {
       device.characteristicValueStream.map((event) => event.value),
       emits(Uint8List.fromList(<int>[1, 2, 3])),
     );
+    final gattChange = expectLater(
+      device.gattServiceChangedStream,
+      emits(
+        BluetoothGattServiceChange(
+          deviceId: 'device-a',
+          invalidatedServiceUuids: const <String>['service-a'],
+        ),
+      ),
+    );
 
     platform.onConnectionChanged!(
       'device-b',
@@ -38,6 +47,7 @@ void main() {
       'characteristic-b',
       Uint8List.fromList(<int>[9]),
     );
+    platform.handleGattServicesChanged('device-b');
 
     platform.onConnectionChanged!(
       'device-a',
@@ -53,8 +63,32 @@ void main() {
       'characteristic-a',
       Uint8List.fromList(<int>[1, 2, 3]),
     );
+    platform.handleGattServicesChanged(
+      'device-a',
+      invalidatedServiceUuids: const <String>['service-a'],
+    );
 
-    await Future.wait(<Future<void>>[connection, service, value]);
+    await Future.wait(<Future<void>>[connection, service, value, gattChange]);
+  });
+
+  test('global GATT service change stream emits platform events', () async {
+    final platform = FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    final event = platform.gattServiceChangedStream.first;
+
+    platform.handleGattServicesChanged(
+      'device-a',
+      invalidatedServiceUuids: const <String>['service-a', 'service-b'],
+    );
+
+    expect(
+      await event,
+      BluetoothGattServiceChange(
+        deviceId: 'device-a',
+        invalidatedServiceUuids: const <String>['service-a', 'service-b'],
+      ),
+    );
   });
 
   test(

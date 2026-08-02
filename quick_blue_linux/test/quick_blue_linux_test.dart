@@ -112,6 +112,40 @@ void main() {
     expect(device.pairCount, 1);
     expect(device.paired, isTrue);
   });
+
+  test('ServicesResolved invalidates the connected GATT database', () async {
+    final device = _FakeBlueZDevice('AA:BB:CC:DD:EE:FF')
+      ..connected = true
+      ..servicesResolved = true;
+    final client = _FakeBlueZClient(devices: <BlueZDevice>[device]);
+    final platform = QuickBlueLinux.withClient(
+      client,
+      connectionLease: _FakeConnectionLease(),
+    );
+    client.connection.complete();
+    addTearDown(device.dispose);
+
+    await platform.connect(device.address);
+    final change = platform.gattServiceChangedStream.first;
+
+    device.servicesResolved = false;
+    device.properties.add(const <String>['ServicesResolved']);
+
+    expect(await change, BluetoothGattServiceChange(deviceId: device.address));
+  });
+}
+
+class _FakeConnectionLease implements QuickBlueLinuxConnectionLease {
+  @override
+  Future<void> attach(String deviceId) async {}
+
+  @override
+  Future<void> detach(
+    String deviceId,
+    Future<void> Function() onLastClient,
+  ) async {
+    await onLastClient();
+  }
 }
 
 class _FakeBlueZClient implements BlueZClient {
@@ -151,11 +185,25 @@ class _FakeBlueZClient implements BlueZClient {
 class _FakeBlueZDevice implements BlueZDevice {
   _FakeBlueZDevice(this.address);
 
+  final properties = StreamController<List<String>>.broadcast();
+
   @override
   final String address;
 
   @override
   var paired = false;
+
+  @override
+  var connected = false;
+
+  @override
+  var servicesResolved = false;
+
+  @override
+  Stream<List<String>> get propertiesChanged => properties.stream;
+
+  @override
+  List<BlueZGattService> get gattServices => const <BlueZGattService>[];
 
   var pairCount = 0;
 
@@ -164,6 +212,8 @@ class _FakeBlueZDevice implements BlueZDevice {
     pairCount++;
     paired = true;
   }
+
+  Future<void> dispose() => properties.close();
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

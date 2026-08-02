@@ -823,6 +823,32 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         }
     }
 
+    private func emitGattServicesChanged(
+        deviceId: String,
+        invalidatedServiceUuids: [String]
+    ) {
+        guard attachedToEngine else { return }
+        flutterApi.onGattServicesChanged(
+            serviceChange: PlatformGattServiceChange(
+                deviceId: deviceId,
+                invalidatedServiceUuids: invalidatedServiceUuids
+            ),
+            completion: { _ in }
+        )
+    }
+
+    private static func emitGattServicesChanged(
+        deviceId: String,
+        invalidatedServiceUuids: [String]
+    ) {
+        for client in clients(for: deviceId) {
+            client.emitGattServicesChanged(
+                deviceId: deviceId,
+                invalidatedServiceUuids: invalidatedServiceUuids
+            )
+        }
+    }
+
     private func emitCharacteristicValue(
         _ value: PlatformCharacteristicValueChanged
     ) {
@@ -1964,6 +1990,20 @@ extension QuickBlueDarwinPlugin {
 }
 
 extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
+    public func peripheral(
+        _ peripheral: CBPeripheral,
+        didModifyServices invalidatedServices: [CBService]
+    ) {
+        let deviceId = peripheral.identifier.uuidString
+        pendingServiceDiscovery.removeValue(forKey: deviceId)
+        Self.emitGattServicesChanged(
+            deviceId: deviceId,
+            invalidatedServiceUuids: invalidatedServices.map {
+                $0.uuid.uuidStr
+            }
+        )
+    }
+
     public func peripheral(
         _ peripheral: CBPeripheral,
         didDiscoverServices error: Error?

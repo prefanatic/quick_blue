@@ -198,6 +198,7 @@ abstract class QuickBluePlatform extends PlatformInterface {
       deviceId: deviceId,
       platform: this,
       discoverServices: _serviceDiscoveryLifecycleCoordinator.discover,
+      gattGeneration: () => _gattGenerations[deviceId] ?? 0,
     );
   }
 
@@ -454,6 +455,33 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// Emits a device identifier when service discovery completes.
   Stream<String> get serviceDiscoveryCompleteStream {
     return _serviceDiscoveryLifecycleCoordinator.completeStream;
+  }
+
+  final _gattServiceChangedController =
+      StreamController<BluetoothGattServiceChange>.broadcast();
+  final _gattGenerations = <String, int>{};
+
+  /// Changes to remote GATT service databases for all connected devices.
+  ///
+  /// A change invalidates previously returned [BluetoothGatt] snapshots for the
+  /// corresponding device. Rediscover services before resolving new handles.
+  Stream<BluetoothGattServiceChange> get gattServiceChangedStream {
+    return _gattServiceChangedController.stream;
+  }
+
+  /// Reports that a remote device's GATT service database changed.
+  void handleGattServicesChanged(
+    String deviceId, {
+    List<String> invalidatedServiceUuids = const <String>[],
+  }) {
+    _gattGenerations[deviceId] = (_gattGenerations[deviceId] ?? 0) + 1;
+    _serviceDiscoveryLifecycleCoordinator.handleGattServicesChanged(deviceId);
+    _gattServiceChangedController.add(
+      BluetoothGattServiceChange(
+        deviceId: deviceId,
+        invalidatedServiceUuids: invalidatedServiceUuids,
+      ),
+    );
   }
 
   OnServiceDiscovered? _onServiceDiscovered;

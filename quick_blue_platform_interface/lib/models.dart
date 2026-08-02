@@ -1197,6 +1197,49 @@ class BluetoothConnectionStateChange {
   }
 }
 
+/// A change to the remote device's GATT service database.
+///
+/// [invalidatedServiceUuids] is empty when the platform reports only that the
+/// database changed. Callers should rediscover the complete GATT database after
+/// every event, including when a platform supplies specific invalidated UUIDs.
+class BluetoothGattServiceChange {
+  BluetoothGattServiceChange({
+    required this.deviceId,
+    List<String> invalidatedServiceUuids = const <String>[],
+  }) : invalidatedServiceUuids = List<String>.unmodifiable(
+         invalidatedServiceUuids,
+       );
+
+  /// Platform-specific device identifier.
+  final String deviceId;
+
+  /// Services explicitly invalidated by the platform, when available.
+  final List<String> invalidatedServiceUuids;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BluetoothGattServiceChange &&
+            other.deviceId == deviceId &&
+            _stringListEquality.equals(
+              other.invalidatedServiceUuids,
+              invalidatedServiceUuids,
+            );
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(deviceId, _stringListEquality.hash(invalidatedServiceUuids));
+
+  @override
+  String toString() {
+    return 'BluetoothGattServiceChange('
+        'deviceId: $deviceId, '
+        'invalidatedServiceUuids: $invalidatedServiceUuids'
+        ')';
+  }
+}
+
 /// A discovered GATT service.
 ///
 /// Lists are immutable. Older platform callbacks may provide only

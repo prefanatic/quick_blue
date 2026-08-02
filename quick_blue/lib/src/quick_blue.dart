@@ -185,6 +185,14 @@ class QuickBlue {
     return _platform.bondStateStream;
   }
 
+  /// Changes to remote GATT service databases for connected devices.
+  ///
+  /// Rediscover services after every event. Previously returned
+  /// [BluetoothGatt] snapshots for the device are invalidated automatically.
+  static Stream<BluetoothGattServiceChange> get gattServiceChangedStream {
+    return _platform.gattServiceChangedStream;
+  }
+
   /// Waits until [deviceId] reaches [targetState].
   static Future<BluetoothBondState> waitForBondState(
     String deviceId,

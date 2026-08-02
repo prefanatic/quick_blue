@@ -14,10 +14,19 @@ class BluetoothGatt {
   BluetoothGatt.internal({
     required BluetoothDevice device,
     required List<BluetoothService> services,
+    required bool Function() isValid,
   }) : _device = device,
+       _isValid = isValid,
        services = List<BluetoothService>.unmodifiable(services);
 
   final BluetoothDevice _device;
+  final bool Function() _isValid;
+
+  /// Whether this snapshot still represents the device's current GATT
+  /// database.
+  ///
+  /// The snapshot becomes invalid when the platform reports a service change.
+  bool get isValid => _isValid();
 
   /// The discovered services.
   ///
@@ -83,6 +92,19 @@ class BluetoothGatt {
     String characteristic, {
     String? service,
   }) {
+    if (!isValid) {
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.invalidState,
+        operation: 'resolveCharacteristic',
+        deviceId: deviceId,
+        serviceId: service,
+        characteristicId: characteristic,
+        message:
+            'The discovered GATT snapshot for Bluetooth device $deviceId is '
+            'invalid because its service database changed. Rediscover services '
+            'before resolving characteristics.',
+      );
+    }
     final matches = <_BluetoothGattCharacteristic>[];
     for (final discoveredService in services) {
       if (service != null &&

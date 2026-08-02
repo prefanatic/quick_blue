@@ -25,6 +25,7 @@ import PlatformCompanionAssociationRequest
 import PlatformConnectionState
 import PlatformConnectionStateChange
 import PlatformGattStatus
+import PlatformGattServiceChange
 import PlatformL2CapSocketEvent
 import PlatformMtuChange
 import PlatformScanResult
@@ -302,6 +303,19 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                     }
                 }
             }
+        }
+    }
+
+    override fun emitGattServicesChanged(deviceId: String) {
+        if (!isAttachedToEngine) return
+        mainThreadHandler.post {
+            if (!isAttachedToEngine) return@post
+            quickBlueFlutterApi?.onGattServicesChanged(
+                PlatformGattServiceChange(
+                    deviceId = deviceId,
+                    invalidatedServiceUuids = emptyList(),
+                )
+            ) {}
         }
     }
 

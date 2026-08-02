@@ -1149,6 +1149,78 @@ size_t PigeonInternalDeepHash(const PlatformCharacteristicValueChanged& v) {
   return v.Hash();
 }
 
+// PlatformGattServiceChange
+
+PlatformGattServiceChange::PlatformGattServiceChange(
+  const std::string& device_id,
+  const EncodableList& invalidated_service_uuids)
+ : device_id_(device_id),
+    invalidated_service_uuids_(invalidated_service_uuids) {}
+
+const std::string& PlatformGattServiceChange::device_id() const {
+  return device_id_;
+}
+
+void PlatformGattServiceChange::set_device_id(std::string_view value_arg) {
+  device_id_ = value_arg;
+}
+
+
+const EncodableList& PlatformGattServiceChange::invalidated_service_uuids() const {
+  return invalidated_service_uuids_;
+}
+
+void PlatformGattServiceChange::set_invalidated_service_uuids(const EncodableList& value_arg) {
+  invalidated_service_uuids_ = value_arg;
+}
+
+
+EncodableList PlatformGattServiceChange::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(2);
+  list.push_back(EncodableValue(device_id_));
+  list.push_back(EncodableValue(invalidated_service_uuids_));
+  return list;
+}
+
+PlatformGattServiceChange PlatformGattServiceChange::FromEncodableList(const EncodableList& list) {
+  PlatformGattServiceChange decoded(
+    std::get<std::string>(list[0]),
+    std::get<EncodableList>(list[1]));
+  return decoded;
+}
+
+bool PlatformGattServiceChange::operator==(const PlatformGattServiceChange& other) const {
+  return PigeonInternalDeepEquals(device_id_, other.device_id_) && PigeonInternalDeepEquals(invalidated_service_uuids_, other.invalidated_service_uuids_);
+}
+
+bool PlatformGattServiceChange::operator!=(const PlatformGattServiceChange& other) const {
+  return !(*this == other);
+}
+
+size_t PlatformGattServiceChange::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(device_id_);
+  result = result * 31 + PigeonInternalDeepHash(invalidated_service_uuids_);
+  return result;
+}
+
+std::ostream& operator<<(
+  std::ostream& os,
+  const PlatformGattServiceChange& obj) {
+  os << "PlatformGattServiceChange(";
+  os << "device_id: ";
+  os << PigeonInternalToString(obj.device_id_);
+  os << ", invalidated_service_uuids: ";
+  os << PigeonInternalToString(obj.invalidated_service_uuids_);
+  os << ")";
+  return os;
+}
+
+size_t PigeonInternalDeepHash(const PlatformGattServiceChange& v) {
+  return v.Hash();
+}
+
 
 PigeonInternalCodecSerializer::PigeonInternalCodecSerializer() {}
 
@@ -1201,6 +1273,9 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
       }
     case 140: {
         return CustomEncodableValue(PlatformCharacteristicValueChanged::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 141: {
+        return CustomEncodableValue(PlatformGattServiceChange::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
       return ::flutter::StandardCodecSerializer::ReadValueOfType(type, stream);
@@ -1269,6 +1344,11 @@ void PigeonInternalCodecSerializer::WriteValue(
     if (custom_value->type() == typeid(PlatformCharacteristicValueChanged)) {
       stream->WriteByte(140);
       WriteValue(EncodableValue(std::any_cast<PlatformCharacteristicValueChanged>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(PlatformGattServiceChange)) {
+      stream->WriteByte(141);
+      WriteValue(EncodableValue(std::any_cast<PlatformGattServiceChange>(*custom_value).ToEncodableList()), stream);
       return;
     }
   }
@@ -1694,6 +1774,31 @@ void QuickBlueFlutterApi::OnConnectionStateChange(
   BasicMessageChannel<> channel(binary_messenger_, channel_name, &GetCodec());
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     CustomEncodableValue(state_change_arg),
+  });
+  channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
+    std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);
+    const auto& encodable_return_value = *response;
+    const auto* list_return_value = std::get_if<EncodableList>(&encodable_return_value);
+    if (list_return_value) {
+      if (list_return_value->size() > 1) {
+        on_error(FlutterError(std::get<std::string>(list_return_value->at(0)), std::get<std::string>(list_return_value->at(1)), list_return_value->at(2)));
+      } else {
+        on_success();
+      }
+    } else {
+      on_error(CreateConnectionError(channel_name));
+    } 
+  });
+}
+
+void QuickBlueFlutterApi::OnGattServicesChanged(
+  const PlatformGattServiceChange& service_change_arg,
+  std::function<void(void)>&& on_success,
+  std::function<void(const FlutterError&)>&& on_error) {
+  const std::string channel_name = "dev.flutter.pigeon.quick_blue_windows.QuickBlueFlutterApi.onGattServicesChanged" + message_channel_suffix_;
+  BasicMessageChannel<> channel(binary_messenger_, channel_name, &GetCodec());
+  EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
+    CustomEncodableValue(service_change_arg),
   });
   channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
     std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);

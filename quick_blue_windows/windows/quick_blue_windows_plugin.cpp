@@ -58,6 +58,7 @@ using quick_blue_windows::PlatformCharacteristicValueChanged;
 using quick_blue_windows::PlatformConnectionState;
 using quick_blue_windows::PlatformConnectionStateChange;
 using quick_blue_windows::PlatformGattStatus;
+using quick_blue_windows::PlatformGattServiceChange;
 using quick_blue_windows::PlatformServiceDiscovered;
 using quick_blue_windows::PlatformWindowsScanMode;
 using quick_blue_windows::PlatformWindowsScanOptions;
@@ -286,16 +287,19 @@ struct BluetoothDeviceAgent {
   BluetoothLEDevice device;
   GattSession gattSession{nullptr};
   winrt::event_token connnectionStatusChangedToken;
+  winrt::event_token gattServicesChangedToken;
   std::map<std::string, GattDeviceService> gattServices;
   std::map<std::string, GattCharacteristic> gattCharacteristics;
   std::map<std::string, winrt::event_token> valueChangedTokens;
 
   BluetoothDeviceAgent(BluetoothLEDevice device,
                        GattSession gattSession,
-                       winrt::event_token connnectionStatusChangedToken)
+                       winrt::event_token connnectionStatusChangedToken,
+                       winrt::event_token gattServicesChangedToken)
       : device(device),
         gattSession(gattSession),
-        connnectionStatusChangedToken(connnectionStatusChangedToken) {}
+        connnectionStatusChangedToken(connnectionStatusChangedToken),
+        gattServicesChangedToken(gattServicesChangedToken) {}
 
   ~BluetoothDeviceAgent() { device = nullptr; }
 
@@ -457,6 +461,8 @@ class QuickBlueWindowsPlugin : public flutter::Plugin,
   winrt::fire_and_forget ConnectAsync(uint64_t bluetoothAddress);
   void BluetoothLEDevice_ConnectionStatusChanged(BluetoothLEDevice sender,
                                                  IInspectable args);
+  void BluetoothLEDevice_GattServicesChanged(BluetoothLEDevice sender,
+                                             IInspectable args);
   bool CleanConnection(uint64_t bluetoothAddress);
   winrt::fire_and_forget DiscoverServicesAsync(
       BluetoothDeviceAgent& bluetoothDeviceAgent,
@@ -492,6 +498,7 @@ class QuickBlueWindowsPlugin : public flutter::Plugin,
                              std::string serviceUuid,
                              EncodableList characteristics);
   void SendServiceDiscoveryComplete(std::string deviceId);
+  void SendGattServicesChanged(std::string deviceId);
   void SendCharacteristicValue(std::string deviceId,
                                std::string serviceUuid,
                                std::string characteristicId,
@@ -604,6 +611,9 @@ void QuickBlueWindowsPlugin::TransferConnection(
   agent->connnectionStatusChangedToken = agent->device.ConnectionStatusChanged(
       {new_host,
        &QuickBlueWindowsPlugin::BluetoothLEDevice_ConnectionStatusChanged});
+  agent->device.GattServicesChanged(agent->gattServicesChangedToken);
+  agent->gattServicesChangedToken = agent->device.GattServicesChanged(
+      {new_host, &QuickBlueWindowsPlugin::BluetoothLEDevice_GattServicesChanged});
   for (auto& token : agent->valueChangedTokens) {
     const auto characteristic = agent->gattCharacteristics.find(token.first);
     if (characteristic == agent->gattCharacteristics.end()) {
@@ -1067,15 +1077,19 @@ winrt::fire_and_forget QuickBlueWindowsPlugin::ConnectAsync(
 
     auto connnectionStatusChangedToken = device.ConnectionStatusChanged(
         {this, &QuickBlueWindowsPlugin::BluetoothLEDevice_ConnectionStatusChanged});
+    auto gattServicesChangedToken = device.GattServicesChanged(
+        {this, &QuickBlueWindowsPlugin::BluetoothLEDevice_GattServicesChanged});
     if (!OwnsConnection(bluetoothAddress)) {
       if (gattSession) {
         gattSession.MaintainConnection(false);
       }
       device.ConnectionStatusChanged(connnectionStatusChangedToken);
+      device.GattServicesChanged(gattServicesChangedToken);
       co_return;
     }
     connectedDevices[bluetoothAddress] = std::make_unique<BluetoothDeviceAgent>(
-        device, gattSession, connnectionStatusChangedToken);
+        device, gattSession, connnectionStatusChangedToken,
+        gattServicesChangedToken);
 
     SendConnectionState(std::to_string(bluetoothAddress),
                         PlatformConnectionState::kConnected,
@@ -1102,6 +1116,28 @@ void QuickBlueWindowsPlugin::BluetoothLEDevice_ConnectionStatusChanged(
   }
 }
 
+void QuickBlueWindowsPlugin::BluetoothLEDevice_GattServicesChanged(
+    BluetoothLEDevice sender, IInspectable args) {
+  (void)args;
+  const auto address = sender.BluetoothAddress();
+  const auto agent = connectedDevices.find(address);
+  if (agent == connectedDevices.end()) {
+    return;
+  }
+
+  for (auto& token : agent->second->valueChangedTokens) {
+    const auto characteristic =
+        agent->second->gattCharacteristics.find(token.first);
+    if (characteristic != agent->second->gattCharacteristics.end()) {
+      characteristic->second.ValueChanged(token.second);
+    }
+  }
+  agent->second->valueChangedTokens.clear();
+  agent->second->gattCharacteristics.clear();
+  agent->second->gattServices.clear();
+  SendGattServicesChanged(std::to_string(address));
+}
+
 bool QuickBlueWindowsPlugin::CleanConnection(uint64_t bluetoothAddress) {
   auto node = connectedDevices.extract(bluetoothAddress);
   if (node.empty()) {
@@ -1114,6 +1150,8 @@ bool QuickBlueWindowsPlugin::CleanConnection(uint64_t bluetoothAddress) {
   }
   deviceAgent->device.ConnectionStatusChanged(
       deviceAgent->connnectionStatusChangedToken);
+  deviceAgent->device.GattServicesChanged(
+      deviceAgent->gattServicesChangedToken);
   for (auto& tokenPair : deviceAgent->valueChangedTokens) {
     auto characteristic = deviceAgent->gattCharacteristics.find(tokenPair.first);
     if (characteristic != deviceAgent->gattCharacteristics.end()) {
@@ -1343,6 +1381,15 @@ void QuickBlueWindowsPlugin::SendServiceDiscoveryComplete(std::string deviceId) 
   for (auto* client : clients) {
     client->flutter_api_->OnServiceDiscoveryComplete(
         deviceId, []() {}, [](const FlutterError&) {});
+  }
+}
+
+void QuickBlueWindowsPlugin::SendGattServicesChanged(std::string deviceId) {
+  const auto clients = ConnectionClients(parse_bluetooth_address(deviceId));
+  for (auto* client : clients) {
+    client->flutter_api_->OnGattServicesChanged(
+        PlatformGattServiceChange(deviceId, EncodableList{}), []() {},
+        [](const FlutterError&) {});
   }
 }
 

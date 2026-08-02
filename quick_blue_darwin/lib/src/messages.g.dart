@@ -934,6 +934,56 @@ class PlatformL2CapSocketEvent {
   }
 }
 
+class PlatformGattServiceChange {
+  PlatformGattServiceChange({
+    required this.deviceId,
+    required this.invalidatedServiceUuids,
+  });
+
+  String deviceId;
+
+  List<String> invalidatedServiceUuids;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      deviceId,
+      invalidatedServiceUuids,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformGattServiceChange decode(Object result) {
+    result as List<Object?>;
+    return PlatformGattServiceChange(
+      deviceId: result[0]! as String,
+      invalidatedServiceUuids: (result[1]! as List<Object?>).cast<String>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformGattServiceChange || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(deviceId, other.deviceId) && _deepEquals(invalidatedServiceUuids, other.invalidatedServiceUuids);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformGattServiceChange(deviceId: $deviceId, invalidatedServiceUuids: $invalidatedServiceUuids)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -996,6 +1046,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformL2CapSocketEvent) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
+    }    else if (value is PlatformGattServiceChange) {
+      buffer.putUint8(147);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1045,6 +1098,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
       case 146:
         return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
+      case 147:
+        return PlatformGattServiceChange.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1490,6 +1545,8 @@ abstract class QuickBlueFlutterApi {
 
   void onConnectionStateChange(PlatformConnectionStateChange stateChange);
 
+  void onGattServicesChanged(PlatformGattServiceChange serviceChange);
+
   void onServiceDiscovered(PlatformServiceDiscovered serviceDiscovered);
 
   void onServiceDiscoveryComplete(String deviceId);
@@ -1510,6 +1567,27 @@ abstract class QuickBlueFlutterApi {
           final PlatformConnectionStateChange arg_stateChange = args[0]! as PlatformConnectionStateChange;
           try {
             api.onConnectionStateChange(arg_stateChange);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onGattServicesChanged$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final PlatformGattServiceChange arg_serviceChange = args[0]! as PlatformGattServiceChange;
+          try {
+            api.onGattServicesChanged(arg_serviceChange);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

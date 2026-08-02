@@ -594,6 +594,14 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
   }
 
   @override
+  void onGattServicesChanged(messages.PlatformGattServiceChange serviceChange) {
+    platform.handleGattServicesChanged(
+      serviceChange.deviceId,
+      invalidatedServiceUuids: serviceChange.invalidatedServiceUuids,
+    );
+  }
+
+  @override
   void onServiceDiscovered(
     messages.PlatformServiceDiscovered serviceDiscovered,
   ) {

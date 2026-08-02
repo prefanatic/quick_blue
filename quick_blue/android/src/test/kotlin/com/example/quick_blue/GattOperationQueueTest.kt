@@ -144,6 +144,8 @@ class GattOperationQueueTest {
             services: List<PlatformServiceDiscovered>,
         ) = Unit
 
+        override fun emitGattServicesChanged(deviceId: String) = Unit
+
         override fun emitMtuChanged(deviceId: String, mtu: Int, status: Int) = Unit
 
         override fun emitCharacteristicValue(

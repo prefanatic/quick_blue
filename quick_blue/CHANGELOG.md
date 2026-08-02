@@ -2,6 +2,11 @@
 
 ### Added
 
+- Add `gattServiceChangedStream` globally and per device on Android, iOS,
+  macOS, Windows, and Linux, including invalidated CoreBluetooth service UUIDs,
+  pending-discovery cancellation, and automatic invalidation of previously
+  discovered `BluetoothGatt` snapshots.
+
 - Add `QuickBlueSecurityException` for recoverable Darwin authentication,
   encryption, and peer-removed-pairing failures while preserving the native
   `NSError` domain and code.

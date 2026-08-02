@@ -929,6 +929,47 @@ data class PlatformL2CapSocketEvent (
     return "PlatformL2CapSocketEvent(deviceId=$deviceId, data=${data?.contentToString()}, error=$error, opened=$opened, closed=$closed)"
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformGattServiceChange (
+  val deviceId: String,
+  val invalidatedServiceUuids: List<String>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformGattServiceChange {
+      val deviceId = pigeonVar_list[0] as String
+      val invalidatedServiceUuids = pigeonVar_list[1] as List<String>
+      return PlatformGattServiceChange(deviceId, invalidatedServiceUuids)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      deviceId,
+      invalidatedServiceUuids,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformGattServiceChange
+    return MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.invalidatedServiceUuids, other.invalidatedServiceUuids)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.invalidatedServiceUuids)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformGattServiceChange(deviceId=$deviceId, invalidatedServiceUuids=$invalidatedServiceUuids)"
+  }
+}
 private open class MessagesPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1047,6 +1088,11 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
           PlatformL2CapSocketEvent.fromList(it)
         }
       }
+      152.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformGattServiceChange.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -1142,6 +1188,10 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       is PlatformL2CapSocketEvent -> {
         stream.write(151)
+        writeValue(stream, value.toList())
+      }
+      is PlatformGattServiceChange -> {
+        stream.write(152)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1696,6 +1746,23 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
     val channelName = "dev.flutter.pigeon.quick_blue.QuickBlueFlutterApi.onConnectionStateChange$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
     channel.send(listOf(stateChangeArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  fun onGattServicesChanged(serviceChangeArg: PlatformGattServiceChange, callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.quick_blue.QuickBlueFlutterApi.onGattServicesChanged$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(serviceChangeArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

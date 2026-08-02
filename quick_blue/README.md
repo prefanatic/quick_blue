@@ -300,6 +300,29 @@ final characteristic = gatt.characteristic(
 `BluetoothService.characteristicDetails` reports whether each discovered
 characteristic supports reads, writes, notifications, or indications.
 
+### GATT service changes
+
+Listen for remote GATT database changes and rediscover services before using
+the new database:
+
+```dart
+final subscription = device.gattServiceChangedStream.listen((change) async {
+  print('invalidated services: ${change.invalidatedServiceUuids}');
+  final refreshedGatt = await device.discoverGatt();
+  // Replace the application's previous GATT snapshot with refreshedGatt.
+});
+```
+
+`invalidatedServiceUuids` is empty when the platform reports only that the
+database changed. Always rediscover the complete database after an event.
+Previously returned `BluetoothGatt` snapshots report `isValid == false`, and
+attempting to resolve a characteristic from an invalid snapshot throws
+`QuickBlueException` with `QuickBlueErrorCode.invalidState`.
+
+If a change arrives during service discovery, that discovery completes with
+`QuickBlueErrorCode.cancelled` so callers can retry without receiving a mixture
+of the old and new databases.
+
 ### Notifications
 
 Use `characteristic.notifications()` when a stream subscription should own
@@ -671,6 +694,7 @@ association UI, then use `associate()`, `associations()`, and `disassociate()`.
 | `bondState` / `pair` | yes | no [2] | no [2] | no | yes |
 | `bondStateStream` | yes | no | no | no | no |
 | `discoverServices` | yes | yes | yes | yes [3] | yes |
+| `gattServiceChangedStream` | yes [7] | yes | yes | yes | yes [8] |
 | `readValue` / `writeValue` | yes | yes | yes | yes | yes |
 | `setNotifiable` | yes | yes | yes | yes | yes |
 | `requestMtu` | yes | yes [4] | yes [4] | yes | no [5] |
@@ -692,6 +716,11 @@ exact value.
 reliably retrieve the negotiated value and reports the operation as unsupported.
 
 [6] AccessorySetupKit requires iOS 18 or later and explicit Info.plist setup.
+
+[7] Android exposes GATT service-change callbacks on API 31 and later.
+
+[8] Linux reports changes when BlueZ invalidates or replaces its resolved GATT
+database.
 
 `bluetoothStateStream` emits the latest state first for every listener. Android,
 iOS, macOS, and Linux then emit live changes; Windows currently emits only the

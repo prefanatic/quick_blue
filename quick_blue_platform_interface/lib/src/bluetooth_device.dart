@@ -21,14 +21,17 @@ class BluetoothDevice {
     required QuickBluePlatform platform,
     required Future<List<BluetoothService>> Function(String deviceId)
     discoverServices,
+    required int Function() gattGeneration,
   }) : _platform = platform,
-       _discoverServices = discoverServices;
+       _discoverServices = discoverServices,
+       _gattGeneration = gattGeneration;
 
   /// The platform-specific device identifier.
   final String deviceId;
   final QuickBluePlatform _platform;
   final Future<List<BluetoothService>> Function(String deviceId)
   _discoverServices;
+  final int Function() _gattGeneration;
 
   /// Alias for [deviceId].
   String get id => deviceId;
@@ -48,6 +51,16 @@ class BluetoothDevice {
   /// [discoverServices] to wait for completion.
   Stream<BluetoothService> get serviceDiscoveryStream {
     return _platform.serviceDiscoveryStream.where(
+      (event) => event.deviceId == deviceId,
+    );
+  }
+
+  /// Changes to this device's remote GATT service database.
+  ///
+  /// Rediscover services after every event. Previously returned
+  /// [BluetoothGatt] snapshots are invalidated automatically.
+  Stream<BluetoothGattServiceChange> get gattServiceChangedStream {
+    return _platform.gattServiceChangedStream.where(
       (event) => event.deviceId == deviceId,
     );
   }
@@ -183,9 +196,13 @@ class BluetoothDevice {
   /// Prefer this when call sites know characteristic UUIDs but not service
   /// UUIDs yet.
   Future<BluetoothGatt> discoverGatt() async {
+    final discovery = discoverServices();
+    final generation = _gattGeneration();
+    final services = await discovery;
     return BluetoothGatt.internal(
       device: this,
-      services: await discoverServices(),
+      services: services,
+      isValid: () => _gattGeneration() == generation,
     );
   }
 

@@ -28,6 +28,42 @@ void main() {
     expect(platform.calls, <String>['discoverServices device-a']);
   });
 
+  test('service changes invalidate discovered GATT snapshots', () async {
+    final platform = FakeQuickBluePlatform(
+      discoveredServices: <BluetoothService>[
+        BluetoothService(
+          deviceId: 'device-a',
+          uuid: 'service-a',
+          characteristics: const <String>['characteristic-a'],
+        ),
+      ],
+    );
+    addTearDown(platform.dispose);
+
+    final gatt = await platform.device('device-a').discoverGatt();
+    expect(gatt.isValid, isTrue);
+
+    platform.handleGattServicesChanged('device-a');
+
+    expect(gatt.isValid, isFalse);
+    expect(
+      () => gatt.characteristic('characteristic-a'),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.invalidState,
+            )
+            .having(
+              (error) => error.operation,
+              'operation',
+              'resolveCharacteristic',
+            ),
+      ),
+    );
+  });
+
   test(
     'BluetoothGatt.characteristic resolves a discovered characteristic',
     () async {
@@ -463,6 +499,70 @@ void main() {
         platform.calls.where((call) => call == 'discoverServices device-a'),
         hasLength(2),
       );
+    },
+  );
+
+  test(
+    'BluetoothDevice.discoverServices retries after GATT services change',
+    () async {
+      final platform = FakeQuickBluePlatform(completesServiceDiscovery: false);
+      addTearDown(platform.dispose);
+
+      final device = platform.device('device-a');
+      final discovery = device.discoverServices();
+      final cancellationExpectation = expectLater(
+        discovery,
+        throwsA(
+          isA<QuickBlueException>()
+              .having(
+                (error) => error.code,
+                'code',
+                QuickBlueErrorCode.cancelled,
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('GATT service database changed'),
+              ),
+        ),
+      );
+
+      platform.handleGattServicesChanged('device-a');
+      await cancellationExpectation;
+
+      platform.completesServiceDiscovery = true;
+      expect(await device.discoverServices(), isEmpty);
+      expect(
+        platform.calls.where((call) => call == 'discoverServices device-a'),
+        hasLength(2),
+      );
+    },
+  );
+
+  test(
+    'an immediate discovery retry ignores the previous GATT cancellation',
+    () async {
+      final platform = FakeQuickBluePlatform(completesServiceDiscovery: false);
+      addTearDown(platform.dispose);
+
+      final device = platform.device('device-a');
+      final cancelledDiscovery = device.discoverServices();
+
+      platform.handleGattServicesChanged('device-a');
+      platform.completesServiceDiscovery = true;
+      final retry = device.discoverServices();
+
+      await expectLater(
+        cancelledDiscovery,
+        throwsA(
+          isA<QuickBlueException>().having(
+            (error) => error.code,
+            'code',
+            QuickBlueErrorCode.cancelled,
+          ),
+        ),
+      );
+      expect(await retry, isEmpty);
     },
   );
 

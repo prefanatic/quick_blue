@@ -593,6 +593,7 @@ void main() {
     final connection = platform.connectionStateStream.first;
     final service = platform.serviceDiscoveryStream.first;
     final serviceComplete = platform.serviceDiscoveryCompleteStream.first;
+    final gattChange = platform.gattServiceChangedStream.first;
     final value = platform.characteristicValueStream.first;
 
     await _sendFlutterApiMessage(
@@ -621,6 +622,13 @@ void main() {
       ),
     );
     await _sendFlutterApiMessage('onServiceDiscoveryComplete', 'device-a');
+    await _sendFlutterApiMessage(
+      'onGattServicesChanged',
+      messages.PlatformGattServiceChange(
+        deviceId: 'device-a',
+        invalidatedServiceUuids: const <String>[],
+      ),
+    );
     await _sendFlutterApiMessage(
       'onCharacteristicValueChanged',
       messages.PlatformCharacteristicValueChanged(
@@ -656,6 +664,7 @@ void main() {
       ),
     );
     expect(await serviceComplete, 'device-a');
+    expect(await gattChange, BluetoothGattServiceChange(deviceId: 'device-a'));
     expect(
       await value,
       BluetoothCharacteristicValue(

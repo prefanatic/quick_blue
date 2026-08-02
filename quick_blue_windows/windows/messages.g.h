@@ -399,6 +399,37 @@ class PlatformCharacteristicValueChanged {
 };
 
 
+// Generated class from Pigeon that represents data sent in messages.
+class PlatformGattServiceChange {
+ public:
+  // Constructs an object setting all fields.
+  explicit PlatformGattServiceChange(
+    const std::string& device_id,
+    const ::flutter::EncodableList& invalidated_service_uuids);
+
+  const std::string& device_id() const;
+  void set_device_id(std::string_view value_arg);
+
+  const ::flutter::EncodableList& invalidated_service_uuids() const;
+  void set_invalidated_service_uuids(const ::flutter::EncodableList& value_arg);
+
+  bool operator==(const PlatformGattServiceChange& other) const;
+  bool operator!=(const PlatformGattServiceChange& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+  /// Stream output operator for formatted string representation.
+  friend std::ostream& operator<<(std::ostream& os, const PlatformGattServiceChange& obj);
+ private:
+  static PlatformGattServiceChange FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class QuickBlueApi;
+  friend class QuickBlueFlutterApi;
+  friend class PigeonInternalCodecSerializer;
+  std::string device_id_;
+  ::flutter::EncodableList invalidated_service_uuids_;
+};
+
+
 class PigeonInternalCodecSerializer : public ::flutter::StandardCodecSerializer {
  public:
   PigeonInternalCodecSerializer();
@@ -483,6 +514,10 @@ class QuickBlueFlutterApi {
   static const ::flutter::StandardMessageCodec& GetCodec();
   void OnConnectionStateChange(
     const PlatformConnectionStateChange& state_change,
+    std::function<void(void)>&& on_success,
+    std::function<void(const FlutterError&)>&& on_error);
+  void OnGattServicesChanged(
+    const PlatformGattServiceChange& service_change,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
   void OnServiceDiscovered(

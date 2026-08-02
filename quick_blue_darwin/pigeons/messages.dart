@@ -272,6 +272,16 @@ class PlatformL2CapSocketEvent {
   final bool? closed;
 }
 
+class PlatformGattServiceChange {
+  PlatformGattServiceChange({
+    required this.deviceId,
+    required this.invalidatedServiceUuids,
+  });
+
+  final String deviceId;
+  final List<String> invalidatedServiceUuids;
+}
+
 @EventChannelApi()
 abstract class QuickBlueEventApi {
   PlatformBluetoothState bluetoothState();
@@ -283,6 +293,7 @@ abstract class QuickBlueEventApi {
 @FlutterApi()
 abstract class QuickBlueFlutterApi {
   void onConnectionStateChange(PlatformConnectionStateChange stateChange);
+  void onGattServicesChanged(PlatformGattServiceChange serviceChange);
   void onServiceDiscovered(PlatformServiceDiscovered serviceDiscovered);
   void onServiceDiscoveryComplete(String deviceId);
   void onCharacteristicValueChanged(

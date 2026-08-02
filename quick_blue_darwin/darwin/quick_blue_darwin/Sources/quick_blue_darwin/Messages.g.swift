@@ -885,6 +885,46 @@ struct PlatformL2CapSocketEvent: Hashable, CustomStringConvertible {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformGattServiceChange: Hashable, CustomStringConvertible {
+  var deviceId: String
+  var invalidatedServiceUuids: [String]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformGattServiceChange? {
+    let deviceId = pigeonVar_list[0] as! String
+    let invalidatedServiceUuids = pigeonVar_list[1] as! [String]
+
+    return PlatformGattServiceChange(
+      deviceId: deviceId,
+      invalidatedServiceUuids: invalidatedServiceUuids
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      deviceId,
+      invalidatedServiceUuids,
+    ]
+  }
+  static func == (lhs: PlatformGattServiceChange, rhs: PlatformGattServiceChange) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.invalidatedServiceUuids, rhs.invalidatedServiceUuids)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformGattServiceChange")
+    MessagesPigeonInternal.deepHash(value: deviceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: invalidatedServiceUuids, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformGattServiceChange(deviceId: \(String(describing: deviceId)), invalidatedServiceUuids: \(String(describing: invalidatedServiceUuids)))"
+  }
+}
+
 private class MessagesPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -944,6 +984,8 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       return PlatformCharacteristicValueChanged.fromList(self.readValue() as! [Any?])
     case 146:
       return PlatformL2CapSocketEvent.fromList(self.readValue() as! [Any?])
+    case 147:
+      return PlatformGattServiceChange.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -1005,6 +1047,9 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? PlatformL2CapSocketEvent {
       super.writeByte(146)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformGattServiceChange {
+      super.writeByte(147)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1474,6 +1519,7 @@ class RestorationEventsStreamHandler: PigeonEventChannelWrapper<PlatformDarwinRe
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol QuickBlueFlutterApiProtocol {
   func onConnectionStateChange(stateChange stateChangeArg: PlatformConnectionStateChange, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func onGattServicesChanged(serviceChange serviceChangeArg: PlatformGattServiceChange, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onServiceDiscovered(serviceDiscovered serviceDiscoveredArg: PlatformServiceDiscovered, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onServiceDiscoveryComplete(deviceId deviceIdArg: String, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onCharacteristicValueChanged(valueChanged valueChangedArg: PlatformCharacteristicValueChanged, completion: @escaping (Result<Void, PigeonError>) -> Void)
@@ -1492,6 +1538,24 @@ class QuickBlueFlutterApi: QuickBlueFlutterApiProtocol {
     let channelName: String = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onConnectionStateChange\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([stateChangeArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        completion(.success(()))
+      }
+    }
+  }
+  func onGattServicesChanged(serviceChange serviceChangeArg: PlatformGattServiceChange, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.quick_blue_darwin.QuickBlueFlutterApi.onGattServicesChanged\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage([serviceChangeArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

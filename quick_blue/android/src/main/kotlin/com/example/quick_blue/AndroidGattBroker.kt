@@ -26,6 +26,7 @@ internal interface AndroidGattClient {
     )
 
     fun emitServices(deviceId: String, services: List<PlatformServiceDiscovered>)
+    fun emitGattServicesChanged(deviceId: String)
     fun emitMtuChanged(deviceId: String, mtu: Int, status: Int)
     fun emitCharacteristicValue(
         deviceId: String,
@@ -432,6 +433,13 @@ internal object AndroidGattBroker {
                 .complete(gatt.device.address, GattOperationKind.DISCOVER_SERVICES)
                 ?.client
                 ?.emitServices(gatt.device.address, services)
+        }
+
+        override fun onServiceChanged(gatt: BluetoothGatt) {
+            if (!isCurrentGatt(gatt)) return
+            clients(gatt.device.address).forEach {
+                it.emitGattServicesChanged(gatt.device.address)
+            }
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {

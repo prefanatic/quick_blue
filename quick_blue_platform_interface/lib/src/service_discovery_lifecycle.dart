@@ -50,12 +50,38 @@ class ServiceDiscoveryLifecycleCoordinator {
   }
 
   void handleDisconnected(String deviceId) {
+    _cancelPending(
+      deviceId,
+      message:
+          'Service discovery for Bluetooth device $deviceId was cancelled '
+          'because the device disconnected.',
+    );
+  }
+
+  void handleGattServicesChanged(String deviceId) {
+    _cancelPending(
+      deviceId,
+      message:
+          'Service discovery for Bluetooth device $deviceId was cancelled '
+          'because its GATT service database changed.',
+    );
+  }
+
+  void _cancelPending(String deviceId, {required String message}) {
     final operation = _pendingDiscoveries.remove(deviceId);
     if (operation == null) {
       return;
     }
-    operation.cancel();
-    _eventController.add(_ServiceDiscoveryDisconnectedEvent(deviceId));
+    final error = QuickBlueException(
+      code: QuickBlueErrorCode.cancelled,
+      operation: 'discoverServices',
+      deviceId: deviceId,
+      message: message,
+    );
+    operation.cancel(error);
+    _eventController.add(
+      _ServiceDiscoveryCancelledEvent(deviceId, operation, error),
+    );
   }
 
   Future<List<BluetoothService>> discover(String deviceId) {
@@ -94,8 +120,13 @@ class ServiceDiscoveryLifecycleCoordinator {
             services.add(service);
           case ServiceDiscoveryCompleteEvent():
             return List<BluetoothService>.unmodifiable(services);
-          case _ServiceDiscoveryDisconnectedEvent():
-            throw operation.cancellationError;
+          case _ServiceDiscoveryCancelledEvent(
+            :final cancelledOperation,
+            :final error,
+          ):
+            if (identical(cancelledOperation, operation)) {
+              throw error;
+            }
         }
       }
 
@@ -118,34 +149,33 @@ class ServiceDiscoveryLifecycleCoordinator {
 }
 
 class _ServiceDiscoveryOperation {
-  _ServiceDiscoveryOperation(String deviceId)
-    : cancellationError = QuickBlueException(
-        code: QuickBlueErrorCode.cancelled,
-        operation: 'discoverServices',
-        deviceId: deviceId,
-        message:
-            'Service discovery for Bluetooth device $deviceId was cancelled '
-            'because the device disconnected.',
-      );
+  _ServiceDiscoveryOperation(this.deviceId);
 
-  final QuickBlueException cancellationError;
-  final _cancelled = Completer<void>();
+  final String deviceId;
+  final _cancelled = Completer<QuickBlueException>();
   late final Future<List<BluetoothService>> completed;
 
-  void cancel() {
+  void cancel(QuickBlueException error) {
     if (!_cancelled.isCompleted) {
-      _cancelled.complete();
+      _cancelled.complete(error);
     }
   }
 
   Future<T> untilCancelled<T>(Future<T> operation) {
     return Future.any<T>(<Future<T>>[
       operation,
-      _cancelled.future.then<T>((_) => throw cancellationError),
+      _cancelled.future.then<T>((error) => throw error),
     ]);
   }
 }
 
-class _ServiceDiscoveryDisconnectedEvent extends ServiceDiscoveryEvent {
-  const _ServiceDiscoveryDisconnectedEvent(super.deviceId);
+class _ServiceDiscoveryCancelledEvent extends ServiceDiscoveryEvent {
+  const _ServiceDiscoveryCancelledEvent(
+    super.deviceId,
+    this.cancelledOperation,
+    this.error,
+  );
+
+  final _ServiceDiscoveryOperation cancelledOperation;
+  final QuickBlueException error;
 }
