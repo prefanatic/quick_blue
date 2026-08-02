@@ -8,7 +8,8 @@ disconnect reconciliation keeps missing native callbacks from blocking later
 reconnects. Remote GATT database changes are surfaced across supported
 platforms so applications can invalidate stale service snapshots and
 rediscover safely. Applications can query platform capabilities at runtime
-instead of duplicating platform and OS-version checks.
+instead of duplicating platform and OS-version checks, and explicit chunked
+write helpers support larger application payloads without hiding their framing.
 
 - [Install, platform setup, and usage](quick_blue/README.md)
 - [Changelog](quick_blue/CHANGELOG.md)

@@ -2,6 +2,9 @@
 
 ### Added
 
+- Add explicit `writeInChunks` and `writeValueInChunks` helpers for serial
+  bulk characteristic writes with caller-selected framing.
+
 - Add `QuickBlue.capabilities()` with runtime platform behavior for bonding,
   MTU handling, GATT service changes, connected-device lookup, L2CAP sockets,
   companion association, and AccessorySetupKit.

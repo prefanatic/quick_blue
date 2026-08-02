@@ -262,6 +262,22 @@ class BluetoothDevice {
         .write(value, bleOutputProperty);
   }
 
+  /// Writes a characteristic value as sequential chunks.
+  ///
+  /// This delegates to [BluetoothCharacteristic.writeInChunks]. Each chunk is
+  /// a separate write, and [chunkSize] must be greater than zero.
+  Future<void> writeValueInChunks(
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty, {
+    required int chunkSize,
+  }) {
+    return this
+        .characteristic(service, characteristic)
+        .writeInChunks(value, bleOutputProperty, chunkSize: chunkSize);
+  }
+
   /// Requests or returns the negotiated MTU, depending on platform support.
   Future<int> requestMtu(int expectedMtu) {
     return QuickBlueInstrumentation.observeFuture<int>(

@@ -301,6 +301,35 @@ final characteristic = gatt.characteristic(
 `BluetoothService.characteristicDetails` reports whether each discovered
 characteristic supports reads, writes, notifications, or indications.
 
+### Chunked writes
+
+Use `writeInChunks` when an application protocol expects a large value to be
+sent as multiple characteristic writes:
+
+```dart
+const applicationChunkSize = 20;
+await characteristic.writeInChunks(
+  firmwareBlock,
+  BleOutputProperty.withResponse,
+  chunkSize: applicationChunkSize,
+);
+```
+
+The chunk size is required because Quick Blue cannot infer the peripheral's
+application framing. Every chunk is a separate GATT write, chunks are submitted
+serially, and the future stops on the first failure. This is not the Bluetooth
+GATT long-write procedure and does not add reassembly metadata. Use
+`device.writeValueInChunks(...)` when working with service and characteristic
+UUIDs instead of a `BluetoothCharacteristic` handle.
+
+For writes without response, the next chunk waits for the previous platform
+write future, but that does not provide a peripheral acknowledgement or
+universal transport backpressure. Prefer writes with response when each chunk
+must be confirmed. Choose a size and write mode supported by the characteristic
+and the peripheral protocol. When negotiated MTU lookup is supported, a common
+upper bound for one ATT write payload is `mtu - 3`, but the application protocol
+may require a smaller value.
+
 ### GATT service changes
 
 Listen for remote GATT database changes and rediscover services before using

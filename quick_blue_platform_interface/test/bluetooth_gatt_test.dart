@@ -852,4 +852,110 @@ void main() {
       'writeValue device-a service-a characteristic-a withResponse [1, 2, 3]',
     ]);
   });
+
+  test('BluetoothCharacteristic.writeInChunks writes serial chunks', () async {
+    final completions = List<Completer<void>>.generate(
+      3,
+      (_) => Completer<void>(),
+    );
+    final platform = FakeQuickBluePlatform(writeValueCompletions: completions);
+    addTearDown(platform.dispose);
+    final characteristic = platform
+        .device('device-a')
+        .characteristic('service-a', 'characteristic-a');
+    final value = Uint8List.fromList(<int>[1, 2, 3, 4, 5]);
+
+    final write = characteristic.writeInChunks(
+      value,
+      BleOutputProperty.withResponse,
+      chunkSize: 2,
+    );
+    await pumpEventQueue();
+    value.fillRange(0, value.length, 9);
+
+    expect(platform.calls, <String>[
+      'writeValue device-a service-a characteristic-a withResponse [1, 2]',
+    ]);
+
+    completions[0].complete();
+    await pumpEventQueue();
+    expect(platform.calls, <String>[
+      'writeValue device-a service-a characteristic-a withResponse [1, 2]',
+      'writeValue device-a service-a characteristic-a withResponse [3, 4]',
+    ]);
+
+    completions[1].complete();
+    await pumpEventQueue();
+    expect(platform.calls, <String>[
+      'writeValue device-a service-a characteristic-a withResponse [1, 2]',
+      'writeValue device-a service-a characteristic-a withResponse [3, 4]',
+      'writeValue device-a service-a characteristic-a withResponse [5]',
+    ]);
+
+    completions[2].complete();
+    await write;
+  });
+
+  test('BluetoothDevice.writeValueInChunks preserves an empty write', () async {
+    final platform = FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    await platform
+        .device('device-a')
+        .writeValueInChunks(
+          'service-a',
+          'characteristic-a',
+          Uint8List(0),
+          BleOutputProperty.withoutResponse,
+          chunkSize: 20,
+        );
+
+    expect(platform.calls, <String>[
+      'writeValue device-a service-a characteristic-a withoutResponse []',
+    ]);
+  });
+
+  test('BluetoothCharacteristic.writeInChunks rejects invalid sizes', () async {
+    final platform = FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+    final characteristic = platform
+        .device('device-a')
+        .characteristic('service-a', 'characteristic-a');
+
+    await expectLater(
+      characteristic.writeInChunks(
+        Uint8List.fromList(<int>[1]),
+        BleOutputProperty.withResponse,
+        chunkSize: 0,
+      ),
+      throwsArgumentError,
+    );
+
+    expect(platform.calls, isEmpty);
+  });
+
+  test('BluetoothCharacteristic.writeInChunks stops on first error', () async {
+    final error = StateError('second chunk failed');
+    final platform = FakeQuickBluePlatform(
+      writeValueErrors: <Object?>[null, error],
+    );
+    addTearDown(platform.dispose);
+    final characteristic = platform
+        .device('device-a')
+        .characteristic('service-a', 'characteristic-a');
+
+    await expectLater(
+      characteristic.writeInChunks(
+        Uint8List.fromList(<int>[1, 2, 3]),
+        BleOutputProperty.withResponse,
+        chunkSize: 1,
+      ),
+      throwsA(same(error)),
+    );
+
+    expect(platform.calls, <String>[
+      'writeValue device-a service-a characteristic-a withResponse [1]',
+      'writeValue device-a service-a characteristic-a withResponse [2]',
+    ]);
+  });
 }

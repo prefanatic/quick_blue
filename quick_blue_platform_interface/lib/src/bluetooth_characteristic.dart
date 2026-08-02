@@ -142,4 +142,43 @@ class BluetoothCharacteristic {
       ),
     );
   }
+
+  /// Writes [value] as sequential chunks of at most [chunkSize] bytes.
+  ///
+  /// Each chunk is a separate characteristic write. The next chunk is not
+  /// submitted until the previous [write] future completes, and processing
+  /// stops on the first error. The value is copied before the first write so
+  /// later caller mutations cannot change pending chunks. An empty value is
+  /// preserved as one empty write.
+  ///
+  /// [chunkSize] must be greater than zero. Callers must choose a size that
+  /// matches the peripheral's application protocol and the active transport.
+  /// In particular, this helper does not implement the Bluetooth GATT long
+  /// write procedure or add framing that lets a peripheral reassemble chunks.
+  /// Completion timing for each chunk follows [bleOutputProperty] and the
+  /// platform implementation.
+  Future<void> writeInChunks(
+    Uint8List value,
+    BleOutputProperty bleOutputProperty, {
+    required int chunkSize,
+  }) async {
+    if (chunkSize <= 0) {
+      throw ArgumentError.value(
+        chunkSize,
+        'chunkSize',
+        'must be greater than zero',
+      );
+    }
+    final bytes = Uint8List.fromList(value);
+
+    if (bytes.isEmpty) {
+      await write(bytes, bleOutputProperty);
+      return;
+    }
+
+    for (var offset = 0; offset < bytes.length; offset += chunkSize) {
+      final end = (offset + chunkSize).clamp(0, bytes.length);
+      await write(Uint8List.sublistView(bytes, offset, end), bleOutputProperty);
+    }
+  }
 }

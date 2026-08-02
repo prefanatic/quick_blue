@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Add explicit chunked characteristic-write helpers with caller-selected
+  framing and serial failure behavior.
 - Cancel pending service discovery when its device disconnects and allow a
   later discovery attempt to start a new platform request.
 - Add `QuickBlueSecurityException` and portable security-error reasons with

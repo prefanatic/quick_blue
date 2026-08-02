@@ -17,6 +17,8 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
     this.setNotifiableError,
     this.readValueError,
     this.writeValueError,
+    List<Completer<void>> writeValueCompletions = const <Completer<void>>[],
+    List<Object?> writeValueErrors = const <Object?>[],
     this.currentBondState = BluetoothBondState.notBonded,
     this.clearSecurityErrorsOnPair = false,
     this.securityRecoveryResult,
@@ -28,6 +30,8 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
        discoveredServices = discoveredServices,
        startScanCompletions = startScanCompletions,
        setNotifiableCompletions = setNotifiableCompletions,
+       writeValueCompletions = writeValueCompletions,
+       writeValueErrors = writeValueErrors,
        connectErrors = List<Object>.of(connectErrors);
 
   final StreamController<BlueScanResult> _scanResultController =
@@ -45,6 +49,8 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   Object? setNotifiableError;
   Object? readValueError;
   Object? writeValueError;
+  final List<Completer<void>> writeValueCompletions;
+  final List<Object?> writeValueErrors;
   BluetoothBondState currentBondState;
   final bool clearSecurityErrorsOnPair;
   final QuickBlueSecurityRecoveryResult? securityRecoveryResult;
@@ -56,6 +62,7 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   ScanOptions? lastScanOptions;
   int _startScanCallCount = 0;
   int _setNotifiableCallCount = 0;
+  int _writeValueCallCount = 0;
 
   void addScanResult(
     String deviceId, {
@@ -275,11 +282,17 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
     Uint8List value,
     BleOutputProperty bleOutputProperty,
   ) async {
+    final callIndex = _writeValueCallCount++;
     calls.add(
       'writeValue $deviceId $service $characteristic '
       '${bleOutputProperty.value} ${value.toList()}',
     );
-    final error = writeValueError;
+    if (callIndex < writeValueCompletions.length) {
+      await writeValueCompletions[callIndex].future;
+    }
+    final error = callIndex < writeValueErrors.length
+        ? writeValueErrors[callIndex]
+        : writeValueError;
     if (error != null) {
       throw error;
     }
