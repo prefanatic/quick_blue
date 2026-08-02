@@ -588,6 +588,194 @@ void main() {
     expect(platform.calls, <String>['connect device-a', 'disconnect device-a']);
   });
 
+  test(
+    'BluetoothDevice.maintainConnection reconnects after link loss',
+    () async {
+      final platform = FakeQuickBluePlatform();
+      addTearDown(platform.dispose);
+      final events = <BluetoothConnectionStateChange>[];
+      final subscription = platform
+          .device('device-a')
+          .maintainConnection(
+            policy: BluetoothReconnectionPolicy(
+              initialDelay: Duration.zero,
+              maxDelay: Duration.zero,
+            ),
+          )
+          .listen(events.add);
+
+      await pumpEventQueue();
+      expect(platform.calls, <String>['connect device-a']);
+
+      platform.onConnectionChanged!(
+        'device-a',
+        BlueConnectionState.disconnected,
+        BleStatus.success,
+      );
+      await pumpEventQueue();
+
+      expect(platform.calls, <String>['connect device-a', 'connect device-a']);
+      expect(events.map((event) => event.state), <BlueConnectionState>[
+        BlueConnectionState.connected,
+        BlueConnectionState.disconnected,
+        BlueConnectionState.connected,
+      ]);
+
+      await subscription.cancel();
+      expect(platform.calls, <String>[
+        'connect device-a',
+        'connect device-a',
+        'disconnect device-a',
+      ]);
+    },
+  );
+
+  test('managed connection stops after its retry limit', () async {
+    final platform = FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+    final firstError = StateError('first reconnect failed');
+    final finalError = StateError('final reconnect failed');
+    final stream = platform
+        .device('device-a')
+        .maintainConnection(
+          policy: BluetoothReconnectionPolicy(
+            maxAttempts: 2,
+            initialDelay: Duration.zero,
+            maxDelay: Duration.zero,
+          ),
+        );
+    final completion = stream.drain<void>();
+
+    await pumpEventQueue();
+    platform.connectErrors.addAll(<Object>[firstError, finalError]);
+    platform.onConnectionChanged!(
+      'device-a',
+      BlueConnectionState.disconnected,
+      BleStatus.failure,
+    );
+
+    await expectLater(completion, throwsA(same(finalError)));
+    expect(platform.calls, <String>[
+      'connect device-a',
+      'connect device-a',
+      'connect device-a',
+    ]);
+  });
+
+  test('managed connection does not retry an initial failure', () async {
+    final error = StateError('initial connection failed');
+    final platform = FakeQuickBluePlatform(connectErrors: <Object>[error]);
+    addTearDown(platform.dispose);
+
+    await expectLater(
+      platform
+          .device('device-a')
+          .maintainConnection(
+            policy: BluetoothReconnectionPolicy(
+              maxAttempts: 3,
+              initialDelay: Duration.zero,
+              maxDelay: Duration.zero,
+            ),
+          )
+          .drain<void>(),
+      throwsA(same(error)),
+    );
+
+    expect(platform.calls, <String>['connect device-a']);
+  });
+
+  test('cancelling managed connection interrupts reconnect delay', () async {
+    final platform = FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+    final subscription = platform
+        .device('device-a')
+        .maintainConnection(
+          policy: BluetoothReconnectionPolicy(
+            initialDelay: const Duration(hours: 1),
+            maxDelay: const Duration(hours: 1),
+          ),
+        )
+        .listen((_) {});
+
+    await pumpEventQueue();
+    platform.onConnectionChanged!(
+      'device-a',
+      BlueConnectionState.disconnected,
+      BleStatus.success,
+    );
+    await pumpEventQueue();
+
+    await subscription.cancel().timeout(const Duration(seconds: 1));
+    expect(platform.calls, <String>['connect device-a']);
+  });
+
+  test('cancelling managed connection supersedes a pending connect', () async {
+    final platform = FakeQuickBluePlatform(connectsImmediately: false);
+    addTearDown(platform.dispose);
+    final subscription = platform
+        .device('device-a')
+        .maintainConnection()
+        .listen((_) {});
+
+    await pumpEventQueue();
+    await subscription.cancel().timeout(const Duration(seconds: 1));
+
+    expect(platform.calls, <String>['connect device-a', 'disconnect device-a']);
+  });
+
+  test('explicit disconnect stops a managed connection', () async {
+    final platform = FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+    final device = platform.device('device-a');
+    final done = Completer<void>();
+    device.maintainConnection().listen((_) {}, onDone: done.complete);
+
+    await pumpEventQueue();
+    await device.disconnect();
+    await done.future;
+
+    expect(platform.calls, <String>['connect device-a', 'disconnect device-a']);
+  });
+
+  test('managed connection has exclusive device ownership', () async {
+    final platform = FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+    final device = platform.device('device-a');
+    final subscription = device.maintainConnection().listen((_) {});
+    await pumpEventQueue();
+
+    await expectLater(
+      device.connect(),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.invalidState,
+            )
+            .having((error) => error.operation, 'operation', 'connect'),
+      ),
+    );
+    await expectLater(
+      device.maintainConnection().drain<void>(),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.invalidState,
+            )
+            .having(
+              (error) => error.operation,
+              'operation',
+              'maintainConnection',
+            ),
+      ),
+    );
+
+    await subscription.cancel();
+  });
+
   test('BluetoothDevice rejects overlapping disconnect operations', () async {
     final platform = FakeQuickBluePlatform(disconnectsImmediately: false);
     addTearDown(platform.dispose);

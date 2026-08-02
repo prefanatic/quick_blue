@@ -1228,6 +1228,116 @@ class BlueConnectionState {
   String toString() => value;
 }
 
+/// Retry behavior for a subscription-owned managed device connection.
+///
+/// The attempt count applies separately to each loss of an established
+/// connection and resets after a successful reconnection. A null
+/// [maxAttempts] retries until the managed connection is stopped.
+class BluetoothReconnectionPolicy {
+  BluetoothReconnectionPolicy({
+    this.maxAttempts = 5,
+    this.initialDelay = const Duration(seconds: 1),
+    this.maxDelay = const Duration(seconds: 30),
+    this.backoffMultiplier = 2,
+  }) {
+    final maxAttempts = this.maxAttempts;
+    if (maxAttempts != null && maxAttempts <= 0) {
+      throw ArgumentError.value(
+        maxAttempts,
+        'maxAttempts',
+        'must be greater than zero or null',
+      );
+    }
+    if (initialDelay.isNegative) {
+      throw ArgumentError.value(
+        initialDelay,
+        'initialDelay',
+        'must not be negative',
+      );
+    }
+    if (maxDelay < initialDelay) {
+      throw ArgumentError.value(
+        maxDelay,
+        'maxDelay',
+        'must be greater than or equal to initialDelay',
+      );
+    }
+    if (!backoffMultiplier.isFinite || backoffMultiplier < 1) {
+      throw ArgumentError.value(
+        backoffMultiplier,
+        'backoffMultiplier',
+        'must be finite and greater than or equal to one',
+      );
+    }
+  }
+
+  /// Default bounded exponential-backoff behavior.
+  static final defaults = BluetoothReconnectionPolicy();
+
+  /// Maximum reconnect attempts after each established connection loss.
+  ///
+  /// Null retries until the managed connection is explicitly stopped.
+  final int? maxAttempts;
+
+  /// Delay before the first reconnect attempt.
+  final Duration initialDelay;
+
+  /// Upper bound for calculated reconnect delays.
+  final Duration maxDelay;
+
+  /// Multiplier applied after each failed reconnect attempt.
+  final double backoffMultiplier;
+
+  /// Returns the delay before the one-based reconnect [attempt].
+  Duration delayForAttempt(int attempt) {
+    if (attempt <= 0) {
+      throw ArgumentError.value(
+        attempt,
+        'attempt',
+        'must be greater than zero',
+      );
+    }
+    if (initialDelay == Duration.zero || backoffMultiplier == 1) {
+      return initialDelay;
+    }
+
+    var delay = initialDelay;
+    for (var currentAttempt = 1; currentAttempt < attempt; currentAttempt++) {
+      final nextMicroseconds = delay.inMicroseconds * backoffMultiplier;
+      if (!nextMicroseconds.isFinite ||
+          nextMicroseconds >= maxDelay.inMicroseconds) {
+        return maxDelay;
+      }
+      delay = Duration(microseconds: nextMicroseconds.round());
+    }
+    return delay;
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is BluetoothReconnectionPolicy &&
+            other.maxAttempts == maxAttempts &&
+            other.initialDelay == initialDelay &&
+            other.maxDelay == maxDelay &&
+            other.backoffMultiplier == backoffMultiplier;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(maxAttempts, initialDelay, maxDelay, backoffMultiplier);
+
+  @override
+  String toString() {
+    return 'BluetoothReconnectionPolicy('
+        'maxAttempts: $maxAttempts, '
+        'initialDelay: $initialDelay, '
+        'maxDelay: $maxDelay, '
+        'backoffMultiplier: $backoffMultiplier'
+        ')';
+  }
+}
+
 /// Result status for BLE operations reported by the platform.
 enum BleStatus {
   /// The operation succeeded.

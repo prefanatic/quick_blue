@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Add `BluetoothReconnectionPolicy` and subscription-owned managed connection
+  lifecycle coordination with bounded exponential backoff.
 - Add explicit chunked characteristic-write helpers with caller-selected
   framing and serial failure behavior.
 - Cancel pending service discovery when its device disconnects and allow a

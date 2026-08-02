@@ -9,6 +9,8 @@ import 'bluetooth_device.dart';
 import 'callbacks.dart';
 import 'characteristic_lifecycle.dart';
 import 'connection_lifecycle.dart';
+import 'managed_connection_lifecycle.dart';
+import 'observability.dart';
 import 'quick_blue_exception.dart';
 import 'scan_lifecycle.dart';
 import 'service_discovery_lifecycle.dart';
@@ -363,6 +365,15 @@ abstract class QuickBluePlatform extends PlatformInterface {
     disconnect: disconnect,
     connectionStateStream: () => connectionStateStream,
   );
+  late final _managedConnectionLifecycleCoordinator =
+      ManagedConnectionLifecycleCoordinator(
+        connect: (deviceId) => runWithSecurityRecovery(
+          deviceId,
+          () => _connectionLifecycleCoordinator.connectDevice(deviceId),
+        ),
+        disconnect: _connectionLifecycleCoordinator.disconnectDevice,
+        connectionStateStream: () => connectionStateStream,
+      );
   final _securityRecoveryOperations =
       <String, Future<QuickBlueSecurityRecoveryResult>>{};
 
@@ -429,15 +440,50 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// A second connection operation for the same device is rejected while the
   /// first is pending so failure events cannot be consumed by the wrong call.
   Future<void> connectDevice(String deviceId) {
+    if (_managedConnectionLifecycleCoordinator.isActive(deviceId)) {
+      return QuickBlueInstrumentation.observeFuture<void>(
+        kind: QuickBlueOperationKind.connect,
+        deviceId: deviceId,
+        action: () => Future<void>.error(
+          QuickBlueException(
+            code: QuickBlueErrorCode.invalidState,
+            operation: 'connect',
+            deviceId: deviceId,
+            details: 'maintainConnection',
+            message:
+                'Bluetooth device $deviceId already has an active managed '
+                'connection.',
+          ),
+        ),
+      );
+    }
     return _connectionLifecycleCoordinator.connectDevice(deviceId);
+  }
+
+  /// Maintains a connection until its stream subscription is cancelled.
+  ///
+  /// The initial connection is attempted once. After an established connection
+  /// is lost, [policy] controls reconnect delays and attempt limits. Only one
+  /// managed connection may own a device at a time.
+  Stream<BluetoothConnectionStateChange> maintainConnection(
+    String deviceId,
+    BluetoothReconnectionPolicy policy,
+  ) {
+    return _managedConnectionLifecycleCoordinator.maintainConnection(
+      deviceId,
+      policy,
+    );
   }
 
   /// Disconnects from [deviceId] and waits for the disconnected state event.
   ///
   /// A pending connect for the same device is cancelled first. Other
   /// overlapping connection operations are rejected.
-  Future<void> disconnectDevice(String deviceId) {
-    return _connectionLifecycleCoordinator.disconnectDevice(deviceId);
+  Future<void> disconnectDevice(String deviceId) async {
+    await _managedConnectionLifecycleCoordinator.stopForExplicitDisconnect(
+      deviceId,
+    );
+    await _connectionLifecycleCoordinator.disconnectDevice(deviceId);
   }
 
   OnConnectionChanged? _onConnectionChanged;

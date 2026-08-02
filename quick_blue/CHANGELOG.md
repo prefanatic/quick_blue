@@ -2,6 +2,10 @@
 
 ### Added
 
+- Add subscription-owned `maintainConnection` with bounded exponential
+  backoff, retry exhaustion errors, and explicit cancellation/disconnect
+  teardown across all platforms.
+
 - Add explicit `writeInChunks` and `writeValueInChunks` helpers for serial
   bulk characteristic writes with caller-selected framing.
 

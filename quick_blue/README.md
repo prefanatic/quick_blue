@@ -381,6 +381,43 @@ pairing. Windows app-initiated pairing is not currently implemented.
 
 ## Advanced usage
 
+### Managed reconnection
+
+Use `maintainConnection` when a feature should keep owning a device connection
+after transient link loss:
+
+```dart
+final connectionSubscription = device
+    .maintainConnection(
+      policy: BluetoothReconnectionPolicy(
+        maxAttempts: 5,
+        initialDelay: const Duration(seconds: 1),
+        maxDelay: const Duration(seconds: 20),
+        backoffMultiplier: 2,
+      ),
+    )
+    .listen(
+      (change) => print('connection: ${change.state}'),
+      onError: (Object error) => print('reconnection stopped: $error'),
+    );
+
+// Stops pending retries and disconnects this client.
+await connectionSubscription.cancel();
+```
+
+Listening performs the initial connection once. If that attempt fails, the
+stream reports the connection error and closes. After an established connection
+drops, retry delays grow from `initialDelay` by `backoffMultiplier`, capped at
+`maxDelay`. `maxAttempts` applies per link loss and resets after each successful
+reconnection; set it to null for retries that continue until explicitly
+stopped.
+
+The stream forwards the normal `BluetoothConnectionStateChange` events. It
+closes with the final connection error when the retry limit is exhausted.
+Canceling the subscription or calling `device.disconnect()` stops the policy;
+only one managed connection can own a device in each Flutter engine at a time.
+Use the ordinary one-shot `connect()` when persistent ownership is not needed.
+
 ### Connection concurrency
 
 Prefer keeping a `BluetoothDevice` handle when performing more than one
@@ -754,6 +791,7 @@ authorization state.
 | `scan` / `scanResults` | yes | yes | yes | yes | yes |
 | `connectedDevices` | yes | yes [1] | yes [1] | yes | yes |
 | `connect` / `disconnect` | yes | yes | yes | yes | yes |
+| `maintainConnection` | yes | yes | yes | yes | yes |
 | `bondState` / `pair` | yes | no [2] | no [2] | no | yes |
 | `bondStateStream` | yes | no | no | no | no |
 | `discoverServices` | yes | yes | yes | yes [3] | yes |

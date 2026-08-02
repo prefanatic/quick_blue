@@ -44,6 +44,59 @@ void main() {
     });
   });
 
+  group(BluetoothReconnectionPolicy, () {
+    test('calculates bounded exponential delays and compares by value', () {
+      final policy = BluetoothReconnectionPolicy(
+        maxAttempts: 4,
+        initialDelay: const Duration(milliseconds: 100),
+        maxDelay: const Duration(milliseconds: 250),
+        backoffMultiplier: 2,
+      );
+      final equivalent = BluetoothReconnectionPolicy(
+        maxAttempts: 4,
+        initialDelay: const Duration(milliseconds: 100),
+        maxDelay: const Duration(milliseconds: 250),
+        backoffMultiplier: 2,
+      );
+
+      expect(policy.delayForAttempt(1), const Duration(milliseconds: 100));
+      expect(policy.delayForAttempt(2), const Duration(milliseconds: 200));
+      expect(policy.delayForAttempt(3), const Duration(milliseconds: 250));
+      expect(policy.delayForAttempt(20), const Duration(milliseconds: 250));
+      expect(policy, equivalent);
+      expect(policy.hashCode, equivalent.hashCode);
+      expect(policy.toString(), contains('maxAttempts: 4'));
+    });
+
+    test('validates retry limits and backoff values', () {
+      expect(
+        () => BluetoothReconnectionPolicy(maxAttempts: 0),
+        throwsArgumentError,
+      );
+      expect(
+        () => BluetoothReconnectionPolicy(
+          initialDelay: const Duration(milliseconds: -1),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => BluetoothReconnectionPolicy(
+          initialDelay: const Duration(seconds: 2),
+          maxDelay: const Duration(seconds: 1),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => BluetoothReconnectionPolicy(backoffMultiplier: 0.5),
+        throwsArgumentError,
+      );
+      expect(
+        () => BluetoothReconnectionPolicy.defaults.delayForAttempt(0),
+        throwsArgumentError,
+      );
+    });
+  });
+
   group(QuickBlueCapabilities, () {
     test('compares by behavior and exposes convenience checks', () {
       const capabilities = QuickBlueCapabilities(

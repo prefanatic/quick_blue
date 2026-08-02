@@ -238,6 +238,24 @@ void main() {
     });
   });
 
+  test('observer records managed connection lifetime', () async {
+    final observer = _RecordingObserver();
+    QuickBlue.observer = observer;
+    final subscription = QuickBlue.device(
+      'private-device',
+    ).maintainConnection().listen((_) {});
+
+    await pumpEventQueue();
+    await subscription.cancel();
+
+    final managedOperation = observer.operations.singleWhere(
+      (operation) =>
+          operation.start.kind == QuickBlueOperationKind.maintainConnection,
+    );
+    expect(managedOperation.start.deviceId, 'private-device');
+    expect(managedOperation.end!.outcome, QuickBlueOperationOutcome.stopped);
+  });
+
   test('observer records failed operations', () async {
     final observer = _RecordingObserver();
     QuickBlue.observer = observer;

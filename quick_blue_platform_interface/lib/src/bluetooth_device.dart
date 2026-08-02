@@ -93,6 +93,31 @@ class BluetoothDevice {
     );
   }
 
+  /// Maintains this device's connection while the returned stream is active.
+  ///
+  /// Listening performs one initial connection attempt. After that connection
+  /// succeeds, unexpected disconnections are retried according to [policy].
+  /// Each platform connection state event is forwarded through the stream. If
+  /// the initial connection fails, or all reconnect attempts fail, the stream
+  /// ends with the connection error.
+  ///
+  /// Cancel the subscription to stop reconnecting and disconnect this client.
+  /// Calling [disconnect] also stops an active managed connection. Only one
+  /// managed connection may own a device at a time, and calling [connect] while
+  /// one is active throws [QuickBlueException].
+  Stream<BluetoothConnectionStateChange> maintainConnection({
+    BluetoothReconnectionPolicy? policy,
+  }) {
+    return QuickBlueInstrumentation.observeStream(
+      kind: QuickBlueOperationKind.maintainConnection,
+      deviceId: deviceId,
+      stream: () => _platform.maintainConnection(
+        deviceId,
+        policy ?? BluetoothReconnectionPolicy.defaults,
+      ),
+    );
+  }
+
   /// Disconnects this client and waits for a disconnected state event.
   ///
   /// A platform may retain a process-wide physical connection while another

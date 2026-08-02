@@ -135,6 +135,7 @@ enum QuickBlueOperationKind {
   scan,
   connectedDevices,
   connect,
+  maintainConnection,
   disconnect,
   bondState,
   waitForBondState,
