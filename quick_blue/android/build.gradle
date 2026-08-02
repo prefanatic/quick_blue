@@ -35,7 +35,7 @@ android {
     defaultConfig {
         minSdkVersion 26
     }
-    namespace 'com.pison.quick_blue'
+    namespace 'com.example.quick_blue'
 }
 
 dependencies {
