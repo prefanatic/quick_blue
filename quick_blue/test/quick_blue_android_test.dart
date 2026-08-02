@@ -94,6 +94,13 @@ void main() {
 
     test('forwards core host API calls', () async {
       final sentMessages = <String, Object?>{};
+      _mockEventChannel(
+        'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.mtuChanged',
+        <Object?>[
+          messages.PlatformMtuChange(deviceId: 'device-b', mtu: 23),
+          messages.PlatformMtuChange(deviceId: 'device-a', mtu: 247),
+        ],
+      );
       for (final name in channels) {
         binaryMessenger.setMockDecodedMessageHandler<Object?>(
           BasicMessageChannel<Object?>(
@@ -1025,7 +1032,7 @@ Object _replyFor(String channelName) {
     ];
   }
   if (channelName.endsWith('.requestMtu')) {
-    return <Object?>[247];
+    return <Object?>[null];
   }
   if (channelName.endsWith('.openL2cap') ||
       channelName.endsWith('.closeL2cap') ||

@@ -1275,7 +1275,7 @@ interface QuickBlueApi {
   fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: PlatformBleInputProperty, callback: (Result<Unit>) -> Unit)
   fun readValue(deviceId: String, service: String, characteristic: String, callback: (Result<ByteArray>) -> Unit)
   fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: PlatformBleOutputProperty, callback: (Result<Unit>) -> Unit)
-  fun requestMtu(deviceId: String, expectedMtu: Long): Long
+  fun requestMtu(deviceId: String, expectedMtu: Long)
   fun openL2cap(deviceId: String, psm: Long, callback: (Result<Unit>) -> Unit)
   fun closeL2cap(deviceId: String)
   fun writeL2cap(deviceId: String, value: ByteArray)
@@ -1610,7 +1610,8 @@ interface QuickBlueApi {
             val deviceIdArg = args[0] as String
             val expectedMtuArg = args[1] as Long
             val wrapped: List<Any?> = try {
-              listOf(api.requestMtu(deviceIdArg, expectedMtuArg))
+              api.requestMtu(deviceIdArg, expectedMtuArg)
+              listOf(null)
             } catch (exception: Throwable) {
               MessagesPigeonUtils.wrapError(exception)
             }

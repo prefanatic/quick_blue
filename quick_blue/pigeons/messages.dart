@@ -157,7 +157,7 @@ abstract class QuickBlueApi {
     Uint8List value,
     PlatformBleOutputProperty bleOutputProperty,
   );
-  int requestMtu(String deviceId, int expectedMtu);
+  void requestMtu(String deviceId, int expectedMtu);
 
   @async
   void openL2cap(String deviceId, int psm);

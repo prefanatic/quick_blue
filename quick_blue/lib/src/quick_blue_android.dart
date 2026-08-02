@@ -20,6 +20,9 @@ class QuickBlueAndroid extends QuickBluePlatform {
       .scanResults()
       .map(_scanResultFromPlatformResult)
       .where(_matchesActiveServiceDataFilter);
+  late final Stream<messages.PlatformMtuChange> _mtuChangedEvents = messages
+      .mtuChanged();
+  final _pendingMtuRequests = <String, Future<int>>{};
   Map<String, Uint8List>? _activeScanServiceData;
 
   bool _matchesActiveServiceDataFilter(BlueScanResult result) {
@@ -218,8 +221,45 @@ class QuickBlueAndroid extends QuickBluePlatform {
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) {
     _ensureInitialized();
+    final pending = _pendingMtuRequests[deviceId];
+    if (pending != null) {
+      return Future<int>.error(
+        QuickBlueException(
+          code: QuickBlueErrorCode.invalidState,
+          operation: 'requestMtu',
+          deviceId: deviceId,
+          details: expectedMtu,
+          message:
+              'An MTU request for Bluetooth device $deviceId is already '
+              'pending.',
+        ),
+      );
+    }
 
-    return _api.requestMtu(deviceId, expectedMtu);
+    late final Future<int> request;
+    request = _requestMtu(deviceId, expectedMtu).whenComplete(() {
+      if (identical(_pendingMtuRequests[deviceId], request)) {
+        _pendingMtuRequests.remove(deviceId);
+      }
+    });
+    _pendingMtuRequests[deviceId] = request;
+    return request;
+  }
+
+  Future<int> _requestMtu(String deviceId, int expectedMtu) async {
+    final result = Completer<int>();
+    final subscription = _mtuChangedEvents
+        .where((change) => change.deviceId == deviceId)
+        .listen(
+          (change) => result.complete(change.mtu),
+          onError: result.completeError,
+        );
+    try {
+      await _api.requestMtu(deviceId, expectedMtu);
+      return await result.future;
+    } finally {
+      await subscription.cancel();
+    }
   }
 
   @override

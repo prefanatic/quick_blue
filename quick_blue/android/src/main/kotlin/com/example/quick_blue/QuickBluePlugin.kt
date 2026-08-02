@@ -1095,7 +1095,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         )
     }
 
-    override fun requestMtu(deviceId: String, expectedMtu: Long): Long {
+    override fun requestMtu(deviceId: String, expectedMtu: Long) {
         if (attachedGatt(deviceId) == null) {
             throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
         }
@@ -1108,9 +1108,11 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                 onStartFailed = {
                     mtuChangedListener.onMtuError(BluetoothGatt.GATT_FAILURE)
                 },
+                onDisconnected = {
+                    mtuChangedListener.onMtuError(BluetoothGatt.GATT_FAILURE)
+                },
             )
         )
-        return 0
     }
 
     override fun openL2cap(deviceId: String, psm: Long, callback: (Result<Unit>) -> Unit) {

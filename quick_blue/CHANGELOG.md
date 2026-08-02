@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Fixed
+
+- Wait for Android's native MTU callback and return the negotiated value instead
+  of completing when the request is only enqueued, and fail a pending request
+  if its GATT disconnects.
+
 ### Added
 
 - Add subscription-owned `maintainConnection` with bounded exponential

@@ -1504,7 +1504,7 @@ class QuickBlueApi {
     ;
   }
 
-  Future<int> requestMtu(String deviceId, int expectedMtu) async {
+  Future<void> requestMtu(String deviceId, int expectedMtu) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue.QuickBlueApi.requestMtu$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -1514,13 +1514,12 @@ class QuickBlueApi {
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, expectedMtu]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
-    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+    _extractReplyValueOrThrow(
         pigeonVar_replyList,
         pigeonVar_channelName,
-        isNullValid: false,
+        isNullValid: true,
     )
     ;
-    return pigeonVar_replyValue! as int;
   }
 
   Future<void> openL2cap(String deviceId, int psm) async {

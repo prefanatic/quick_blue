@@ -758,7 +758,8 @@ optional or platform-specific operation:
 final capabilities = await QuickBlue.capabilities();
 
 if (capabilities.mtu == BluetoothMtuCapability.requestable) {
-  await device.requestMtu(247);
+  final negotiatedMtu = await device.requestMtu(247);
+  // Use negotiatedMtu - 3 as the upper bound for one ATT write payload.
 }
 
 if (capabilities.supportsGattServiceChanges) {
