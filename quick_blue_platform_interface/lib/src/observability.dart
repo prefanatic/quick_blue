@@ -130,6 +130,7 @@ final class _CompositeQuickBlueOperationObservation
 /// A stable kind of Quick Blue operation.
 enum QuickBlueOperationKind {
   configure,
+  capabilities,
   isBluetoothAvailable,
   scan,
   connectedDevices,

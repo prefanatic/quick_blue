@@ -94,9 +94,22 @@ class PlatformCompanionAssociation {
   final String? deviceProfile;
 }
 
+class PlatformCapabilities {
+  PlatformCapabilities({
+    required this.supportsGattServiceChanges,
+    required this.supportsL2capSockets,
+    required this.supportsCompanionAssociation,
+  });
+
+  final bool supportsGattServiceChanges;
+  final bool supportsL2capSockets;
+  final bool supportsCompanionAssociation;
+}
+
 @HostApi()
 abstract class QuickBlueApi {
   bool isBluetoothAvailable();
+  PlatformCapabilities capabilities();
   void startScan({
     List<String>? serviceUuids,
     Map<String, Uint8List>? serviceData,

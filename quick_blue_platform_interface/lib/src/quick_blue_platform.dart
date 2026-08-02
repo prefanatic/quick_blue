@@ -46,6 +46,20 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// Returns whether Bluetooth is currently powered on and usable.
   Future<bool> isBluetoothAvailable();
 
+  /// Returns implemented behavior for the current platform and OS version.
+  Future<QuickBlueCapabilities> capabilities() async {
+    return const QuickBlueCapabilities(
+      bonding: BluetoothBondingCapability.unsupported,
+      mtu: BluetoothMtuCapability.unsupported,
+      gattServiceChanges: BluetoothGattServiceChangeCapability.unsupported,
+      connectedDeviceLookup:
+          BluetoothConnectedDeviceLookupCapability.unrestricted,
+      supportsL2capSockets: false,
+      supportsCompanionAssociation: false,
+      supportsAppleAccessorySetup: false,
+    );
+  }
+
   BlueBluetoothState? _latestBluetoothState;
   Stream<BlueBluetoothState>? _bluetoothStateStream;
   StreamController<BlueBluetoothState>? _bluetoothStateController;

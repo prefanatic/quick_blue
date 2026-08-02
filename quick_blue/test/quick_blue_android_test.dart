@@ -9,6 +9,7 @@ void main() {
 
   const channels = <String>[
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.isBluetoothAvailable',
+    'dev.flutter.pigeon.quick_blue.QuickBlueApi.capabilities',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.startScan',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.stopScan',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.connectedDeviceIds',
@@ -67,6 +68,30 @@ void main() {
       }
     });
 
+    test('maps runtime-limited Android capabilities', () async {
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.capabilities',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (_) async => <Object?>[
+          messages.PlatformCapabilities(
+            supportsGattServiceChanges: false,
+            supportsL2capSockets: false,
+            supportsCompanionAssociation: false,
+          ),
+        ],
+      );
+
+      final capabilities = await QuickBlueAndroid().capabilities();
+
+      expect(capabilities.supportsGattServiceChanges, isFalse);
+      expect(capabilities.supportsCompanionAssociation, isFalse);
+      expect(capabilities.supportsL2capSockets, isFalse);
+      expect(capabilities.supportsPairing, isTrue);
+      expect(capabilities.mtu, BluetoothMtuCapability.requestable);
+    });
+
     test('forwards core host API calls', () async {
       final sentMessages = <String, Object?>{};
       for (final name in channels) {
@@ -88,6 +113,19 @@ void main() {
       final manufacturerData = <int, Uint8List>{76: value};
 
       expect(await platform.isBluetoothAvailable(), isTrue);
+      expect(
+        await platform.capabilities(),
+        const QuickBlueCapabilities(
+          bonding: BluetoothBondingCapability.queryPairAndObserve,
+          mtu: BluetoothMtuCapability.requestable,
+          gattServiceChanges: BluetoothGattServiceChangeCapability.databaseOnly,
+          connectedDeviceLookup:
+              BluetoothConnectedDeviceLookupCapability.unrestricted,
+          supportsL2capSockets: true,
+          supportsCompanionAssociation: true,
+          supportsAppleAccessorySetup: false,
+        ),
+      );
       await platform.startScan(
         scanFilter: ScanFilter(
           serviceUuids: const <String>['180d'],
@@ -938,6 +976,15 @@ void main() {
 Object _replyFor(String channelName) {
   if (channelName.endsWith('.isBluetoothAvailable')) {
     return <Object?>[true];
+  }
+  if (channelName.endsWith('.capabilities')) {
+    return <Object?>[
+      messages.PlatformCapabilities(
+        supportsGattServiceChanges: true,
+        supportsL2capSockets: true,
+        supportsCompanionAssociation: true,
+      ),
+    ];
   }
   if (channelName.endsWith('.isCompanionAssociationSupported')) {
     return <Object?>[true];

@@ -37,6 +37,24 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
+  Future<QuickBlueCapabilities> capabilities() async {
+    _ensureInitialized();
+    final capabilities = await _api.capabilities();
+    return QuickBlueCapabilities(
+      bonding: BluetoothBondingCapability.queryPairAndObserve,
+      mtu: BluetoothMtuCapability.requestable,
+      gattServiceChanges: capabilities.supportsGattServiceChanges
+          ? BluetoothGattServiceChangeCapability.databaseOnly
+          : BluetoothGattServiceChangeCapability.unsupported,
+      connectedDeviceLookup:
+          BluetoothConnectedDeviceLookupCapability.unrestricted,
+      supportsL2capSockets: capabilities.supportsL2capSockets,
+      supportsCompanionAssociation: capabilities.supportsCompanionAssociation,
+      supportsAppleAccessorySetup: false,
+    );
+  }
+
+  @override
   Future<bool> isCompanionAssociationSupported() {
     _ensureInitialized();
 

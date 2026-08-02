@@ -44,6 +44,59 @@ void main() {
     });
   });
 
+  group(QuickBlueCapabilities, () {
+    test('compares by behavior and exposes convenience checks', () {
+      const capabilities = QuickBlueCapabilities(
+        bonding: BluetoothBondingCapability.queryPairAndObserve,
+        mtu: BluetoothMtuCapability.requestable,
+        gattServiceChanges:
+            BluetoothGattServiceChangeCapability.invalidatedServices,
+        connectedDeviceLookup:
+            BluetoothConnectedDeviceLookupCapability.requiresServiceUuids,
+        supportsL2capSockets: true,
+        supportsCompanionAssociation: false,
+        supportsAppleAccessorySetup: true,
+      );
+      const equivalent = QuickBlueCapabilities(
+        bonding: BluetoothBondingCapability.queryPairAndObserve,
+        mtu: BluetoothMtuCapability.requestable,
+        gattServiceChanges:
+            BluetoothGattServiceChangeCapability.invalidatedServices,
+        connectedDeviceLookup:
+            BluetoothConnectedDeviceLookupCapability.requiresServiceUuids,
+        supportsL2capSockets: true,
+        supportsCompanionAssociation: false,
+        supportsAppleAccessorySetup: true,
+      );
+
+      expect(capabilities, equivalent);
+      expect(capabilities.hashCode, equivalent.hashCode);
+      expect(capabilities.supportsPairing, isTrue);
+      expect(capabilities.supportsBondStateChanges, isTrue);
+      expect(capabilities.supportsGattServiceChanges, isTrue);
+      expect(capabilities.reportsInvalidatedServiceUuids, isTrue);
+      expect(capabilities.toString(), contains('requestable'));
+    });
+
+    test('unsupported modes disable convenience checks', () {
+      const capabilities = QuickBlueCapabilities(
+        bonding: BluetoothBondingCapability.unsupported,
+        mtu: BluetoothMtuCapability.unsupported,
+        gattServiceChanges: BluetoothGattServiceChangeCapability.unsupported,
+        connectedDeviceLookup:
+            BluetoothConnectedDeviceLookupCapability.unrestricted,
+        supportsL2capSockets: false,
+        supportsCompanionAssociation: false,
+        supportsAppleAccessorySetup: false,
+      );
+
+      expect(capabilities.supportsPairing, isFalse);
+      expect(capabilities.supportsBondStateChanges, isFalse);
+      expect(capabilities.supportsGattServiceChanges, isFalse);
+      expect(capabilities.reportsInvalidatedServiceUuids, isFalse);
+    });
+  });
+
   group(BlueScanResult, () {
     final head = Uint8List.fromList(<int>[0x4c, 0x00, 0x01]);
     final full = Uint8List.fromList(<int>[0x4c, 0x00, 0x01, 0x02, 0x03]);

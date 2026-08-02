@@ -34,6 +34,11 @@ void main() {
     expect(platform.calls, <String>['configure true']);
   });
 
+  test('capabilities delegates to the platform', () async {
+    expect(await QuickBlue.capabilities(), platform.platformCapabilities);
+    expect(platform.calls, <String>['capabilities']);
+  });
+
   test('buffers and replays Darwin restoration events exactly once', () {
     final event = _restorationEvent(restoredPeripheralCount: 2);
 

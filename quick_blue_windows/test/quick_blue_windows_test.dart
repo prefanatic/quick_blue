@@ -72,6 +72,22 @@ void main() {
     }
   });
 
+  test('reports Windows platform capabilities', () async {
+    expect(
+      await QuickBlueWindows().capabilities(),
+      const QuickBlueCapabilities(
+        bonding: BluetoothBondingCapability.unsupported,
+        mtu: BluetoothMtuCapability.readNegotiated,
+        gattServiceChanges: BluetoothGattServiceChangeCapability.databaseOnly,
+        connectedDeviceLookup:
+            BluetoothConnectedDeviceLookupCapability.unrestricted,
+        supportsL2capSockets: false,
+        supportsCompanionAssociation: false,
+        supportsAppleAccessorySetup: false,
+      ),
+    );
+  });
+
   test('forwards core host API calls', () async {
     final sentMessages = <String, Object?>{};
     for (final name in const [

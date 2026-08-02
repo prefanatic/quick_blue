@@ -422,6 +422,61 @@ class PlatformCompanionAssociation {
   }
 }
 
+class PlatformCapabilities {
+  PlatformCapabilities({
+    required this.supportsGattServiceChanges,
+    required this.supportsL2capSockets,
+    required this.supportsCompanionAssociation,
+  });
+
+  bool supportsGattServiceChanges;
+
+  bool supportsL2capSockets;
+
+  bool supportsCompanionAssociation;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      supportsGattServiceChanges,
+      supportsL2capSockets,
+      supportsCompanionAssociation,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformCapabilities decode(Object result) {
+    result as List<Object?>;
+    return PlatformCapabilities(
+      supportsGattServiceChanges: result[0]! as bool,
+      supportsL2capSockets: result[1]! as bool,
+      supportsCompanionAssociation: result[2]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformCapabilities || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(supportsGattServiceChanges, other.supportsGattServiceChanges) && _deepEquals(supportsL2capSockets, other.supportsL2capSockets) && _deepEquals(supportsCompanionAssociation, other.supportsCompanionAssociation);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformCapabilities(supportsGattServiceChanges: $supportsGattServiceChanges, supportsL2capSockets: $supportsL2capSockets, supportsCompanionAssociation: $supportsCompanionAssociation)';
+  }
+}
+
 class PlatformScanResult {
   PlatformScanResult({
     required this.name,
@@ -1015,32 +1070,35 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PlatformCompanionAssociation) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformScanResult) {
+    }    else if (value is PlatformCapabilities) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformConnectionStateChange) {
+    }    else if (value is PlatformScanResult) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformBondStateChange) {
+    }    else if (value is PlatformConnectionStateChange) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformServiceDiscovered) {
+    }    else if (value is PlatformBondStateChange) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristic) {
+    }    else if (value is PlatformServiceDiscovered) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformMtuChange) {
+    }    else if (value is PlatformCharacteristic) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformCharacteristicValueChanged) {
+    }    else if (value is PlatformMtuChange) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformL2CapSocketEvent) {
+    }    else if (value is PlatformCharacteristicValueChanged) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    }    else if (value is PlatformGattServiceChange) {
+    }    else if (value is PlatformL2CapSocketEvent) {
       buffer.putUint8(152);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformGattServiceChange) {
+      buffer.putUint8(153);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1092,22 +1150,24 @@ class _PigeonCodec extends StandardMessageCodec {
       case 143:
         return PlatformCompanionAssociation.decode(readValue(buffer)!);
       case 144:
-        return PlatformScanResult.decode(readValue(buffer)!);
+        return PlatformCapabilities.decode(readValue(buffer)!);
       case 145:
-        return PlatformConnectionStateChange.decode(readValue(buffer)!);
+        return PlatformScanResult.decode(readValue(buffer)!);
       case 146:
-        return PlatformBondStateChange.decode(readValue(buffer)!);
+        return PlatformConnectionStateChange.decode(readValue(buffer)!);
       case 147:
-        return PlatformServiceDiscovered.decode(readValue(buffer)!);
+        return PlatformBondStateChange.decode(readValue(buffer)!);
       case 148:
-        return PlatformCharacteristic.decode(readValue(buffer)!);
+        return PlatformServiceDiscovered.decode(readValue(buffer)!);
       case 149:
-        return PlatformMtuChange.decode(readValue(buffer)!);
+        return PlatformCharacteristic.decode(readValue(buffer)!);
       case 150:
-        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
+        return PlatformMtuChange.decode(readValue(buffer)!);
       case 151:
-        return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
+        return PlatformCharacteristicValueChanged.decode(readValue(buffer)!);
       case 152:
+        return PlatformL2CapSocketEvent.decode(readValue(buffer)!);
+      case 153:
         return PlatformGattServiceChange.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1147,6 +1207,25 @@ class QuickBlueApi {
     )
     ;
     return pigeonVar_replyValue! as bool;
+  }
+
+  Future<PlatformCapabilities> capabilities() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.quick_blue.QuickBlueApi.capabilities$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as PlatformCapabilities;
   }
 
   Future<void> startScan({List<String>? serviceUuids, Map<String, Uint8List>? serviceData, Map<int, Uint8List>? manufacturerData, int? rssi, PlatformAndroidScanOptions? options, }) async {

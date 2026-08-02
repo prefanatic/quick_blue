@@ -18,6 +18,22 @@ void main() {
     }
   });
 
+  test('reports Linux platform capabilities', () async {
+    expect(
+      await QuickBlueLinux().capabilities(),
+      const QuickBlueCapabilities(
+        bonding: BluetoothBondingCapability.queryAndPair,
+        mtu: BluetoothMtuCapability.unsupported,
+        gattServiceChanges: BluetoothGattServiceChangeCapability.databaseOnly,
+        connectedDeviceLookup:
+            BluetoothConnectedDeviceLookupCapability.unrestricted,
+        supportsL2capSockets: true,
+        supportsCompanionAssociation: false,
+        supportsAppleAccessorySetup: false,
+      ),
+    );
+  });
+
   test('companion APIs throw QuickBlueException', () async {
     final platform = QuickBlueLinux();
 

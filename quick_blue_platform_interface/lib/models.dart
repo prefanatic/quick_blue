@@ -26,6 +26,143 @@ enum BlueBluetoothState {
   poweredOn,
 }
 
+/// Pairing and bond-state behavior exposed by the platform implementation.
+enum BluetoothBondingCapability {
+  /// Pairing and bond-state lookup are unavailable.
+  unsupported,
+
+  /// Bond state can be queried and pairing can be initiated.
+  queryAndPair,
+
+  /// Bond state can be queried, pairing can be initiated, and changes stream.
+  queryPairAndObserve,
+}
+
+/// MTU behavior exposed through `requestMtu`.
+enum BluetoothMtuCapability {
+  /// The negotiated MTU cannot be requested or read reliably.
+  unsupported,
+
+  /// The platform negotiates automatically and returns the negotiated MTU.
+  readNegotiated,
+
+  /// The platform can request a specific MTU.
+  requestable,
+}
+
+/// Detail available when the remote GATT database changes.
+enum BluetoothGattServiceChangeCapability {
+  /// The platform cannot report GATT database changes.
+  unsupported,
+
+  /// The platform reports that the database changed without specific UUIDs.
+  databaseOnly,
+
+  /// The platform also reports the service UUIDs it invalidated.
+  invalidatedServices,
+}
+
+/// Restrictions on looking up devices connected at the system level.
+enum BluetoothConnectedDeviceLookupCapability {
+  /// Connected devices can be looked up without a service filter.
+  unrestricted,
+
+  /// At least one service UUID must be supplied for lookup.
+  requiresServiceUuids,
+}
+
+/// Runtime capabilities of the active Quick Blue platform implementation.
+///
+/// These values describe implemented behavior for the current operating
+/// system and device. Bluetooth power and authorization are separate runtime
+/// state and are not represented here.
+class QuickBlueCapabilities {
+  const QuickBlueCapabilities({
+    required this.bonding,
+    required this.mtu,
+    required this.gattServiceChanges,
+    required this.connectedDeviceLookup,
+    required this.supportsL2capSockets,
+    required this.supportsCompanionAssociation,
+    required this.supportsAppleAccessorySetup,
+  });
+
+  /// Pairing and bond-state behavior.
+  final BluetoothBondingCapability bonding;
+
+  /// MTU request and reporting behavior.
+  final BluetoothMtuCapability mtu;
+
+  /// GATT service-change event detail.
+  final BluetoothGattServiceChangeCapability gattServiceChanges;
+
+  /// Connected-device lookup restrictions.
+  final BluetoothConnectedDeviceLookupCapability connectedDeviceLookup;
+
+  /// Whether LE credit-based L2CAP sockets can be opened.
+  final bool supportsL2capSockets;
+
+  /// Whether Android companion-device association is available.
+  final bool supportsCompanionAssociation;
+
+  /// Whether Apple AccessorySetupKit is available.
+  final bool supportsAppleAccessorySetup;
+
+  /// Whether bond state can be queried and pairing can be initiated.
+  bool get supportsPairing => bonding != BluetoothBondingCapability.unsupported;
+
+  /// Whether bond-state changes are emitted.
+  bool get supportsBondStateChanges =>
+      bonding == BluetoothBondingCapability.queryPairAndObserve;
+
+  /// Whether remote GATT database changes are emitted.
+  bool get supportsGattServiceChanges =>
+      gattServiceChanges != BluetoothGattServiceChangeCapability.unsupported;
+
+  /// Whether GATT change events can identify invalidated service UUIDs.
+  bool get reportsInvalidatedServiceUuids =>
+      gattServiceChanges ==
+      BluetoothGattServiceChangeCapability.invalidatedServices;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is QuickBlueCapabilities &&
+            other.bonding == bonding &&
+            other.mtu == mtu &&
+            other.gattServiceChanges == gattServiceChanges &&
+            other.connectedDeviceLookup == connectedDeviceLookup &&
+            other.supportsL2capSockets == supportsL2capSockets &&
+            other.supportsCompanionAssociation ==
+                supportsCompanionAssociation &&
+            other.supportsAppleAccessorySetup == supportsAppleAccessorySetup;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    bonding,
+    mtu,
+    gattServiceChanges,
+    connectedDeviceLookup,
+    supportsL2capSockets,
+    supportsCompanionAssociation,
+    supportsAppleAccessorySetup,
+  );
+
+  @override
+  String toString() {
+    return 'QuickBlueCapabilities('
+        'bonding: $bonding, '
+        'mtu: $mtu, '
+        'gattServiceChanges: $gattServiceChanges, '
+        'connectedDeviceLookup: $connectedDeviceLookup, '
+        'supportsL2capSockets: $supportsL2capSockets, '
+        'supportsCompanionAssociation: $supportsCompanionAssociation, '
+        'supportsAppleAccessorySetup: $supportsAppleAccessorySetup'
+        ')';
+  }
+}
+
 /// A Bluetooth LE advertisement result.
 ///
 /// Byte payloads and collections are defensively copied.

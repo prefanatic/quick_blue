@@ -90,6 +90,17 @@ class QuickBlue {
     );
   }
 
+  /// Returns implemented behavior for the current platform and OS version.
+  ///
+  /// Bluetooth power and authorization remain available through
+  /// [bluetoothStateStream] and are not platform capabilities.
+  static Future<QuickBlueCapabilities> capabilities() {
+    return QuickBlueInstrumentation.observeFuture<QuickBlueCapabilities>(
+      kind: QuickBlueOperationKind.capabilities,
+      action: _platform.capabilities,
+    );
+  }
+
   /// Emits the current Bluetooth state, then later state changes when possible.
   ///
   /// Platforms without live state monitoring may emit only the initial state.

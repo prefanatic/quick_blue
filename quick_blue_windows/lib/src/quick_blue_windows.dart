@@ -32,6 +32,20 @@ class QuickBlueWindows extends QuickBluePlatform {
     messages.QuickBlueFlutterApi.setUp(_flutterApi);
   }
 
+  @override
+  Future<QuickBlueCapabilities> capabilities() async {
+    return const QuickBlueCapabilities(
+      bonding: BluetoothBondingCapability.unsupported,
+      mtu: BluetoothMtuCapability.readNegotiated,
+      gattServiceChanges: BluetoothGattServiceChangeCapability.databaseOnly,
+      connectedDeviceLookup:
+          BluetoothConnectedDeviceLookupCapability.unrestricted,
+      supportsL2capSockets: false,
+      supportsCompanionAssociation: false,
+      supportsAppleAccessorySetup: false,
+    );
+  }
+
   static const _companionUnsupported =
       'Companion device association is not supported on Windows.';
   static const _pairingUnsupported =

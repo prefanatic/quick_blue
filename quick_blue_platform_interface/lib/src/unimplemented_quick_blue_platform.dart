@@ -25,6 +25,11 @@ class UnimplementedQuickBluePlatform extends QuickBluePlatform {
   }
 
   @override
+  Future<QuickBlueCapabilities> capabilities() {
+    return Future<QuickBlueCapabilities>.error(_unsupported('capabilities'));
+  }
+
+  @override
   Future<void> startScan({
     ScanFilter scanFilter = ScanFilter.empty,
     ScanOptions scanOptions = ScanOptions.defaults,

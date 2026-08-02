@@ -18,6 +18,7 @@ Android, iOS, macOS, Windows, and Linux.
 - [Quick start](#quick-start)
 - [Working with devices and characteristics](#working-with-devices-and-characteristics)
 - [Advanced usage](#advanced-usage)
+- [Platform capabilities](#platform-capabilities)
 - [Platform support](#platform-support)
 
 ## Requirements
@@ -682,10 +683,43 @@ Android companion-device association is available through
 `QuickBlue.companion`. Call `isSupported()` before presenting Android-only
 association UI, then use `associate()`, `associations()`, and `disassociate()`.
 
+## Platform capabilities
+
+Use `QuickBlue.capabilities()` when application behavior depends on an
+optional or platform-specific operation:
+
+```dart
+final capabilities = await QuickBlue.capabilities();
+
+if (capabilities.mtu == BluetoothMtuCapability.requestable) {
+  await device.requestMtu(247);
+}
+
+if (capabilities.supportsGattServiceChanges) {
+  device.gattServiceChangedStream.listen((_) async {
+    final refreshedGatt = await device.discoverGatt();
+    // Replace the application's previous GATT snapshot.
+  });
+}
+```
+
+The capability modes preserve platform differences that a boolean would hide:
+
+- `bonding` distinguishes unsupported, query/pair, and observable bond state.
+- `mtu` distinguishes unsupported, negotiated-MTU lookup, and MTU requests.
+- `gattServiceChanges` identifies whether events include invalidated UUIDs.
+- `connectedDeviceLookup` reports whether service UUIDs are required.
+
+The remaining flags cover L2CAP sockets, Android companion association, and
+Apple AccessorySetupKit. Capabilities describe implemented behavior for the
+current OS and device; use `bluetoothStateStream` for changing power and
+authorization state.
+
 ## Platform support
 
 | API | Android | iOS | macOS | Windows | Linux |
 | :--- | :---: | :---: | :---: | :---: | :---: |
+| `capabilities` | yes | yes | yes | yes | yes |
 | `isBluetoothAvailable` | yes | yes | yes | yes | yes |
 | `bluetoothStateStream` | yes | yes | yes | yes | yes |
 | `scan` / `scanResults` | yes | yes | yes | yes | yes |

@@ -127,6 +127,20 @@ class QuickBlueLinux extends QuickBluePlatform {
     QuickBluePlatform.instance = QuickBlueLinux();
   }
 
+  @override
+  Future<QuickBlueCapabilities> capabilities() async {
+    return const QuickBlueCapabilities(
+      bonding: BluetoothBondingCapability.queryAndPair,
+      mtu: BluetoothMtuCapability.unsupported,
+      gattServiceChanges: BluetoothGattServiceChangeCapability.databaseOnly,
+      connectedDeviceLookup:
+          BluetoothConnectedDeviceLookupCapability.unrestricted,
+      supportsL2capSockets: true,
+      supportsCompanionAssociation: false,
+      supportsAppleAccessorySetup: false,
+    );
+  }
+
   var _isInitialized = false;
   Future<void>? _initialization;
 

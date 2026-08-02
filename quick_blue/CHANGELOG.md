@@ -2,6 +2,10 @@
 
 ### Added
 
+- Add `QuickBlue.capabilities()` with runtime platform behavior for bonding,
+  MTU handling, GATT service changes, connected-device lookup, L2CAP sockets,
+  companion association, and AccessorySetupKit.
+
 - Add `gattServiceChangedStream` globally and per device on Android, iOS,
   macOS, Windows, and Linux, including invalidated CoreBluetooth service UUIDs,
   pending-discovery cancellation, and automatic invalidation of previously

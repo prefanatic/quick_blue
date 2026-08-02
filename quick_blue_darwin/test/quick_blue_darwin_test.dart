@@ -183,6 +183,20 @@ void main() {
 
     expect(await platform.isAppleAccessorySetupSupported(), isTrue);
     expect(
+      await platform.capabilities(),
+      const QuickBlueCapabilities(
+        bonding: BluetoothBondingCapability.unsupported,
+        mtu: BluetoothMtuCapability.readNegotiated,
+        gattServiceChanges:
+            BluetoothGattServiceChangeCapability.invalidatedServices,
+        connectedDeviceLookup:
+            BluetoothConnectedDeviceLookupCapability.requiresServiceUuids,
+        supportsL2capSockets: true,
+        supportsCompanionAssociation: false,
+        supportsAppleAccessorySetup: true,
+      ),
+    );
+    expect(
       await platform.showAppleAccessoryPicker(<AppleAccessoryPickerItem>[item]),
       const AppleAccessory(deviceId: 'device-a', displayName: 'Sensor'),
     );

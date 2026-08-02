@@ -69,6 +69,21 @@ class QuickBlueDarwin extends QuickBluePlatform {
     );
   }
 
+  @override
+  Future<QuickBlueCapabilities> capabilities() async {
+    return QuickBlueCapabilities(
+      bonding: BluetoothBondingCapability.unsupported,
+      mtu: BluetoothMtuCapability.readNegotiated,
+      gattServiceChanges:
+          BluetoothGattServiceChangeCapability.invalidatedServices,
+      connectedDeviceLookup:
+          BluetoothConnectedDeviceLookupCapability.requiresServiceUuids,
+      supportsL2capSockets: true,
+      supportsCompanionAssociation: false,
+      supportsAppleAccessorySetup: await isAppleAccessorySetupSupported(),
+    );
+  }
+
   // This API remains Android-specific. Apple AccessorySetupKit is exposed
   // separately because its picker items and identifiers have different shapes.
   static const _companionUnsupported =

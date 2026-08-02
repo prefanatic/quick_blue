@@ -7,7 +7,8 @@ Connection ownership is shared safely across Flutter engines, and bounded
 disconnect reconciliation keeps missing native callbacks from blocking later
 reconnects. Remote GATT database changes are surfaced across supported
 platforms so applications can invalidate stale service snapshots and
-rediscover safely.
+rediscover safely. Applications can query platform capabilities at runtime
+instead of duplicating platform and OS-version checks.
 
 - [Install, platform setup, and usage](quick_blue/README.md)
 - [Changelog](quick_blue/CHANGELOG.md)

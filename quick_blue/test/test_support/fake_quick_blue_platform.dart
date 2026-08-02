@@ -5,6 +5,16 @@ import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
 
 class FakeQuickBluePlatform extends QuickBluePlatform {
   final List<String> calls = <String>[];
+  var platformCapabilities = const QuickBlueCapabilities(
+    bonding: BluetoothBondingCapability.queryAndPair,
+    mtu: BluetoothMtuCapability.readNegotiated,
+    gattServiceChanges: BluetoothGattServiceChangeCapability.databaseOnly,
+    connectedDeviceLookup:
+        BluetoothConnectedDeviceLookupCapability.unrestricted,
+    supportsL2capSockets: true,
+    supportsCompanionAssociation: false,
+    supportsAppleAccessorySetup: false,
+  );
   var isAvailable = true;
   var connectsImmediately = true;
   var disconnectsImmediately = true;
@@ -70,6 +80,12 @@ class FakeQuickBluePlatform extends QuickBluePlatform {
   Future<bool> isBluetoothAvailable() async {
     calls.add('isBluetoothAvailable');
     return isAvailable && bluetoothState == BlueBluetoothState.poweredOn;
+  }
+
+  @override
+  Future<QuickBlueCapabilities> capabilities() async {
+    calls.add('capabilities');
+    return platformCapabilities;
   }
 
   @override

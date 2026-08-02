@@ -22,6 +22,7 @@ import PlatformCharacteristic
 import PlatformCharacteristicValueChanged
 import PlatformCompanionAssociation
 import PlatformCompanionAssociationRequest
+import PlatformCapabilities
 import PlatformConnectionState
 import PlatformConnectionStateChange
 import PlatformGattStatus
@@ -440,6 +441,14 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             bluetoothPerm && adminPerm
         }
         return hasPermission && bluetoothManager.adapter.isEnabled
+    }
+
+    override fun capabilities(): PlatformCapabilities {
+        return PlatformCapabilities(
+            supportsGattServiceChanges = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+            supportsL2capSockets = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q,
+            supportsCompanionAssociation = isCompanionAssociationSupported(),
+        )
     }
 
     override fun startScan(

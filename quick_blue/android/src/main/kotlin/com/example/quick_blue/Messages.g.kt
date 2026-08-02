@@ -531,6 +531,51 @@ data class PlatformCompanionAssociation (
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformCapabilities (
+  val supportsGattServiceChanges: Boolean,
+  val supportsL2capSockets: Boolean,
+  val supportsCompanionAssociation: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformCapabilities {
+      val supportsGattServiceChanges = pigeonVar_list[0] as Boolean
+      val supportsL2capSockets = pigeonVar_list[1] as Boolean
+      val supportsCompanionAssociation = pigeonVar_list[2] as Boolean
+      return PlatformCapabilities(supportsGattServiceChanges, supportsL2capSockets, supportsCompanionAssociation)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      supportsGattServiceChanges,
+      supportsL2capSockets,
+      supportsCompanionAssociation,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformCapabilities
+    return MessagesPigeonUtils.deepEquals(this.supportsGattServiceChanges, other.supportsGattServiceChanges) && MessagesPigeonUtils.deepEquals(this.supportsL2capSockets, other.supportsL2capSockets) && MessagesPigeonUtils.deepEquals(this.supportsCompanionAssociation, other.supportsCompanionAssociation)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.supportsGattServiceChanges)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.supportsL2capSockets)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.supportsCompanionAssociation)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformCapabilities(supportsGattServiceChanges=$supportsGattServiceChanges, supportsL2capSockets=$supportsL2capSockets, supportsCompanionAssociation=$supportsCompanionAssociation)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
 data class PlatformScanResult (
   val name: String,
   val deviceId: String,
@@ -1050,45 +1095,50 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformScanResult.fromList(it)
+          PlatformCapabilities.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformConnectionStateChange.fromList(it)
+          PlatformScanResult.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformBondStateChange.fromList(it)
+          PlatformConnectionStateChange.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformServiceDiscovered.fromList(it)
+          PlatformBondStateChange.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristic.fromList(it)
+          PlatformServiceDiscovered.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformMtuChange.fromList(it)
+          PlatformCharacteristic.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristicValueChanged.fromList(it)
+          PlatformMtuChange.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformL2CapSocketEvent.fromList(it)
+          PlatformCharacteristicValueChanged.fromList(it)
         }
       }
       152.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformL2CapSocketEvent.fromList(it)
+        }
+      }
+      153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformGattServiceChange.fromList(it)
         }
@@ -1158,40 +1208,44 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is PlatformScanResult -> {
+      is PlatformCapabilities -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is PlatformConnectionStateChange -> {
+      is PlatformScanResult -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is PlatformBondStateChange -> {
+      is PlatformConnectionStateChange -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is PlatformServiceDiscovered -> {
+      is PlatformBondStateChange -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristic -> {
+      is PlatformServiceDiscovered -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is PlatformMtuChange -> {
+      is PlatformCharacteristic -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristicValueChanged -> {
+      is PlatformMtuChange -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is PlatformL2CapSocketEvent -> {
+      is PlatformCharacteristicValueChanged -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is PlatformGattServiceChange -> {
+      is PlatformL2CapSocketEvent -> {
         stream.write(152)
+        writeValue(stream, value.toList())
+      }
+      is PlatformGattServiceChange -> {
+        stream.write(153)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1205,6 +1259,7 @@ val MessagesPigeonMethodCodec = StandardMethodCodec(MessagesPigeonCodec())
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface QuickBlueApi {
   fun isBluetoothAvailable(): Boolean
+  fun capabilities(): PlatformCapabilities
   fun startScan(serviceUuids: List<String>?, serviceData: Map<String, ByteArray>?, manufacturerData: Map<Long, ByteArray>?, rssi: Long?, options: PlatformAndroidScanOptions?)
   fun stopScan()
   fun connectedDeviceIds(serviceUuids: List<String>): List<String>
@@ -1240,6 +1295,21 @@ interface QuickBlueApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.isBluetoothAvailable())
+            } catch (exception: Throwable) {
+              MessagesPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.quick_blue.QuickBlueApi.capabilities$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.capabilities())
             } catch (exception: Throwable) {
               MessagesPigeonUtils.wrapError(exception)
             }
