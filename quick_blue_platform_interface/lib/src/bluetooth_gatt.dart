@@ -14,9 +14,9 @@ class BluetoothGatt {
   BluetoothGatt.internal({
     required BluetoothDevice device,
     required List<BluetoothService> services,
-    required bool Function() isValid,
+    bool Function()? isValid,
   }) : _device = device,
-       _isValid = isValid,
+       _isValid = isValid ?? _validSnapshot,
        services = List<BluetoothService>.unmodifiable(services);
 
   final BluetoothDevice _device;
@@ -160,6 +160,8 @@ class BluetoothGatt {
     return matches.single;
   }
 }
+
+bool _validSnapshot() => true;
 
 class _BluetoothGattCharacteristic {
   _BluetoothGattCharacteristic({

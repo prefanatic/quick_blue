@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Keep the internal `BluetoothGatt` fixture constructor compatible with callers
+  that do not provide snapshot invalidation.
 - Add `BluetoothReconnectionPolicy` and subscription-owned managed connection
   lifecycle coordination with bounded exponential backoff.
 - Add explicit chunked characteristic-write helpers with caller-selected

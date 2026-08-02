@@ -28,6 +28,19 @@ void main() {
     expect(platform.calls, <String>['discoverServices device-a']);
   });
 
+  test('fixture snapshots stay valid without an invalidation callback', () {
+    final platform = FakeQuickBluePlatform();
+    addTearDown(platform.dispose);
+
+    // ignore: invalid_use_of_internal_member
+    final gatt = BluetoothGatt.internal(
+      device: platform.device('device-a'),
+      services: const <BluetoothService>[],
+    );
+
+    expect(gatt.isValid, isTrue);
+  });
+
   test('service changes invalidate discovered GATT snapshots', () async {
     final platform = FakeQuickBluePlatform(
       discoveredServices: <BluetoothService>[
