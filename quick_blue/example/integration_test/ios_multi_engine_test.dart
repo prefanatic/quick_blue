@@ -22,6 +22,22 @@ void main() {
     await stopSecondaryEngine();
   });
 
+  testWidgets('both iOS engines report the same Bluetooth availability', (
+    _,
+  ) async {
+    final primary = await QuickBlue.isBluetoothAvailable();
+    await startSecondaryEngine();
+    try {
+      final secondary = await callMultiEngineWorker<bool>(
+        'isBluetoothAvailable',
+        '',
+      );
+      expect(secondary, primary);
+    } finally {
+      await stopSecondaryEngine();
+    }
+  });
+
   testWidgets('both iOS engines observe powered-on Bluetooth', (_) async {
     expect(await _waitForBluetooth(), isTrue);
     await startSecondaryEngine();

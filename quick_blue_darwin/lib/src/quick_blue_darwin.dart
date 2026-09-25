@@ -1,22 +1,49 @@
 import 'dart:async';
+import 'dart:ffi' as ffi;
+import 'dart:io';
+import 'dart:isolate';
+import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
+import 'package:ffi/ffi.dart' as memory;
+import 'package:objective_c/objective_c.dart' as objc;
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
-import 'messages.g.dart' as messages;
+import 'darwin_models.dart' as models;
+import 'third_party/accessory_setup_kit.g.dart' as accessory;
+import 'third_party/core_bluetooth.g.dart' as cb;
+import 'third_party/quick_blue_dispatch.g.dart' as dispatch;
+
+part 'darwin_ffi_api.dart';
+part 'darwin_shared_api.dart';
+
+Stream<T> _eventsWithHistory<T>(List<T> history, Stream<T> live) {
+  return Stream<T>.multi((controller) {
+    final snapshot = List<T>.of(history);
+    final subscription = live.listen(
+      controller.add,
+      onError: controller.addError,
+      onDone: controller.close,
+    );
+    for (final event in snapshot) {
+      controller.add(event);
+    }
+    controller.onCancel = subscription.cancel;
+  });
+}
 
 class QuickBlueDarwin extends QuickBluePlatform {
-  QuickBlueDarwin();
+  QuickBlueDarwin({DarwinApi? api}) {
+    _api = api ?? _createDarwinApi(this);
+  }
 
-  final messages.QuickBlueApi _api = messages.QuickBlueApi();
-  messages.QuickBlueFlutterApi? _flutterApi;
-  StreamSubscription<messages.PlatformDarwinRestorationEvent>?
+  late final DarwinApi _api;
+  StreamSubscription<models.PlatformDarwinRestorationEvent>?
   _restorationEventSubscription;
-  late final Stream<BlueBluetoothState> _bluetoothStateEvents = messages
-      .bluetoothState()
+  late final Stream<BlueBluetoothState> _bluetoothStateEvents = _api
+      .bluetoothStateEvents
       .map((state) => state.toBlueBluetoothState());
-  late final Stream<BlueScanResult> _scanResultStream = messages
-      .scanResults()
+  late final Stream<BlueScanResult> _scanResultStream = _api.scanResults
       .map(_scanResultFromPlatformResult)
       .where(_matchesActiveServiceDataFilter);
   Map<String, Uint8List>? _activeScanServiceData;
@@ -25,12 +52,13 @@ class QuickBlueDarwin extends QuickBluePlatform {
     return matchesServiceDataFilter(_activeScanServiceData, result.serviceData);
   }
 
-  final Stream<messages.PlatformL2CapSocketEvent> _l2CapEventStream = messages
-      .l2CapSocketEvents();
+  late final Stream<models.PlatformL2CapSocketEvent> _l2CapEventStream =
+      _api.l2CapEvents;
 
   static void registerWith() {
     final platform = QuickBlueDarwin();
     QuickBluePlatform.instance = platform;
+    platform._api.bootstrapIfEnabled();
     if (QuickBlueInstrumentation.observer
         is QuickBlueDarwinRestorationObserver) {
       platform.startObservingDarwinRestoration();
@@ -39,9 +67,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
 
   void _ensureInitialized() {
     if (_restorationEventSubscription != null) return;
-    _flutterApi = _FlutterApi(this);
-    messages.QuickBlueFlutterApi.setUp(_flutterApi);
-    _restorationEventSubscription = messages.restorationEvents().listen(
+    _restorationEventSubscription = _api.restorationEvents.listen(
       _handleRestorationEvent,
       onError: (Object _, StackTrace _) {
         // Restoration telemetry must not affect Bluetooth behavior.
@@ -54,7 +80,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
     _ensureInitialized();
   }
 
-  void _handleRestorationEvent(messages.PlatformDarwinRestorationEvent event) {
+  void _handleRestorationEvent(models.PlatformDarwinRestorationEvent event) {
     QuickBlueInstrumentation.recordDarwinRestoration(
       QuickBlueDarwinRestorationEvent(
         restoredPeripheralCount: event.restoredPeripheralCount,
@@ -99,7 +125,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
     _ensureInitialized();
 
     return _api.configure(
-      messages.PlatformDarwinConfiguration(maintainState: maintainState),
+      models.PlatformDarwinConfiguration(maintainState: maintainState),
     );
   }
 
@@ -246,14 +272,31 @@ class QuickBlueDarwin extends QuickBluePlatform {
   @override
   Future<BleL2capSocket> openL2cap(String deviceId, int psm) async {
     _ensureInitialized();
-
-    await _api.openL2cap(deviceId, psm);
-
-    // Wait for the open status.
-    await _l2CapEventStream
-        .where((event) => event.deviceId == deviceId)
-        .firstWhere((event) => event.opened == true)
-        .timeout(const Duration(seconds: 5));
+    final result = Completer<models.PlatformL2CapSocketEvent>();
+    final subscription = _l2CapEventStream.listen((event) {
+      if (event.deviceId == deviceId &&
+          (event.opened == true ||
+              event.error != null ||
+              event.closed == true) &&
+          !result.isCompleted) {
+        result.complete(event);
+      }
+    });
+    models.PlatformL2CapSocketEvent event;
+    try {
+      await _api.openL2cap(deviceId, psm);
+      event = await result.future.timeout(const Duration(seconds: 5));
+    } finally {
+      await subscription.cancel();
+    }
+    if (event.opened != true) {
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.operationFailed,
+        operation: 'openL2cap',
+        deviceId: deviceId,
+        message: event.error ?? 'The L2CAP channel closed before it opened.',
+      );
+    }
 
     return BleL2capSocket(
       sink: _L2capSink(api: _api, deviceId: deviceId),
@@ -445,6 +488,7 @@ QuickBlueErrorCode _darwinErrorCode(String code) {
     'Unsupported' => QuickBlueErrorCode.unsupported,
     'NotFound' => QuickBlueErrorCode.notFound,
     'InvalidState' ||
+    'Busy' ||
     'Disconnected' ||
     'IllegalArgument' ||
     'InvalidArgument' ||
@@ -499,17 +543,15 @@ QuickBlueSecurityException _securityException({
 }
 
 extension on ScanOptions {
-  messages.PlatformDarwinScanOptions toPlatformDarwinScanOptions() {
-    return messages.PlatformDarwinScanOptions(
+  models.PlatformDarwinScanOptions toPlatformDarwinScanOptions() {
+    return models.PlatformDarwinScanOptions(
       allowDuplicates: darwin.allowDuplicates ?? allowDuplicates ?? true,
       solicitedServiceUuids: darwin.solicitedServiceUuids,
     );
   }
 }
 
-BlueScanResult _scanResultFromPlatformResult(
-  messages.PlatformScanResult result,
-) {
+BlueScanResult _scanResultFromPlatformResult(models.PlatformScanResult result) {
   return BlueScanResult(
     deviceId: result.deviceId,
     name: result.name,
@@ -521,15 +563,15 @@ BlueScanResult _scanResultFromPlatformResult(
   );
 }
 
-messages.PlatformAppleAccessoryPickerItem _toPlatformAppleAccessoryPickerItem(
+models.PlatformAppleAccessoryPickerItem _toPlatformAppleAccessoryPickerItem(
   AppleAccessoryPickerItem item,
 ) {
   final discovery = item.discovery;
-  return messages.PlatformAppleAccessoryPickerItem(
+  return models.PlatformAppleAccessoryPickerItem(
     displayName: item.displayName,
     productImage: item.productImage,
     migrationDeviceId: item.migrationDeviceId,
-    discovery: messages.PlatformAppleAccessoryDiscovery(
+    discovery: models.PlatformAppleAccessoryDiscovery(
       serviceUuid: discovery.serviceUuid,
       nameSubstring: discovery.nameSubstring,
       serviceData: discovery.serviceData,
@@ -539,7 +581,7 @@ messages.PlatformAppleAccessoryPickerItem _toPlatformAppleAccessoryPickerItem(
   );
 }
 
-AppleAccessory _toAppleAccessory(messages.PlatformAppleAccessory accessory) {
+AppleAccessory _toAppleAccessory(models.PlatformAppleAccessory accessory) {
   return AppleAccessory(
     deviceId: accessory.deviceId,
     displayName: accessory.displayName,
@@ -547,7 +589,7 @@ AppleAccessory _toAppleAccessory(messages.PlatformAppleAccessory accessory) {
 }
 
 BleL2CapSocketEvent _l2capEventFromPlatformEvent(
-  messages.PlatformL2CapSocketEvent event,
+  models.PlatformL2CapSocketEvent event,
 ) {
   if (event.data != null) {
     return BleL2CapSocketEventData(deviceId: event.deviceId, data: event.data!);
@@ -574,7 +616,7 @@ BleL2CapSocketEvent _l2capEventFromPlatformEvent(
 class _L2capSink implements EventSink<Uint8List> {
   _L2capSink({required this.api, required this.deviceId});
 
-  final messages.QuickBlueApi api;
+  final DarwinApi api;
   final String deviceId;
 
   @override
@@ -586,52 +628,14 @@ class _L2capSink implements EventSink<Uint8List> {
   void addError(Object error, [StackTrace? stackTrace]) {}
 
   @override
-  Future<void> close() async {}
-}
-
-class _FlutterApi extends messages.QuickBlueFlutterApi {
-  _FlutterApi(this.platform);
-
-  final QuickBlueDarwin platform;
-
-  @override
-  void onCharacteristicValueChanged(
-    messages.PlatformCharacteristicValueChanged valueChanged,
-  ) {
-    _handleCharacteristicValueChanged(platform, valueChanged);
-  }
-
-  @override
-  void onConnectionStateChange(
-    messages.PlatformConnectionStateChange stateChange,
-  ) {
-    _handleConnectionStateChange(platform, stateChange);
-  }
-
-  @override
-  void onGattServicesChanged(messages.PlatformGattServiceChange serviceChange) {
-    platform.handleGattServicesChanged(
-      serviceChange.deviceId,
-      invalidatedServiceUuids: serviceChange.invalidatedServiceUuids,
-    );
-  }
-
-  @override
-  void onServiceDiscovered(
-    messages.PlatformServiceDiscovered serviceDiscovered,
-  ) {
-    _handleServiceDiscovered(platform, serviceDiscovered);
-  }
-
-  @override
-  void onServiceDiscoveryComplete(String deviceId) {
-    platform.onServiceDiscoveryComplete(deviceId);
+  Future<void> close() async {
+    api.closeL2cap(deviceId);
   }
 }
 
 void _handleCharacteristicValueChanged(
   QuickBluePlatform platform,
-  messages.PlatformCharacteristicValueChanged valueChanged,
+  models.PlatformCharacteristicValueChanged valueChanged,
 ) {
   platform.handleCharacteristicValueChanged(
     valueChanged.deviceId,
@@ -643,7 +647,7 @@ void _handleCharacteristicValueChanged(
 
 void _handleConnectionStateChange(
   QuickBluePlatform platform,
-  messages.PlatformConnectionStateChange stateChange,
+  models.PlatformConnectionStateChange stateChange,
 ) {
   final state = stateChange.state.toBlueConnectionState();
   if (state == null) return;
@@ -657,7 +661,7 @@ void _handleConnectionStateChange(
 }
 
 QuickBlueException? _connectionError(
-  messages.PlatformConnectionStateChange stateChange,
+  models.PlatformConnectionStateChange stateChange,
 ) {
   final nativeDomain = stateChange.errorDomain;
   final nativeCode = stateChange.errorCode;
@@ -689,7 +693,7 @@ QuickBlueException? _connectionError(
 
 void _handleServiceDiscovered(
   QuickBluePlatform platform,
-  messages.PlatformServiceDiscovered serviceDiscovered,
+  models.PlatformServiceDiscovered serviceDiscovered,
 ) {
   platform.handleServiceDiscovered(
     serviceDiscovered.deviceId,
@@ -700,7 +704,7 @@ void _handleServiceDiscovered(
   );
 }
 
-extension _PlatformCharacteristicExtension on messages.PlatformCharacteristic {
+extension _PlatformCharacteristicExtension on models.PlatformCharacteristic {
   BluetoothCharacteristicInfo toBluetoothCharacteristicInfo() {
     return BluetoothCharacteristicInfo(
       uuid: uuid,
@@ -714,63 +718,59 @@ extension _PlatformCharacteristicExtension on messages.PlatformCharacteristic {
 }
 
 extension _BleInputPropertyExtension on BleInputProperty {
-  messages.PlatformBleInputProperty toPlatformBleInputProperty() {
+  models.PlatformBleInputProperty toPlatformBleInputProperty() {
     return switch (this) {
-      BleInputProperty.disabled => messages.PlatformBleInputProperty.disabled,
+      BleInputProperty.disabled => models.PlatformBleInputProperty.disabled,
       BleInputProperty.notification =>
-        messages.PlatformBleInputProperty.notification,
-      BleInputProperty.indication =>
-        messages.PlatformBleInputProperty.indication,
+        models.PlatformBleInputProperty.notification,
+      BleInputProperty.indication => models.PlatformBleInputProperty.indication,
       _ => throw ArgumentError('Unknown BleInputProperty: $this'),
     };
   }
 }
 
 extension _BleOutputPropertyExtension on BleOutputProperty {
-  messages.PlatformBleOutputProperty toPlatformBleOutputProperty() {
+  models.PlatformBleOutputProperty toPlatformBleOutputProperty() {
     return switch (this) {
       BleOutputProperty.withResponse =>
-        messages.PlatformBleOutputProperty.withResponse,
+        models.PlatformBleOutputProperty.withResponse,
       BleOutputProperty.withoutResponse =>
-        messages.PlatformBleOutputProperty.withoutResponse,
+        models.PlatformBleOutputProperty.withoutResponse,
       _ => throw ArgumentError('Unknown BleOutputProperty: $this'),
     };
   }
 }
 
-extension _BleStatusExtension on messages.PlatformGattStatus {
+extension _BleStatusExtension on models.PlatformGattStatus {
   BleStatus toBleStatus() {
     return switch (this) {
-      messages.PlatformGattStatus.success => BleStatus.success,
-      messages.PlatformGattStatus.failure => BleStatus.failure,
+      models.PlatformGattStatus.success => BleStatus.success,
+      models.PlatformGattStatus.failure => BleStatus.failure,
     };
   }
 }
 
-extension _PlatformConnectionStateExtension
-    on messages.PlatformConnectionState {
+extension _PlatformConnectionStateExtension on models.PlatformConnectionState {
   BlueConnectionState? toBlueConnectionState() {
     return switch (this) {
-      messages.PlatformConnectionState.disconnected =>
+      models.PlatformConnectionState.disconnected =>
         BlueConnectionState.disconnected,
-      messages.PlatformConnectionState.connected =>
-        BlueConnectionState.connected,
+      models.PlatformConnectionState.connected => BlueConnectionState.connected,
       _ => null,
     };
   }
 }
 
-extension _BluetoothStateExtension on messages.PlatformBluetoothState {
+extension _BluetoothStateExtension on models.PlatformBluetoothState {
   BlueBluetoothState toBlueBluetoothState() {
     return switch (this) {
-      messages.PlatformBluetoothState.unknown => BlueBluetoothState.unknown,
-      messages.PlatformBluetoothState.unavailable =>
+      models.PlatformBluetoothState.unknown => BlueBluetoothState.unknown,
+      models.PlatformBluetoothState.unavailable =>
         BlueBluetoothState.unavailable,
-      messages.PlatformBluetoothState.unauthorized =>
+      models.PlatformBluetoothState.unauthorized =>
         BlueBluetoothState.unauthorized,
-      messages.PlatformBluetoothState.poweredOff =>
-        BlueBluetoothState.poweredOff,
-      messages.PlatformBluetoothState.poweredOn => BlueBluetoothState.poweredOn,
+      models.PlatformBluetoothState.poweredOff => BlueBluetoothState.poweredOff,
+      models.PlatformBluetoothState.poweredOn => BlueBluetoothState.poweredOn,
     };
   }
 }

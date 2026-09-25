@@ -1,5 +1,12 @@
 ## Unreleased
 
+### Changed
+
+- Replace the iOS and macOS Swift Bluetooth plugin and Pigeon channels with
+  generated Objective-C FFI bindings and a Dart engine broker.
+- Start the example iOS Flutter engine at application launch and attach its
+  view controller when the scene opens.
+
 ### Fixed
 
 - Prevent a duplicate Android pairing request after a protected GATT operation
@@ -38,11 +45,11 @@
   Flutter timelines, OpenTelemetry, metrics, or logs without an SDK dependency.
 - Add composite observers, export-safe structured failures, connected-device
   service UUID context, and payload-free characteristic value observations.
-- Add privacy-safe Darwin restoration observations with native and Dart
+- Add privacy-safe Darwin restoration observations with Dart
   buffering, aggregate connection/scan counts, and exactly-once callback
   delivery.
 - Add an Info.plist-backed persistent Darwin restoration opt-in that creates
-  CoreBluetooth during native plugin registration before Dart starts.
+  CoreBluetooth when the first Flutter engine starts.
 - Add opt-in iOS 18 AccessorySetupKit discovery and authorization with typed
   picker items, authorized-accessory listing and removal, Info.plist
   preflight checks, existing-peripheral migration, and CoreBluetooth device
@@ -83,12 +90,9 @@
   keep unhandled Future failures visible to the active zone.
 - Let Darwin connect directly to a CoreBluetooth-known device UUID without a
   preceding scan or connected-device lookup.
-- Give a concurrently-starting Darwin engine a handoff opportunity before
-  engine-detach cleanup closes the final shared CoreBluetooth connection.
-- Publish the Darwin plugin instance so Flutter engine destruction invokes its
-  native detach lifecycle.
-- Let `disconnect()` cancel and supersede a pending connect, including the
-  automatic retry loop for a temporarily busy shared connection.
+- Route requests from later Darwin engines through a persistent Dart owner.
+  Release their connection and notification claims when their isolates exit.
+- Let `disconnect()` cancel and supersede a pending connect.
 - Keep transient shared-connection teardown retries internal instead of
   exposing connection-conflict policy and timeout parameters to applications.
 

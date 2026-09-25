@@ -8,6 +8,7 @@ class MainFlutterWindow: NSWindow {
 
     if hideTestWindow {
       NSApp.setActivationPolicy(.prohibited)
+      isRestorable = false
       alphaValue = 0
       backgroundColor = .clear
       hasShadow = false

@@ -90,10 +90,13 @@ Set `QUICK_BLUE_WINDOWS_CLEAN_WORKTREE=1` to refresh the guest checkout without
 reinstalling Windows. Use `QUICK_BLUE_WINDOWS_RESET=1` only when the VM disk
 must be rebuilt.
 
-## Generated Pigeon code
+## Generated bindings
 
 Pigeon schemas and generated bindings must stay synchronized. Do not hand-edit
 generated `messages.g.*` files.
+
+The Darwin package uses `ffigen`. Do not hand-edit its files in
+`quick_blue_darwin/lib/src/third_party/` or `quick_blue_darwin/src/generated/`.
 
 For the Android/main plugin:
 
@@ -102,11 +105,11 @@ cd quick_blue
 dart run pigeon --input pigeons/messages.dart
 ```
 
-For iOS and macOS:
+For iOS and macOS, regenerate the FFI bindings on a Mac with Xcode:
 
 ```sh
 cd quick_blue_darwin
-dart run pigeon --input pigeons/messages.dart
+LIBCLANG_DYLIB=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libclang.dylib dart run tool/ffigen.dart
 ```
 
 For Windows:

@@ -1,14 +1,8 @@
-import 'package:pigeon/pigeon.dart';
+// Copyright (c) 2026, the quick_blue authors.
+// Use of this source code is governed by the BSD-3-Clause license.
 
-@ConfigurePigeon(
-  PigeonOptions(
-    dartPackageName: 'quick_blue_darwin',
-    input: 'pigeons/messages.dart',
-    swiftOut:
-        'darwin/quick_blue_darwin/Sources/quick_blue_darwin/Messages.g.swift',
-    dartOut: 'lib/src/messages.g.dart',
-  ),
-)
+import 'dart:typed_data';
+
 enum PlatformBleInputProperty { disabled, notification, indication }
 
 enum PlatformBleOutputProperty { withResponse, withoutResponse }
@@ -101,67 +95,6 @@ class Peripheral {
 
   final String id;
   final String name;
-}
-
-@HostApi()
-abstract class QuickBlueApi {
-  void configure(PlatformDarwinConfiguration configuration);
-  bool isAppleAccessorySetupSupported();
-  @async
-  PlatformAppleAccessory? showAppleAccessoryPicker(
-    List<PlatformAppleAccessoryPickerItem> items,
-  );
-  @async
-  List<PlatformAppleAccessory> getAppleAccessories();
-  @async
-  void removeAppleAccessory(String deviceId);
-  List<Peripheral> getConnectedPeripherals(List<String> serviceUuids);
-  bool isBluetoothAvailable();
-  void startScan({
-    List<String>? serviceUuids,
-    Map<int, Uint8List>? manufacturerData,
-    int? rssi,
-    PlatformDarwinScanOptions? options,
-  });
-  void stopScan();
-  void connect(String deviceId);
-  void disconnect(String deviceId);
-
-  void discoverServices(String deviceId);
-  // Async so the reply can be deferred until CoreBluetooth reports the
-  // notification-state result.
-  @async
-  void setNotifiable(
-    String deviceId,
-    String service,
-    String characteristic,
-    PlatformBleInputProperty bleInputProperty,
-  );
-  // Async so the reply can be deferred until CoreBluetooth reports either the
-  // characteristic value or an NSError.
-  @async
-  Uint8List readValue(String deviceId, String service, String characteristic);
-
-  // Async so the reply can be deferred until the peripheral acknowledges a
-  // write-with-response (via didWriteValueFor). Writes-without-response have no
-  // acknowledgement and complete as soon as they are handed to CoreBluetooth.
-  @async
-  void writeValue(
-    String deviceId,
-    String service,
-    String characteristic,
-    Uint8List value,
-    PlatformBleOutputProperty bleOutputProperty,
-  );
-
-  // CoreBluetooth negotiates the ATT MTU automatically at connection time and
-  // exposes no API to request a specific value, so [expectedMtu] is advisory.
-  // Returns the negotiated ATT MTU currently in effect for the peripheral.
-  int requestMtu(String deviceId, int expectedMtu);
-
-  void openL2cap(String deviceId, int psm);
-  void closeL2cap(String deviceId);
-  void writeL2cap(String deviceId, Uint8List value);
 }
 
 class PlatformScanResult {
@@ -270,33 +203,4 @@ class PlatformL2CapSocketEvent {
   final String? error;
   final bool? opened;
   final bool? closed;
-}
-
-class PlatformGattServiceChange {
-  PlatformGattServiceChange({
-    required this.deviceId,
-    required this.invalidatedServiceUuids,
-  });
-
-  final String deviceId;
-  final List<String> invalidatedServiceUuids;
-}
-
-@EventChannelApi()
-abstract class QuickBlueEventApi {
-  PlatformBluetoothState bluetoothState();
-  PlatformScanResult scanResults();
-  PlatformL2CapSocketEvent l2CapSocketEvents();
-  PlatformDarwinRestorationEvent restorationEvents();
-}
-
-@FlutterApi()
-abstract class QuickBlueFlutterApi {
-  void onConnectionStateChange(PlatformConnectionStateChange stateChange);
-  void onGattServicesChanged(PlatformGattServiceChange serviceChange);
-  void onServiceDiscovered(PlatformServiceDiscovered serviceDiscovered);
-  void onServiceDiscoveryComplete(String deviceId);
-  void onCharacteristicValueChanged(
-    PlatformCharacteristicValueChanged valueChanged,
-  );
 }

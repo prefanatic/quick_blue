@@ -2,7 +2,8 @@ import Flutter
 import UIKit
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+@objc class AppDelegate: FlutterAppDelegate {
+  private(set) var flutterEngine: FlutterEngine!
   #if DEBUG
     private var multiEngineTestHarness: IOSMultiEngineTestHarness?
   #endif
@@ -11,16 +12,44 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
-  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    let engine = FlutterEngine(
+      name: "quick-blue-primary",
+      project: nil,
+      allowHeadlessExecution: true
+    )
+    guard engine.run() else { return false }
+    GeneratedPluginRegistrant.register(with: engine)
+    flutterEngine = engine
     #if DEBUG
       multiEngineTestHarness = IOSMultiEngineTestHarness(
-        primaryMessenger: engineBridge.applicationRegistrar.messenger()
+        primaryMessenger: engine.binaryMessenger
       )
     #endif
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+
+@objc(RunnerSceneDelegate) class RunnerSceneDelegate: FlutterSceneDelegate {
+  override func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions
+  ) {
+    guard
+      let windowScene = scene as? UIWindowScene,
+      let appDelegate = UIApplication.shared.delegate as? AppDelegate
+    else { return }
+
+    let window = UIWindow(windowScene: windowScene)
+    window.rootViewController = FlutterViewController(
+      engine: appDelegate.flutterEngine,
+      nibName: nil,
+      bundle: nil
+    )
+    self.window = window
+    window.makeKeyAndVisible()
+    super.scene(scene, willConnectTo: session, options: connectionOptions)
+    _ = registerSceneLifeCycle(with: appDelegate.flutterEngine)
   }
 }
 

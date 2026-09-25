@@ -25,7 +25,7 @@ ordinary connections one-shot.
 ## Workspace layout
 
 - `quick_blue/`: app-facing package and Android implementation
-- `quick_blue_darwin/`: iOS and macOS implementation
+- `quick_blue_darwin/`: iOS and macOS implementation with generated FFI bindings
 - `quick_blue_linux/`: Linux implementation using BlueZ
 - `quick_blue_windows/`: Windows implementation using WinRT
 - `quick_blue_platform_interface/`: shared APIs, models, and tests
@@ -47,7 +47,7 @@ flutter analyze
 
 Platform changes usually require package tests plus a hardware-backed BLE smoke
 test. See [CONTRIBUTING.md](CONTRIBUTING.md) for package-specific checks,
-integration-test profiles, Windows VM testing, and Pigeon generation.
+integration-test profiles, Windows VM testing, FFI generation, and Pigeon generation.
 
 ## License
 

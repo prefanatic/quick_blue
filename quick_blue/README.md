@@ -104,9 +104,8 @@ Add a Bluetooth usage description to `ios/Runner/Info.plist`:
 <string>This app scans for and connects to nearby Bluetooth devices.</string>
 ```
 
-State restoration is optional. Apps that need reliable CoreBluetooth
-restoration after background termination must add `bluetooth-central` to
-`UIBackgroundModes` and enable Quick Blue's persistent native opt-in:
+State restoration is optional. Add `bluetooth-central` to `UIBackgroundModes`
+for restoration after a background termination. Enable the persistent opt-in:
 
 ```xml
 <key>UIBackgroundModes</key>
@@ -117,15 +116,17 @@ restoration after background termination must add `bluetooth-central` to
 <true/>
 ```
 
-The plugin reads this setting during native registration and immediately
-creates its `CBCentralManager` with Quick Blue's stable restoration identifier,
-before the Dart entrypoint runs. The persistent setting is authoritative:
+The Dart plugin reads this setting when its Flutter engine starts. It creates
+`CBCentralManager` with a stable restoration identifier. Start a persistent
+Flutter engine in `application(_:didFinishLaunchingWithOptions:)`, before a
+scene opens. Attach the user interface to that engine when the scene opens.
+The [example AppDelegate](example/ios/Runner/AppDelegate.swift) shows this
+sequence. The persistent setting is authoritative:
 `QuickBlue.configure(maintainState: false)` does not disable it.
 
 `QuickBlue.configure(maintainState: true)` remains available as a runtime-only
 opt-in when the Info.plist setting is absent. It must run before other Quick
-Blue APIs, but it is not sufficient for a reliable iOS background relaunch
-because Dart may start too late. See
+Blue APIs. It does not ensure a background relaunch starts Dart early. See
 [Darwin restoration launch correctness](#darwin-restoration-launch-correctness).
 
 ### macOS
@@ -139,11 +140,9 @@ debug and release entitlements:
 <true/>
 ```
 
-Apps that want restoration initialized before Dart can add
-`QuickBlueCoreBluetoothStateRestorationEnabled` to the macOS Info.plist as
-shown for iOS. A runtime-only
-`QuickBlue.configure(maintainState: true)` remains available when early native
-bootstrap is unnecessary.
+Apps that want restoration at engine startup can add
+`QuickBlueCoreBluetoothStateRestorationEnabled` to the macOS Info.plist.
+`QuickBlue.configure(maintainState: true)` remains available for runtime setup.
 
 ### Windows
 
@@ -460,6 +459,10 @@ the final engine detaches. Connection, discovery, MTU, and notification events
 are delivered to every attached engine, and notification ownership is
 reference-counted across engines.
 
+On iOS and macOS, keep the first Flutter engine alive for the application
+process. It owns CoreBluetooth and accepts requests from later engines through
+a Dart port. The iOS example starts this engine before it opens a scene.
+
 For a foreground handoff, attach the new engine before detaching the old one:
 
 ```dart
@@ -614,8 +617,8 @@ final class BluetoothTelemetryObserver
 }
 ```
 
-Native callbacks are buffered until Dart subscribes, then buffered again until
-a restoration observer is installed. Each native callback is delivered once.
+The Dart owner buffers restoration callbacks until an observer subscribes.
+It delivers each callback once to the observer.
 The restoration event is export-safe: it contains aggregate counts only and
 never contains the restoration identifier or peripheral identifiers.
 
@@ -624,7 +627,7 @@ These lifecycle facts are distinct:
 | Fact | How to observe it |
 | --- | --- |
 | Restoration was requested from Dart | `QuickBlueOperation.kind` is `configure` and `maintainState` is `true`. |
-| The manager was initialized with Quick Blue's restoration identifier | The persistent Info.plist key is `true` and native plugin registration completed, or `configure(maintainState: true)` completed successfully without the persistent setting. |
+| The manager was initialized with Quick Blue's restoration identifier | The persistent Info.plist key is `true` and the Dart plugin started, or `configure(maintainState: true)` completed before other Bluetooth calls. |
 | CoreBluetooth had state to restore | `onDarwinStateRestored` runs. A successful configure does not imply this callback will occur. |
 
 An OpenTelemetry adapter follows the same pattern: create a real SDK span in
@@ -648,40 +651,35 @@ never included. Set `QuickBlue.observer = null` to disable observation.
 
 ### Darwin restoration launch correctness
 
-Apple requires an app relaunched for Bluetooth work to recreate its
-`CBCentralManager` with the same restoration identifier. In a scene-based app,
-the identifier must be persisted or otherwise stable because launch options do
-not supply it. CoreBluetooth may invoke `willRestoreState` before ordinary app
-initialization callbacks, so relying on Dart to call
-`configure(maintainState: true)` after the app reaches `resumed` is too late
-for a robust iOS background-relaunch path.
+Apple requires the same restoration identifier after a Bluetooth relaunch.
+Launch options do not supply the identifier to a scene-based app.
+CoreBluetooth can call `willRestoreState` before a scene opens.
+Start the Flutter engine at application launch so the Dart plugin can create
+the manager before scene setup.
 
-Quick Blue provides a native persistent opt-in:
+Quick Blue provides a persistent opt-in:
 
 ```xml
 <key>QuickBlueCoreBluetoothStateRestorationEnabled</key>
 <true/>
 ```
 
-Plugin registration reads this setting and creates the central manager
-immediately with the stable identifier, before the Dart entrypoint runs. The
-setting is persistent app configuration rather than a per-process Dart call.
-The native restoration-event buffer is installed before manager creation, so a
-restoration callback delivered before Dart attaches remains available.
+The Dart plugin reads this setting when its engine starts. It creates the
+central manager with the stable identifier and stores early restoration events.
+Keep this first engine alive while other Flutter engines use Bluetooth.
+The Dart broker routes their requests through the first engine.
 
-Automatic manager creation prevents a later AccessorySetupKit system picker
-from running first. An app must therefore use either the persistent restoration
-opt-in or an AccessorySetupKit-first startup flow. Leave
+Automatic manager creation prevents an AccessorySetupKit picker from running
+first. Use the persistent restoration opt-in or an AccessorySetupKit-first
+startup flow. Leave
 `QuickBlueCoreBluetoothStateRestorationEnabled` absent or `false` while using
 the picker, then use the runtime configuration path after setup. A single app
 build cannot currently combine the persistent bootstrap with Quick Blue's
 AccessorySetupKit picker.
 
-Registration-time bootstrap assumes the Flutter engine and plugins are
-registered during application launch, as in a standard Flutter app. Add-to-app
-integrations that intentionally delay Flutter engine creation still need an
-application-owned native `CBCentralManager` bootstrap; Quick Blue does not yet
-provide a pre-engine AppDelegate API.
+The iOS example starts a headless Flutter engine during application launch.
+Its scene attaches a `FlutterViewController` to that engine. An add-to-app host
+must use the same sequence when it enables persistent restoration.
 
 This behavior is based on Apple's
 [Core Bluetooth restoration guide](https://developer.apple.com/library/archive/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/CoreBluetoothBackgroundProcessingForIOSApps/PerformingTasksWhileYourAppIsInTheBackground.html)
@@ -694,9 +692,8 @@ iOS 18 and later can use AccessorySetupKit to discover and authorize a known
 Bluetooth product with Apple's system picker. Add the product's discovery
 values to the app's Info.plist:
 
-Do not enable `QuickBlueCoreBluetoothStateRestorationEnabled` before showing
-the picker. Persistent restoration creates CoreBluetooth during native plugin
-registration, while AccessorySetupKit must run first.
+Do not enable `QuickBlueCoreBluetoothStateRestorationEnabled` before the picker.
+Persistent restoration creates CoreBluetooth when the first Dart engine starts.
 
 ```xml
 <key>NSAccessorySetupSupports</key>
