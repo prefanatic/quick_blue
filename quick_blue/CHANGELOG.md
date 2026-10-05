@@ -2,6 +2,10 @@
 
 ### Added
 
+- Document fresh-checkout example setup, artifact sources of truth, and update
+  steps; guard local credentials/device profiles with example ignore rules and
+  replace captured device identifiers in example documentation with placeholders.
+
 - Add subscription-owned `maintainConnection` with bounded exponential
   backoff, retry exhaustion errors, and explicit cancellation/disconnect
   teardown across all platforms.

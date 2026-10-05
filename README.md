@@ -16,6 +16,7 @@ ordinary connections one-shot.
 - [Install, platform setup, and usage](quick_blue/README.md)
 - [Changelog](quick_blue/CHANGELOG.md)
 - [Contributing and verification](CONTRIBUTING.md)
+- [Example setup and artifact policy](quick_blue/example/README.md#fresh-checkout-setup-and-artifact-policy)
 - [Issue tracker](https://github.com/prefanatic/quick_blue/issues)
 
 > To use the code in this repository, follow the

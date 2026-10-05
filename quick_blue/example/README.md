@@ -2,6 +2,54 @@
 
 Demonstrates how to use the quick_blue plugin.
 
+## Fresh-checkout setup and artifact policy
+
+Install Flutter satisfying `pubspec.yaml` and the platform toolchain for any
+target you intend to run. From the repository root:
+
+```sh
+flutter pub get
+cd quick_blue/example
+flutter analyze
+flutter test
+```
+
+These checks require neither Bluetooth hardware nor a local device profile.
+`flutter test` runs `test/`, whose fake platform and test data are tracked in
+Git; it does not run the hardware-backed `integration_test/` suites. There are
+no required local-only data files, captured advertisements, or separately
+generated example fixtures. Network access is needed to fetch dependencies
+unless they are already cached.
+
+The sources of truth and update paths are:
+
+| Artifact | Source of truth / update procedure |
+| --- | --- |
+| App, tests, fake platform, smoke profiles | Edit `lib/`, `test/`, or `integration_test/`; built-in profiles live in `lib/src/ble_smoke_profile.dart`, with coverage in `test/src/ble_smoke_profile_test.dart`. Run the checks above after changes. |
+| Icons and native runners | Tracked platform directories contain these inputs; no local asset export is needed. Review source/asset changes as part of the diff. |
+| Flutter plugin registrants and generated plugin CMake lists | Workspace `pubspec.yaml` files determine the plugin graph. After dependency changes, run root `flutter pub get`, then `flutter build <target> --debug` from this directory on a host with that target's toolchain. Review changes to the already-tracked generated files; do not hand-edit them. |
+| iOS CocoaPods lockfile | `ios/Podfile` and workspace plugin dependencies determine the inputs. On macOS with CocoaPods installed, run root `flutter pub get`, then `cd quick_blue/example/ios && pod install`. Review `Podfile.lock` changes; it is a tracked exception to the cache policy. |
+| Local platform configuration and build products | Flutter/platform tooling recreates these as needed when building. Keep `.dart_tool/`, `build/`, `ephemeral/`, `Pods/`, Gradle caches/wrappers, `local.properties`, `Generated.xcconfig`, `flutter_export_environment.sh`, and `.flutter-plugins-dependencies` ignored. |
+
+Dependency resolution follows the repository's existing policy: Dart
+`pubspec.lock` files are ignored. These instructions reproduce the inputs
+needed for analysis/tests, not byte-identical builds or a pinned dependency
+graph across future SDK/dependency releases. No additional custom generator
+is necessary.
+
+Hardware runs additionally need a powered Bluetooth adapter, permission, and
+appropriate nearby peripherals; Linux headless runs need Xvfb. The Windows VM
+script also needs its documented host tooling and USB passthrough. Those are
+environment prerequisites, not artifacts to commit. VM disks, generated guest
+scripts, logs, and test output under the repository's
+`.dart_tool/dockur_windows/` remain local caches.
+
+Keep device IDs, custom device profiles, secrets, signing keys, and BLE captures
+local. `.env*`, `smoke.local.json`, `key.properties`, `*.jks`, and `*.keystore`
+are ignored within this example as a guardrail, not a guarantee that other
+filenames are safe. Review every diff before sharing it. Public examples should
+use placeholders or synthetic test data, never copied nearby-device captures.
+
 ## BLE smoke test
 
 The integration smoke test scans for nearby BLE advertisements, tries to connect
@@ -93,14 +141,12 @@ QUICK_BLUE_HIDE_TEST_WINDOW=1 \
     --dart-define=QUICK_BLUE_SMOKE_PROFILE=valve_lighthouse
 ```
 
-The built-in `valve_lighthouse` profile matches `LHB-*` advertisements and a
-Valve Lighthouse manufacturer-data prefix (`00 02`). Example captured
-advertisements:
+The built-in `valve_lighthouse` profile matches Lighthouse-style names (including
+`LHB-*`) and a Valve Lighthouse manufacturer-data prefix (`00 02`). It requires
+no captured device identifiers.
 
-- `CB:48:BE:B2:AC:69` / `LHB-DD207A0C`: `00 02 02 01 00 06 00`
-- `F7:CA:86:52:A9:1D` / `LHB-9433D15E`: `00 02 01 01 00 06 00`
-
-Add device-specific values after a scan captures them:
+Inspect device-specific values locally after a scan captures them. The dump can
+contain nearby-device identifiers and payloads; do not commit or publish it:
 
 ```sh
 flutter test integration_test/ble_smoke_test.dart -d linux \
@@ -108,19 +154,20 @@ flutter test integration_test/ble_smoke_test.dart -d linux \
   --dart-define=QUICK_BLUE_SMOKE_DUMP_ADVERTISEMENTS=true
 ```
 
-Then copy stable fields into a custom profile:
+Then supply stable fields in a local custom profile. Replace `DEVICE_ID` with
+your own platform identifier; it is a placeholder, not a discovered device:
 
 ```sh
 flutter test integration_test/ble_smoke_test.dart -d linux \
   --dart-define=QUICK_BLUE_SMOKE_PROFILE=valve_lighthouse \
-  --dart-define='QUICK_BLUE_SMOKE_PROFILE_JSON={"deviceId":"AA:BB:CC:DD:EE:FF","expectedManufacturerDataHex":"01 02","minRssi":-90}'
+  --dart-define='QUICK_BLUE_SMOKE_PROFILE_JSON={"deviceId":"DEVICE_ID","minRssi":-90}'
 ```
 
 Example targeted GATT service run:
 
 ```sh
 flutter test integration_test/ble_smoke_test.dart -d linux \
-  --dart-define=QUICK_BLUE_SMOKE_DEVICE_ID='CB:48:BE:B2:AC:69' \
+  --dart-define=QUICK_BLUE_SMOKE_DEVICE_ID='DEVICE_ID' \
   --dart-define=QUICK_BLUE_SMOKE_EXPECTED_SERVICE_UUIDS='1800,1801,180a' \
   --dart-define=QUICK_BLUE_SMOKE_CONNECT_TIMEOUT_SECONDS=30
 ```
@@ -271,7 +318,7 @@ SwitchBot Meter-style command/notification response benchmark:
 ```sh
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
   flutter test integration_test/ble_characteristic_benchmark_test.dart -d linux \
-    --dart-define=QUICK_BLUE_BENCHMARK_DEVICE_ID='D1:B4:29:F5:B8:7D' \
+    --dart-define=QUICK_BLUE_BENCHMARK_DEVICE_ID='DEVICE_ID' \
     --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_SERVICE_UUID='cba20d00-224d-11e6-9fb8-0002a5d5c51b' \
     --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_CHARACTERISTIC_UUID='cba20003-224d-11e6-9fb8-0002a5d5c51b' \
     --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_SERVICE_UUID='cba20d00-224d-11e6-9fb8-0002a5d5c51b' \
