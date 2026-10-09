@@ -166,7 +166,7 @@ jobs:
 
           flutter pub get
 
-          (cd quick_blue && dart run pigeon --input pigeons/messages.dart)
+          python3 scripts/generate-android-messages.py
           (cd quick_blue_darwin && dart run pigeon --input pigeons/messages.dart)
           (cd quick_blue_windows && dart run pigeon --input pigeons/messages.dart)
 

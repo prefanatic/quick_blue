@@ -17,6 +17,8 @@ class QuickBlueAndroid extends QuickBluePlatform {
   late final Stream<BluetoothBondStateChange> _bondStateEvents = messages
       .bondStateChanges()
       .map(_bondStateChangeFromPlatform);
+  late final Stream<messages.PlatformRepairObservation> _repairEvents = messages
+      .repairChanges();
   late final Stream<BlueScanResult> _scanResultStream = messages
       .scanResults()
       .map(_scanResultFromPlatformResult)
@@ -157,6 +159,8 @@ class QuickBlueAndroid extends QuickBluePlatform {
       stateChanges: bondStateStream,
       readState: bondState,
       startPairing: _api.startPairing,
+      repairChanges: _repairEvents,
+      readRepair: _api.repairObservation,
     ).perform(deviceId);
   }
 

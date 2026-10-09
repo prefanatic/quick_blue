@@ -2,6 +2,13 @@
 
 ### Added
 
+- Coordinate Android 17 security recovery with explicit OS repair context and
+  correlated LE encryption evidence while retaining Android-owned pairing UI,
+  bounded waits, the single operation retry, and legacy fresh-pairing behavior.
+  A retained bond or app wait timeout is not treated as proof of repair success
+  or definitive system repair failure. Clear internal per-device repair state
+  on disconnect/engine detach; no public cross-platform repair API is added.
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.
