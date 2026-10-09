@@ -7,7 +7,10 @@ Connection ownership is shared safely across Flutter engines. On Android, bounde
 disconnect reconciliation keeps missing native callbacks from blocking later
 reconnects. Remote GATT database changes are surfaced across supported
 platforms so applications can invalidate stale service snapshots and
-rediscover safely. Applications can query platform capabilities at runtime
+rediscover safely. Opt-in snapshot-bound characteristic handles additionally
+reject new reads, writes, and notification setup after their snapshot is
+invalidated, while existing ID-only handles keep their current behavior.
+Applications can query platform capabilities at runtime
 instead of duplicating platform and OS-version checks, and explicit chunked
 write helpers support larger application payloads without hiding their framing.
 Opt-in managed connections provide bounded reconnection backoff while keeping

@@ -1,0 +1,5 @@
+$ .dart_tool/docs-venv/bin/zensical build --clean
+Build started
+No issues found
+Build finished in 0.28s
+exit=0

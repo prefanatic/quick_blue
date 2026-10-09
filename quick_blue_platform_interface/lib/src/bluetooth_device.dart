@@ -286,6 +286,22 @@ class BluetoothDevice {
     );
   }
 
+  /// Creates an internal handle with a submission-time snapshot guard.
+  @internal
+  BluetoothCharacteristic snapshotBoundCharacteristic(
+    String service,
+    String characteristic,
+    bool Function() isValidSnapshot,
+  ) {
+    return BluetoothCharacteristic.internal(
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      platform: _platform,
+      isValidSnapshot: isValidSnapshot,
+    );
+  }
+
   /// Enables or disables notifications or indications for a characteristic.
   Future<void> setNotifiable(
     String service,

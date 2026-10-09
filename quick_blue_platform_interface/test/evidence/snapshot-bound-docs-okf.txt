@@ -1,0 +1,2 @@
+$ .dart_tool/docs-venv/bin/python scripts/check-okf.py
+OKF 0.2: 19 concepts; 74 local links; metadata, sources and indexes pass

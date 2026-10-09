@@ -1,0 +1,3 @@
+$ .dart_tool/docs-venv/bin/python scripts/check-docs-site.py
+Site: 20 navigation pages; 1121 local HTML links/anchors pass; search assets present
+exit=0

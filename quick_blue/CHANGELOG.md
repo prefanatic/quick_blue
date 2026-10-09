@@ -2,6 +2,14 @@
 
 ### Added
 
+- Add opt-in `BluetoothGatt.boundCharacteristic`, which resolves a
+  characteristic handle bound to its GATT snapshot. After a service-database
+  change, new read, write and notification submissions through that handle
+  fail with `QuickBlueException` (`invalidState`) before platform submission;
+  rediscover and resolve a fresh bound handle to continue. Existing ID-only
+  handles keep their current behavior, already-submitted IO is not rolled
+  back, and disconnect/reconnect snapshot policy is unchanged.
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.

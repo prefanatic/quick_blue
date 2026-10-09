@@ -1,0 +1,18 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_6523095a`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_6523095a`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_6523095a/quick_blue/example/integration_test/ble_smoke_test.dart
+Building Linux application...
+✓ Built build/linux/x64/debug/bundle/quick_blue_example
+00:00 +0: BLE explorer scans, connects, discovers services, reads, optionally writes, and disconnects
+BLE smoke services for [redacted device identifier]: [00001800-0000-1000-8000-00805f9b34fb, 00001801-0000-1000-8000-00805f9b34fb, 0000fe00-0000-1000-8000-00805f9b34fb, 0000ffff-0000-1000-8000-00805f9b34fb]
+00:16 +1: (tearDownAll)
+00:16 +1: All tests passed!

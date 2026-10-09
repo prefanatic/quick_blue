@@ -1,0 +1,6 @@
+$ .dart_tool/docs-venv/bin/python -m unittest discover -s scripts -p test_check_okf.py
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.027s
+
+OK
