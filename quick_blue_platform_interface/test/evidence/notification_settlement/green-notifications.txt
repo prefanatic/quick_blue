@@ -1,0 +1,33 @@
+Source SHA: 88637becfc48874749a6ace480e5a4f28d4e94d3
+Command: flutter test test/bluetooth_notifications_test.dart --reporter expanded
+Working directory: quick_blue_platform_interface
+
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_platform_interface/test/bluetooth_notifications_test.dart
+00:00 +0: terminal notification setup failure closes without consumer cancellation (delayed: false)
+00:00 +1: terminal notification setup failure closes without consumer cancellation (delayed: true)
+00:00 +2: cancelled pending notification setup settles its claim (success: true)
+00:00 +3: cancelled pending notification setup settles its claim (success: false)
+00:00 +4: conflicting notification setup closes without releasing the owner
+00:00 +5: BluetoothCharacteristic notifications enable and disable notify
+00:00 +6: BluetoothCharacteristic notifications emits notify setup errors
+00:00 +7: BluetoothCharacteristic notifications recover security setup errors
+00:00 +8: BluetoothCharacteristic notifications waits for notify before forwarding
+00:00 +9: BluetoothCharacteristic notifications disables after pending enable
+00:00 +10: BluetoothCharacteristic notifications share native listener ownership
+00:00 +11: BluetoothCharacteristic notifications can retry failed setup
+00:00 +12: BluetoothCharacteristic rejects conflicting notification properties
+00:00 +13: BluetoothCharacteristic can re-enable after failed final disable
+00:00 +14: All tests passed!
+
+Exit code: 0

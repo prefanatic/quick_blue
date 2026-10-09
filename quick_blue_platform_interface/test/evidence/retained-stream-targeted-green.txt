@@ -1,0 +1,21 @@
+Command: (cd quick_blue_platform_interface && flutter test test/retained_characteristic_value_stream_test.dart --reporter expanded)
+Exit code: 0
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_7d2e5ae5`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_7d2e5ae5`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_7d2e5ae5/quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart
+00:00 +0: old and fresh streams overlap: legacy=false, cancelOldFirst=false
+00:00 +1: old and fresh streams overlap: legacy=false, cancelOldFirst=true
+00:00 +2: old and fresh streams overlap: legacy=true, cancelOldFirst=false
+00:00 +3: old and fresh streams overlap: legacy=true, cancelOldFirst=true
+00:00 +4: overlapping listeners on one retained stream survive cancellation
+00:00 +5: retained raw characteristic value stream delivers after re-listen
+00:00 +6: All tests passed!

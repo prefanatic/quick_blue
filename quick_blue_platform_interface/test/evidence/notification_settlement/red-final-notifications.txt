@@ -1,0 +1,49 @@
+Command: flutter test test/bluetooth_notifications_test.dart --reporter expanded
+Working directory: quick_blue_platform_interface
+
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_platform_interface/test/bluetooth_notifications_test.dart
+00:00 +0: terminal notification setup failure closes without consumer cancellation (delayed: false)
+00:02 +0 -1: terminal notification setup failure closes without consumer cancellation (delayed: false) [E]
+  TimeoutException after 0:00:02.000000: Future not completed
+  dart:async  _startMicrotaskLoop
+
+00:02 +0 -1: terminal notification setup failure closes without consumer cancellation (delayed: true)
+00:04 +0 -2: terminal notification setup failure closes without consumer cancellation (delayed: true) [E]
+  TimeoutException after 0:00:02.000000: Future not completed
+  dart:async  _startMicrotaskLoop
+
+00:04 +0 -2: cancelled pending notification setup settles its claim (success: true)
+00:04 +1 -2: cancelled pending notification setup settles its claim (success: false)
+00:04 +2 -2: conflicting notification setup closes without releasing the owner
+00:06 +2 -3: conflicting notification setup closes without releasing the owner [E]
+  TimeoutException after 0:00:02.000000: Future not completed
+  dart:async  _startMicrotaskLoop
+
+00:06 +2 -3: BluetoothCharacteristic notifications enable and disable notify
+00:06 +3 -3: BluetoothCharacteristic notifications emits notify setup errors
+00:06 +4 -3: BluetoothCharacteristic notifications recover security setup errors
+00:06 +5 -3: BluetoothCharacteristic notifications waits for notify before forwarding
+00:06 +6 -3: BluetoothCharacteristic notifications disables after pending enable
+00:06 +7 -3: BluetoothCharacteristic notifications share native listener ownership
+00:06 +8 -3: BluetoothCharacteristic notifications can retry failed setup
+00:06 +9 -3: BluetoothCharacteristic rejects conflicting notification properties
+00:06 +10 -3: BluetoothCharacteristic can re-enable after failed final disable
+00:06 +11 -3: Some tests failed.
+
+Failing tests:
+  /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: conflicting notification setup closes without releasing the owner
+  /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: terminal notification setup failure closes without consumer cancellation (delayed: false)
+  /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: terminal notification setup failure closes without consumer cancellation (delayed: true)
+
+Exit code: 1

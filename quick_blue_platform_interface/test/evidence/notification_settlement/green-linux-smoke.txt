@@ -1,0 +1,24 @@
+Source SHA: 88637becfc48874749a6ace480e5a4f28d4e94d3
+Command: QUICK_BLUE_HIDE_TEST_WINDOW=1 xvfb-run -a flutter test integration_test/ble_smoke_test.dart -d linux
+Working directory: quick_blue/example
+
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue/example/integration_test/ble_smoke_test.dart
+Building Linux application...
+✓ Built build/linux/x64/debug/bundle/quick_blue_example
+00:00 +0: BLE explorer scans, connects, discovers services, reads, optionally writes, and disconnects
+BLE smoke services for 51:BB:A2:6B:9E:21: [00001800-0000-1000-8000-00805f9b34fb, 00001801-0000-1000-8000-00805f9b34fb, 0000180a-0000-1000-8000-00805f9b34fb, 00010203-0405-0607-0809-0a0b0c0d1910, 0000fe2c-0000-1000-8000-00805f9b34fb, 15190001-12f4-c226-88ed-2ac5579f2a85, 0000185b-0000-1000-8000-00805f9b34fb]
+00:28 +1: (tearDownAll)
+00:28 +1: All tests passed!
+
+Exit code: 0
