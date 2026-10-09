@@ -10,6 +10,8 @@ import 'package:quick_blue_linux/src/device_property.dart';
 import 'package:quick_blue_linux/src/gatt_session.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
+import 'test_support/future_gate.dart';
+
 void main() {
   late _Fixture f;
   setUp(() => f = _Fixture());
@@ -45,6 +47,92 @@ void main() {
       expect(f.device.properties.hasListener, isFalse);
       await f.session.discoverServices(f.device);
       expect(f.completions.length, 2);
+    },
+  );
+
+  // Characterizations of 0596865a0a46e18f7dc6d56561a79f538cf7bcea.
+  // These passing assertions describe gaps, not desired teardown guarantees.
+  test('characterization: old discovery survives clear and reconnect', () async {
+    f.device.servicesResolved = false;
+    var oldCompleted = false;
+    final old = f.session.discoverServices(f.device).then((_) {
+      oldCompleted = true;
+    });
+    expect(f.device.properties.hasListener, isTrue);
+    await f.session.clearDevice(f.device.address);
+    expect(oldCompleted, isFalse);
+    expect(f.device.properties.hasListener, isTrue);
+
+    // A replacement BlueZ object at the same address represents reconnect.
+    final replacement = _Device()..gattServices = f.device.gattServices;
+    addTearDown(replacement.properties.close);
+    await f.session.discoverServices(replacement);
+    expect(f.completions, [f.device.address]);
+    expect(oldCompleted, isFalse);
+    f.device.servicesResolved = true;
+    f.device.properties.add(['ServicesResolved']);
+    await old;
+    expect(f.completions, [f.device.address, f.device.address]);
+    expect(f.discoveries.length, 2);
+    expect(f.device.properties.hasListener, isFalse);
+    // Desired correction: cleared discovery must not emit into a new lifetime.
+  });
+
+  test(
+    'characterization: suspended StartNotify installs watch after clear',
+    () async {
+      final gate = FutureGate();
+      f.characteristic.startGate = gate;
+      final setup = f.notify();
+      await gate.entered;
+      expect(f.characteristic.starts, 1);
+      expect(f.characteristic.properties.hasListener, isFalse);
+      await f.session.stopNotificationsForClient(f.device.address);
+      await f.session.clearDevice(f.device.address);
+      expect(f.characteristic.stops, 0);
+      expect(f.values, isEmpty);
+      gate.release();
+      await setup;
+      expect(f.characteristic.notifying, isTrue);
+      expect(f.characteristic.properties.hasListener, isTrue);
+      expect(f.values.single.$4, [0]);
+      f.characteristic.value = [6];
+      f.characteristic.properties.add(['Value']);
+      await pumpEventQueue();
+      expect(f.values.last.$4, [6]);
+      expect(f.values.length, 2);
+      // The cleared cache also prevents release of the late native reference.
+      await f.session.stopNotificationsForClient(f.device.address);
+      expect(f.characteristic.stops, 0);
+      await f.session.clearDevice(f.device.address);
+      expect(f.characteristic.properties.hasListener, isFalse);
+      // Desired correction: late setup cannot resurrect delivery or ownership.
+    },
+  );
+
+  test(
+    'characterization: cache invalidation loses last notification release',
+    () async {
+      f.session.watchDevice(f.device);
+      await f.notify();
+      expect(f.characteristic.starts, 1);
+      f.device.servicesResolved = false;
+      f.session.servicesResolvedChanged(f.device);
+      expect(f.changes, [f.device.address]);
+      expect(f.characteristic.properties.hasListener, isTrue);
+      await f.session.stopNotificationsForClient(f.device.address);
+      expect(f.characteristic.stops, 0);
+      expect(f.characteristic.notifying, isTrue);
+      await f.session.clearDevice(f.device.address);
+      expect(f.characteristic.properties.hasListener, isFalse);
+      expect(f.characteristic.stops, 0);
+      // Control: with the cache intact, the same final-client release reaches BlueZ.
+      f.device.servicesResolved = true;
+      await f.notify();
+      await f.session.stopNotificationsForClient(f.device.address);
+      expect(f.characteristic.stops, 1);
+      expect(f.characteristic.notifying, isFalse);
+      // Desired correction: release ownership must survive cache invalidation.
     },
   );
 
@@ -481,6 +569,7 @@ class _Characteristic implements BlueZGattCharacteristic {
   final properties = StreamController<List<String>>.broadcast();
   final writes = <(List<int>, BlueZGattCharacteristicWriteType?)>[];
   Object? error;
+  FutureGate? startGate;
   int starts = 0;
   int stops = 0;
   int reads = 0;
@@ -515,6 +604,10 @@ class _Characteristic implements BlueZGattCharacteristic {
   Future<void> startNotify() async {
     starts++;
     _checkError();
+    final gate = startGate;
+    if (gate != null) {
+      await gate.suspend();
+    }
     notifying = true;
   }
 

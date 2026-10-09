@@ -38,6 +38,10 @@ remains outstanding until platform completion or engine disposal.
 Service discoveries coalesce; disconnect cancels pending discovery. Android
 additionally bounds final-client teardown and ignores retired-GATT callbacks;
 this disconnect reconciliation guarantee is Android-specific.[^source4]
+Linux's pending property waiter can survive clear and emit after same-address
+replacement discovery in the
+[fake-BlueZ characterization](limitations.md#linux-gatt-teardown-characterization).
+Facade cancellation does not prove this native-session work stopped.
 
 ## Managed reconnection
 

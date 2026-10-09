@@ -45,6 +45,7 @@ the first error and adds no framing, automatic reassembly, or application ACKs.
 - [Install from Git](docs/install.md)
 - [Package README](quick_blue/README.md)
 - [Changelog](quick_blue/CHANGELOG.md)
+- [Linux GATT teardown characterization and proof boundary](docs/limitations.md#linux-gatt-teardown-characterization)
 - [Contributing and verification](CONTRIBUTING.md)
 - [Issue tracker](https://github.com/prefanatic/quick_blue/issues)
 

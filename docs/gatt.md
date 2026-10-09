@@ -36,7 +36,9 @@ final notifications = characteristic.notifications().listen(
 await notifications.cancel();
 ```
 
-Concurrent listeners share native setup; the final listener disables it. Use
+Concurrent listeners share native setup; the final listener requests its release.
+Linux has reproduced [fake-BlueZ teardown gaps](limitations.md#linux-gatt-teardown-characterization);
+do not interpret cancellation as proof of native cleanup. Use
 `valueStream` plus `setNotifiable(...)` only when setup/teardown must be managed
 separately (listen before enabling).
 

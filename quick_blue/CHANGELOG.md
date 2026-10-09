@@ -2,6 +2,11 @@
 
 ### Added
 
+- Add deterministic fake-BlueZ characterizations of delayed Linux GATT discovery,
+  notification setup across teardown, and cache-invalidated notification release.
+  Document observed lifetime gaps without production changes or claims of real
+  BlueZ cleanup or hardware safety.
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.
