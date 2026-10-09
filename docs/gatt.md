@@ -4,7 +4,7 @@ title: "Discover, write and subscribe"
 description: "Use valid GATT snapshots, explicit write framing and subscription-owned notifications."
 tags: ["gatt", "notifications", "writes"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_gatt.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_characteristic.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/bluetooth_gatt_test.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_gatt.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_characteristic.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/bluetooth_gatt_test.dart"}, {"id": "routing", "resource": "../quick_blue_platform_interface/lib/src/characteristic_lifecycle.dart"}, {"id": "retained", "resource": "../quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart"}]
 ---
 
 # Discover, write and subscribe
@@ -39,6 +39,48 @@ await notifications.cancel();
 Concurrent listeners share native setup; the final listener disables it. Use
 `valueStream` plus `setNotifiable(...)` only when setup/teardown must be managed
 separately (listen before enabling).
+
+## Raw value streams are reusable
+
+`characteristic.valueStream` is a broadcast stream for raw value updates. Retain
+the returned stream if convenient: after cancelling its final subscription, you
+can listen to that same stream again and receive newly arriving matching values.
+Cancellation removes that listener's Dart routing interest, not the stream's
+ability to be reused.[^routing]
+
+This fragment assumes the connected `characteristic` above; native update
+setup/teardown is managed separately:
+
+```dart
+final values = characteristic.valueStream;
+final first = values.listen((value) => print('first: ${value.length} bytes'));
+await first.cancel();
+final resumed = values.listen((value) => print('resumed: ${value.length} bytes'));
+// Receive future updates while listening, then release this subscription.
+await resumed.cancel();
+```
+
+There is no cached-value replay guarantee, and getter results are not guaranteed
+to have stable object identity. A fresh getter obtained after cancellation works
+alongside the retained old stream: when both are listened to, both receive matching
+updates. Cancelling either stream's listeners must not remove the other's routing.
+Multiple listeners on one retained stream are also supported; cancelling one
+leaves the others active, and the stream remains reusable after all cancel.
+Regression tests cover old/fresh overlap with cancellation in either order and
+a further getter during overlap.[^retained]
+
+Routing normally matches device, service and characteristic. Legacy events with
+an empty service ID match that device and characteristic across service-scoped
+streams for compatibility; they do not establish which service produced the
+value. The old/fresh overlap tests cover both event shapes.[^routing][^retained]
+
+Raw stream listening, cancellation and re-listening do not enable or disable
+native notifications. Use `setNotifiable(...)` explicitly, or prefer
+`notifications()` for subscription-owned setup/teardown. Reusable Dart routing
+does not change native notification behavior or ensure that a peripheral sends
+anything. These regression tests inject platform value events and verify Dart
+delivery only; they neither prove hardware notification delivery nor exercise
+native notification setup/teardown. See [verification boundaries](testing.md#report-evidence-not-assumptions).
 
 ## Writes are application protocol operations
 
@@ -82,3 +124,5 @@ refresh work, await it, and surface failures instead of discarding an async
 listener future. See [capabilities](capabilities.md) for OS gates.
 
 [^source3]: GATT discovery, invalidation and chunked-write tests.
+[^routing]: Raw value controller registration, identity-safe cancellation and event dispatch.
+[^retained]: Injected-event regressions for retained streams and overlapping listeners; no native notification calls.

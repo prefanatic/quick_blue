@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Fixed
+
+- Restore raw characteristic `valueStream` routing when a retained stream is
+  listened to again after cancellation. Old and fresh getter streams can overlap
+  without either stream's cancellation evicting the other's active listeners.
+  Native notification setup/teardown is unchanged; injected-event regressions
+  verify Dart routing, not hardware notification delivery.
+
 ### Added
 
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux

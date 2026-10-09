@@ -32,8 +32,10 @@ class CharacteristicLifecycleCoordinator {
 
   final _valueController =
       StreamController<BluetoothCharacteristicValue>.broadcast();
+  // Retained streams can become active alongside a newer getter's controller.
+  // Track each controller so neither re-listening nor cancellation evicts peers.
   final _valueStreams =
-      <_CharacteristicValueKey, StreamController<Uint8List>>{};
+      <_CharacteristicValueKey, Set<StreamController<Uint8List>>>{};
   final _activeNotifications = <_CharacteristicValueKey, _ActiveNotification>{};
   final _notificationLifecycles = <_CharacteristicValueKey, Future<void>>{};
 
@@ -52,18 +54,25 @@ class CharacteristicLifecycleCoordinator {
     );
     final existing = _valueStreams[key];
     if (existing != null) {
-      return existing.stream;
+      return existing.first.stream;
     }
 
     late StreamController<Uint8List> controller;
     controller = StreamController<Uint8List>.broadcast(
+      onListen: () {
+        (_valueStreams[key] ??= {}).add(controller);
+      },
       onCancel: () {
         if (!controller.hasListener) {
-          _valueStreams.remove(key);
+          final controllers = _valueStreams[key];
+          controllers?.remove(controller);
+          if (controllers != null && controllers.isEmpty) {
+            _valueStreams.remove(key);
+          }
         }
       },
     );
-    _valueStreams[key] = controller;
+    _valueStreams[key] = {controller};
     return controller.stream;
   }
 
@@ -216,12 +225,17 @@ class CharacteristicLifecycleCoordinator {
       characteristicId: characteristicId,
       valueSize: value.length,
     );
-    _valueStreams[_CharacteristicValueKey.fromParts(
+    final controllers =
+        _valueStreams[_CharacteristicValueKey.fromParts(
           deviceId,
           serviceId,
           characteristicId,
-        )]
-        ?.add(value);
+        )];
+    if (controllers != null) {
+      for (final controller in controllers) {
+        controller.add(value);
+      }
+    }
     if (serviceId.isEmpty) {
       _dispatchLegacyValue(deviceId, characteristicId, value);
     }
@@ -249,7 +263,9 @@ class CharacteristicLifecycleCoordinator {
       if (key.service.isNotEmpty &&
           key.deviceId == deviceId &&
           key.characteristic == characteristic) {
-        entry.value.add(value);
+        for (final controller in entry.value) {
+          controller.add(value);
+        }
       }
     }
   }

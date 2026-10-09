@@ -1,0 +1,238 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_e85fedc7`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_e85fedc7`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart
+00:00 +0: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothDevice.discoverGatt exposes discovered services
+00:00 +1: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: fixture snapshots stay valid without an invalidation callback
+00:00 +2: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: service changes invalidate discovered GATT snapshots
+00:00 +3: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.characteristic resolves a discovered characteristic
+00:00 +4: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.characteristic matches short and full UUIDs
+00:00 +5: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.characteristic exposes characteristic info
+00:00 +6: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.hasCharacteristic returns true when discovered
+00:00 +7: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.hasCharacteristic returns false when not found
+00:00 +8: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.hasCharacteristic applies service filters
+00:00 +9: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.hasCharacteristic matches short and full UUIDs
+00:00 +10: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.hasCharacteristic returns true when ambiguous
+00:00 +11: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.characteristic throws with service filter and missing characteristic context
+00:00 +12: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.characteristic throws when not found
+00:00 +13: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.characteristic throws when characteristic is ambiguous
+00:00 +14: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothGatt.characteristic resolves ambiguous characteristic by service
+00:00 +15: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothDevice.discoverServices propagates platform errors
+00:00 +16: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothDevice.discoverServices coalesces concurrent device requests
+00:00 +17: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothDevice.discoverServices can retry after failure
+00:00 +18: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothDevice.discoverServices retries after timeout and disconnect
+00:00 +19: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothDevice.discoverServices retries after GATT services change
+00:00 +20: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: an immediate discovery retry ignores the previous GATT cancellation
+00:00 +21: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: a disconnect while the native discovery start is still pending reports the disconnect
+00:00 +22: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: a GATT services change while the native discovery start is still pending reports the change
+00:00 +23: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications enable and disable notify
+00:00 +24: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications enable and disable notify
+00:00 +25: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications enable and disable notify
+00:00 +26: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications enable and disable notify
+00:00 +27: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications enable and disable notify
+00:00 +28: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications enable and disable notify
+00:00 +29: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications enable and disable notify
+00:00 +30: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications enable and disable notify
+00:00 +31: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothDevice.readValue pairs and retries a security failure
+00:00 +32: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications emits notify setup errors
+00:00 +33: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications emits notify setup errors
+00:00 +34: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: bonded security failures require user action without retrying
+00:00 +35: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications recover security setup errors
+00:00 +36: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications recover security setup errors
+00:00 +37: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothCharacteristic.writeInChunks writes serial chunks
+00:00 +38: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothCharacteristic.writeInChunks writes serial chunks
+00:00 +39: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications disables after pending enable
+00:00 +40: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications disables after pending enable
+00:00 +41: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_gatt_test.dart: BluetoothCharacteristic.writeInChunks rejects invalid sizes
+00:00 +42: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications share native listener ownership
+00:00 +43: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications share native listener ownership
+00:00 +44: loading /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_uuid_test.dart
+00:00 +44: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic notifications can retry failed setup
+00:00 +45: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic rejects conflicting notification properties
+00:00 +46: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_notifications_test.dart: BluetoothCharacteristic can re-enable after failed final disable
+00:00 +47: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_uuid_test.dart: canonicalBluetoothUuid expands short and dashed UUIDs
+00:00 +48: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_uuid_test.dart: bluetoothUuidKey returns stable canonical keys
+00:00 +49: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_uuid_test.dart: bluetoothUuidKey preserves invalid UUIDs
+00:00 +50: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/cancellation_signal_test.dart: an operation that completes first wins
+00:00 +51: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/cancellation_signal_test.dart: a cancellation wins over a still-pending operation
+00:00 +52: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/cancellation_signal_test.dart: a platform failure propagating first is not masked by a cancellation
+00:00 +53: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/cancellation_signal_test.dart: cancellation is one-shot and idempotent
+00:00 +54: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/cancellation_signal_test.dart: racing after cancellation still settles with the cancellation error
+00:00 +55: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/cancellation_signal_test.dart: the cancellation error is built when the signal fires, not when racing
+00:00 +56: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/cancellation_signal_test.dart: the cancellation error factory is not called without a cancellation
+00:01 +57: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: QuickBlueException exposes structured context and a readable string
+00:01 +58: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BlueConnectionState parses known states and rejects invalid states
+00:01 +59: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BluetoothReconnectionPolicy calculates bounded exponential delays and compares by value
+00:01 +60: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BluetoothReconnectionPolicy validates retry limits and backoff values
+00:01 +61: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: QuickBlueCapabilities compares by behavior and exposes convenience checks
+00:01 +62: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: QuickBlueCapabilities unsupported modes disable convenience checks
+00:01 +63: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BlueScanResult manufacturerData falls back to the head when no full payload
+00:01 +64: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BlueScanResult manufacturerData falls back to the head when full payload is empty
+00:01 +65: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BlueScanResult manufacturerData prefers the full payload when present
+00:01 +66: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BlueScanResult defensively copies scan payload collections and bytes
+00:01 +67: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BlueScanResult compares by value
+00:01 +68: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanFilter defensively copies and exposes unmodifiable service UUIDs
+00:01 +69: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanFilter defensively copies and exposes unmodifiable manufacturer data
+00:01 +70: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanFilter defensively copies and exposes unmodifiable service data
+00:01 +71: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanFilter compares service UUIDs by order
+00:01 +72: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanFilter compares manufacturer data by key and bytes
+00:01 +73: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanFilter compares service data by UUID and bytes
+00:01 +74: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanFilter compares RSSI thresholds by value
+00:01 +75: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanFilter treats null and empty manufacturer data consistently
+00:01 +76: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanFilter treats null and empty service data consistently
+00:01 +77: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BluetoothConnectionStateChange compares by value
+00:01 +78: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BluetoothBondStateChange compares by value
+00:01 +79: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BluetoothService defensively copies characteristics
+00:01 +80: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BluetoothCharacteristicInfo compares by properties
+00:01 +81: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BluetoothCharacteristicValue defensively copies bytes
+00:01 +82: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BleL2CapSocketEvent compares by value and copies data bytes
+00:01 +83: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BleCompanionFilter defensively copies manufacturer data
+00:01 +84: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: AppleAccessoryDiscovery defensively copies service data and compares by value
+00:01 +85: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: AppleAccessoryDiscovery rejects incomplete or mismatched service-data filters
+00:01 +86: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: AppleAccessoryPickerItem defensively copies product artwork
+00:01 +87: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: AppleAccessory compares by value
+00:01 +88: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanOptions compares nested platform options by value
+00:01 +89: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: ScanOptions defensively copies Darwin solicited service UUIDs
+00:01 +90: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: CompanionAssociationRequest compares by value
+00:01 +91: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: CompanionAssociation compares by value
+00:01 +92: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: CompanionAssociation creates from map payload
+00:01 +93: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: CompanionDevice compares by value
+00:01 +94: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BleInputProperty has a string representation
+00:01 +95: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/models_test.dart: BleOutputProperty has a string representation
+00:01 +96: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_exception_test.dart: QuickBlueGattException exposes structured native status
+00:01 +97: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_exception_test.dart: QuickBlueSecurityException exposes structured native error
+00:01 +98: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_events_test.dart: device streams only emit events for that device
+00:01 +99: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_events_test.dart: global GATT service change stream emits platform events
+00:01 +100: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_events_test.dart: legacy callbacks are still called while streams receive events
+00:01 +101: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_events_test.dart: default service discovery callback maps raw ids to characteristics
+00:01 +102: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_events_test.dart: service discovery stream delivery remains asynchronous
+00:01 +103: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_events_test.dart: custom onServiceDiscovered callback receives callbacks
+00:01 +104: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_events_test.dart: default onValueChanged emits stream events
+00:01 +105: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_events_test.dart: custom onValueChanged receives callbacks in addition to stream events
+00:02 +106: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: BlueScanResult exposes advertising manufacturer bytes
+00:02 +107: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: BlueScanResult keeps scan data from map payloads
+00:02 +108: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: bluetoothStateStream emits the current availability snapshot
+00:02 +109: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: bluetoothStateStream supports concurrent listeners and replays latest
+00:02 +110: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: default platform reports missing implementation
+00:02 +111: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scan starts scanning, emits devices, and stops on cancel
+00:02 +112: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults rethrows startScan errors
+00:02 +113: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: bluetoothDeviceStream is scan stream alias
+00:02 +114: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: platform singleton can be swapped for testing
+00:02 +115: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: connectedDevices returns BluetoothDevice objects
+00:02 +116: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults starts scanning, emits results, and stops on cancel
+00:02 +117: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults stream is single subscription
+00:02 +118: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults calls share the active scan for matching filters
+00:02 +119: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults filters results below the RSSI threshold
+00:02 +120: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults filters service data by UUID and payload prefix
+00:02 +121: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults accepts any payload for an empty service-data prefix
+00:02 +122: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults drops duplicate devices when duplicates are disabled
+00:02 +123: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults rejects a different filter while scanning
+00:02 +124: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults rejects another scan with mismatched manufacturer data length
+00:02 +125: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults rejects another scan with mismatched manufacturer data values
+00:02 +126: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults emits results after startScan completes
+00:02 +127: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults stops scanning after pending start completes on cancel
+00:02 +128: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scan forwards the scan filter to startScan
+00:02 +129: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scan forwards scan options to startScan
+00:02 +130: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart: scanResults rejects another scan with mismatched scan options
+00:02 +131: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_copy_test.dart: a fully populated filter copies with equality
+00:02 +132: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_copy_test.dart: filter contents are immutable at the boundary
+00:02 +133: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_copy_test.dart: null filter fields stay null through a copy
+00:02 +134: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_copy_test.dart: fully populated scan options copy with equality
+00:02 +135: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_copy_test.dart: copied darwin options keep their own uuid list
+00:03 +136: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_filter_test.dart: matchesServiceDataFilter accepts all advertisements when no filter is configured
+00:03 +137: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_filter_test.dart: matchesServiceDataFilter matches UUIDs and payload prefixes
+00:03 +138: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_filter_test.dart: matchesServiceDataFilter matches any configured entry
+00:03 +139: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_filter_test.dart: matchesServiceDataFilter uses an empty prefix to match any payload for a UUID
+00:03 +140: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/scan_filter_test.dart: matchesServiceDataFilter rejects missing UUIDs and mismatched prefixes
+00:03 +141: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice delegates commands to platform
+00:03 +142: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.bondStateStream filters device transitions
+00:03 +143: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.waitForBondState returns an existing state
+00:03 +144: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.waitForBondState awaits a matching event
+00:03 +145: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.connect waits for connected state
+00:03 +146: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.connect completes with an error on failure
+00:03 +147: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.connect retries a busy shared connection
+00:03 +148: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.connect pairs and retries a security failure
+00:03 +149: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: concurrent security failures share one device recovery
+00:03 +150: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.connect ignores other-device failure events
+00:03 +151: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.disconnect waits for disconnected state
+00:03 +152: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.disconnect completes with an error on failure
+00:03 +153: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.disconnect ignores other-device failure events
+00:03 +154: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.disconnect supersedes a timed-out connect and permits retry
+00:03 +155: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.connect supersedes a timed-out disconnect with no callback
+00:03 +156: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.connect ignores a late successful disconnect callback
+00:03 +157: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.disconnect stops an automatic busy retry
+00:03 +158: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.disconnect stops an automatic busy retry
+00:03 +159: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/failure_reason_test.dart: GATT and security subtypes survive reason attachment and recovery
+00:03 +160: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.maintainConnection reconnects after link loss
+00:03 +161: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/failure_reason_test.dart: raw native connect exception is retained, not parsed by wording
+00:03 +162: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: managed connection stops after its retry limit
+00:03 +163: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: managed connection stops after its retry limit
+00:03 +164: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/failure_reason_test.dart: connection failure event preserves native diagnostics
+00:03 +165: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: managed connection does not retry an initial failure
+00:03 +166: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/failure_reason_test.dart: disconnect superseding connect is caller cancellation
+00:03 +167: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: cancelling managed connection interrupts reconnect delay
+00:03 +168: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/failure_reason_test.dart: unexpected established disconnect has a reason even on native success
+00:03 +169: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: cancelling managed connection supersedes a pending connect
+00:03 +170: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: cancelling managed connection supersedes a pending connect
+00:03 +171: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/failure_reason_test.dart: local disconnect is not a remote failure and reconnect resets context
+00:03 +172: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: explicit disconnect stops a managed connection
+00:03 +173: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: explicit disconnect stops a managed connection
+00:03 +174: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/failure_reason_test.dart: remote loss cancels discovery with reason and original diagnostics
+00:03 +175: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: managed connection has exclusive device ownership
+00:03 +176: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/failure_reason_test.dart: explicit local disconnect cancels pending discovery as caller cancellation
+00:03 +177: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice shares overlapping disconnect operations
+00:03 +178: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/failure_reason_test.dart: database invalidation is not mistaken for caller cancellation
+00:03 +179: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice allows concurrent operations for different devices
+00:03 +180: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/bluetooth_device_connection_test.dart: BluetoothDevice.discoverServices completes with discovered services
+00:04 +181: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_multi_engine_test.dart: connect cancellation in one engine leaves the other engine waiting
+00:04 +182: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_multi_engine_test.dart: connect timeout in one engine leaves the other engine waiting
+00:04 +183: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_multi_engine_test.dart: disconnect cancellation in one engine leaves the other engine waiting
+00:04 +184: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_multi_engine_test.dart: disconnect timeout in one engine leaves the other engine waiting
+00:04 +185: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_multi_engine_test.dart: discoverServices cancellation in one engine leaves the other engine waiting
+00:04 +186: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_multi_engine_test.dart: discoverServices timeout in one engine leaves the other engine waiting
+00:04 +187: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_multi_engine_test.dart: requestMtu cancellation in one engine leaves the other engine waiting
+00:04 +188: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_multi_engine_test.dart: requestMtu timeout in one engine leaves the other engine waiting
+00:04 +189: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: connect releases expired callers and rejoins missing native work
+00:04 +190: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: connect consumes late errors after every caller leaves
+00:04 +191: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: disconnect releases expired callers and rejoins missing native work
+00:04 +192: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: disconnect consumes late errors after every caller leaves
+00:04 +193: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: discoverServices releases expired callers and rejoins missing native work
+00:04 +194: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: discoverServices consumes late errors after every caller leaves
+00:04 +195: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: requestMtu releases expired callers and rejoins missing native work
+00:04 +196: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: requestMtu consumes late errors after every caller leaves
+00:04 +197: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: pre-cancelled and negative-deadline requests do not start native work
+00:04 +198: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: success removes long deadline timer before later cancellation
+00:04 +199: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: synchronous cancellation during native start is not missed
+00:04 +200: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: conflicting MTU arguments cannot create replacement native work
+00:04 +201: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: connect timeout and cancellation leave other device handles interested
+00:04 +202: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: disconnect deadline cannot undo native detach; retry shares callback
+00:04 +203: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: discovery timeout rejoins until invalidation, then starts fresh
+00:04 +204: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_deadline_test.dart: MTU deadline and cancellation share negotiation and preserve another engine
+00:05 +205: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_integration_test.dart: same-turn opposite operations: latest connect wins
+00:05 +206: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_integration_test.dart: same-turn opposite operations: latest disconnect wins
+00:05 +207: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_integration_test.dart: explicit disconnect prevents late recovery reconnect
+00:05 +208: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_integration_test.dart: managed cancellation prevents late recovery reconnect
+00:05 +209: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_integration_test.dart: token cancellation has a typed reason (pre-cancelled: true)
+00:05 +210: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/operation_integration_test.dart: token cancellation has a typed reason (pre-cancelled: false)
+00:05 +211: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart: retained raw characteristic value stream delivers after re-listen
+00:05 +211 -1: /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart: retained raw characteristic value stream delivers after re-listen [E]
+  Expected: [[2]]
+    Actual: MappedListIterable<Uint8List, List<int>>:[]
+     Which: at location [0] is MappedListIterable<Uint8List, List<int>>:[] which shorter than expected
+
+  package:matcher                                           expect
+  package:flutter_test/src/widget_tester.dart 473:18        expect
+  test/retained_characteristic_value_stream_test.dart 47:7  main.<fn>
+
+00:05 +211 -1: Some tests failed.
+
+Failing tests:
+  /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart: retained raw characteristic value stream delivers after re-listen
