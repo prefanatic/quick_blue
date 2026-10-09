@@ -2,6 +2,11 @@
 
 ### Added
 
+- Migrate the explorer to public connection lifecycle methods with one connect
+  deadline, bounded client-local abandonment, awaitable shutdown and observable
+  cleanup errors. Cover deadlines, late events, switching and simulated client
+  isolation with fake-clock tests; native connection behavior is unchanged.
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.

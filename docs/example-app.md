@@ -4,7 +4,7 @@ title: "Use the BLE explorer and test profiles"
 description: "Exercise device workflows and choose an integration test that proves the intended behavior."
 tags: ["example", "testing"]
 
-sources: [{"id": "source1", "resource": "../quick_blue/example/lib/src/ble_explorer_controller.dart"}, {"id": "source2", "resource": "../quick_blue/example/README.md"}, {"id": "source3", "resource": "../quick_blue/example/integration_test/ble_smoke_test.dart"}, {"id": "source4", "resource": "../quick_blue/example/integration_test/ble_characteristic_benchmark_test.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue/example/lib/src/ble_explorer_controller.dart"}, {"id": "source2", "resource": "../quick_blue/example/README.md"}, {"id": "source3", "resource": "../quick_blue/example/integration_test/ble_smoke_test.dart"}, {"id": "source4", "resource": "../quick_blue/example/integration_test/ble_characteristic_benchmark_test.dart"}, {"id": "lifecycle_tests", "resource": "../quick_blue/example/test/src/explorer_lifecycle_test.dart"}]
 ---
 
 # Use the BLE explorer and test profiles
@@ -13,6 +13,32 @@ Run the explorer from `quick_blue/example` with `flutter run -d TARGET` after
 root `flutter pub get`. It provides scan controls, device selection, service
 inspection and characteristic interaction; its controller is a concrete lifecycle
 reference, not a requirement to copy its UI into your app.
+
+## Explorer connection ownership
+
+The controller uses public `BluetoothDevice.connect(cancellationToken: ...)` and
+`disconnect(timeout: ...)`, not raw platform calls or an extra terminal-event
+waiter. One connect deadline covers preparation, the raw operation and its state
+event (15 seconds by default). On timeout, the UI stops connecting and explicitly
+requests client-local disconnect, allowing up to 3 seconds more for abandonment.
+Selection switching and explicit disconnect use the same bounded release and
+request detach once per controller-owned connection attempt. A selected but
+never-connected device is not detached.
+
+`dispose()` starts cleanup synchronously; owners that need completion can await
+`controller.shutdown()`. Repeated shutdown calls share completion and do not
+reconnect. Cleanup errors, including timeouts, remain available in
+`controller.cleanupErrors` after shutdown; active UI cleanup errors are also
+logged. `lastConnectionError` preserves the original typed connect failure.
+Selection and attempt revisions guard UI work, while the public coordinator owns
+operation supersession. The explorer does not adopt `maintainConnection`.
+
+Late events from an abandoned selection do not restore its UI. Caller timeouts
+and bounded cleanup are not proof that native work stopped or that a physical
+link closed: another engine may remain attached. Fake-clock controller tests in
+`test/src/explorer_lifecycle_test.dart` prove Dart ownership and UI behavior only.
+Native callbacks lack portable request IDs, so arbitrary late events racing a
+new same-device native attempt cannot be distinguished solely by Dart UI guards.
 
 ## Choose the right hardware test
 

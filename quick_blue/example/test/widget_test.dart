@@ -6,6 +6,24 @@ import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart
 
 import 'fake_quick_blue_platform.dart';
 
+// Disposal now starts bounded asynchronous cleanup. Unmount explicitly and
+// drain root-zone stream-cancellation completions before timer invariants run.
+void testExplorerWidgets(String description, WidgetTesterCallback body) {
+  testWidgets(description, (tester) async {
+    try {
+      await body(tester);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      for (var i = 0; i < 20; i++) {
+        await tester.pump();
+        await tester.runAsync(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+    }
+  });
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -23,7 +41,9 @@ void main() {
     await platform.dispose();
   });
 
-  testWidgets('shows the BLE explorer shell', (WidgetTester tester) async {
+  testExplorerWidgets('shows the BLE explorer shell', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MyApp());
     await tester.pump();
 
@@ -32,7 +52,7 @@ void main() {
     expect(find.text('Events (1)'), findsOneWidget);
   });
 
-  testWidgets('follows system brightness with light and dark themes', (
+  testExplorerWidgets('follows system brightness with light and dark themes', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const MyApp());
@@ -45,7 +65,7 @@ void main() {
     expect(app.darkTheme!.brightness, Brightness.dark);
   });
 
-  testWidgets('shows only current platform-specific scan options', (
+  testExplorerWidgets('shows only current platform-specific scan options', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -67,7 +87,7 @@ void main() {
     expect(find.text('In range dBm'), findsNothing);
   });
 
-  testWidgets('cancels report delay input without errors', (
+  testExplorerWidgets('cancels report delay input without errors', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -90,7 +110,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shows concrete default scan option values', (
+  testExplorerWidgets('shows concrete default scan option values', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -109,7 +129,7 @@ void main() {
     expect(find.text('Default'), findsNothing);
   });
 
-  testWidgets('uses one scan mode tile for Android', (
+  testExplorerWidgets('uses one scan mode tile for Android', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -127,60 +147,62 @@ void main() {
     expect(find.text('Scan mode'), findsNothing);
   });
 
-  testWidgets('starts with events collapsed and toggles from its header', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const MyApp());
-    await tester.pump();
+  testExplorerWidgets(
+    'starts with events collapsed and toggles from its header',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const MyApp());
+      await tester.pump();
 
-    final panel = find.byKey(const ValueKey('ble_events_panel'));
-    final collapsedHeight = tester.getSize(panel).height;
-    expect(collapsedHeight, lessThan(60));
-    expect(
-      find.byKey(const ValueKey('ble_events_resize_handle')),
-      findsNothing,
-    );
+      final panel = find.byKey(const ValueKey('ble_events_panel'));
+      final collapsedHeight = tester.getSize(panel).height;
+      expect(collapsedHeight, lessThan(60));
+      expect(
+        find.byKey(const ValueKey('ble_events_resize_handle')),
+        findsNothing,
+      );
 
-    await tester.tap(find.byKey(const ValueKey('ble_events_header')));
-    await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('ble_events_header')));
+      await tester.pump();
 
-    expect(tester.getSize(panel).height, greaterThan(collapsedHeight));
-    expect(
-      find.byKey(const ValueKey('ble_events_resize_handle')),
-      findsOneWidget,
-    );
+      expect(tester.getSize(panel).height, greaterThan(collapsedHeight));
+      expect(
+        find.byKey(const ValueKey('ble_events_resize_handle')),
+        findsOneWidget,
+      );
 
-    await tester.tap(find.byKey(const ValueKey('ble_events_header')));
-    await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('ble_events_header')));
+      await tester.pump();
 
-    expect(tester.getSize(panel).height, collapsedHeight);
-    expect(
-      find.byKey(const ValueKey('ble_events_resize_handle')),
-      findsNothing,
-    );
-  });
+      expect(tester.getSize(panel).height, collapsedHeight);
+      expect(
+        find.byKey(const ValueKey('ble_events_resize_handle')),
+        findsNothing,
+      );
+    },
+  );
 
-  testWidgets('resizes the expanded events panel by dragging its handle', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const MyApp());
-    await tester.pump();
+  testExplorerWidgets(
+    'resizes the expanded events panel by dragging its handle',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const MyApp());
+      await tester.pump();
 
-    await tester.tap(find.byKey(const ValueKey('ble_events_header')));
-    await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('ble_events_header')));
+      await tester.pump();
 
-    final panel = find.byKey(const ValueKey('ble_events_panel'));
-    final before = tester.getSize(panel).height;
-    await tester.drag(
-      find.byKey(const ValueKey('ble_events_resize_handle')),
-      const Offset(0, -48),
-    );
-    await tester.pump();
+      final panel = find.byKey(const ValueKey('ble_events_panel'));
+      final before = tester.getSize(panel).height;
+      await tester.drag(
+        find.byKey(const ValueKey('ble_events_resize_handle')),
+        const Offset(0, -48),
+      );
+      await tester.pump();
 
-    expect(tester.getSize(panel).height, greaterThan(before));
-  });
+      expect(tester.getSize(panel).height, greaterThan(before));
+    },
+  );
 
-  testWidgets('resizes the wide scan pane by dragging its handle', (
+  testExplorerWidgets('resizes the wide scan pane by dragging its handle', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 800);
