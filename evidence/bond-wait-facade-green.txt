@@ -1,0 +1,102 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_121b4a40`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_121b4a40`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart
+00:00 +0: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: a bond timeout cancels its state subscription
+00:00 +1: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an already bonded device asks the user and never starts pairing
+00:00 +2: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an unknown bond state reports unsupported
+00:00 +3: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that reaches bonded is reported as recovered
+00:00 +4: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:00 +5: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:00 +6: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that reports bonded straight away needs no pairing
+00:00 +7: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that starts then completes is recovered
+00:00 +8: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that starts and fails asks the user
+00:00 +9: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that reaches bonded is recovered
+00:00 +10: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that reports bonded straight away is recovered
+00:00 +11: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:00 +12: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:00 +13: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:00 +14: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +15: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +16: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +17: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +18: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +19: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +20: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +21: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +22: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +23: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:01 +24: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:01 +25: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:01 +26: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:01 +27: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:01 +28: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid waits for an existing bond operation
+00:01 +29: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid keeps stale-bond recovery as user action
+00:01 +30: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid coalesces concurrent Android security recovery
+00:01 +31: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +32: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps scan result events
+00:02 +33: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid raw scan results apply the active service-data filter
+00:02 +34: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid reuses the scan result event stream
+00:02 +35: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps companion host API results
+00:02 +36: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid flutter API callbacks surface shared event streams
+00:02 +37: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid remote disconnect preserves unknown Android native status
+00:02 +38: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid native local disconnect intent survives request acceptance
+00:02 +39: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid forwards known connection states and ignores unknown connection states
+00:02 +40: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps connection authentication status to a security error
+00:02 +41: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps L2CAP socket events and forwards socket writes
+00:02 +42: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid emits stream error for malformed L2CAP events
+00:03 +43: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/write_payload_limits_test.dart: QuickBlueAndroid reports unknown instead of guessing from MTU
+00:03 +44: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/write_payload_limits_test.dart: QuickBlueLinux reports unknown instead of guessing from MTU
+00:03 +45: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/write_payload_limits_test.dart: QuickBlueWindows reports unknown instead of guessing from MTU
+00:03 +46: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: configure delegates maintainState to the platform
+00:03 +47: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: capabilities delegates to the platform
+00:03 +48: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: buffers and replays Darwin restoration events exactly once
+00:03 +49: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: delivers live Darwin restoration events through the observer
+00:03 +50: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: disabled instrumentation preserves future and stream identity
+00:03 +51: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: future instrumentation preserves completion and uncaught errors
+00:03 +52: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: stream instrumentation preserves broadcast and synchronous delivery
+00:03 +53: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: stream observation ends when cancelOnError cancels the source
+00:03 +54: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: observer reports typed operation context and measurements
+00:03 +55: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: observer records managed connection lifetime
+00:03 +56: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: observer records failed operations
+00:03 +57: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: observer exposes redacted structured failure metadata
+00:03 +58: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: composite observer isolates children and forwards value events
+00:03 +59: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: connectedDevices observation includes requested service UUIDs
+00:03 +60: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: observer callback failures do not affect operations
+00:03 +61: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: observer records the managed connection lifecycle
+00:03 +62: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: connect waits for the connected state
+00:03 +63: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: deprecated scanResultStream returns platform stream
+00:03 +64: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: deprecated bluetoothDeviceStream returns platform stream
+00:03 +65: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: bluetoothStateStream delegates to the platform
+00:03 +66: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: bluetoothStateStream replays latest state to new listeners
+00:03 +67: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: disconnect waits for the disconnected state
+00:03 +68: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: bondState delegates to the platform device
+00:03 +69: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: bondStateStream forwards platform transitions
+00:03 +70: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: waitForBondState delegates through the device API
+00:03 +71: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: waitForBondState forwards timeout and cancellation
+00:03 +72: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: pair delegates to the platform device
+00:03 +73: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: discoverGatt returns a discovered GATT view
+00:03 +74: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: scanResults starts and stops scanning
+00:03 +75: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: observer records a consumed scan result as stopped
+00:03 +76: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: scanResults forwards scan options
+00:03 +77: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: scan emits BluetoothDevice objects
+00:03 +78: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: scanResults stream is single subscription
+00:03 +79: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: notifications waits for setNotifiable before emitting values
+00:03 +80: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: value observer reports passive characteristic traffic immediately
+00:03 +81: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: legacy companionDissassociate delegates to the platform
+00:03 +82: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: companionAssociate delegates to the platform
+00:03 +83: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: companionAssociate omits filter when no criteria passed
+00:03 +84: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: companionAssociate keeps manufacturer data when service UUIDs are empty
+00:03 +85: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: getCompanionAssociations delegates to the platform
+00:03 +86: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: getCompanionAssociations maps missing fields in legacy model
+00:03 +87: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: appleAccessorySetup delegates typed operations
+00:03 +88: /home/hermes/quick_blue/.worktrees/t_121b4a40/quick_blue/test/quick_blue_test.dart: appleAccessorySetup rejects an empty picker
+00:03 +89: All tests passed!

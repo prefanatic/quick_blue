@@ -16,7 +16,7 @@ sources: [{"id": "source1", "resource": "../quick_blue_linux/lib/quick_blue_linu
 | Windows state stream monitors power continuously | It currently emits an availability snapshot only |
 | Linux supports requested/readable MTU | `requestMtu` is unsupported here |
 | Any connected lookup works without UUIDs | Darwin requires service UUIDs |
-| Future timeout aborts Bluetooth work | Explicitly detach/clean up before retrying |
+| Future timeout aborts Bluetooth work | Explicitly detach/clean up before retrying; use built-in bond-wait options to release observation, not to cancel OS pairing |
 | A valid GATT snapshot remains valid forever | Rediscover after service change; old snapshots are invalid |
 | Chunked writes implement long-write/reassembly | Choose your own framing and acknowledgement protocol |
 | Shared engines share Dart objects | Recreate local handles/subscriptions and coordinate handoff |

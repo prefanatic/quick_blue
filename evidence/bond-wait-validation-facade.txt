@@ -1,0 +1,102 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_5895d53b`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_5895d53b`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart
+00:00 +0: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a bond timeout cancels its state subscription
+00:00 +1: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: an already bonded device asks the user and never starts pairing
+00:00 +2: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: an unknown bond state reports unsupported
+00:00 +3: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that reaches bonded is reported as recovered
+00:00 +4: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:00 +5: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that reports bonded straight away needs no pairing
+00:00 +6: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that starts then completes is recovered
+00:00 +7: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that starts then completes is recovered
+00:00 +8: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that starts and fails asks the user
+00:00 +9: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that reaches bonded is recovered
+00:00 +10: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that reports bonded straight away is recovered
+00:00 +11: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:01 +12: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a failing bond-state read asks the user
+00:01 +13: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a failing explicit pairing asks the user
+00:01 +14: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a bond-state stream error asks the user
+00:01 +15: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +16: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +17: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +18: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +19: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +20: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +21: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +22: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +23: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +24: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:01 +25: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps bond state events
+00:01 +26: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid uses an implicit bond and retries the operation once
+00:01 +27: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:01 +28: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid waits for an existing bond operation
+00:01 +29: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid keeps stale-bond recovery as user action
+00:01 +30: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid coalesces concurrent Android security recovery
+00:01 +31: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +32: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +33: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +34: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +35: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +36: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +37: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +38: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +39: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +40: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +41: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +42: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +43: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +44: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +45: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +46: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +47: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +48: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +49: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +50: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +51: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +52: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +53: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +54: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +55: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +56: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +57: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +58: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +59: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +60: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +61: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +62: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +63: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +64: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +65: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +66: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +67: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +68: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +69: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +70: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +71: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +72: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +73: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +74: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:02 +75: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps scan result events
+00:02 +76: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid raw scan results apply the active service-data filter
+00:02 +77: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid reuses the scan result event stream
+00:02 +78: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps companion host API results
+00:02 +79: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid flutter API callbacks surface shared event streams
+00:02 +80: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid remote disconnect preserves unknown Android native status
+00:02 +81: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid native local disconnect intent survives request acceptance
+00:02 +82: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid forwards known connection states and ignores unknown connection states
+00:02 +83: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps connection authentication status to a security error
+00:02 +84: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps L2CAP socket events and forwards socket writes
+00:02 +85: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid emits stream error for malformed L2CAP events
+00:03 +86: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/write_payload_limits_test.dart: QuickBlueAndroid reports unknown instead of guessing from MTU
+00:03 +87: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/write_payload_limits_test.dart: QuickBlueLinux reports unknown instead of guessing from MTU
+00:03 +88: /home/hermes/quick_blue/.worktrees/t_5895d53b/quick_blue/test/write_payload_limits_test.dart: QuickBlueWindows reports unknown instead of guessing from MTU
+00:03 +89: All tests passed!

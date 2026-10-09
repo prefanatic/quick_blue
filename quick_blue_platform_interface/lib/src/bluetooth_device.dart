@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:async/async.dart';
@@ -173,32 +174,92 @@ class BluetoothDevice {
   /// Waits until this device reaches [targetState].
   ///
   /// The event subscription is established before the current state is read,
-  /// so a transition racing with the snapshot is not missed. Timeouts are left
-  /// to callers with normal `Future.timeout` composition.
-  Future<BluetoothBondState> waitForBondState(BluetoothBondState targetState) {
+  /// so a transition racing with the snapshot is not missed. [timeout] bounds
+  /// the whole wait, including the snapshot, with a `TimeoutException`.
+  /// [cancellationToken] stops only this caller with
+  /// [QuickBlueErrorCode.cancelled]. Both release this wait's event subscription;
+  /// neither initiates, modifies, or cancels platform bonding. Omitting both
+  /// options preserves an unbounded wait. External `Future.timeout` composition
+  /// does not release the underlying wait's subscription.
+  Future<BluetoothBondState> waitForBondState(
+    BluetoothBondState targetState, {
+    Duration? timeout,
+    QuickBlueCancellationToken? cancellationToken,
+  }) {
     return QuickBlueInstrumentation.observeFuture<BluetoothBondState>(
       kind: QuickBlueOperationKind.waitForBondState,
       deviceId: deviceId,
       targetBondState: targetState,
-      action: () => _waitForBondState(targetState),
+      action: () => _waitForBondState(
+        targetState,
+        timeout: timeout,
+        cancellationToken: cancellationToken,
+      ),
     );
   }
 
   Future<BluetoothBondState> _waitForBondState(
-    BluetoothBondState targetState,
-  ) async {
+    BluetoothBondState targetState, {
+    Duration? timeout,
+    QuickBlueCancellationToken? cancellationToken,
+  }) async {
+    QuickBlueException cancelled() => QuickBlueException(
+      code: QuickBlueErrorCode.cancelled,
+      failureReason: QuickBlueFailureReason.callerCancelled,
+      operation: 'waitForBondState',
+      deviceId: deviceId,
+      message: 'The caller stopped waiting for waitForBondState on $deviceId.',
+    );
+    if (timeout != null && timeout.isNegative) {
+      throw ArgumentError.value(timeout, 'timeout');
+    }
+    if (cancellationToken?.isCancelled ?? false) throw cancelled();
+
     final stateEvents = StreamQueue(
       bondStateStream.where((event) => event.state == targetState),
     );
+    final stopped = Completer<BluetoothBondState>();
+    void cancel() {
+      if (!stopped.isCompleted) stopped.completeError(cancelled());
+    }
+
+    Timer? timer;
 
     try {
-      final currentState = await _platform.bondState(deviceId);
+      // Attach error handlers before registering cancellation or invoking the
+      // snapshot: a platform implementation can synchronously cancel the token.
+      final snapshot = Completer<BluetoothBondState>();
+      final current = Future.any([snapshot.future, stopped.future]);
+      cancellationToken?.addListener(cancel);
+      if (timeout != null) {
+        timer = Timer(timeout, () {
+          if (!stopped.isCompleted) {
+            stopped.completeError(
+              TimeoutException(
+                'waitForBondState for Bluetooth device $deviceId',
+                timeout,
+              ),
+            );
+          }
+        });
+      }
+      snapshot.complete(
+        Future<BluetoothBondState>.sync(() => _platform.bondState(deviceId)),
+      );
+      final currentState = await current;
       if (currentState == targetState) {
         return currentState;
       }
-      return (await stateEvents.next).state;
+      return await Future.any([
+        stateEvents.next.then((event) => event.state),
+        stopped.future,
+      ]);
     } finally {
-      await stateEvents.cancel();
+      timer?.cancel();
+      cancellationToken?.removeListener(cancel);
+      // A target event may never arrive. Do not wait for a pending next request
+      // before detaching the caller's platform subscription.
+      await stateEvents.cancel(immediate: true);
     }
   }
 

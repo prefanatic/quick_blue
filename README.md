@@ -94,8 +94,9 @@ not mean the site has been published.
 
 ## Caller deadlines and cancellation
 
-Device `connect`, `disconnect`, `discoverServices`, `discoverGatt`, and
-`requestMtu` accept optional `timeout` and `cancellationToken` arguments:
+Device `connect`, `disconnect`, `discoverServices`, `discoverGatt`,
+`requestMtu`, and `waitForBondState` accept optional `timeout` and
+`cancellationToken` arguments:
 
 ```dart
 final cancellation = QuickBlueCancellationToken();
@@ -119,6 +120,12 @@ undo a disconnect already requested. A late successful connect can therefore
 still leave this engine attached: explicitly disconnect when releasing that
 ownership. Engine-local coordination never sends a native cancel on timeout,
 preserving the existing process-wide ownership rules across Flutter engines.
+
+Bond-state waits are independent observations, not shared native operations.
+Their options also release the internal bond-event subscription when no target
+event arrives, including while reading the snapshot. Stopping a wait does not
+initiate, modify, or cancel OS pairing. Use the built-in `timeout` option rather
+than external `Future.timeout` composition to clean up that observation.
 
 Concurrent same-device connects/disconnects and identical MTU requests now share
 outstanding work, as discovery already does. An MTU request with a different

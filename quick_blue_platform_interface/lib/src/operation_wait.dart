@@ -15,6 +15,21 @@ class QuickBlueCancellationToken {
   /// Whether [cancel] has been called.
   bool get isCancelled => _isCancelled;
 
+  /// Registers a caller-local observation wait; already cancelled tokens fire
+  /// immediately. Remove the listener when the wait completes.
+  @internal
+  void addListener(void Function() listener) {
+    if (_isCancelled) {
+      listener();
+    } else {
+      _listeners.add(listener);
+    }
+  }
+
+  /// Releases a completed observation wait's cancellation listener.
+  @internal
+  void removeListener(void Function() listener) => _listeners.remove(listener);
+
   /// Releases all waits using this token. Repeated calls have no effect.
   void cancel() {
     if (_isCancelled) return;

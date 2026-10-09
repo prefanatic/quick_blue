@@ -2,6 +2,11 @@
 
 ### Added
 
+- Add caller-local `timeout` and `cancellationToken` options to device and static
+  `waitForBondState`. Expiration releases the Dart event subscription even when
+  the snapshot or target event never arrives; concurrent observers remain
+  independent. Stopping observation does not initiate, modify, or cancel bonding.
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.

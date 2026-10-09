@@ -544,6 +544,45 @@ void main() {
     expect(await waiting, BluetoothBondState.bonded);
   });
 
+  testWidgets('waitForBondState forwards timeout and cancellation', (
+    tester,
+  ) async {
+    final timed = QuickBlue.waitForBondState(
+      'device-a',
+      BluetoothBondState.bonded,
+      timeout: const Duration(seconds: 2),
+    );
+    final timeoutResult = expectLater(timed, throwsA(isA<TimeoutException>()));
+    await tester.pump(const Duration(seconds: 2));
+    await tester.runAsync(() async {
+      await timeoutResult;
+    });
+
+    final token = QuickBlueCancellationToken();
+    final cancelled = QuickBlue.waitForBondState(
+      'device-a',
+      BluetoothBondState.bonded,
+      cancellationToken: token,
+    );
+    final cancellationResult = expectLater(
+      cancelled,
+      throwsA(
+        isA<QuickBlueException>().having(
+          (e) => e.failureReason,
+          'reason',
+          QuickBlueFailureReason.callerCancelled,
+        ),
+      ),
+    );
+    await tester.pump();
+    token.cancel();
+    await tester.pump();
+    await tester.runAsync(() async {
+      await cancellationResult;
+    });
+    expect(platform.calls, ['bondState device-a', 'bondState device-a']);
+  });
+
   test('pair delegates to the platform device', () async {
     await QuickBlue.pair('device-a');
 

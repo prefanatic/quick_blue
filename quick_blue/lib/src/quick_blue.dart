@@ -207,11 +207,20 @@ class QuickBlue {
   }
 
   /// Waits until [deviceId] reaches [targetState].
+  ///
+  /// [timeout] and [cancellationToken] release only this caller's bond-state
+  /// observation, including its event subscription. They do not cancel bonding.
   static Future<BluetoothBondState> waitForBondState(
     String deviceId,
-    BluetoothBondState targetState,
-  ) {
-    return device(deviceId).waitForBondState(targetState);
+    BluetoothBondState targetState, {
+    Duration? timeout,
+    QuickBlueCancellationToken? cancellationToken,
+  }) {
+    return device(deviceId).waitForBondState(
+      targetState,
+      timeout: timeout,
+      cancellationToken: cancellationToken,
+    );
   }
 
   /// Starts pairing/bonding with [deviceId].
