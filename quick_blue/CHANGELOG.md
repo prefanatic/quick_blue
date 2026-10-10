@@ -2,6 +2,11 @@
 
 ### Added
 
+- Document Android 17 bond-loss/autonomous-repair verification setup, the
+  unsuccessful emulator diagnostic attempt, and the required physical handset
+  and controlled bond-erasing peripheral. No hardware repair scenario has run;
+  Bluetooth ON and mocked tests are not device verification.
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.
