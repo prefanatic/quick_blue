@@ -1,0 +1,15 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_b66ad336`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_b66ad336`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart
+00:00 +0: send-einval: watchdog termination is failure characterization
+{"case":"send-einval","outcome":"watchdog-killed-operation-not-completed","exitCode":-9,"reaped":true,"elapsedMs":1800,"kind":"observer","observerTicks":10,"socketCalls":1,"connectCalls":1,"sendCalls":4600000,"recvCalls":0,"sentBytes":0,"closeCalls":0,"liveFds":1,"allocations":9,"frees":7,"liveAllocations":2,"mainTicks":0}
+00:01 +1: All tests passed!

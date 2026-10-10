@@ -20,8 +20,10 @@ class L2capChannel {
     required this.libc,
     required this.bluetooth,
     required Logger logger,
+    ffi.Allocator? allocator,
     this.maxPacketLength = 65535,
   }) : _logger = logger,
+       _allocator = allocator ?? calloc,
        _receiveCapacity = maxPacketLength,
        _mtuRefreshPending = true;
 
@@ -37,6 +39,7 @@ class L2capChannel {
   final Libc libc;
   final LibBluetooth bluetooth;
   final Logger _logger;
+  final ffi.Allocator _allocator;
   final int maxPacketLength;
 
   bool _closed = false;
@@ -103,7 +106,7 @@ class L2capChannel {
   }
 
   void _configureChannelOptions(int fd) {
-    final opts = calloc<l2cap_options>();
+    final opts = _allocator<l2cap_options>();
     try {
       final desiredMtu = maxPacketLength.clamp(64, 65535).toInt();
       opts.ref
@@ -127,7 +130,7 @@ class L2capChannel {
         _logger.fine('setsockopt(L2CAP_OPTIONS) failed with errno $err');
       }
     } finally {
-      calloc.free(opts);
+      _allocator.free(opts);
     }
   }
 
@@ -145,7 +148,7 @@ class L2capChannel {
   }
 
   void _connectSocket(int fd) {
-    final addrPtr = calloc<sockaddr_l2>();
+    final addrPtr = _allocator<sockaddr_l2>();
     try {
       addrPtr.ref
         ..l2_family = AF_BLUETOOTH
@@ -153,10 +156,10 @@ class L2capChannel {
         ..l2_cid = 0
         ..l2_bdaddr_type = addressType & 0xFF;
 
-      final addrStruct = calloc<bdaddr_t>();
+      final addrStruct = _allocator<bdaddr_t>();
       try {
         final addrCString = deviceId
-            .toNativeUtf8(allocator: calloc)
+            .toNativeUtf8(allocator: _allocator)
             .cast<ffi.Char>();
         try {
           final parseResult = bluetooth.str2ba(addrCString, addrStruct);
@@ -164,12 +167,12 @@ class L2capChannel {
             throw FormatException('Invalid Bluetooth address: $deviceId');
           }
         } finally {
-          calloc.free(addrCString);
+          _allocator.free(addrCString);
         }
 
         _copyBdaddr(addrPtr.ref, addrStruct.ref);
       } finally {
-        calloc.free(addrStruct);
+        _allocator.free(addrStruct);
       }
 
       // _configureSecurity() applies BT_SECURITY_LOW, so the retry state starts at
@@ -211,12 +214,12 @@ class L2capChannel {
         throw OSError('connect', err);
       }
     } finally {
-      calloc.free(addrPtr);
+      _allocator.free(addrPtr);
     }
   }
 
   void _setSecurityLevel(int fd, int level) {
-    final secPtr = calloc<bt_security>();
+    final secPtr = _allocator<bt_security>();
     try {
       secPtr.ref
         ..level = level
@@ -233,7 +236,7 @@ class L2capChannel {
         throw OSError('setsockopt(BT_SECURITY)', err);
       }
     } finally {
-      calloc.free(secPtr);
+      _allocator.free(secPtr);
     }
   }
 
@@ -251,8 +254,8 @@ class L2capChannel {
   }
 
   void _refreshMtu(int fd) {
-    final optPtr = calloc<l2cap_options>();
-    final optLenPtr = calloc<ffi.UnsignedInt>();
+    final optPtr = _allocator<l2cap_options>();
+    final optLenPtr = _allocator<ffi.UnsignedInt>();
     try {
       optLenPtr.value = ffi.sizeOf<l2cap_options>();
       final result = libc.getsockopt(
@@ -298,7 +301,7 @@ class L2capChannel {
       );
       _mtuRefreshPending = true;
     } finally {
-      calloc
+      _allocator
         ..free(optLenPtr)
         ..free(optPtr);
     }
@@ -402,7 +405,7 @@ class L2capChannel {
       return true;
     }
 
-    final ptr = calloc<ffi.Uint8>(frame.data.length);
+    final ptr = _allocator<ffi.Uint8>(frame.data.length);
     try {
       ptr.asTypedList(frame.data.length).setAll(0, frame.data);
       var offset = frame.offset;
@@ -450,7 +453,7 @@ class L2capChannel {
       frame.offset = offset;
       return true;
     } finally {
-      calloc.free(ptr);
+      _allocator.free(ptr);
     }
   }
 
@@ -505,7 +508,7 @@ class L2capChannel {
       _fd = null;
     }
     if (_readBuffer != null) {
-      calloc.free(_readBuffer!);
+      _allocator.free(_readBuffer!);
       _readBuffer = null;
       _receiveCapacity = maxPacketLength;
     }
@@ -527,9 +530,9 @@ class L2capChannel {
       return;
     }
     if (_readBuffer != null) {
-      calloc.free(_readBuffer!);
+      _allocator.free(_readBuffer!);
     }
-    _readBuffer = calloc<ffi.Uint8>(capacity);
+    _readBuffer = _allocator<ffi.Uint8>(capacity);
     _receiveCapacity = capacity;
   }
 }

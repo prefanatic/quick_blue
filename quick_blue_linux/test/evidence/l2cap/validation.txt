@@ -1,0 +1,11 @@
+OKF 0.2: 19 concepts; 73 local links; metadata, sources and indexes pass
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.027s
+
+OK
+Build started
+No issues found
+Build finished in 0.37s
+Site: 20 navigation pages; 1098 local HTML links/anchors pass; search assets present
+Formatted 5 files (0 changed) in 0.04 seconds.

@@ -2,6 +2,12 @@
 
 ### Added
 
+- Add bounded Linux L2CAP syscall characterization with scripted success,
+  partial sends, EINTR/EAGAIN and failed-connect cases, allocation/fd accounting,
+  and killable watchdog children for persistent retry/receive loops. The internal
+  channel accepts an optional allocator (default `calloc`); socket behavior is
+  unchanged. Watchdog termination is failure characterization, not hardware proof.
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.

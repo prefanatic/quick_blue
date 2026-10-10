@@ -1,0 +1,148 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_b66ad336`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_b66ad336`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/quick_blue_linux_test.dart
+00:00 +0: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/quick_blue_linux_test.dart: registers as platform implementation
+00:00 +1: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/quick_blue_linux_test.dart: reports Linux platform capabilities
+00:00 +2: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/quick_blue_linux_test.dart: companion APIs throw QuickBlueException
+00:00 +3: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/quick_blue_linux_test.dart: requestMtu reports unsupported instead of returning an estimate
+00:00 +4: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/quick_blue_linux_test.dart: concurrent first calls share one BlueZ initialization
+00:00 +5: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/quick_blue_linux_test.dart: security recovery pairs an unpaired BlueZ device
+00:00 +6: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/quick_blue_linux_test.dart: ServicesResolved invalidates the connected GATT database
+00:00 +7: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseNamePrefix names are process-scoped and device-scoped
+00:00 +8: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseNamePrefix different devices hash differently within one process
+00:00 +9: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseNamePrefix the same device hashes identically across processes
+00:00 +10: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseClientName appends the sanitized unique name
+00:00 +11: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseClientName rejects a bus connection without a unique name
+00:00 +12: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: hasOtherConnectionClients ignores the name being released
+00:00 +13: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: hasOtherConnectionClients detects another engine still holding the device
+00:00 +14: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: hasOtherConnectionClients does not confuse this device with another device of the same process
+00:00 +15: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) attach takes the lock, registers the client and releases the lock
+00:00 +16: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a failed client registration still releases the lock
+00:00 +17: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a stale lock is retried until it is released
+00:00 +18: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:00 +19: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:00 +20: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:00 +21: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:00 +22: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +23: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +24: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +25: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +26: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +27: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +28: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +29: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +30: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +31: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +32: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +33: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +34: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +35: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +36: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +37: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +38: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +39: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +40: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +41: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +42: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +43: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +44: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +45: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +46: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +47: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +48: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +49: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +50: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +51: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +52: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +53: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +54: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +55: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +56: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +57: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +58: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +59: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +60: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +61: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +62: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +63: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +64: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +65: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +66: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +67: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +68: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +69: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +70: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +71: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +72: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +73: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +74: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +75: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +76: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +77: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +78: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +79: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +80: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +81: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +82: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +83: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +84: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +85: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +86: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:06 +86: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: send-einval: watchdog termination is failure characterization
+{"case":"send-einval","outcome":"watchdog-killed-operation-not-completed","exitCode":-9,"reaped":true,"elapsedMs":1731,"kind":"observer","observerTicks":11,"socketCalls":1,"connectCalls":1,"sendCalls":5000000,"recvCalls":0,"sentBytes":0,"closeCalls":0,"liveFds":1,"allocations":9,"frees":7,"liveAllocations":2,"mainTicks":0}
+00:06 +87: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:08 +87: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: send-eintr: watchdog termination is failure characterization
+{"case":"send-eintr","outcome":"watchdog-killed-operation-not-completed","exitCode":-9,"reaped":true,"elapsedMs":1640,"kind":"observer","observerTicks":11,"socketCalls":1,"connectCalls":1,"sendCalls":72100000,"recvCalls":0,"sentBytes":0,"closeCalls":0,"liveFds":1,"allocations":9,"frees":7,"liveAllocations":2,"mainTicks":0}
+00:08 +88: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:10 +88: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-eintr: watchdog termination is failure characterization
+{"case":"recv-eintr","outcome":"watchdog-killed-operation-not-completed","exitCode":-9,"reaped":true,"elapsedMs":1792,"kind":"observer","observerTicks":10,"socketCalls":1,"connectCalls":1,"sendCalls":1,"recvCalls":63200000,"sentBytes":4,"closeCalls":0,"liveFds":1,"allocations":9,"frees":8,"liveAllocations":1,"mainTicks":1}
+00:10 +89: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:10 +90: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:10 +91: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:10 +92: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:10 +93: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +93: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_channel_test.dart: success sends exact bytes and closes once
+{"case":"success","outcome":"completed-and-cleaned","heartbeatTicks":2,"elapsedMs":11,"socketCalls":1,"connectCalls":1,"sendCalls":3,"recvCalls":0,"sentBytes":150,"closeCalls":1,"liveFds":0,"allocations":10,"frees":10,"liveAllocations":0}
+00:11 +94: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +94: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_channel_test.dart: partial sends exact bytes and closes once
+{"case":"partial","outcome":"completed-and-cleaned","heartbeatTicks":1,"elapsedMs":5,"socketCalls":1,"connectCalls":1,"sendCalls":12,"recvCalls":0,"sentBytes":150,"closeCalls":1,"liveFds":0,"allocations":10,"frees":10,"liveAllocations":0}
+00:11 +95: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +95: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_channel_test.dart: eintr sends exact bytes and closes once
+{"case":"eintr","outcome":"completed-and-cleaned","heartbeatTicks":1,"elapsedMs":5,"socketCalls":1,"connectCalls":1,"sendCalls":4,"recvCalls":0,"sentBytes":150,"closeCalls":1,"liveFds":0,"allocations":10,"frees":10,"liveAllocations":0}
+00:11 +96: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +96: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_channel_test.dart: eagain sends exact bytes and closes once
+{"case":"eagain","outcome":"completed-and-cleaned","heartbeatTicks":9,"elapsedMs":45,"socketCalls":1,"connectCalls":1,"sendCalls":5,"recvCalls":2,"sentBytes":150,"closeCalls":1,"liveFds":0,"allocations":12,"frees":12,"liveAllocations":0}
+00:11 +97: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +97: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_channel_test.dart: failed connect errno 111 cleans allocations/fd
+{"case":"connect-111","outcome":"open-failed-and-cleaned","socketCalls":1,"connectCalls":1,"sendCalls":0,"recvCalls":0,"sentBytes":0,"closeCalls":1,"liveFds":0,"allocations":6,"frees":6,"liveAllocations":0}
+00:11 +98: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +98: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_channel_test.dart: failed connect errno 22 cleans allocations/fd
+{"case":"connect-22","outcome":"open-failed-and-cleaned","socketCalls":1,"connectCalls":1,"sendCalls":0,"recvCalls":0,"sentBytes":0,"closeCalls":1,"liveFds":0,"allocations":6,"frees":6,"liveAllocations":0}
+00:11 +99: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +99: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_channel_test.dart: failed connect errno 13 cleans allocations/fd
+{"case":"connect-13","outcome":"open-failed-and-cleaned","socketCalls":1,"connectCalls":1,"sendCalls":0,"recvCalls":0,"sentBytes":0,"closeCalls":1,"liveFds":0,"allocations":6,"frees":6,"liveAllocations":0}
+00:11 +100: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +100: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_channel_test.dart: failed connect errno 4 cleans allocations/fd
+{"case":"connect-4","outcome":"open-failed-and-cleaned","socketCalls":1,"connectCalls":8,"sendCalls":0,"recvCalls":0,"sentBytes":0,"closeCalls":1,"liveFds":0,"allocations":6,"frees":6,"liveAllocations":0}
+00:11 +101: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +102: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +103: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +104: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +105: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +106: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +107: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +108: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+00:11 +109: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: recv-data: watchdog termination is failure characterization
+{"case":"recv-data","outcome":"watchdog-killed-operation-not-completed","exitCode":-9,"reaped":true,"elapsedMs":1850,"kind":"observer","observerTicks":10,"socketCalls":1,"connectCalls":1,"sendCalls":1,"recvCalls":1900000,"sentBytes":4,"closeCalls":0,"liveFds":1,"allocations":9,"frees":8,"liveAllocations":1,"mainTicks":1}
+00:11 +110: /home/hermes/quick_blue/.worktrees/t_b66ad336/quick_blue_linux/test/l2cap_harness_test.dart: send-zero: watchdog termination is failure characterization
+{"case":"send-zero","outcome":"watchdog-killed-operation-not-completed","exitCode":-9,"reaped":true,"elapsedMs":1798,"kind":"observer","observerTicks":11,"socketCalls":1,"connectCalls":1,"sendCalls":24,"recvCalls":25,"sentBytes":0,"closeCalls":0,"liveFds":1,"allocations":32,"frees":31,"liveAllocations":1,"mainTicks":50}
+00:13 +111: All tests passed!

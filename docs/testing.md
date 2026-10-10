@@ -89,6 +89,51 @@ Dockur persists `.dart_tool/dockur_windows/`; the guest caches its checkout at
 refreshes checkout without reinstalling Windows. `QUICK_BLUE_WINDOWS_RESET=1`
 rebuilds the VM disk; do not use it for routine reruns.
 
+## Linux L2CAP syscall characterization
+
+Run the real channel control flow against scripted syscall wrappers, without
+loading BlueZ or opening a Bluetooth socket:
+
+```sh
+(cd quick_blue_linux && flutter test test/l2cap_channel_test.dart \
+  test/l2cap_harness_test.dart --reporter expanded)
+(cd quick_blue_linux && flutter test --reporter expanded)
+(cd quick_blue_linux && flutter analyze)
+(cd quick_blue/example && flutter build linux --debug)
+```
+
+The [channel tests](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/l2cap_channel_test.dart) cover exact
+bytes for success, partial sends, finite EINTR and EAGAIN, failed connect (including
+the eight-attempt EINTR limit), send/receive closure and allocation/fd cleanup.
+The only production seam added is an optional allocator defaulting to `calloc`;
+the existing `Libc`/`LibBluetooth` injection supplies scripted calls. The counting
+allocator delegates to real zeroed allocations; fd counts describe fake ownership,
+not kernel descriptors. No socket behavior correction is included.
+
+The [parent watchdog](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/l2cap_harness_test.dart) launches
+separate Dart processes for persistent first-chunk EINVAL, send/recv EINTR,
+always-readable receive and zero-byte send. It waits at most 15 seconds for the
+armed record, observes for 500 ms, then sends SIGKILL and waits at most five seconds
+for process exit/reaping. Cleanup also kills/reaps on assertion/startup failure.
+JSON records include the actual exit code, elapsed time, syscall/ownership counters,
+main-isolate heartbeat and an independent reporter-isolate heartbeat. Do not run
+the child runner directly: its non-yielding cases cannot be stopped by Dart timers.
+For a safely bounded single reproduction:
+
+```sh
+(cd quick_blue_linux && flutter test test/l2cap_harness_test.dart \
+  --plain-name 'send-einval: watchdog termination is failure characterization' \
+  --reporter expanded)
+```
+
+Retained [observations](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/evidence/l2cap/README.md) show
+non-yielding send/receive loops, versus zero-send's responsive but non-completing
+retry loop. SIGKILL is **failure characterization, never successful operation or
+channel cleanup**: live allocations/fake fds in the last snapshot remain owned
+until process termination, which does not execute channel finalizers. These tests
+and the example build prove scripted control flow and compilation only, not a
+working L2CAP peripheral, real syscalls, MTU negotiation or native readiness.
+
 ## Report evidence, not assumptions
 
 Record the exact command, revision, host/device, executed scenarios, result and

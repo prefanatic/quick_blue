@@ -1,0 +1,105 @@
+Consumer fixtures: /home/hermes/.hermes/profiles/builder/cache/scratch/quick-blue-linux-consumer-nztt4npz
+[repository] git init --quiet
+[repository] git add .
+[repository] git -c user.name=Consumer fixture -c user.email=consumer@example.invalid -c commit.gpgsign=false commit --quiet -m consumer fixture
+[quick-blue-linux-consumer-nztt4npz] flutter create --empty --no-pub --platforms=linux --project-name=linux_consumer /home/hermes/.hermes/profiles/builder/cache/scratch/quick-blue-linux-consumer-nztt4npz/consumer_quick_blue_linux
+Creating project consumer_quick_blue_linux...
+Wrote 18 files.
+
+All done!
+You can find general documentation for Flutter at: https://docs.flutter.dev/
+Detailed API documentation is available at: https://api.flutter.dev/
+If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+
+In order to run your empty application, type:
+
+  $ cd consumer_quick_blue_linux
+  $ flutter run
+
+Your empty application code is in consumer_quick_blue_linux/lib/main.dart.
+
+[consumer_quick_blue_linux] flutter pub get
+Resolving dependencies...
+Downloading packages...
++ args 2.7.0
++ async 2.13.1
++ bluez 0.8.3
++ characters 1.4.1
++ collection 1.19.1
++ dbus 0.7.15 (0.8.0 available)
++ ffi 2.2.0
++ flutter 0.0.0 from sdk flutter
++ logging 1.3.0
++ material_color_utilities 0.13.0 (0.13.1 available)
++ meta 1.19.0
++ petitparser 7.1.0
++ plugin_platform_interface 2.1.8
++ quick_blue_linux 0.5.0 from git ../repository at a47c4b in quick_blue_linux
+! quick_blue_platform_interface 0.5.0 from git ../repository at a47c4b in quick_blue_platform_interface (overridden)
++ sky_engine 0.0.0 from sdk flutter
++ vector_math 2.4.3
++ xml 7.1.0
+Changed 17 dependencies!
+2 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Upgrading analysis_options.yaml to exclude build and platform directories.
+[consumer_quick_blue_linux] flutter analyze --no-pub
+Analyzing consumer_quick_blue_linux...
+No issues found! (ran in 5.3s)
+[consumer_quick_blue_linux] flutter build linux --debug --no-pub
+Building Linux application...
+✓ Built build/linux/x64/debug/bundle/linux_consumer
+PASS: quick_blue_linux installs and builds with transitive bluez
+[quick-blue-linux-consumer-nztt4npz] flutter create --empty --no-pub --platforms=linux --project-name=linux_consumer /home/hermes/.hermes/profiles/builder/cache/scratch/quick-blue-linux-consumer-nztt4npz/consumer_quick_blue
+Creating project consumer_quick_blue...
+Wrote 18 files.
+
+All done!
+You can find general documentation for Flutter at: https://docs.flutter.dev/
+Detailed API documentation is available at: https://api.flutter.dev/
+If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+
+In order to run your empty application, type:
+
+  $ cd consumer_quick_blue
+  $ flutter run
+
+Your empty application code is in consumer_quick_blue/lib/main.dart.
+
+[consumer_quick_blue] flutter pub get
+Resolving dependencies...
+Downloading packages...
++ args 2.7.0
++ async 2.13.1
++ bluez 0.8.3
++ characters 1.4.1
++ collection 1.19.1
++ convert 3.1.2
++ dbus 0.7.15 (0.8.0 available)
++ ffi 2.2.0
++ flutter 0.0.0 from sdk flutter
++ logging 1.3.0
++ material_color_utilities 0.13.0 (0.13.1 available)
++ meta 1.19.0
++ petitparser 7.1.0
++ plugin_platform_interface 2.1.8
++ quick_blue 0.5.0 from git ../repository at a47c4b in quick_blue
+! quick_blue_darwin 0.5.0 from git ../repository at a47c4b in quick_blue_darwin (overridden)
+! quick_blue_linux 0.5.0 from git ../repository at a47c4b in quick_blue_linux (overridden)
+! quick_blue_platform_interface 0.5.0 from git ../repository at a47c4b in quick_blue_platform_interface (overridden)
+! quick_blue_windows 0.5.0 from git ../repository at a47c4b in quick_blue_windows (overridden)
++ sky_engine 0.0.0 from sdk flutter
++ typed_data 1.4.0
++ vector_math 2.4.3
++ xml 7.1.0
+Changed 19 dependencies!
+2 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Upgrading analysis_options.yaml to exclude build and platform directories.
+[consumer_quick_blue] flutter analyze --no-pub
+Analyzing consumer_quick_blue...
+No issues found! (ran in 5.0s)
+[consumer_quick_blue] flutter build linux --debug --no-pub
+Building Linux application...
+✓ Built build/linux/x64/debug/bundle/linux_consumer
+PASS: quick_blue installs and builds with transitive bluez
