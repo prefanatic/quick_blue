@@ -180,6 +180,10 @@ Platform changes usually require package tests plus a hardware-backed BLE smoke
 test. See [CONTRIBUTING.md](CONTRIBUTING.md) for package-specific checks,
 integration-test profiles, Windows VM testing, and Pigeon generation.
 
+Windows VM console/RDP bindings default to loopback; remote binding requires
+explicit opt-in. See [Windows VM verification](docs/testing.md#windows-vm) for
+the side-effect-free launch preview and its Linux-only proof boundary.
+
 CI also checks isolated external Git consumers with empty Pub caches, both for
 `quick_blue_linux` alone and for the app-facing plugin. Linux consumers need no
 direct `bluez` dependency. To run the install, analysis, and Linux build check:

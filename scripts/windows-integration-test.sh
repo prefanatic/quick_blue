@@ -17,6 +17,8 @@ cpu_cores="${QUICK_BLUE_WINDOWS_CPU_CORES:-4}"
 disk_size="${QUICK_BLUE_WINDOWS_DISK_SIZE:-128G}"
 web_port="${QUICK_BLUE_WINDOWS_WEB_PORT:-8006}"
 rdp_port="${QUICK_BLUE_WINDOWS_RDP_PORT:-3389}"
+bind_address="${QUICK_BLUE_WINDOWS_BIND_ADDRESS:-127.0.0.1}"
+dry_run=0
 flutter_channel="${QUICK_BLUE_WINDOWS_FLUTTER_CHANNEL:-stable}"
 test_target="${QUICK_BLUE_WINDOWS_TEST_TARGET:-integration_test/ble_smoke_test.dart}"
 timeout_seconds="${QUICK_BLUE_WINDOWS_TIMEOUT_SECONDS:-14400}"
@@ -27,7 +29,10 @@ usb_qemu_arguments=""
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/windows-integration-test.sh
+Usage: scripts/windows-integration-test.sh [--dry-run]
+
+--dry-run emits actual Docker argv as NUL-separated values without invoking
+Docker, downloads, state writes or USB discovery. USB requires bus/device inputs.
 
 Starts a Dockur Windows VM and runs the quick_blue example BLE integration test.
 The first install registers a Windows logon task; later runs reuse the VM and
@@ -46,6 +51,8 @@ Common environment variables:
   QUICK_BLUE_WINDOWS_CLEAN_WORKTREE=1           Recreate the guest NTFS checkout
   QUICK_BLUE_WINDOWS_RUN_DOCTOR=1               Run flutter doctor on every test
   QUICK_BLUE_WINDOWS_RESET=1                    Delete the Windows disk and rebuild
+  QUICK_BLUE_WINDOWS_BIND_ADDRESS=127.0.0.1     IPv4 host binding
+  QUICK_BLUE_WINDOWS_ALLOW_REMOTE=1             Required for non-loopback binding
 
 The Windows guest log is written to:
   .dart_tool/dockur_windows/logs/windows-integration-test.log
@@ -58,6 +65,22 @@ USAGE
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   usage
   exit 0
+fi
+
+case "${1:-}" in
+  --dry-run) dry_run=1 ;;
+  '') ;;
+  *) usage >&2; exit 2 ;;
+esac
+if (( $# > 1 )); then usage >&2; exit 2; fi
+if [[ ! "$bind_address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ||
+      ! "$web_port" =~ ^[0-9]+$ || ! "$rdp_port" =~ ^[0-9]+$ ]]; then
+  echo "Bind address must be IPv4; ports must be numeric." >&2
+  exit 2
+fi
+if [[ "$bind_address" != 127.* && "${QUICK_BLUE_WINDOWS_ALLOW_REMOTE:-0}" != 1 ]]; then
+  echo "Non-loopback binding requires QUICK_BLUE_WINDOWS_ALLOW_REMOTE=1." >&2
+  exit 2
 fi
 
 require_command() {
@@ -104,6 +127,10 @@ resolve_usb_passthrough() {
   device="${QUICK_BLUE_WINDOWS_USB_DEVICE:-}"
 
   if [[ -z "$bus" || -z "$device" ]]; then
+    if (( dry_run )); then
+      echo "USB dry run requires explicit bus and device coordinates." >&2
+      exit 2
+    fi
     require_command lsusb
     local match
     match="$(lsusb -d "$vendor_id:$product_id" | head -n 1 || true)"
@@ -116,12 +143,12 @@ resolve_usb_passthrough() {
   fi
 
   usb_device_path="/dev/bus/usb/$bus/$device"
-  if [[ ! -e "$usb_device_path" ]]; then
+  if (( ! dry_run )) && [[ ! -e "$usb_device_path" ]]; then
     echo "USB device node does not exist: $usb_device_path" >&2
     exit 1
   fi
 
-  if [[ "${QUICK_BLUE_WINDOWS_SKIP_USB_PERMISSION_CHECK:-0}" != "1" && ! -w "$usb_device_path" ]]; then
+  if (( ! dry_run )) && [[ "${QUICK_BLUE_WINDOWS_SKIP_USB_PERMISSION_CHECK:-0}" != "1" && ! -w "$usb_device_path" ]]; then
     cat >&2 <<EOF
 USB device $vendor_id:$product_id is present at $usb_device_path, but this
 user cannot open it read-write. QEMU usb-host passthrough needs write access to
@@ -175,8 +202,30 @@ BAT
   } >"$oem_dir/quick-blue-env.ps1"
 }
 
-require_command docker
 resolve_usb_passthrough
+
+build_docker_args() {
+  docker_args=(
+    run --name "$container_name" --rm -d
+    -p "$bind_address:$web_port:8006/tcp"
+    -p "$bind_address:$rdp_port:3389/tcp"
+    -p "$bind_address:$rdp_port:3389/udp"
+    -v "$storage_dir:/storage" -v "$oem_dir:/oem" -v "$repo_root:/shared"
+    -e "VERSION=$version" -e "RAM_SIZE=$memory"
+    -e "CPU_CORES=$cpu_cores" -e "DISK_SIZE=$disk_size"
+  )
+  if [[ -e /dev/kvm ]]; then docker_args+=(--device /dev/kvm); fi
+  if [[ -n "$usb_device_path" ]]; then
+    docker_args+=(--device "$usb_device_path:$usb_device_path" -e "ARGUMENTS=$usb_qemu_arguments")
+  fi
+  docker_args+=("$image")
+}
+build_docker_args
+if (( dry_run )); then
+  printf '%s\0' docker "${docker_args[@]}"
+  exit 0
+fi
+require_command docker
 
 if [[ ! -f "$bootstrap_script" ]]; then
   echo "Missing Windows bootstrap script: $bootstrap_script" >&2
@@ -226,42 +275,14 @@ EOF
   exit 1
 fi
 
-docker_args=(
-  run
-  --name "$container_name"
-  --rm
-  -d
-  -p "$web_port:8006"
-  -p "$rdp_port:3389/tcp"
-  -p "$rdp_port:3389/udp"
-  -v "$storage_dir:/storage"
-  -v "$oem_dir:/oem"
-  -v "$repo_root:/shared"
-  -e "VERSION=$version"
-  -e "RAM_SIZE=$memory"
-  -e "CPU_CORES=$cpu_cores"
-  -e "DISK_SIZE=$disk_size"
-)
-
-if [[ -e /dev/kvm ]]; then
-  docker_args+=(--device /dev/kvm)
-fi
-
-if [[ -n "$usb_device_path" ]]; then
-  docker_args+=(
-    --device "$usb_device_path:$usb_device_path"
-    -e "ARGUMENTS=$usb_qemu_arguments"
-  )
-fi
-
 echo "Starting $image as $container_name."
-echo "Windows web console: http://localhost:$web_port"
-echo "Windows RDP: localhost:$rdp_port"
+echo "Windows web console binding: http://$bind_address:$web_port"
+echo "Windows RDP binding: $bind_address:$rdp_port"
 echo "Guest log: $logs_dir/windows-integration-test.log"
 echo
 echo "First run installs Windows and the toolchain; later runs reuse the VM."
 
-container_id="$(docker "${docker_args[@]}" "$image")"
+container_id="$(docker "${docker_args[@]}")"
 trap cleanup EXIT
 
 deadline=$((SECONDS + timeout_seconds))

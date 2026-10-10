@@ -64,6 +64,8 @@ python3 -m venv .dart_tool/docs-venv
 .dart_tool/docs-venv/bin/pip install -r scripts/requirements-docs.txt
 .dart_tool/docs-venv/bin/python scripts/check-okf.py
 .dart_tool/docs-venv/bin/python -m unittest discover -s scripts -p 'test_check_okf.py'
+.dart_tool/docs-venv/bin/python -m unittest discover -s scripts -p 'test_workflow_readiness.py' -v
+python3 scripts/check-changelog-coverage.py
 .dart_tool/docs-venv/bin/zensical build --clean
 .dart_tool/docs-venv/bin/python scripts/check-docs-site.py
 git diff --check

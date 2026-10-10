@@ -52,6 +52,7 @@ jobs:
         with:
           filters: |
             validate:
+              - '**/CHANGELOG.md'
               - '.github/dependabot.yml'
               - '.github/workflows/**'
               - 'scripts/**'
@@ -205,14 +206,30 @@ jobs:
           scripts/publish-packages.sh --dry-run
 
       - name: Check changelog coverage
-        run: |
-          set -euo pipefail
+        run: python3 scripts/check-changelog-coverage.py
 
-          version="$(sed -n 's/^version: //p' quick_blue_platform_interface/pubspec.yaml)"
-          if ! grep -q "^## \[$version\]" quick_blue/CHANGELOG.md; then
-            echo "quick_blue/CHANGELOG.md has no ## [$version] heading for the current package version" >&2
-            exit 65
-          fi
+  docs-validation:
+    name: Docs validation
+    needs: changes
+    if: ${{ needs.changes.outputs.validate == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - run: python3 -m pip install 'PyYAML>=6.0.2,<7'
+      - run: python3 scripts/check-okf.py
+      - run: python3 -m unittest discover -s scripts -p 'test_check_okf.py'
+
+  readiness-policy:
+    name: Readiness policy
+    needs: changes
+    if: ${{ needs.changes.outputs.validate == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - run: python3 -m pip install 'PyYAML>=6.0.2,<7'
+      - run: python3 -m unittest discover -s scripts -p 'test_workflow_readiness.py' -v
 
   darwin-type-check:
     name: Darwin type check

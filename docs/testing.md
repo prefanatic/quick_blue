@@ -36,7 +36,8 @@ Shared API/model changes require platform-interface and affected facade tests.
 | Darwin ownership/restoration helpers | `swift test` inside the corresponding `connection_ownership` / `restoration_summary` directories |
 | Android Kotlin | `(cd quick_blue/example/android && ./gradlew :quick_blue:testDebugUnitTest)` |
 | Windows ownership | Native CMake/CTest target on Windows (CI `build-windows`) |
-| Release metadata | `scripts/publish-packages.sh --dry-run` |
+| Release metadata | `scripts/publish-packages.sh --dry-run` and `python3 scripts/check-changelog-coverage.py` |
+| Workflow selection/policy | Docs-venv Python: `-m unittest discover -s scripts -p 'test_workflow_readiness.py' -v` |
 | Documentation | [Maintenance checks](maintenance.md), source review, and site build when configured |
 
 Darwin's Linux type-check harness uses signature-faithful stubs; it does not prove
@@ -76,6 +77,31 @@ For switching, stress and benchmark selection, see [example workflows](example-a
 
 ## Windows VM
 
+Console TCP 8006 and RDP TCP/UDP 3389 bind to `127.0.0.1` by default.
+Non-loopback IPv4 `QUICK_BLUE_WINDOWS_BIND_ADDRESS` requires
+`QUICK_BLUE_WINDOWS_ALLOW_REMOTE=1`. This exposes the guest console/RDP;
+use trusted networks and appropriate access controls. IPv6 bind overrides
+are unsupported; port overrides must be numeric.
+
+Inspect actual production argv without Docker, downloads, resets, OEM writes
+or USB discovery:
+
+```sh
+scripts/windows-integration-test.sh --dry-run | tr '\0' '\n'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p test_windows_launch.py -v
+bash -n scripts/windows-integration-test.sh
+```
+
+Dry-run stdout is NUL-separated argv including `docker` and the image, not a
+shell command to evaluate. Spaces/quotes remain inside arguments; colon-containing
+host paths are unsupported by Docker's `-v` syntax. USB previews require explicit
+bus/device coordinates and do not check nodes or permissions. Tests prove Linux
+argument construction only, not VM boot, reachability, passthrough or guest execution.
+The guest currently reuses a present Flutter executable without comparing cached
+channel metadata against the request. These tests neither validate nor correct
+that Windows-only behavior; changing the request does not guarantee cached SDK
+replacement.
+
 Repository-root recipe: replace these example USB IDs with your adapter IDs.
 
 ```sh
@@ -90,6 +116,20 @@ refreshes checkout without reinstalling Windows. `QUICK_BLUE_WINDOWS_RESET=1`
 rebuilds the VM disk; do not use it for routine reruns.
 
 ## Report evidence, not assumptions
+
+CI selects readiness checks for `**/CHANGELOG.md` and release pubspec changes.
+Source/configuration changes selected by `validate` also run cheap canonical OKF
+validation and readiness fixtures. Docs-only changes remain owned by the
+Documentation workflow, including its site build.
+
+Fixtures read real workflow filters, conditions and matrices. The local glob
+evaluator supports only the current literal/`*`/`**` subset, fails on unsupported
+patterns, and does not prove exact dorny/GitHub execution semantics. Its aggregate
+policy treats selected failures as FAIL, cancellations or unexpected skips as
+UNRESOLVED (rerun required), and condition-false skips as neutral. Changes-job
+failures cannot produce an all-skip pass. This is a local policy fixture, not an
+aggregate CI job or branch-protection enforcement. Hosted iOS/macOS/Windows
+builds explicitly disabled by `SKIP_HOSTED_PLATFORM_BUILDS` remain unverified.
 
 Record the exact command, revision, host/device, executed scenarios, result and
 any skips. If blocked, state the command attempted, the concrete blocker, and

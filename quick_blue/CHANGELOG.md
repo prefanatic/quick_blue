@@ -2,6 +2,14 @@
 
 ### Added
 
+- Add a side-effect-free Windows VM launch-argument dry run and executed shell
+  regression coverage; bind console TCP and RDP TCP/UDP to loopback by default
+  and require explicit opt-in for non-loopback exposure.
+
+- Validate changelog-only readiness changes and canonical documentation for
+  source changes in CI; add local workflow-selection/policy fixtures and a
+  reusable current-version changelog-heading validator.
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.
