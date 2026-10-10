@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
@@ -27,6 +28,7 @@ class QuickBlueDarwin extends QuickBluePlatform {
 
   final Stream<messages.PlatformL2CapSocketEvent> _l2CapEventStream = messages
       .l2CapSocketEvents();
+  final Map<String, _L2capSession> _l2capSessions = {};
 
   static void registerWith() {
     final platform = QuickBlueDarwin();
@@ -247,20 +249,22 @@ class QuickBlueDarwin extends QuickBluePlatform {
   Future<BleL2capSocket> openL2cap(String deviceId, int psm) async {
     _ensureInitialized();
 
-    await _api.openL2cap(deviceId, psm);
-
-    // Wait for the open status.
-    await _l2CapEventStream
-        .where((event) => event.deviceId == deviceId)
-        .firstWhere((event) => event.opened == true)
-        .timeout(const Duration(seconds: 5));
-
-    return BleL2capSocket(
-      sink: _L2capSink(api: _api, deviceId: deviceId),
-      stream: _l2CapEventStream
-          .where((event) => event.deviceId == deviceId)
-          .map(_l2capEventFromPlatformEvent),
+    if (_l2capSessions.containsKey(deviceId)) {
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.invalidState,
+        operation: 'openL2cap',
+        deviceId: deviceId,
+        message: 'An L2CAP session is active or awaiting late-open cleanup.',
+      );
+    }
+    final session = _L2capSession(
+      _api,
+      deviceId,
+      _l2CapEventStream,
+      () => _l2capSessions.remove(deviceId),
     );
+    _l2capSessions[deviceId] = session;
+    return session.open(psm);
   }
 
   @override
@@ -583,22 +587,156 @@ BleL2CapSocketEvent _l2capEventFromPlatformEvent(
   );
 }
 
-class _L2capSink implements EventSink<Uint8List> {
-  _L2capSink({required this.api, required this.deviceId});
+class _L2capSession implements EventSink<Uint8List> {
+  _L2capSession(
+    this.api,
+    this.deviceId,
+    Stream<messages.PlatformL2CapSocketEvent> events,
+    this.onDisposed,
+  ) {
+    subscription = events
+        .where((event) => event.deviceId == deviceId)
+        .listen(_event, onError: _error);
+  }
 
   final messages.QuickBlueApi api;
   final String deviceId;
+  final void Function() onDisposed;
+  final controller = StreamController<BleL2CapSocketEvent>();
+  final ready = Completer<void>();
+  final failed = Completer<void>();
+  late final StreamSubscription<messages.PlatformL2CapSocketEvent> subscription;
+  Timer? quarantine;
+  bool abandoned = false;
+  bool closing = false;
+  bool disposed = false;
+  bool returned = false;
 
-  @override
-  void add(Uint8List event) {
-    api.writeL2cap(deviceId, event);
+  Future<BleL2capSocket> open(int psm) async {
+    try {
+      // Attach both error handlers before host submission can produce events.
+      await Future.any<void>([
+        failed.future,
+        Future.wait<void>([
+          ready.future,
+          api.openL2cap(deviceId, psm),
+        ], eagerError: true).then<void>((_) {}),
+      ]).timeout(const Duration(seconds: 5));
+      returned = true;
+      return BleL2capSocket(sink: this, stream: controller.stream);
+    } on TimeoutException {
+      abandoned = true;
+      if (!ready.isCompleted) {
+        ready.completeError(TimeoutException('L2CAP open deadline expired.'));
+      }
+      // Native close cannot cancel a pending CoreBluetooth open. Retain the
+      // listener for one further deadline to close a controlled late channel.
+      quarantine = Timer(const Duration(seconds: 5), _dispose);
+      _run(api.closeL2cap(deviceId));
+      rethrow;
+    } catch (_) {
+      abandoned = true;
+      if (!ready.isCompleted) {
+        ready.completeError(StateError('L2CAP host open failed.'));
+      }
+      _run(api.closeL2cap(deviceId));
+      _dispose();
+      rethrow;
+    }
+  }
+
+  void _event(messages.PlatformL2CapSocketEvent event) {
+    if (abandoned) {
+      if (event.opened == true) {
+        _run(api.closeL2cap(deviceId));
+        _dispose();
+      } else if (event.closed == true || event.error != null) {
+        _dispose();
+      }
+      return;
+    }
+    try {
+      controller.add(_l2capEventFromPlatformEvent(event));
+      if (!returned && (event.error != null || event.closed == true)) {
+        if (!failed.isCompleted) {
+          failed.completeError(
+            QuickBlueException(
+              code: QuickBlueErrorCode.operationFailed,
+              operation: 'openL2cap',
+              deviceId: deviceId,
+              message: event.error ?? 'L2CAP closed before opening.',
+            ),
+          );
+        }
+      } else if (!ready.isCompleted && event.opened == true) {
+        ready.complete();
+      }
+      if (event.closed == true) _dispose();
+    } catch (error, stack) {
+      _error(error, stack);
+    }
+  }
+
+  void _error(Object error, StackTrace stack) {
+    if (abandoned || disposed) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'quick_blue_darwin',
+          context: ErrorDescription('while cleaning up an L2CAP channel'),
+        ),
+      );
+    } else if (!returned) {
+      if (!failed.isCompleted) failed.completeError(error, stack);
+    } else {
+      controller.addError(error, stack);
+    }
+  }
+
+  void _run(Future<void> operation) {
+    operation.then<void>((_) {}, onError: _error);
+  }
+
+  void _dispose() {
+    if (disposed) return;
+    disposed = true;
+    onDisposed();
+    quarantine?.cancel();
+    _run(subscription.cancel());
+    _run(controller.close());
   }
 
   @override
-  void addError(Object error, [StackTrace? stackTrace]) {}
+  void add(Uint8List event) {
+    if (closing || disposed) throw StateError('L2CAP sink is closed.');
+    _run(api.writeL2cap(deviceId, event));
+  }
 
   @override
-  Future<void> close() async {}
+  void addError(Object error, [StackTrace? stackTrace]) {
+    if (closing || disposed) throw StateError('L2CAP sink is closed.');
+    controller.addError(error, stackTrace);
+  }
+
+  @override
+  void close() {
+    // A remote closed event may have released this device for a replacement.
+    // The device-only bridge must never close that replacement via an old sink.
+    if (closing || disposed) return;
+    closing = true;
+    api
+        .closeL2cap(deviceId)
+        .then<void>(
+          (_) {
+            _dispose();
+          },
+          onError: (Object error, StackTrace stack) {
+            _error(error, stack);
+            _dispose();
+          },
+        );
+  }
 }
 
 class _FlutterApi extends messages.QuickBlueFlutterApi {

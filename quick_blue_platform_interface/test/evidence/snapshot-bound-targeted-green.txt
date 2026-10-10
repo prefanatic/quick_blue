@@ -1,0 +1,25 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_6523095a`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_6523095a`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_6523095a/quick_blue_platform_interface/test/snapshot_bound_characteristic_test.dart
+00:00 +0: invalidated bound handle rejects read before submission
+00:00 +1: invalidated bound handle rejects write-response before submission
+00:00 +2: invalidated bound handle rejects write-no-response before submission
+00:00 +3: invalidated bound handle rejects notify before submission
+00:00 +4: invalidated bound handle rejects indicate before submission
+00:00 +5: invalidated bound handle rejects disable before submission
+00:00 +6: notifications checks at listen, before native setup
+00:00 +7: freshly rediscovered bound handles submit read write and notify
+00:00 +8: direct-ID and default resolved handles remain unbound
+00:00 +9: already-submitted write completes normally after invalidation
+00:00 +10: chunked write stops before the next invalidated submission
+00:00 +11: disconnect reconnect preserves current snapshot policy
+00:00 +12: All tests passed!

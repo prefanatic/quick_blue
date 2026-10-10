@@ -1,0 +1,132 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_6523095a`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_6523095a`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_6523095a/quick_blue_platform_interface/test/snapshot_bound_characteristic_test.dart
+00:00 +0: invalidated bound handle rejects read before submission
+00:00 +0 -1: invalidated bound handle rejects read before submission [E]
+  Expected: throws <Instance of 'QuickBlueException'> with `code`: QuickBlueErrorCode:<QuickBlueErrorCode.invalidState> and `operation`: 'read' and `device`: 'device-a' and `service`: 'service-a' and `characteristic`: 'characteristic-a'
+    Actual: <Closure: () => Future<void>>
+     Which: returned a Future that emitted <null>
+
+  package:matcher                                     expectLater
+  package:flutter_test/src/widget_tester.dart 507:8   expectLater
+  test/snapshot_bound_characteristic_test.dart 61:15  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                          _CustomZone.registerUnaryCallback
+  test/snapshot_bound_characteristic_test.dart 52:22  main.<fn>
+
+00:00 +0 -1: invalidated bound handle rejects write-response before submission
+00:00 +0 -2: invalidated bound handle rejects write-response before submission [E]
+  Expected: throws <Instance of 'QuickBlueException'> with `code`: QuickBlueErrorCode:<QuickBlueErrorCode.invalidState> and `operation`: 'write' and `device`: 'device-a' and `service`: 'service-a' and `characteristic`: 'characteristic-a'
+    Actual: <Closure: () => Future<void>>
+     Which: returned a Future that emitted <null>
+
+  package:matcher                                     expectLater
+  package:flutter_test/src/widget_tester.dart 507:8   expectLater
+  test/snapshot_bound_characteristic_test.dart 61:15  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                          _CustomZone.registerUnaryCallback
+  test/snapshot_bound_characteristic_test.dart 52:22  main.<fn>
+
+00:00 +0 -2: invalidated bound handle rejects write-no-response before submission
+00:00 +0 -3: invalidated bound handle rejects write-no-response before submission [E]
+  Expected: throws <Instance of 'QuickBlueException'> with `code`: QuickBlueErrorCode:<QuickBlueErrorCode.invalidState> and `operation`: 'write' and `device`: 'device-a' and `service`: 'service-a' and `characteristic`: 'characteristic-a'
+    Actual: <Closure: () => Future<void>>
+     Which: returned a Future that emitted <null>
+
+  package:matcher                                     expectLater
+  package:flutter_test/src/widget_tester.dart 507:8   expectLater
+  test/snapshot_bound_characteristic_test.dart 61:15  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                          _CustomZone.registerUnaryCallback
+  test/snapshot_bound_characteristic_test.dart 52:22  main.<fn>
+
+00:00 +0 -3: invalidated bound handle rejects notify before submission
+00:00 +0 -4: invalidated bound handle rejects notify before submission [E]
+  Expected: throws <Instance of 'QuickBlueException'> with `code`: QuickBlueErrorCode:<QuickBlueErrorCode.invalidState> and `operation`: 'setNotifiable' and `device`: 'device-a' and `service`: 'service-a' and `characteristic`: 'characteristic-a'
+    Actual: <Closure: () => Future<void>>
+     Which: returned a Future that emitted <null>
+
+  package:matcher                                     expectLater
+  package:flutter_test/src/widget_tester.dart 507:8   expectLater
+  test/snapshot_bound_characteristic_test.dart 61:15  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                          _CustomZone.registerUnaryCallback
+  test/snapshot_bound_characteristic_test.dart 52:22  main.<fn>
+
+00:00 +0 -4: invalidated bound handle rejects indicate before submission
+00:00 +0 -5: invalidated bound handle rejects indicate before submission [E]
+  Expected: throws <Instance of 'QuickBlueException'> with `code`: QuickBlueErrorCode:<QuickBlueErrorCode.invalidState> and `operation`: 'setNotifiable' and `device`: 'device-a' and `service`: 'service-a' and `characteristic`: 'characteristic-a'
+    Actual: <Closure: () => Future<void>>
+     Which: returned a Future that emitted <null>
+
+  package:matcher                                     expectLater
+  package:flutter_test/src/widget_tester.dart 507:8   expectLater
+  test/snapshot_bound_characteristic_test.dart 61:15  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                          _CustomZone.registerUnaryCallback
+  test/snapshot_bound_characteristic_test.dart 52:22  main.<fn>
+
+00:00 +0 -5: invalidated bound handle rejects disable before submission
+00:00 +0 -6: invalidated bound handle rejects disable before submission [E]
+  Expected: throws <Instance of 'QuickBlueException'> with `code`: QuickBlueErrorCode:<QuickBlueErrorCode.invalidState> and `operation`: 'setNotifiable' and `device`: 'device-a' and `service`: 'service-a' and `characteristic`: 'characteristic-a'
+    Actual: <Closure: () => Future<void>>
+     Which: returned a Future that emitted <null>
+
+  package:matcher                                     expectLater
+  package:flutter_test/src/widget_tester.dart 507:8   expectLater
+  test/snapshot_bound_characteristic_test.dart 61:15  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                          _CustomZone.registerUnaryCallback
+  test/snapshot_bound_characteristic_test.dart 52:22  main.<fn>
+
+00:00 +0 -6: notifications checks at listen, before native setup
+00:30 +0 -7: notifications checks at listen, before native setup [E]
+  TimeoutException after 0:00:30.000000: Test timed out after 30 seconds. See https://pub.dev/packages/test#timeouts
+  dart:isolate  _RawReceivePort._handleMessage
+
+00:30 +0 -7: freshly rediscovered bound handles submit read write and notify
+00:30 +1 -7: direct-ID and default resolved handles remain unbound
+00:30 +2 -7: already-submitted write completes normally after invalidation
+00:30 +3 -7: chunked write stops before the next invalidated submission
+00:30 +3 -8: chunked write stops before the next invalidated submission [E]
+  Expected: throws <Instance of 'QuickBlueException'> with `code`: QuickBlueErrorCode:<QuickBlueErrorCode.invalidState> and `operation`: 'write' and `device`: 'device-a' and `service`: 'service-a' and `characteristic`: 'characteristic-a'
+    Actual: <Instance of 'Future<void>'>
+     Which: emitted <null>
+
+  package:matcher                                      expectLater
+  package:flutter_test/src/widget_tester.dart 507:8    expectLater
+  test/snapshot_bound_characteristic_test.dart 168:23  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                           _CustomZone.registerUnaryCallback
+  test/snapshot_bound_characteristic_test.dart 161:18  main.<fn>
+
+00:30 +3 -8: disconnect reconnect preserves current snapshot policy
+00:30 +3 -9: disconnect reconnect preserves current snapshot policy [E]
+  Expected: throws <Instance of 'QuickBlueException'> with `code`: QuickBlueErrorCode:<QuickBlueErrorCode.invalidState> and `operation`: 'read' and `device`: 'device-a' and `service`: 'service-a' and `characteristic`: 'characteristic-a'
+    Actual: <Instance of 'Future<Uint8List>'>
+     Which: emitted [7]
+
+  package:matcher                                      expectLater
+  package:flutter_test/src/widget_tester.dart 507:8    expectLater
+  test/snapshot_bound_characteristic_test.dart 188:11  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                           _CustomZone.registerUnaryCallback
+  test/snapshot_bound_characteristic_test.dart 179:18  main.<fn>
+
+00:30 +3 -9: Some tests failed.
+
+Failing tests:
+  /home/hermes/quick_blue/.worktrees/t_6523095a/quick_blue_platform_interface/test/snapshot_bound_characteristic_test.dart: chunked write stops before the next invalidated submission
+  /home/hermes/quick_blue/.worktrees/t_6523095a/quick_blue_platform_interface/test/snapshot_bound_characteristic_test.dart: disconnect reconnect preserves current snapshot policy
+  /home/hermes/quick_blue/.worktrees/t_6523095a/quick_blue_platform_interface/test/snapshot_bound_characteristic_test.dart: invalidated bound handle rejects disable before submission
+  /home/hermes/quick_blue/.worktrees/t_6523095a/quick_blue_platform_interface/test/snapshot_bound_characteristic_test.dart: invalidated bound handle rejects indicate before submission
+  ... and 5 more

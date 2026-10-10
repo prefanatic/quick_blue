@@ -1,0 +1,30 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_0aab934d`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_0aab934d`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_0aab934d/quick_blue_linux/test/adapter_contract_test.dart
+00:00 +0: R1 notification before direct read never replaces direct result
+00:00 +1: R2 duplicate characteristic UUIDs retain device/service identity and aliases
+00:00 +2: R3 readValue preserves typed authorization context
+00:00 +3: R3 readValue leaves non-security and arbitrary failures unchanged
+00:00 +4: R3 writeValue preserves typed authorization context
+00:00 +5: R3 writeValue leaves non-security and arbitrary failures unchanged
+00:00 +6: R3 setNotifiable preserves typed authorization context
+00:00 +7: R3 setNotifiable leaves non-security and arbitrary failures unchanged
+00:00 +8: R4 matching claims share setup; conflict rejected; final cancellation stops
+00:00 +9: R4 failed setup installs no property watcher
+00:00 +10: R4 disconnect cleans watches even when native stop fails
+00:00 +11: R4 pending setup cancellation waits then releases exactly once
+00:00 +12: R4 pending setup failure cancellation releases no unacquired claim
+00:00 +13: R4 explicit disable failure retains watcher until disconnect cleanup
+00:00 +14: R5 complete capabilities, bonding/filter forwarding and typed unsupported MTU
+00:00 +15: R6 empty-service inherited routing is not service-less BlueZ lookup
+00:00 +16: R7 lazy initialization is coalesced and disconnect releases lease/watchers
+00:00 +17: All tests passed!

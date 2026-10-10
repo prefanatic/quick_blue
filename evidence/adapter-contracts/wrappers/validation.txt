@@ -1,0 +1,45 @@
+$ flutter analyze
+Resolving dependencies...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing t_26fd2614...
+No issues found! (ran in 1.6s)
+exit_code=0
+
+$ dart format --output=none --set-exit-if-changed quick_blue/test/adapter_contract_test.dart quick_blue/test/test_support/adapter_contract_harness.dart quick_blue_darwin/test/adapter_contract_test.dart quick_blue_darwin/test/test_support/adapter_contract_binding.dart quick_blue_windows/test/adapter_contract_test.dart quick_blue_windows/test/test_support/adapter_contract_binding.dart
+Formatted 6 files (0 changed) in 0.05 seconds.
+exit_code=0
+
+$ .dart_tool/docs-venv/bin/python scripts/check-okf.py
+OKF 0.2: 19 concepts; 75 local links; metadata, sources and indexes pass
+exit_code=0
+
+$ .dart_tool/docs-venv/bin/python -m unittest discover -s scripts -p 'test_check_okf.py'
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.027s
+
+OK
+exit_code=0
+
+$ .dart_tool/docs-venv/bin/zensical build --clean
+Build started
+No issues found
+Build finished in 0.30s
+exit_code=0
+
+$ .dart_tool/docs-venv/bin/python scripts/check-docs-site.py
+Site: 20 navigation pages; 1155 local HTML links/anchors pass; search assets present
+exit_code=0
+
+$ git diff --check
+
+exit_code=0

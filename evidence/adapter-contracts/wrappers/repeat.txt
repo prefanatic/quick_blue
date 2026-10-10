@@ -1,0 +1,221 @@
+run=1 package=quick_blue
+$ flutter test test/adapter_contract_test.dart --reporter expanded
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_26fd2614/quick_blue/test/adapter_contract_test.dart
+00:00 +0: R1 notification before read reply: direct bytes
+00:00 +1: R2 service isolation, UUID aliases and outgoing identities
+00:00 +2: R3 readValue typed security context
+00:00 +3: R3 readValue non-security details
+00:00 +4: R3 readValue malformed details
+00:00 +5: R3 writeValue typed security context
+00:00 +6: R3 writeValue non-security details
+00:00 +7: R3 writeValue malformed details
+00:00 +8: R3 setNotifiable typed security context
+00:00 +9: R3 setNotifiable non-security details
+00:00 +10: R3 setNotifiable malformed details
+00:00 +11: R4 shared enable, mode conflict and final disable
+00:00 +12: R4 pending setup cancellation success
+00:00 +13: R4 pending setup cancellation failure
+00:00 +14: R4 terminal setup error closes the listener
+00:00 +15: R5 complete capability object, dynamic host gates false
+00:00 +16: R5 complete capability object, dynamic host gates true
+00:00 +17: R5 connected lookup parameters and negotiated/requested MTU
+00:00 +18: R6 empty-service legacy fanout is routing, not native lookup
+00:00 +19: R7 repeated initialization delivers once; cancelled listeners stay silent
+00:00 +20: All tests passed!
+exit_code=0
+
+run=1 package=quick_blue_darwin
+$ flutter test test/adapter_contract_test.dart --reporter expanded
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_26fd2614/quick_blue_darwin/test/adapter_contract_test.dart
+00:00 +0: R1 notification before read reply: direct bytes
+00:00 +1: R2 service isolation, UUID aliases and outgoing identities
+00:00 +2: R3 readValue typed security context
+00:00 +3: R3 readValue non-security details
+00:00 +4: R3 readValue malformed details
+00:00 +5: R3 writeValue typed security context
+00:00 +6: R3 writeValue non-security details
+00:00 +7: R3 writeValue malformed details
+00:00 +8: R3 setNotifiable typed security context
+00:00 +9: R3 setNotifiable non-security details
+00:00 +10: R3 setNotifiable malformed details
+00:00 +11: R4 shared enable, mode conflict and final disable
+00:00 +12: R4 pending setup cancellation success
+00:00 +13: R4 pending setup cancellation failure
+00:00 +14: R4 terminal setup error closes the listener
+00:00 +15: R5 complete capability object, dynamic host gates false
+00:00 +16: R5 complete capability object, dynamic host gates true
+00:00 +17: R5 connected lookup parameters and negotiated/requested MTU
+00:00 +18: R6 empty-service legacy fanout is routing, not native lookup
+00:00 +19: R7 repeated initialization delivers once; cancelled listeners stay silent
+00:00 +20: All tests passed!
+exit_code=0
+
+run=1 package=quick_blue_windows
+$ flutter test test/adapter_contract_test.dart --reporter expanded
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_26fd2614/quick_blue_windows/test/adapter_contract_test.dart
+00:00 +0: R1 notification before read reply: legacy event fallback
+00:00 +1: R2 service isolation, UUID aliases and outgoing identities
+00:00 +2: R3 readValue typed security context
+00:00 +3: R3 readValue non-security details
+00:00 +4: R3 readValue malformed details
+00:00 +5: R3 writeValue typed security context
+00:00 +6: R3 writeValue non-security details
+00:00 +7: R3 writeValue malformed details
+00:00 +8: R3 setNotifiable typed security context
+00:00 +9: R3 setNotifiable non-security details
+00:00 +10: R3 setNotifiable malformed details
+00:00 +11: R4 shared enable, mode conflict and final disable
+00:00 +12: R4 pending setup cancellation success
+00:00 +13: R4 pending setup cancellation failure
+00:00 +14: R4 terminal setup error closes the listener
+00:00 +15: R5 complete capability object, dynamic host gates false
+00:00 +16: R5 complete capability object, dynamic host gates true
+00:00 +17: R5 connected lookup parameters and negotiated/requested MTU
+00:00 +18: R6 empty-service legacy fanout is routing, not native lookup
+00:00 +19: R7 repeated initialization delivers once; cancelled listeners stay silent
+00:00 +20: All tests passed!
+exit_code=0
+
+run=2 package=quick_blue
+$ flutter test test/adapter_contract_test.dart --reporter expanded
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_26fd2614/quick_blue/test/adapter_contract_test.dart
+00:00 +0: R1 notification before read reply: direct bytes
+00:00 +1: R2 service isolation, UUID aliases and outgoing identities
+00:00 +2: R3 readValue typed security context
+00:00 +3: R3 readValue non-security details
+00:00 +4: R3 readValue malformed details
+00:00 +5: R3 writeValue typed security context
+00:00 +6: R3 writeValue non-security details
+00:00 +7: R3 writeValue malformed details
+00:00 +8: R3 setNotifiable typed security context
+00:00 +9: R3 setNotifiable non-security details
+00:00 +10: R3 setNotifiable malformed details
+00:00 +11: R4 shared enable, mode conflict and final disable
+00:00 +12: R4 pending setup cancellation success
+00:00 +13: R4 pending setup cancellation failure
+00:00 +14: R4 terminal setup error closes the listener
+00:00 +15: R5 complete capability object, dynamic host gates false
+00:00 +16: R5 complete capability object, dynamic host gates true
+00:00 +17: R5 connected lookup parameters and negotiated/requested MTU
+00:00 +18: R6 empty-service legacy fanout is routing, not native lookup
+00:00 +19: R7 repeated initialization delivers once; cancelled listeners stay silent
+00:00 +20: All tests passed!
+exit_code=0
+
+run=2 package=quick_blue_darwin
+$ flutter test test/adapter_contract_test.dart --reporter expanded
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_26fd2614/quick_blue_darwin/test/adapter_contract_test.dart
+00:00 +0: R1 notification before read reply: direct bytes
+00:00 +1: R2 service isolation, UUID aliases and outgoing identities
+00:00 +2: R3 readValue typed security context
+00:00 +3: R3 readValue non-security details
+00:00 +4: R3 readValue malformed details
+00:00 +5: R3 writeValue typed security context
+00:00 +6: R3 writeValue non-security details
+00:00 +7: R3 writeValue malformed details
+00:00 +8: R3 setNotifiable typed security context
+00:00 +9: R3 setNotifiable non-security details
+00:00 +10: R3 setNotifiable malformed details
+00:00 +11: R4 shared enable, mode conflict and final disable
+00:00 +12: R4 pending setup cancellation success
+00:00 +13: R4 pending setup cancellation failure
+00:00 +14: R4 terminal setup error closes the listener
+00:00 +15: R5 complete capability object, dynamic host gates false
+00:00 +16: R5 complete capability object, dynamic host gates true
+00:00 +17: R5 connected lookup parameters and negotiated/requested MTU
+00:00 +18: R6 empty-service legacy fanout is routing, not native lookup
+00:00 +19: R7 repeated initialization delivers once; cancelled listeners stay silent
+00:00 +20: All tests passed!
+exit_code=0
+
+run=2 package=quick_blue_windows
+$ flutter test test/adapter_contract_test.dart --reporter expanded
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_26fd2614`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_26fd2614/quick_blue_windows/test/adapter_contract_test.dart
+00:00 +0: R1 notification before read reply: legacy event fallback
+00:00 +1: R2 service isolation, UUID aliases and outgoing identities
+00:00 +2: R3 readValue typed security context
+00:00 +3: R3 readValue non-security details
+00:00 +4: R3 readValue malformed details
+00:00 +5: R3 writeValue typed security context
+00:00 +6: R3 writeValue non-security details
+00:00 +7: R3 writeValue malformed details
+00:00 +8: R3 setNotifiable typed security context
+00:00 +9: R3 setNotifiable non-security details
+00:00 +10: R3 setNotifiable malformed details
+00:00 +11: R4 shared enable, mode conflict and final disable
+00:00 +12: R4 pending setup cancellation success
+00:00 +13: R4 pending setup cancellation failure
+00:00 +14: R4 terminal setup error closes the listener
+00:00 +15: R5 complete capability object, dynamic host gates false
+00:00 +16: R5 complete capability object, dynamic host gates true
+00:00 +17: R5 connected lookup parameters and negotiated/requested MTU
+00:00 +18: R6 empty-service legacy fanout is routing, not native lookup
+00:00 +19: R7 repeated initialization delivers once; cancelled listeners stay silent
+00:00 +20: All tests passed!
+exit_code=0

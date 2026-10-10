@@ -1,0 +1,23 @@
+Resolving dependencies...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart
+00:00 +0: observes opened delivered before host reply
+00:00 +1: error settles opening without timeout
+00:00 +2: closed settles opening without timeout
+00:00 +3: sink close invokes native close exactly once
+00:00 +4: write and close bridge failures reach socket stream
+00:00 +5: deadline closes and controlled late opened is closed again
+00:00 +6: remote closed is delivered and ends the socket stream
+00:00 +7: host open failure settles without waiting for events
+00:00 +8: terminal event rejects even after opened while host reply is pending
+00:00 +9: silent deadline cleanup expires and removes the listener
+00:00 +10: All tests passed!

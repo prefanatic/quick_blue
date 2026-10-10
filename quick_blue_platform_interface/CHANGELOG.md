@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Emit one error followed by done after terminal notification setup failure,
+  without requiring consumer cancellation. Preserve pending-setup claim cleanup
+  and shared notification ownership; no native abort or setup deadline is added.
+
 - Keep the internal `BluetoothGatt` fixture constructor compatible with callers
   that do not provide snapshot invalidation.
 - Add `BluetoothReconnectionPolicy` and subscription-owned managed connection

@@ -1,0 +1,31 @@
+Source SHA: 88637becfc48874749a6ace480e5a4f28d4e94d3
+
+Command: .dart_tool/docs-venv/bin/python scripts/check-okf.py
+OKF 0.2: 19 concepts; 74 local links; metadata, sources and indexes pass
+
+Exit code: 0
+
+Command: .dart_tool/docs-venv/bin/python -m unittest discover -s scripts -p test_check_okf.py
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.027s
+
+OK
+
+Exit code: 0
+
+Command: .dart_tool/docs-venv/bin/zensical build --clean
+Build started
+No issues found
+Build finished in 0.32s
+
+Exit code: 0
+
+Command: .dart_tool/docs-venv/bin/python scripts/check-docs-site.py
+Site: 20 navigation pages; 1113 local HTML links/anchors pass; search assets present
+
+Exit code: 0
+
+Command: git diff --check
+
+Exit code: 0

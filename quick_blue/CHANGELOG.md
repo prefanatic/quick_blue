@@ -1,6 +1,35 @@
 ## Unreleased
 
+### Fixed
+
+- Close notification streams after terminal setup failure with one error followed
+  by done, without requiring consumer cancellation. Preserve acquired-claim
+  cleanup after pending setup settles, shared last-owner teardown and mode
+  conflicts; controlled-future tests establish Dart lifecycle behavior only.
+
+- Restore raw characteristic `valueStream` routing when a retained stream is
+  listened to again after cancellation. Old and fresh getter streams can overlap
+  without either stream's cancellation evicting the other's active listeners.
+  Native notification setup/teardown is unchanged; injected-event regressions
+  verify Dart routing, not hardware notification delivery.
+
+- Repair Darwin Dart L2CAP listener ordering, terminal open failures, observable
+  sink bridge failures, exactly-once sink close and bounded late-open cleanup;
+  add executable fake-messenger regressions without changing Swift or Pigeon.
+- Make closing a remote-closed Darwin L2CAP sink a no-op so stale cleanup cannot
+  close a replacement socket; cover late close/write bridge reply isolation.
+
 ### Added
+
+- Add executable Dart adapter contracts for Android, Darwin, Windows and fake
+  BlueZ/Linux; document event-only Windows reads and the mock-only proof boundary.
+- Add opt-in `BluetoothGatt.boundCharacteristic`, which resolves a
+  characteristic handle bound to its GATT snapshot. After a service-database
+  change, new read, write and notification submissions through that handle
+  fail with `QuickBlueException` (`invalidState`) before platform submission;
+  rediscover and resolve a fresh bound handle to continue. Existing ID-only
+  handles keep their current behavior, already-submitted IO is not rolled
+  back, and disconnect/reconnect snapshot policy is unchanged.
 
 - Reject docs-site links that resolve outside the site root, including decoded
   traversal and symlink targets, while preserving internal parent-relative links.
@@ -9,6 +38,7 @@
   and consumer validation failures enabled under optimization, and reject release
   constraint prefix drift and duplicate dependency declarations. Fixture results
   prove maintenance-tool behavior only, not deployment or native/hardware behavior.
+
 
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation

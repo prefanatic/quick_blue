@@ -1,0 +1,26 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_e85fedc7`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_e85fedc7`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart
+00:00 +0: retained raw characteristic value stream delivers after re-listen
+00:00 +0 -1: retained raw characteristic value stream delivers after re-listen [E]
+  Expected: [[2]]
+    Actual: MappedListIterable<Uint8List, List<int>>:[]
+     Which: at location [0] is MappedListIterable<Uint8List, List<int>>:[] which shorter than expected
+
+  package:matcher                                           expect
+  package:flutter_test/src/widget_tester.dart 473:18        expect
+  test/retained_characteristic_value_stream_test.dart 47:7  main.<fn>
+
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  /home/hermes/quick_blue/.worktrees/t_e85fedc7/quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart: retained raw characteristic value stream delivers after re-listen

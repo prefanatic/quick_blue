@@ -1,0 +1,42 @@
+{
+  "baseline/quick_blue": {
+    "passed": 19,
+    "failed": 1
+  },
+  "baseline/quick_blue_darwin": {
+    "passed": 19,
+    "failed": 1
+  },
+  "baseline/quick_blue_windows": {
+    "passed": 19,
+    "failed": 1
+  },
+  "contracts/quick_blue": {
+    "passed": 20,
+    "failed": 0
+  },
+  "contracts/quick_blue_darwin": {
+    "passed": 20,
+    "failed": 0
+  },
+  "contracts/quick_blue_windows": {
+    "passed": 20,
+    "failed": 0
+  },
+  "full/quick_blue": {
+    "passed": 109,
+    "failed": 0
+  },
+  "full/quick_blue_darwin": {
+    "passed": 67,
+    "failed": 0
+  },
+  "full/quick_blue_windows": {
+    "passed": 36,
+    "failed": 0
+  },
+  "full/quick_blue_platform_interface": {
+    "passed": 234,
+    "failed": 0
+  }
+}

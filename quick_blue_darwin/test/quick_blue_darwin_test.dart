@@ -54,6 +54,19 @@ void main() {
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.openL2cap';
   const writeL2capChannelName =
       'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.writeL2cap';
+  const closeL2capChannelName =
+      'dev.flutter.pigeon.quick_blue_darwin.QuickBlueApi.closeL2cap';
+
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(
+          const BasicMessageChannel<Object?>(
+            closeL2capChannelName,
+            messages.QuickBlueApi.pigeonChannelCodec,
+          ),
+          (_) async => <Object?>[null],
+        );
+  });
 
   tearDown(() {
     for (final name in const [
@@ -75,6 +88,7 @@ void main() {
       writeValueChannelName,
       openL2capChannelName,
       writeL2capChannelName,
+      closeL2capChannelName,
     ]) {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockDecodedMessageHandler<Object?>(
@@ -718,20 +732,7 @@ void main() {
 
   test('maps L2CAP socket events and forwards socket writes', () async {
     _mockEventChannel(l2capSocketEventsChannelName, <Object?>[
-      messages.PlatformL2CapSocketEvent(
-        deviceId: 'device-a',
-        data: Uint8List.fromList(<int>[1, 2]),
-      ),
-      messages.PlatformL2CapSocketEvent(
-        deviceId: 'other-device',
-        error: 'ignored',
-      ),
-      messages.PlatformL2CapSocketEvent(
-        deviceId: 'device-a',
-        error: 'read-failed',
-      ),
       messages.PlatformL2CapSocketEvent(deviceId: 'device-a', opened: true),
-      messages.PlatformL2CapSocketEvent(deviceId: 'device-a', closed: true),
     ]);
 
     final sentMessages = <String, Object?>{};
@@ -758,8 +759,29 @@ void main() {
     final platform = QuickBlueDarwin();
     final socket = await platform.openL2cap('device-a', 25);
 
+    for (final event in [
+      messages.PlatformL2CapSocketEvent(
+        deviceId: 'device-a',
+        data: Uint8List.fromList([1, 2]),
+      ),
+      messages.PlatformL2CapSocketEvent(
+        deviceId: 'other-device',
+        error: 'ignored',
+      ),
+      messages.PlatformL2CapSocketEvent(
+        deviceId: 'device-a',
+        error: 'read-failed',
+      ),
+    ]) {
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+            l2capSocketEventsChannelName,
+            messages.pigeonMethodCodec.encodeSuccessEnvelope(event),
+            (_) {},
+          );
+    }
     await expectLater(
-      socket.stream.take(4),
+      socket.stream.take(3),
       emitsInAnyOrder(<Matcher>[
         isA<BleL2CapSocketEventData>()
             .having((event) => event.deviceId, 'deviceId', 'device-a')
@@ -772,11 +794,6 @@ void main() {
             .having((event) => event.deviceId, 'deviceId', 'device-a')
             .having((event) => event.error, 'error', 'read-failed'),
         isA<BleL2CapSocketEventOpened>().having(
-          (event) => event.deviceId,
-          'deviceId',
-          'device-a',
-        ),
-        isA<BleL2CapSocketEventClosed>().having(
           (event) => event.deviceId,
           'deviceId',
           'device-a',

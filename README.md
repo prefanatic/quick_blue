@@ -7,7 +7,10 @@ Connection ownership is shared safely across Flutter engines. On Android, bounde
 disconnect reconciliation keeps missing native callbacks from blocking later
 reconnects. Remote GATT database changes are surfaced across supported
 platforms so applications can invalidate stale service snapshots and
-rediscover safely. Applications can query platform capabilities at runtime
+rediscover safely. Opt-in snapshot-bound characteristic handles additionally
+reject new reads, writes, and notification setup after their snapshot is
+invalidated, while existing ID-only handles keep their current behavior.
+Applications can query platform capabilities at runtime
 instead of duplicating platform and OS-version checks, and explicit chunked
 write helpers support larger application payloads without hiding their framing.
 Opt-in managed connections provide bounded reconnection backoff while keeping
@@ -43,9 +46,13 @@ the first error and adds no framing, automatic reassembly, or application ACKs.
 
 - [Knowledge bundle: setup, usage, platforms, and verification](docs/index.md)
 - [Install from Git](docs/install.md)
+- [Notification setup and claim settlement](docs/gatt.md#notifications-own-their-teardown) - Terminal setup failures close the stream; pending cancellation waits for setup and releases only an acquired claim.
+- [Reusable raw characteristic value streams](docs/gatt.md#raw-value-streams-are-reusable) - Retain and re-listen without owning native notification setup; injected-event coverage proves Dart routing only.
+- [L2CAP socket lifetimes and Darwin bridge cleanup](docs/l2cap.md)
 - [Package README](quick_blue/README.md)
 - [Changelog](quick_blue/CHANGELOG.md)
 - [Contributing and verification](CONTRIBUTING.md)
+- [Executable Dart adapter contracts](docs/testing.md#dart-adapter-contracts) - Fake messenger/BlueZ coverage, not native or hardware certification.
 - [Issue tracker](https://github.com/prefanatic/quick_blue/issues)
 
 ## Download the example app

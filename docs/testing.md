@@ -58,6 +58,42 @@ native/hardware behavior. Real consumer builds remain a separate check using
 `python3 scripts/check-linux-consumer.py`; see [maintenance](maintenance.md) for
 the real documentation validation chain.
 
+## Dart adapter contracts
+
+Run the checked-in parameterized wrapper harness and Linux fake-dependency
+cases from the repository root:
+
+```sh
+for package in quick_blue quick_blue_darwin quick_blue_windows quick_blue_linux; do
+  (cd "$package" && flutter test test/adapter_contract_test.dart --reporter expanded)
+done
+(cd quick_blue_windows && flutter test ../evidence/adapter-contracts/windows-read-boundary/read_boundary_test.dart --reporter expanded)
+```
+
+The package suites automatically discover 20 Android, 20 Darwin, 20 Windows and
+17 Linux cases. The extra Windows boundary test requires the explicit command
+above. Cases cover read/event ordering, service identity, typed errors,
+notification claim setup/teardown, capability gates, legacy service-less routing
+and snapshot-bound submission. Shared fixtures exist only for matching Dart
+wrapper contracts; Linux uses fake BlueZ/lease dependencies.
+
+Windows exposes a void host read and inherits event-only fallback: an early
+matching notification can satisfy the read, while a wrong-service event cannot,
+even after host success. This is characterization, not direct-result correlation
+proof or a native/schema repair. Linux service-less lookup deliberately rejects
+ambiguous native routing, and Linux setup-error coverage does not assert stream
+done settlement. Harness teardown releases owned subscriptions/claims; it does
+not prove a public plugin-wide dispose API.
+
+See tracked repository files `evidence/adapter-contracts/PLAN.md`,
+`evidence/adapter-contracts/wrappers/RESULTS.md`,
+`evidence/adapter-contracts/linux/RESULTS.md` and
+`evidence/adapter-contracts/windows-read-boundary/RESULTS.md`.
+The harness is verification-only; notification settlement and Darwin L2CAP
+corrections are separately scoped dependencies, not fixes made by these tests.
+Fake messengers and fake BlueZ establish Dart translation/event contracts only:
+not real D-Bus, native ordering, Apple/WinRT runtime or BLE hardware behavior.
+
 ## Native and generated boundaries
 
 | Change | Check |

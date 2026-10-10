@@ -1,0 +1,194 @@
+Source SHA: 88637becfc48874749a6ace480e5a4f28d4e94d3
+
+Working directory: quick_blue_linux
+Command: flutter test --reporter expanded
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/quick_blue_linux_test.dart
+00:00 +0: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/quick_blue_linux_test.dart: registers as platform implementation
+00:00 +1: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/quick_blue_linux_test.dart: reports Linux platform capabilities
+00:00 +2: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/quick_blue_linux_test.dart: companion APIs throw QuickBlueException
+00:00 +3: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/quick_blue_linux_test.dart: requestMtu reports unsupported instead of returning an estimate
+00:00 +4: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/quick_blue_linux_test.dart: concurrent first calls share one BlueZ initialization
+00:00 +5: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/quick_blue_linux_test.dart: security recovery pairs an unpaired BlueZ device
+00:00 +6: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/quick_blue_linux_test.dart: ServicesResolved invalidates the connected GATT database
+00:00 +7: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseNamePrefix names are process-scoped and device-scoped
+00:00 +8: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseNamePrefix different devices hash differently within one process
+00:00 +9: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseNamePrefix the same device hashes identically across processes
+00:00 +10: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseClientName appends the sanitized unique name
+00:00 +11: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: connectionLeaseClientName rejects a bus connection without a unique name
+00:00 +12: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: hasOtherConnectionClients ignores the name being released
+00:00 +13: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: hasOtherConnectionClients detects another engine still holding the device
+00:00 +14: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: hasOtherConnectionClients does not confuse this device with another device of the same process
+00:00 +15: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) attach takes the lock, registers the client and releases the lock
+00:00 +16: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a failed client registration still releases the lock
+00:00 +17: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a stale lock is retried until it is released
+00:00 +18: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:00 +19: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:00 +20: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:00 +21: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:00 +22: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +23: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +24: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +25: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +26: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +27: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +28: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +29: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +30: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +31: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +32: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +33: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +34: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +35: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +36: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +37: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +38: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +39: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:01 +40: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +41: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:02 +42: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +43: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +44: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +45: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +46: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +47: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +48: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +49: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +50: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +51: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +52: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +53: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +54: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +55: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +56: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +57: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +58: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +59: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +60: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +61: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +62: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:03 +63: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +64: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +65: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +66: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +67: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +68: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +69: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +70: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +71: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +72: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +73: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +74: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +75: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +76: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +77: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +78: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +79: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +80: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +81: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +82: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +83: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +84: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +85: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:04 +86: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) a permanently stale lock times out instead of hanging
+00:10 +87: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) detach releases the client name and detects the last client
+00:10 +88: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) detach keeps the shared connection while another engine holds it
+00:10 +89: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_linux/test/src/connection_lease_test.dart: DbusConnectionLease (with a fake bus) attach and detach serialize per device through the lock
+00:10 +90: All tests passed!
+
+Exit code: 0
+
+Working directory: quick_blue_darwin
+Command: flutter test --reporter expanded
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart
+00:00 +0: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: registers as platform implementation
+00:00 +1: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: configure forwards maintainState to the host API
+00:00 +2: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: maps Apple AccessorySetupKit host API calls
+00:00 +3: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: forwards core host API calls
+00:00 +4: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: companion APIs throw QuickBlueException
+00:00 +5: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: pairing APIs throw QuickBlueException
+00:00 +6: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: maps bluetooth state events
+00:00 +7: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: maps aggregate restoration callbacks to the typed observer
+00:00 +8: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: maps scan result events
+00:00 +9: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: device and characteristic query separate native limits without MTU
+00:00 +10: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: device and characteristic query separate native limits without MTU
+00:00 +11: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: device and characteristic query separate native limits without MTU
+00:00 +12: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: device and characteristic query separate native limits without MTU
+00:00 +13: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: device and characteristic query separate native limits without MTU
+00:00 +14: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: device and characteristic query separate native limits without MTU
+00:00 +15: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: device and characteristic query separate native limits without MTU
+00:00 +16: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: forwards known connection states and ignores unknown connection states
+00:00 +17: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: without-response write awaits native handoff and propagates busy error
+00:00 +18: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: without-response write awaits native handoff and propagates busy error
+00:00 +19: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: without-response write awaits native handoff and propagates busy error
+00:00 +20: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: without-response write awaits native handoff and propagates busy error
+00:00 +21: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: without-response write awaits native handoff and propagates busy error
+00:00 +22: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/write_payload_limits_test.dart: without-response write awaits native handoff and propagates busy error
+00:00 +23: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: readValue maps a context-only native state failure
+00:00 +24: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: setNotifiable maps CoreBluetooth security errors
+00:00 +25: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBATTErrorDomain 5 to security error
+00:00 +26: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBATTErrorDomain 12 to security error
+00:00 +27: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBATTErrorDomain 15 to security error
+00:00 +28: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBErrorDomain 15 to security error
+00:00 +29: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBErrorDomain 14 to security error
+00:00 +30: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: managed write retries a recoverable security failure once
+00:00 +31: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: readCharacteristicValue returns the native callback value
+00:00 +32: /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_darwin/test/quick_blue_darwin_test.dart: flutter API callbacks surface shared event streams
+00:00 +33: All tests passed!
+
+Exit code: 0
+
+Working directory: quick_blue_windows
+Command: flutter test --reporter expanded
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_c2987149`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_c2987149/quick_blue_windows/test/quick_blue_windows_test.dart
+00:00 +0: registers as platform implementation
+00:00 +1: reports Windows platform capabilities
+00:00 +2: forwards core host API calls
+00:00 +3: unsupported APIs throw QuickBlueException
+00:00 +4: security recovery reports unsupported pairing
+00:00 +5: maps scan result events
+00:00 +6: raw scan results apply the active service-data filter
+00:00 +7: reuses the scan result event stream
+00:00 +8: forwards known connection states and ignores unknown connection states
+00:00 +9: startScan forwards non-empty service UUID and manufacturer filters
+00:00 +10: startScan forwards Windows scan options
+00:00 +11: startScan maps common scan options for Windows
+00:00 +12: requestMtu forwards the device and returns the negotiated MTU
+00:00 +13: writeValue completes when the host replies with success
+00:00 +14: readValue maps WinRT access denied to a security error
+00:00 +15: flutter API callbacks surface shared event streams
+00:00 +16: All tests passed!
+
+Exit code: 0
