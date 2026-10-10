@@ -67,7 +67,8 @@ the real documentation validation chain.
 | Darwin ownership/restoration helpers | `swift test` inside the corresponding `connection_ownership` / `restoration_summary` directories |
 | Android Kotlin | `(cd quick_blue/example/android && ./gradlew :quick_blue:testDebugUnitTest)` |
 | Windows ownership | Native CMake/CTest target on Windows (CI `build-windows`) |
-| Release metadata | `scripts/publish-packages.sh --dry-run` |
+| Release metadata | `scripts/publish-packages.sh --dry-run` and `python3 scripts/check-changelog-coverage.py` |
+| Workflow selection/policy | Docs-venv Python: `-m unittest discover -s scripts -p 'test_workflow_readiness.py' -v` |
 | Documentation | [Maintenance checks](maintenance.md), source review, and site build when configured |
 
 Darwin's Linux type-check harness uses signature-faithful stubs; it does not prove
@@ -121,6 +122,20 @@ refreshes checkout without reinstalling Windows. `QUICK_BLUE_WINDOWS_RESET=1`
 rebuilds the VM disk; do not use it for routine reruns.
 
 ## Report evidence, not assumptions
+
+CI selects readiness checks for `**/CHANGELOG.md` and release pubspec changes.
+Source/configuration changes selected by `validate` also run cheap canonical OKF
+validation and readiness fixtures. Docs-only changes remain owned by the
+Documentation workflow, including its site build.
+
+Fixtures read real workflow filters, conditions and matrices. The local glob
+evaluator supports only the current literal/`*`/`**` subset, fails on unsupported
+patterns, and does not prove exact dorny/GitHub execution semantics. Its aggregate
+policy treats selected failures as FAIL, cancellations or unexpected skips as
+UNRESOLVED (rerun required), and condition-false skips as neutral. Changes-job
+failures cannot produce an all-skip pass. This is a local policy fixture, not an
+aggregate CI job or branch-protection enforcement. Hosted iOS/macOS/Windows
+builds explicitly disabled by `SKIP_HOSTED_PLATFORM_BUILDS` remain unverified.
 
 Record the exact command, revision, host/device, executed scenarios, result and
 any skips. If blocked, state the command attempted, the concrete blocker, and

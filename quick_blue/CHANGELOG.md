@@ -2,6 +2,9 @@
 
 ### Added
 
+- Validate changelog-only readiness changes and canonical documentation for
+  source changes in CI; add local workflow-selection/policy fixtures and a
+  reusable current-version changelog-heading validator.
 - Reject docs-site links that resolve outside the site root, including decoded
   traversal and symlink targets, while preserving internal parent-relative links.
 - Add hermetic docs-site, release-metadata and Linux consumer-construction

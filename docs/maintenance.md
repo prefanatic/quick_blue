@@ -63,6 +63,9 @@ From repository root:
 python3 -m venv .dart_tool/docs-venv
 .dart_tool/docs-venv/bin/pip install -r scripts/requirements-docs.txt
 .dart_tool/docs-venv/bin/python scripts/check-okf.py
+.dart_tool/docs-venv/bin/python -m unittest discover -s scripts -p 'test_check_okf.py'
+.dart_tool/docs-venv/bin/python -m unittest discover -s scripts -p 'test_workflow_readiness.py' -v
+python3 scripts/check-changelog-coverage.py
 .dart_tool/docs-venv/bin/python -m unittest discover -s scripts -p 'test_*.py'
 .dart_tool/docs-venv/bin/python -O -m unittest discover -s scripts -p 'test_*.py'
 .dart_tool/docs-venv/bin/zensical build --clean
@@ -97,6 +100,10 @@ inside the site remain valid; external URLs are not fetched.
 Its critical failures use explicit exceptions, not optimization-sensitive assertions.
 See [maintenance-tool regressions](testing.md#maintenance-tool-regressions) for
 the hermetic suite and its proof boundaries.
+
+Readiness fixtures require the expanded docs.yml policy landed in PR21: changes
+to `scripts/check-linux-consumer.py` select Documentation. Standalone PR22 before
+that prerequisite did not select it.
 
 The workflow `.github/workflows/docs.yml` validates OKF and builds on matching
 pull requests and `master` pushes. Deployment runs only in
