@@ -51,21 +51,61 @@ the first error and adds no framing, automatic reassembly, or application ACKs.
 ## Download the example app
 
 Each published versioned GitHub Release attaches example-app builds for
-Android, iOS Simulator, macOS, Linux x64, and Windows x64. Download the assets
-and adjacent `.sha256` files from the
+Android, iOS Simulator, macOS, Linux x64, and Windows x64. There are no
+releases yet; the first one will follow the shared package version (for
+example `v0.5.0`). Download the assets and adjacent `.sha256` files from the
 [Releases page](https://github.com/prefanatic/quick_blue/releases). Assets are
-built from the source pointed to by that release tag. Verify an asset with
-`sha256sum -c <asset>.sha256` on Linux, `shasum -a 256 -c <asset>.sha256` on
-macOS, or compare its SHA-256 with `Get-FileHash <asset> -Algorithm SHA256` in
-PowerShell.
+built by CI from the source pointed to by that release tag, so an asset always
+matches the tagged source rather than the latest master.
+
+Assets follow one naming pattern: `quick_blue-example-<tag>-<platform>.<ext>`,
+where `<tag>` is the release tag (for example `quick_blue-example-v0.5.0-android.apk`).
+
+| Target | Asset |
+| --- | --- |
+| Android | `quick_blue-example-<tag>-android.apk` |
+| iOS Simulator | `quick_blue-example-<tag>-ios-simulator.zip` |
+| macOS | `quick_blue-example-<tag>-macos.zip` |
+| Linux x64 | `quick_blue-example-<tag>-linux-x64.tar.gz` |
+| Windows x64 | `quick_blue-example-<tag>-windows-x64.zip` |
+
+Every asset has an adjacent `.sha256` file (the standard two-field
+`sha256sum` format, so `sha256sum -c <asset>.sha256` works on Linux and
+`shasum -a 256 -c <asset>.sha256` on macOS). On Windows, compare the
+checksum to `(Get-FileHash <asset> -Algorithm SHA256).Hash` in PowerShell.
+
+To install and run the downloaded asset:
+
+- **Android**: transfer the APK to the device, open it, and accept the
+  "install unknown apps" prompt for your browser or file manager; debug-signed
+  builds cannot be sideloaded on some enterprise-managed devices. Launch
+  `quick_blue_example` from the launcher. Android 8.0 (API 26) or newer is
+  required.
+- **iOS Simulator**: unzip, then
+  `xcrun simctl install booted <extracted>/Runner.app` and
+  `xcrun simctl launch booted fyi.goldberg.quickblue.example` (or launch it
+  from the Simulator home screen). This artifact cannot run on a physical
+  iPhone or iPad.
+- **macOS**: unzip to get `Runner.app`, move it anywhere (for example
+  `/Applications`), and launch it. The app is not Developer ID signed or
+  notarized, so Gatekeeper blocks the first launch: right-click `Runner.app`
+  and choose Open, or run
+  `xattr -dr com.apple.quarantine Runner.app` after unzipping. Bluetooth
+  permission is prompted on first use.
+- **Linux x64**: extract with `tar -xzf <asset>.tar.gz -C quick_blue_example`
+  and run `./quick_blue_example`. The bundle does not include system
+  libraries; compatible GTK and BlueZ runtime libraries and the Quick Blue
+  D-Bus policy (see the package README) are required.
+- **Windows x64**: extract the ZIP anywhere and launch
+  `quick_blue_example.exe`. Windows SmartScreen may warn about an unsigned
+  executable: choose More info, then Run anyway.
 
 These are evaluation builds, not store-ready signed applications. The Android
-APK uses a debug key. The iOS artifact runs only in the iOS Simulator and is
-not an installable device IPA. The macOS app is not Developer ID signed or
-notarized, so Gatekeeper may block it. The Linux x64 bundle requires compatible
-GTK/BlueZ runtime libraries and the Linux D-Bus policy described in the package
-README. The Windows x64 ZIP contains the app bundle; extract it and launch
-`quick_blue_example.exe`.
+APK is debug-signed and never installed from a store; the iOS artifact is
+Simulator-only and is not an installable device IPA; the macOS app is not
+Developer ID signed or notarized, so Gatekeeper may block it; and none of the
+desktop builds are Authenticode-signed. All five platforms require Bluetooth
+LE hardware and the permissions described in the package README.
 
 > To use the code in this repository, follow the
 > [Git installation instructions](docs/install.md). A hosted

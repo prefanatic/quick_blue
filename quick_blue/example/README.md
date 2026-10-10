@@ -6,19 +6,24 @@ Demonstrates how to use the quick_blue plugin.
 
 Published versioned [GitHub Releases](https://github.com/prefanatic/quick_blue/releases)
 include Android APK, iOS Simulator app, macOS app, Linux x64 bundle, and
-Windows x64 bundle assets. Each has an adjacent `.sha256` file; verify on Linux
-with `sha256sum -c <asset>.sha256`, on macOS with
+Windows x64 bundle assets. Assets follow the naming pattern
+`quick_blue-example-<tag>-<platform>.<ext>` (for example
+`quick_blue-example-v0.5.0-android.apk`), are built by CI from the source the
+release tag points to, and each has an adjacent `.sha256` file. Verify on
+Linux with `sha256sum -c <asset>.sha256`, on macOS with
 `shasum -a 256 -c <asset>.sha256`, or on Windows by comparing the checksum to
-`(Get-FileHash <asset> -Algorithm SHA256).Hash` in PowerShell. The workflow
-checks out the release tag before building.
+`(Get-FileHash <asset> -Algorithm SHA256).Hash` in PowerShell. See the root
+README for per-platform install and launch steps.
 
 These are unsigned evaluation builds, not store-ready apps. The Android APK is
-debug-signed. The iOS build targets Simulator only and cannot be installed on a
+debug-signed (Android 8.0+; accept the "install unknown apps" prompt to
+sideload). The iOS build targets Simulator only and cannot be installed on a
 physical iPhone or iPad. The macOS app is not Developer ID signed or notarized
-and may be blocked by Gatekeeper. The Linux x64 archive contains the Flutter
-bundle but not system libraries; compatible GTK/BlueZ libraries and the
-Quick Blue D-Bus policy are required. Extract the Windows x64 ZIP and launch
-`quick_blue_example.exe`.
+and may be blocked by Gatekeeper on first launch. The Linux x64 archive
+contains the Flutter bundle but not system libraries; compatible GTK/BlueZ
+libraries and the Quick Blue D-Bus policy are required. The Windows x64 ZIP is
+not Authenticode-signed and may trigger a SmartScreen prompt; extract it and
+launch `quick_blue_example.exe`.
 
 ## BLE smoke test
 

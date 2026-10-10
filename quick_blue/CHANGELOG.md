@@ -6,6 +6,9 @@
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.
 
+- Document release asset naming, download/verification, and per-platform
+  install and launch steps for the example app.
+
 - Add optional caller-local `timeout` and `QuickBlueCancellationToken` to device
   connection, disconnect, service/GATT discovery, and MTU waits. Expired callers
   release their timers/listeners without cancelling work owned by other callers
