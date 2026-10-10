@@ -1,5 +1,11 @@
 ## Unreleased
 
+- Repair Darwin Dart L2CAP listener ordering, terminal open failures, observable
+  sink bridge failures, exactly-once sink close and bounded late-open cleanup;
+  add executable fake-messenger regressions without changing Swift or Pigeon.
+- Make closing a remote-closed Darwin L2CAP sink a no-op so stale cleanup cannot
+  close a replacement socket; cover late close/write bridge reply isolation.
+
 ### Added
 
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux

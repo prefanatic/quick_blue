@@ -1,0 +1,101 @@
+Resolving dependencies in `/home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/failure_reason_public_api_test.dart
+00:00 +0: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/failure_reason_public_api_test.dart: failure reasons are available from the public package entrypoint
+00:00 +1: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid registers as platform implementation
+00:00 +2: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps runtime-limited Android capabilities
+00:00 +3: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid forwards core host API calls
+00:00 +4: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid read maps authentication failures to security errors
+00:00 +5: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid connect translates a temporarily busy shared connection
+00:00 +6: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid read returns native bytes and publishes the value event
+00:00 +7: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid write surfaces structured numeric GATT failures
+00:00 +8: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid startScan forwards Android scan options
+00:00 +9: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps bluetooth state events
+00:00 +10: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid maps bond state events
+00:00 +11: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid uses an implicit bond and retries the operation once
+00:00 +12: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +13: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +14: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +15: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +16: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +17: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +18: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +19: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +20: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +21: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +22: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +23: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +24: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +25: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +26: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +27: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +28: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +29: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +30: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +31: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +32: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +33: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +34: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +35: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +36: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +37: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +38: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +39: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +40: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +41: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +42: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +43: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +44: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +45: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +46: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +47: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +48: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +49: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +50: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +51: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +52: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +53: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:00 +54: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid starts one explicit bond after the observation bound
+00:01 +55: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid waits for an existing bond operation
+00:01 +56: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid keeps stale-bond recovery as user action
+00:01 +57: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid coalesces concurrent Android security recovery
+00:01 +58: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +59: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +60: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +61: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +62: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/quick_blue_android_test.dart: QuickBlueAndroid a failed explicit bond cancels its state subscription
+00:01 +63: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +64: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +65: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +66: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +67: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +68: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +69: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +70: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +71: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +72: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +73: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +74: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bonding device that never completes asks the user
+00:01 +75: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that reports bonded straight away needs no pairing
+00:01 +76: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that starts then completes is recovered
+00:02 +77: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: an implicit bond that starts and fails asks the user
+00:02 +78: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that reaches bonded is recovered
+00:02 +79: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that reports bonded straight away is recovered
+00:02 +80: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: an explicit pairing that never reports a state asks the user
+00:02 +81: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a failing bond-state read asks the user
+00:02 +82: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a failing explicit pairing asks the user
+00:02 +83: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a bond-state stream error asks the user
+00:02 +84: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/src/android_security_recovery_test.dart: a state change for another device is ignored
+00:03 +85: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/write_payload_limits_test.dart: QuickBlueAndroid reports unknown instead of guessing from MTU
+00:03 +86: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/write_payload_limits_test.dart: QuickBlueLinux reports unknown instead of guessing from MTU
+00:03 +87: /home/hermes/.hermes/kanban/boards/quick-blue/workspaces/t_e0ee060a/repo/quick_blue/test/write_payload_limits_test.dart: QuickBlueWindows reports unknown instead of guessing from MTU
+00:03 +88: All tests passed!

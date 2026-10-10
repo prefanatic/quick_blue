@@ -1,0 +1,187 @@
+Resolving dependencies...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart
+00:00 +0: observes opened delivered before host reply
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: not null
+  Actual: <null>
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart:63:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart line 63
+The test description was:
+  observes opened delivered before host reply
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +0 -1: observes opened delivered before host reply [E]
+  Test failed. See exception logs above.
+  The test description was: observes opened delivered before host reply
+
+00:00 +0 -1: error settles opening without timeout
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: <Instance of 'QuickBlueException'>
+  Actual: <null>
+   Which: is not an instance of 'QuickBlueException'
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart:83:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart line 83
+The test description was:
+  error settles opening without timeout
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +0 -2: error settles opening without timeout [E]
+  Test failed. See exception logs above.
+  The test description was: error settles opening without timeout
+
+00:00 +0 -2: closed settles opening without timeout
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: <Instance of 'QuickBlueException'>
+  Actual: <null>
+   Which: is not an instance of 'QuickBlueException'
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart:83:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart line 83
+The test description was:
+  closed settles opening without timeout
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +0 -3: closed settles opening without timeout [E]
+  Test failed. See exception logs above.
+  The test description was: closed settles opening without timeout
+
+00:00 +0 -3: sink close invokes native close exactly once
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: <1>
+  Actual: <0>
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart:102:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart line 102
+The test description was:
+  sink close invokes native close exactly once
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +0 -4: sink close invokes native close exactly once [E]
+  Test failed. See exception logs above.
+  The test description was: sink close invokes native close exactly once
+
+00:00 +0 -4: write and close bridge failures reach socket stream
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following PlatformException was thrown running a test:
+PlatformException(WriteFailed, write, null, null)
+
+When the exception was thrown, this was the stack:
+#0      _extractReplyValueOrThrow (package:quick_blue_darwin/src/messages.g.dart:23:5)
+#1      QuickBlueApi.writeL2cap (package:quick_blue_darwin/src/messages.g.dart:1488:5)
+<asynchronous suspension>
+
+The test description was:
+  write and close bridge failures reach socket stream
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +0 -5: write and close bridge failures reach socket stream [E]
+  Test failed. See exception logs above.
+  The test description was: write and close bridge failures reach socket stream
+
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test (but after the test had completed):
+Expected: an object with length of <2>
+  Actual: []
+   Which: has length of <0>
+
+When the exception was thrown, this was the stack:
+#0      fail (package:matcher/src/expect/expect.dart:187:31)
+#1      _expect (package:matcher/src/expect/expect.dart:182:3)
+#2      expect (package:matcher/src/expect/expect.dart:65:3)
+#3      expect (package:flutter_test/src/widget_tester.dart:473:18)
+#4      main.<anonymous closure> (file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart:116:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  Test failed. See exception logs above.
+  The test description was: write and close bridge failures reach socket stream
+
+00:00 +0 -5: deadline closes and controlled late opened is closed again
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: <1>
+  Actual: <0>
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart:130:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart line 130
+The test description was:
+  deadline closes and controlled late opened is closed again
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +0 -6: deadline closes and controlled late opened is closed again [E]
+  Test failed. See exception logs above.
+  The test description was: deadline closes and controlled late opened is closed again
+
+00:00 +0 -6: Some tests failed.
+
+Failing tests:
+  /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: closed settles opening without timeout
+  /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: deadline closes and controlled late opened is closed again
+  /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: error settles opening without timeout
+  /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: observes opened delivered before host reply
+  ... and 2 more

@@ -1,0 +1,97 @@
+generated Sources/QuickBlueDarwinPluginTypeCheck/QuickBlueDarwinPlugin.swift from /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/darwin/quick_blue_darwin/type_check/../Sources/quick_blue_darwin/QuickBlueDarwinPlugin.swift
+generated Sources/QuickBlueDarwinPluginTypeCheck/Messages.g.swift from /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/darwin/quick_blue_darwin/type_check/../Sources/quick_blue_darwin/Messages.g.swift
+swift: /lib64/libtinfo.so.6: no version information available (required by swift)
+/home/hermes/.local/opt/swift/usr/bin/swift-test: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swift-test)
+/home/hermes/.local/opt/swift/usr/bin/swift-test: /lib64/libcurl.so.4: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/../lib/swift/linux/libFoundationNetworking.so)
+warning: 'type_check': /home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+Building for debugging...
+[0/26] Write sources
+[9/26] Write swift-version--67EA10C4D0322553.txt
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[11/36] Emitting module QuickBlueConnectionOwnership
+[12/36] Compiling QuickBlueRestorationSummary CoreBluetoothRestorationBootstrapPolicy.swift
+[13/37] Compiling QuickBlueRestorationSummary CoreBluetoothRestorationSummary.swift
+[14/37] Compiling UIKit UIKit.swift
+[15/37] Emitting module UIKit
+[16/38] Compiling FlutterMacOS FlutterMacOS.swift
+[17/38] Emitting module FlutterMacOS
+[18/39] Emitting module QuickBlueRestorationSummary
+[19/39] Compiling QuickBlueRestorationSummary BufferedRestorationEventDelivery.swift
+[20/39] Compiling QuickBlueRestorationSummary ProcessWideManagerRegistry.swift
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[23/40] Compiling QuickBlueConnectionOwnership SharedConnectionOwnership.swift
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[25/43] Wrapping AST for UIKit for debugging
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[26/45] Wrapping AST for QuickBlueRestorationSummary for debugging
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[27/45] Wrapping AST for QuickBlueConnectionOwnership for debugging
+[29/45] Emitting module Flutter
+[30/45] Compiling Flutter Flutter.swift
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[31/46] Wrapping AST for Flutter for debugging
+[33/46] Emitting module CoreBluetooth
+[34/46] Compiling CoreBluetooth CoreBluetooth.swift
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[35/47] Wrapping AST for CoreBluetooth for debugging
+[37/49] Emitting module AccessorySetupKit
+[38/49] Compiling AccessorySetupKit AccessorySetupKit.swift
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[39/50] Wrapping AST for AccessorySetupKit for debugging
+[41/53] Emitting module QuickBlueDarwinPluginTypeCheck
+[42/53] Compiling QuickBlueDarwinPluginTypeCheck Messages.g.swift
+[43/53] Compiling QuickBlueDarwinPluginTypeCheck QuickBlueDarwinPlugin.swift
+/home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/darwin/quick_blue_darwin/type_check/Sources/QuickBlueDarwinPluginTypeCheck/QuickBlueDarwinPlugin.swift:1776:13: warning: no calls to throwing functions occur within 'try' expression
+1774 |     private func disableNotifications(_ keys: [NotificationKey]) throws {
+1775 |         for key in keys {
+1776 |             try stateQueue.sync {
+     |             `- warning: no calls to throwing functions occur within 'try' expression
+1777 |                 guard
+1778 |                     let peripheral = discoveredPeripherals[key.deviceId],
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[44/54] Wrapping AST for QuickBlueDarwinPluginTypeCheck for debugging
+[46/56] Emitting module NativeWriteTests
+[47/56] Compiling NativeWriteTests NativeWriteTests.swift
+[48/57] /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/darwin/quick_blue_darwin/type_check/.build/x86_64-unknown-linux-gnu/debug/quick_blue_darwin_type_checkPackageDiscoveredTests.derived/all-discovered-tests.swift
+[49/57] Write sources
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[50/57] Wrapping AST for NativeWriteTests for debugging
+[52/60] Compiling quick_blue_darwin_type_checkPackageDiscoveredTests NativeWriteTests.swift
+[53/60] Emitting module quick_blue_darwin_type_checkPackageDiscoveredTests
+[54/60] Compiling quick_blue_darwin_type_checkPackageDiscoveredTests all-discovered-tests.swift
+[55/61] /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/darwin/quick_blue_darwin/type_check/.build/x86_64-unknown-linux-gnu/debug/quick_blue_darwin_type_checkPackageTests.derived/runner.swift
+[56/61] Write sources
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[57/61] Wrapping AST for quick_blue_darwin_type_checkPackageDiscoveredTests for debugging
+[59/63] Emitting module quick_blue_darwin_type_checkPackageTests
+[60/63] Compiling quick_blue_darwin_type_checkPackageTests runner.swift
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[61/64] Wrapping AST for quick_blue_darwin_type_checkPackageTests for debugging
+[62/64] Write Objects.LinkFileList
+/home/hermes/.local/opt/swift/usr/bin/swiftc: /lib64/libtinfo.so.6: no version information available (required by /home/hermes/.local/opt/swift/usr/bin/swiftc)
+[63/64] Linking quick_blue_darwin_type_checkPackageTests.xctest
+Build complete! (16.41s)
+Test Suite 'All tests' started at 2026-10-10 10:46:04.834
+Test Suite 'debug.xctest' started at 2026-10-10 10:46:04.889
+Test Suite 'NativeWriteTests' started at 2026-10-10 10:46:04.889
+Test Case 'NativeWriteTests.testNativeLimitsBackpressureAndCompletion' started at 2026-10-10 10:46:04.889
+Test Case 'NativeWriteTests.testNativeLimitsBackpressureAndCompletion' passed (0.004 seconds)
+Test Suite 'NativeWriteTests' passed at 2026-10-10 10:46:04.893
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.004 (0.004) seconds
+Test Suite 'debug.xctest' passed at 2026-10-10 10:46:04.893
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.004 (0.004) seconds
+Test Suite 'All tests' passed at 2026-10-10 10:46:04.893
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.004 (0.004) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.1.2 (d6b70f9ef9eb207)
+↳ Target Platform: x86_64-unknown-linux-gnu
+✔ Test run with 0 tests passed after 0.001 seconds.

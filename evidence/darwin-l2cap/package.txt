@@ -1,0 +1,56 @@
+Resolving dependencies in `/home/hermes/quick_blue/.worktrees/t_c53c0967`...
+Downloading packages...
+  cli_util 0.4.2 (0.6.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  ffigen 22.0.0 (23.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  pigeon 29.0.6 (29.0.8 available)
+  test_api 0.7.12 (0.7.15 available)
+Got dependencies in `/home/hermes/quick_blue/.worktrees/t_c53c0967`!
+6 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/write_payload_limits_test.dart
+00:00 +0: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/write_payload_limits_test.dart: device and characteristic query separate native limits without MTU
+00:00 +1: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/write_payload_limits_test.dart: without-response write awaits native handoff and propagates busy error
+00:00 +2: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: registers as platform implementation
+00:00 +3: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: configure forwards maintainState to the host API
+00:00 +4: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: maps Apple AccessorySetupKit host API calls
+00:00 +5: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: forwards core host API calls
+00:00 +6: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: companion APIs throw QuickBlueException
+00:00 +7: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: pairing APIs throw QuickBlueException
+00:00 +8: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: maps bluetooth state events
+00:00 +9: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: maps aggregate restoration callbacks to the typed observer
+00:00 +10: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: maps scan result events
+00:00 +11: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: raw scan results apply the active service-data filter
+00:00 +12: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: reuses the scan result event stream
+00:00 +13: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: startScan sends null filters for an unfiltered scan
+00:00 +14: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: startScan forwards non-empty service UUID and manufacturer filters
+00:00 +15: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: startScan forwards Darwin scan options
+00:00 +16: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: requestMtu forwards the device and returns the negotiated MTU
+00:00 +17: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: forwards known connection states and ignores unknown connection states
+00:00 +18: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: maps L2CAP socket events and forwards socket writes
+00:00 +19: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: connect surfaces peer-removed pairing information
+00:00 +20: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: emits stream error for malformed L2CAP events
+00:00 +21: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue completes when the host replies with success
+00:00 +22: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps a native failure with operation context
+00:00 +23: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: readValue maps a context-only native state failure
+00:00 +24: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: setNotifiable maps CoreBluetooth security errors
+00:00 +25: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBATTErrorDomain 5 to security error
+00:00 +26: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBATTErrorDomain 12 to security error
+00:00 +27: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBATTErrorDomain 15 to security error
+00:00 +28: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBErrorDomain 15 to security error
+00:00 +29: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: writeValue maps CBErrorDomain 14 to security error
+00:00 +30: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: managed write retries a recoverable security failure once
+00:00 +31: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: readCharacteristicValue returns the native callback value
+00:00 +32: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/quick_blue_darwin_test.dart: flutter API callbacks surface shared event streams
+00:00 +33: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: observes opened delivered before host reply
+00:00 +34: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: error settles opening without timeout
+00:00 +35: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: closed settles opening without timeout
+00:00 +36: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: sink close invokes native close exactly once
+00:00 +37: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: write and close bridge failures reach socket stream
+00:00 +38: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: deadline closes and controlled late opened is closed again
+00:01 +39: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: remote closed is delivered and ends the socket stream
+00:01 +40: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: host open failure settles without waiting for events
+00:01 +41: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: terminal event rejects even after opened while host reply is pending
+00:01 +42: /home/hermes/quick_blue/.worktrees/t_c53c0967/quick_blue_darwin/test/l2cap_lifecycle_test.dart: silent deadline cleanup expires and removes the listener
+00:01 +43: All tests passed!

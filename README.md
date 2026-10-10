@@ -43,6 +43,7 @@ the first error and adds no framing, automatic reassembly, or application ACKs.
 
 - [Knowledge bundle: setup, usage, platforms, and verification](docs/index.md)
 - [Install from Git](docs/install.md)
+- [L2CAP socket lifetimes and Darwin bridge cleanup](docs/l2cap.md)
 - [Package README](quick_blue/README.md)
 - [Changelog](quick_blue/CHANGELOG.md)
 - [Contributing and verification](CONTRIBUTING.md)
