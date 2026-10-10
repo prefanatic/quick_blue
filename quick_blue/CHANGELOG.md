@@ -2,6 +2,11 @@
 
 ### Added
 
+- Migrate the explorer to public connection lifecycle methods with one connect
+  deadline, bounded client-local abandonment, awaitable shutdown and observable
+  cleanup errors. Cover deadlines, late events, switching and simulated client
+  isolation with fake-clock tests; native connection behavior is unchanged.
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.
@@ -93,6 +98,12 @@
   discovery/disconnect races, and concurrent two-device isolation.
 
 ### Fixed
+
+- Isolate explorer discovery/read/write/notification results by selected-session
+  GATT epoch, including A-to-B-to-A switching. Clear invalidated rows, values,
+  drafts and notification claims; coalesce and serialize discovery refresh while
+  observing retired failures. Do not automatically retry writes. Injected Dart
+  regressions establish UI isolation, not native callback or hardware semantics.
 
 - Remove the redundant workspace-level `bluez` dependency and document that
   Linux consumers resolve it through `quick_blue_linux`. Add cold-cache external

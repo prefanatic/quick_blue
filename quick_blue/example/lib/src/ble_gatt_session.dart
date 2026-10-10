@@ -53,9 +53,11 @@ class BleGattSession {
   Future<void> cancelNotifications() async {
     final subscriptions = _notificationSubscriptions.values.toList();
     _notificationSubscriptions.clear();
-    for (final subscription in subscriptions) {
-      await subscription.cancel();
-    }
+    // Release every claim even when one cancellation fails. Future.wait also
+    // observes every error, rather than abandoning later subscriptions.
+    await Future.wait(
+      subscriptions.map((subscription) => Future.sync(subscription.cancel)),
+    );
   }
 
   void replaceServices(Iterable<BluetoothService> discoveredServices) {

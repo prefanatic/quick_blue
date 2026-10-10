@@ -50,6 +50,14 @@ the first error and adds no framing, automatic reassembly, or application ACKs.
 
 ## Download the example app
 
+The [BLE explorer lifecycle reference](docs/example-app.md#explorer-connection-ownership)
+uses public connection deadlines, explicit bounded client-local abandonment and
+awaitable shutdown. Its fake-clock tests verify Dart UI ownership, not physical
+Bluetooth behavior. Its [selected-session GATT guards](docs/example-app.md#selected-session-gatt-results)
+reject retired results, clear invalidated rows and serialize refresh without
+automatically retrying writes; injected tests do not prove native callback
+correlation or hardware GATT semantics.
+
 Each published versioned GitHub Release attaches example-app builds for
 Android, iOS Simulator, macOS, Linux x64, and Windows x64. Download the assets
 and adjacent `.sha256` files from the

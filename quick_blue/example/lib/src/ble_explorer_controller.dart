@@ -3,8 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quick_blue/quick_blue.dart';
-import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart'
-    show QuickBluePlatform;
 
 import 'ble_gatt_session.dart';
 import 'ble_scan_configuration.dart';
@@ -40,9 +38,21 @@ class BleExplorerController extends ChangeNotifier {
   final devices = <String, BlueScanResult>{};
   final events = <BleEvent>[];
 
+  /// Original errors remain available after shutdown suppresses UI updates.
+  final cleanupErrors = <Object>[];
+  Object? lastConnectionError;
+
   late final Future<void> initialBluetoothCheck;
 
   final _gattSession = BleGattSession();
+  StreamSubscription<BluetoothGattServiceChange>? _gattChangeSubscription;
+  int _gattEpoch = 0;
+  Future<void>? _refreshFuture;
+  (String, int)? _refreshRequest;
+  Future<void> _gattCleanup = Future<void>.value();
+
+  /// Observed GATT failures, including completions from retired sessions.
+  final gattErrors = <Object>[];
   final _scanConfiguration = BleScanConfiguration();
 
   Completer<void>? _initialBluetoothCheck;
@@ -50,8 +60,13 @@ class BleExplorerController extends ChangeNotifier {
   StreamSubscription<BlueScanResult>? _scanSubscription;
   StreamSubscription<BluetoothConnectionStateChange>? _connectionSubscription;
   Timer? _scanTimer;
-  Future<void> _connectionRelease = Future<void>.value();
+  final _releases = <String, Future<void>>{};
+  final _ownedDevices = <String>{};
+  Future<void>? _shutdown;
+  bool _disconnecting = false;
+  bool _acceptConnectionEvents = false;
   var _connectionAttempt = 0;
+  var _selectionRevision = 0;
 
   BlueBluetoothState bluetoothState = BlueBluetoothState.unknown;
   bool bluetoothAvailable = false;
@@ -65,6 +80,7 @@ class BleExplorerController extends ChangeNotifier {
   String? status;
 
   bool _disposed = false;
+  bool _notifierDisposed = false;
 
   List<BluetoothService> get services => _gattSession.services;
 
@@ -234,38 +250,75 @@ class BleExplorerController extends ChangeNotifier {
   }
 
   Future<void> selectDevice(String deviceId) async {
-    if (selectedDeviceId == deviceId) {
+    if (_disposed || selectedDeviceId == deviceId) {
       return;
     }
 
     final previousDeviceId = selectedDeviceId;
-    final shouldReleasePrevious =
-        previousDeviceId != null &&
-        (connecting || connectionState != BlueConnectionState.disconnected);
+    final revision = ++_selectionRevision;
+    selectedDeviceId = deviceId;
+    _refreshRequest = null;
+    _invalidateGatt();
     _connectionAttempt++;
-    if (shouldReleasePrevious) {
-      _connectionRelease = _connectionRelease.then(
-        (_) => _releaseDeviceConnection(previousDeviceId),
-      );
+    _acceptConnectionEvents = false;
+    final release = previousDeviceId == null
+        ? Future<void>.value()
+        : _releaseDeviceConnection(previousDeviceId);
+    await Future.wait([
+      _boundedCleanup(_cancelConnectionSubscription()),
+      _boundedCleanup(_cancelGattChangeSubscription()),
+      _gattCleanup,
+    ]);
+    if (_disposed || revision != _selectionRevision) {
+      await release;
+      return;
     }
-    await _cancelConnectionSubscription();
-    await _gattSession.cancelNotifications();
     _gattSession.clear(disposeControllers: true);
 
     final device = QuickBlue.device(deviceId);
     _connectionSubscription = device.connectionStateStream.listen(
       (event) {
+        if (!_acceptConnectionEvents ||
+            selectedDeviceId != deviceId ||
+            revision != _selectionRevision) {
+          return;
+        }
         _mutate(() {
           connectionState = event.state;
           status = 'Connection ${event.state.value} (${event.status.name}).';
           _log(status!, BleEventSeverity.info);
           if (event.state == BlueConnectionState.disconnected) {
-            _clearGattState(disposeControllers: true);
+            _refreshRequest = null;
+            _invalidateGatt();
           }
         });
       },
       onError: (Object error) {
-        _setError('Connection state failed', error);
+        if (revision == _selectionRevision && !_disposed) {
+          _setError('Connection state failed', error);
+        }
+      },
+    );
+
+    _gattChangeSubscription = device.gattServiceChangedStream.listen(
+      (_) {
+        if (_disposed || revision != _selectionRevision) return;
+        _invalidateGatt();
+        _mutate(() {
+          status = 'GATT database changed.';
+        });
+        if (connected) {
+          _reportCancelError(
+            'while refreshing changed GATT database',
+            _discoverServices(deviceId),
+          );
+        }
+      },
+      onError: (Object error) {
+        gattErrors.add(error);
+        if (!_disposed && revision == _selectionRevision) {
+          _setError('GATT changes failed', error);
+        }
       },
     );
 
@@ -278,35 +331,32 @@ class BleExplorerController extends ChangeNotifier {
       status = 'Selected ${deviceTitle(deviceId)}.';
       _log(status!, BleEventSeverity.info);
     });
+    await release;
   }
 
   Future<void> connectSelected() async {
     final deviceId = selectedDeviceId;
-    if (deviceId == null || connecting || connected) {
+    if (_disposed || deviceId == null || connecting || connected) {
       return;
     }
     final attempt = ++_connectionAttempt;
+    final cancellation = QuickBlueCancellationToken();
 
     _mutate(() {
       connecting = true;
+      lastConnectionError = null;
       status = 'Connecting...';
       _log('Connecting to ${deviceTitle(deviceId)}.', BleEventSeverity.info);
     });
 
     try {
-      await stopScan();
-      await _connectionRelease;
-      if (!_isCurrentConnectionAttempt(deviceId, attempt)) {
-        return;
-      }
-      final stateChanged = _nextConnectOutcome(deviceId);
-      await QuickBluePlatform.instance
-          .connect(deviceId)
-          .timeout(connectTimeout);
-      final event = await stateChanged.timeout(connectTimeout);
-      if (event.status == BleStatus.failure) {
-        throw StateError('Failed to connect to Bluetooth device $deviceId.');
-      }
+      await _connectDevice(deviceId, attempt, cancellation).timeout(
+        connectTimeout,
+        onTimeout: () {
+          cancellation.cancel();
+          throw TimeoutException('Connect to $deviceId', connectTimeout);
+        },
+      );
       if (_isCurrentConnectionAttempt(deviceId, attempt)) {
         _mutate(() {
           connecting = false;
@@ -315,16 +365,21 @@ class BleExplorerController extends ChangeNotifier {
       }
     } on TimeoutException {
       if (_isCurrentConnectionAttempt(deviceId, attempt)) {
+        _acceptConnectionEvents = false;
         _mutate(() {
+          connecting = false;
+          connectionState = BlueConnectionState.disconnected;
           status = 'Connect timed out.';
           _log(
             'Connect timed out for ${deviceTitle(deviceId)}.',
             BleEventSeverity.warning,
           );
         });
+        await _releaseDeviceConnection(deviceId);
       }
     } catch (error) {
       if (_isCurrentConnectionAttempt(deviceId, attempt)) {
+        lastConnectionError = error;
         _setError('Connect failed', error);
       }
     } finally {
@@ -338,20 +393,52 @@ class BleExplorerController extends ChangeNotifier {
 
   Future<void> disconnectSelected() async {
     final deviceId = selectedDeviceId;
-    if (deviceId == null || !connected) {
+    final revision = _selectionRevision;
+    if (_disposed || deviceId == null || !connected || _disconnecting) {
       return;
     }
 
+    _disconnecting = true;
+    _acceptConnectionEvents = false;
+    _refreshRequest = null;
+    _invalidateGatt();
     try {
-      await QuickBlue.device(deviceId).disconnect();
+      await _releaseDeviceConnection(deviceId);
+      if (_disposed ||
+          selectedDeviceId != deviceId ||
+          revision != _selectionRevision) {
+        return;
+      }
       _mutate(() {
+        connectionState = BlueConnectionState.disconnected;
         _clearGattState(disposeControllers: true);
         status = 'Disconnected.';
         _log(status!, BleEventSeverity.info);
       });
     } catch (error) {
       _setError('Disconnect failed', error);
+    } finally {
+      _disconnecting = false;
     }
+  }
+
+  Future<void> _connectDevice(
+    String deviceId,
+    int attempt,
+    QuickBlueCancellationToken cancellation,
+  ) async {
+    await stopScan();
+    await _releases[deviceId];
+    if (cancellation.isCancelled ||
+        !_isCurrentConnectionAttempt(deviceId, attempt)) {
+      return;
+    }
+    _ownedDevices.add(deviceId);
+    _acceptConnectionEvents = true;
+    // The outer deadline includes preparation plus the public terminal wait.
+    // Cancellation removes this caller's waiter; explicit release aborts our
+    // ownership separately rather than assuming Future.timeout cancels work.
+    await QuickBlue.device(deviceId).connect(cancellationToken: cancellation);
   }
 
   Future<void> discoverServices() async {
@@ -363,60 +450,122 @@ class BleExplorerController extends ChangeNotifier {
     await _discoverServices(deviceId);
   }
 
-  Future<void> _discoverServices(String deviceId) async {
-    if (discovering) {
-      return;
+  Future<void> _discoverServices(String deviceId) {
+    if (_disposed || selectedDeviceId != deviceId || !connected) {
+      return Future<void>.value();
     }
+    // A single pending slot coalesces invalidations. The runner is shared even
+    // across selections: an old result must settle before new discovery starts.
+    _refreshRequest = (deviceId, _selectionRevision);
+    _mutate(() => discovering = true);
+    return _refreshFuture ??= _runRefreshes();
+  }
 
-    await _gattSession.cancelNotifications();
-    _gattSession.clear(disposeControllers: true);
-    _mutate(() {
-      discovering = true;
-      status = 'Discovering services...';
-      _log(status!, BleEventSeverity.info);
-    });
-
+  Future<void> _runRefreshes() async {
+    // Publish _refreshFuture before processing a synchronously queued request.
+    await Future<void>.value();
     try {
-      final discoveredServices = await QuickBlue.device(
-        deviceId,
-      ).discoverServices();
-      if (selectedDeviceId != deviceId) {
-        return;
-      }
-      _mutate(() {
-        _gattSession.replaceServices(discoveredServices);
-        status = 'Found ${discoveredServices.length} service(s).';
-        _log(status!, BleEventSeverity.info);
-      });
-    } catch (error) {
-      if (selectedDeviceId == deviceId) {
-        _setError('Discover services failed', error);
+      while (_refreshRequest != null) {
+        final request = _refreshRequest!;
+        _refreshRequest = null;
+        final (deviceId, selection) = request;
+        if (_disposed || selection != _selectionRevision || !connected) {
+          continue;
+        }
+        _invalidateGatt();
+        final epoch = _gattEpoch;
+        await _gattCleanup;
+        if (!_isCurrentGatt(deviceId, epoch)) continue;
+        _mutate(() {
+          status = 'Discovering services...';
+          _log(status!, BleEventSeverity.info);
+        });
+        try {
+          final result = await QuickBlue.device(deviceId).discoverServices();
+          if (_isCurrentGatt(deviceId, epoch)) {
+            _mutate(() {
+              _gattSession.replaceServices(result);
+              status = 'Found ${result.length} service(s).';
+              _log(status!, BleEventSeverity.info);
+            });
+          }
+        } catch (error) {
+          _gattError('Discover services failed', error, deviceId, epoch);
+        }
       }
     } finally {
-      if (selectedDeviceId == deviceId) {
-        _mutate(() {
-          discovering = false;
-        });
-      }
+      _refreshFuture = null;
+      _mutate(() => discovering = false);
     }
+  }
+
+  bool _isCurrentGatt(String deviceId, int epoch) =>
+      !_disposed && selectedDeviceId == deviceId && _gattEpoch == epoch;
+
+  bool _ownsGattRow(BluetoothService service, int epoch) =>
+      _isCurrentGatt(service.deviceId, epoch) &&
+      services.any((row) => identical(row, service));
+
+  void _gattError(String label, Object error, String deviceId, int epoch) {
+    gattErrors.add(error);
+    if (_isCurrentGatt(deviceId, epoch)) _setError(label, error);
+  }
+
+  void _invalidateGatt() {
+    _gattEpoch++;
+    message = null;
+    _gattSession.clear(disposeControllers: true);
+    // Taking subscriptions is synchronous: obsolete claims disappear at once.
+    // Keep teardown observed and serialize discovery behind it.
+    final cancellation = _gattSession.cancelNotifications();
+    _gattCleanup = Future.wait([
+      _gattCleanup,
+      _observeGattCleanup(cancellation),
+    ]);
+  }
+
+  Future<void> _observeGattCleanup(Future<void> future) async {
+    try {
+      await future.timeout(deviceSwitchDisconnectTimeout);
+    } catch (error) {
+      gattErrors.add(error);
+    }
+  }
+
+  Future<void> _cancelGattChangeSubscription() async {
+    final subscription = _gattChangeSubscription;
+    _gattChangeSubscription = null;
+    await subscription?.cancel();
   }
 
   bool _isCurrentConnectionAttempt(String deviceId, int attempt) {
-    return selectedDeviceId == deviceId && _connectionAttempt == attempt;
+    return !_disposed &&
+        selectedDeviceId == deviceId &&
+        _connectionAttempt == attempt;
   }
 
-  Future<void> _releaseDeviceConnection(String deviceId) async {
+  Future<void> _releaseDeviceConnection(String deviceId) {
+    final pending = _releases[deviceId];
+    if (pending != null) return pending;
+    if (!_ownedDevices.remove(deviceId)) return Future<void>.value();
+    final release = _performRelease(deviceId);
+    _releases[deviceId] = release;
+    return release;
+  }
+
+  Future<void> _performRelease(String deviceId) async {
     try {
-      await QuickBluePlatform.instance
-          .disconnect(deviceId)
-          .timeout(deviceSwitchDisconnectTimeout);
+      await QuickBlue.device(
+        deviceId,
+      ).disconnect(timeout: deviceSwitchDisconnectTimeout);
       _mutate(() {
         _log(
           'Released previous connection for ${deviceTitle(deviceId)}.',
           BleEventSeverity.info,
         );
       });
-    } on TimeoutException {
+    } on TimeoutException catch (error) {
+      cleanupErrors.add(error);
       _mutate(() {
         _log(
           'Timed out releasing previous connection for ${deviceTitle(deviceId)}.',
@@ -424,6 +573,7 @@ class BleExplorerController extends ChangeNotifier {
         );
       });
     } catch (error) {
+      cleanupErrors.add(error);
       _mutate(() {
         _log(
           'Release previous connection failed for ${deviceTitle(deviceId)}: '
@@ -431,26 +581,25 @@ class BleExplorerController extends ChangeNotifier {
           BleEventSeverity.warning,
         );
       });
+    } finally {
+      _releases.remove(deviceId);
     }
-  }
-
-  Future<BluetoothConnectionStateChange> _nextConnectOutcome(String deviceId) {
-    return QuickBlue.device(deviceId).connectionStateStream.firstWhere(
-      (event) =>
-          event.status == BleStatus.failure ||
-          event.state == BlueConnectionState.connected,
-    );
   }
 
   Future<void> readCharacteristic(
     BluetoothService service,
     String characteristicId,
   ) async {
+    final epoch = _gattEpoch;
+    if (!_ownsGattRow(service, epoch)) {
+      return;
+    }
     try {
       final characteristic = QuickBlue.device(
         service.deviceId,
       ).characteristic(service.uuid, characteristicId);
       final value = await characteristic.read();
+      if (!_isCurrentGatt(service.deviceId, epoch)) return;
       _mutate(() {
         _gattSession.setLatestValue(
           characteristicKey(service.uuid, characteristicId),
@@ -463,7 +612,7 @@ class BleExplorerController extends ChangeNotifier {
         );
       });
     } catch (error) {
-      _setError('Read failed', error);
+      _gattError('Read failed', error, service.deviceId, epoch);
     }
   }
 
@@ -471,6 +620,10 @@ class BleExplorerController extends ChangeNotifier {
     BluetoothService service,
     String characteristicId,
   ) async {
+    final epoch = _gattEpoch;
+    if (!_ownsGattRow(service, epoch)) {
+      return;
+    }
     final key = characteristicKey(service.uuid, characteristicId);
     final text = _gattSession.writeTextFor(key);
     if (text.trim().isEmpty) {
@@ -496,6 +649,7 @@ class BleExplorerController extends ChangeNotifier {
           ? BleOutputProperty.withoutResponse
           : BleOutputProperty.withResponse;
       await characteristic.write(value, outputProperty);
+      if (!_isCurrentGatt(service.deviceId, epoch)) return;
       _mutate(() {
         status = 'Wrote ${value.length} byte(s).';
         _log(
@@ -504,7 +658,7 @@ class BleExplorerController extends ChangeNotifier {
         );
       });
     } catch (error) {
-      _setError('Write failed', error);
+      _gattError('Write failed', error, service.deviceId, epoch);
     }
   }
 
@@ -512,10 +666,20 @@ class BleExplorerController extends ChangeNotifier {
     BluetoothService service,
     String characteristicId,
   ) async {
+    final epoch = _gattEpoch;
+    if (!_ownsGattRow(service, epoch)) {
+      return;
+    }
     final key = characteristicKey(service.uuid, characteristicId);
     final subscription = _gattSession.takeNotification(key);
     if (subscription != null) {
-      await subscription.cancel();
+      try {
+        await subscription.cancel();
+      } catch (error) {
+        _gattError('Notify failed', error, service.deviceId, epoch);
+        return;
+      }
+      if (!_isCurrentGatt(service.deviceId, epoch)) return;
       _mutate(() {
         status = 'Notifications stopped.';
         _log(
@@ -532,14 +696,23 @@ class BleExplorerController extends ChangeNotifier {
       ).characteristic(service.uuid, characteristicId);
       final newSubscription = characteristic.notifications().listen(
         (value) {
+          if (!_isCurrentGatt(service.deviceId, epoch)) return;
           _mutate(() {
             _gattSession.setLatestValue(key, value);
             status = 'Notification: ${value.length} byte(s).';
           });
         },
         onError: (Object error) {
-          _gattSession.removeNotification(key);
-          _setError('Notification failed', error);
+          if (_isCurrentGatt(service.deviceId, epoch)) {
+            final failed = _gattSession.takeNotification(key);
+            if (failed != null) {
+              _reportCancelError(
+                'while releasing failed notification',
+                _observeGattCleanup(failed.cancel()),
+              );
+            }
+          }
+          _gattError('Notification failed', error, service.deviceId, epoch);
         },
       );
       _mutate(() {
@@ -551,7 +724,7 @@ class BleExplorerController extends ChangeNotifier {
         );
       });
     } catch (error) {
-      _setError('Notify failed', error);
+      _gattError('Notify failed', error, service.deviceId, epoch);
     }
   }
 
@@ -893,26 +1066,45 @@ class BleExplorerController extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_notifierDisposed) return;
+    _notifierDisposed = true;
+    _reportCancelError('while shutting down BLE explorer', shutdown());
+    super.dispose();
+  }
+
+  /// Stops UI updates immediately and awaits bounded client-local cleanup.
+  /// [dispose] starts this automatically. Repeated calls share completion.
+  Future<void> shutdown() => _shutdown ??= _startShutdown();
+
+  Future<void> _startShutdown() async {
     _disposed = true;
+    _refreshRequest = null;
+    _invalidateGatt();
+    _acceptConnectionEvents = false;
+    _connectionAttempt++;
     _scanTimer?.cancel();
-    _reportCancelError(
-      'while canceling BLE state subscription',
+    final cleanup = <Future<void>>[
+      for (final id in _ownedDevices.toList()) _releaseDeviceConnection(id),
+      ..._releases.values,
       _cancelBluetoothStateSubscription(),
-    );
-    _reportCancelError(
-      'while canceling BLE scan subscription',
       _cancelScanSubscription(),
-    );
-    _reportCancelError(
-      'while canceling BLE connection subscription',
       _cancelConnectionSubscription(),
-    );
-    _reportCancelError(
-      'while canceling BLE notification subscriptions',
-      _gattSession.cancelNotifications(),
-    );
+      _cancelGattChangeSubscription(),
+      _gattCleanup,
+    ];
     _gattSession.disposeWriteControllers();
     _scanConfiguration.dispose();
-    super.dispose();
+    await Future.wait(cleanup.map(_boundedCleanup));
+  }
+
+  Future<void> _boundedCleanup(Future<void> future) async {
+    try {
+      await future.timeout(deviceSwitchDisconnectTimeout);
+    } catch (error) {
+      cleanupErrors.add(error);
+      _mutate(
+        () => _log('BLE cleanup failed: $error', BleEventSeverity.warning),
+      );
+    }
   }
 }
