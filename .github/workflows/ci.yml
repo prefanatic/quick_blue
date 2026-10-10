@@ -52,6 +52,7 @@ jobs:
         with:
           filters: |
             validate:
+              - '**/CHANGELOG.md'
               - '.github/dependabot.yml'
               - '.github/workflows/**'
               - 'scripts/**'
@@ -109,6 +110,32 @@ jobs:
               - 'quick_blue/example/**'
               - 'quick_blue_windows/**'
               - 'quick_blue_platform_interface/**'
+
+  minimum-toolchain:
+    name: Minimum toolchain
+    needs: changes
+    if: ${{ needs.changes.outputs.validate == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PUB_CACHE: ${{ runner.temp }}/pub-cache-minimum
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          flutter-version: "3.44.2"
+          cache: false
+      - name: Resolve and verify declared minimum
+        run: |
+          set -euo pipefail
+          flutter --version
+          flutter pub get
+          flutter pub deps --json
+          flutter analyze
+          for package in quick_blue quick_blue/example quick_blue_darwin quick_blue_linux quick_blue_platform_interface quick_blue_windows; do
+            (cd "$package" && flutter test)
+          done
 
   format:
     name: Format
@@ -205,14 +232,30 @@ jobs:
           scripts/publish-packages.sh --dry-run
 
       - name: Check changelog coverage
-        run: |
-          set -euo pipefail
+        run: python3 scripts/check-changelog-coverage.py
 
-          version="$(sed -n 's/^version: //p' quick_blue_platform_interface/pubspec.yaml)"
-          if ! grep -q "^## \[$version\]" quick_blue/CHANGELOG.md; then
-            echo "quick_blue/CHANGELOG.md has no ## [$version] heading for the current package version" >&2
-            exit 65
-          fi
+  docs-validation:
+    name: Docs validation
+    needs: changes
+    if: ${{ needs.changes.outputs.validate == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - run: python3 -m pip install 'PyYAML>=6.0.2,<7'
+      - run: python3 scripts/check-okf.py
+      - run: python3 -m unittest discover -s scripts -p 'test_check_okf.py'
+
+  readiness-policy:
+    name: Readiness policy
+    needs: changes
+    if: ${{ needs.changes.outputs.validate == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - run: python3 -m pip install 'PyYAML>=6.0.2,<7'
+      - run: python3 -m unittest discover -s scripts -p 'test_workflow_readiness.py' -v
 
   darwin-type-check:
     name: Darwin type check

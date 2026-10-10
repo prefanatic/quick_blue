@@ -1,6 +1,15 @@
 ## Unreleased
 
+- Restore workspace dependency resolution on the declared Flutter 3.44.2 /
+  Dart 3.12.2 minimum by pinning development-only ffigen to 21.0.0; add a
+  fresh-resolution minimum-toolchain analysis/test CI lane without changing
+  runtime dependencies or generated bindings.
+
 ### Added
+
+- Validate changelog-only readiness changes and canonical documentation for
+  source changes in CI; add local workflow-selection/policy fixtures and a
+  reusable current-version changelog-heading validator.
 
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation

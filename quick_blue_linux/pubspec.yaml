@@ -23,7 +23,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  ffigen: 22.0.0
+  # ffigen 22 requires meta ^1.19.0, incompatible with Flutter 3.44.2.
+  ffigen: 21.0.0
   flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
