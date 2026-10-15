@@ -87,6 +87,28 @@ power adapters, set Trusted, or call RemoveDevice. See the
 [operator example](quickstart.md#headless-linux-operator-workflow) and
 [verification boundary](limitations.md#headless-proof-boundaries).
 
+### ARM64 Linux runtime
+
+Deploy an AArch64 executable to 64-bit Linux, not a 32-bit ARM userspace. The
+Dart 3.13.5 cross-built CLI uses `/lib/ld-linux-aarch64.so.1` and ELF shared
+dependencies `libdl.so.2`, `libpthread.so.0`, `libm.so.6` and `libc.so.6`.
+Use `readelf -l -d` on the actual artifact and test on the intended distribution;
+a successful compiler invocation does not bundle those libraries or establish
+a universal minimum glibc version. The controlled Debian 13/QEMU check is not a
+musl/Alpine compatibility claim.
+
+GATT uses the pure-Dart BlueZ/D-Bus client and needs the system-bus, bluetoothd,
+kernel, adapter and service-account policy described above. It does not use
+libbluetooth for GATT. Optional L2CAP loads glibc and `libbluetooth.so.3`
+dynamically; that dependency will not appear as a direct ELF NEEDED entry.
+The loader-only probe verifies library/symbol availability, not Bluetooth socket
+permissions, kernel L2CAP support or communication. See the
+[build/runtime recipe](testing.md#arm64-build-and-controlled-runtime).
+
+Neither cross-compilation nor user-mode QEMU validates Zero 2 W memory limits,
+throughput, pairing, peripheral interoperability or radio/kernel behavior.
+Physical Zero 2 W verification requires separately authorized hardware access.
+
 ## Windows
 
 Use Windows 10 1809+ or Windows 11 with a working BLE adapter. Normal app use

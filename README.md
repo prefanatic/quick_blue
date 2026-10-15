@@ -13,7 +13,8 @@ Linux supports explicit adapter addresses and client shutdown; see
 Use opt-in [snapshot-bound handles](docs/gatt.md#snapshot-bound-submissions) to reject
 new IO after GATT invalidation. The [headless operator CLI](quick_blue_linux/example/README.md)
 provides explicit selection, pairing and IO with fake-backed executable checks;
-ARM64 and real hardware acceptance remain separate.
+[ARM64 cross-build and controlled emulator checks](docs/testing.md#arm64-build-and-controlled-runtime)
+remain distinct from real hardware acceptance.
 
 Connection ownership is shared safely across Flutter engines. On Android, bounded
 disconnect reconciliation keeps missing native callbacks from blocking later

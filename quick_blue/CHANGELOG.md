@@ -2,6 +2,10 @@
 
 ### Linux headless lifecycle
 
+- Add a standalone ARM64 cross-build/ELF verifier with optional controlled QEMU
+  help, fake-flow and glibc/libbluetooth loader checks. Document distribution
+  runtime requirements separately from GATT, L2CAP and physical hardware proof.
+
 - Add a public pure-Dart Linux operator CLI and external copied fixture with
   explicit adapter/device selection, service-data-preserving scan output,
   GATT discovery, opt-in reads/writes/notifications/pairing and final cleanup.

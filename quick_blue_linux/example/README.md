@@ -28,6 +28,17 @@ Do not resolve this example inside the repository workspace using standalone
 Dart: the root workspace intentionally includes Flutter packages. No cache
 manifest edits or Git commits are needed.
 
+## ARM64 build and runtime
+
+Use the same external fixture and standalone SDK with
+`scripts/check-arm64-consumer.py`; see the
+[canonical ARM64 recipe](../../docs/testing.md#arm64-build-and-controlled-runtime).
+Cross-build output is inspected as AArch64 ELF. Optional user-mode QEMU runs
+help, fake flow and a separate glibc/libbluetooth loader probe without radio or
+bus access. Neither this nor a successful loader probe proves real GATT/L2CAP,
+pairing or physical Zero 2 W performance. Check the target distribution's
+[runtime libraries and BlueZ policy](../../docs/platform-setup.md#arm64-linux-runtime).
+
 ## Deliberate operator actions
 
 These commands access a real system bus/radio and are recipes, not evidence of

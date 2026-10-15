@@ -42,6 +42,40 @@ timer cleanup checks, while native `PlatformException` coverage stays in
 translation checks, not hardware proof. The existing external Git-consumer CI
 check remains separate and includes core at the same snapshot revision.
 
+## ARM64 build and controlled runtime
+
+The reproducible verifier is `scripts/check-arm64-consumer.py`;
+its hermetic argv tests are `scripts/test_check_arm64_consumer.py`.
+
+After the standalone verifier prints its retained fixture path, use the same
+standalone SDK and its external `cli/` directory:
+
+```sh
+python3 scripts/check-arm64-consumer.py --dart /absolute/dart-sdk/bin/dart \
+  --cli /absolute/retained-fixture/cli
+```
+
+This runs `dart compile exe --target-os=linux --target-arch=arm64` for the
+operator CLI, fake flow and a loader-only FFI probe, then checks `file` and
+`readelf -h -l -d`. It records `build/arm64-result.json`. Cross-build mode
+explicitly records runtime as not executed. To exercise the artifacts without
+radio access, additionally pass `--qemu /absolute/qemu-aarch64 --sysroot
+/absolute/arm64-sysroot`. Provision these separately from trusted distribution
+packages, retaining package versions and hashes. The sysroot must contain
+`/lib/ld-linux-aarch64.so.1`, ARM64 glibc and its dependencies, and optional
+`libbluetooth.so.3`; a merged-/usr distribution also needs its `/lib` link.
+The script removes display and host loader variables and supplies guest library
+search paths. It runs help, the fake flow and a glibc/libbluetooth symbol probe.
+No Bluetooth socket, agent or system bus is opened by those runtime checks.
+
+The local P4 check used standalone Dart 3.13.5, QEMU 10.0.13 and Debian 13
+ARM64 userspace. It passed help, fake flow and library loading. This establishes
+only that controlled userspace combination, not every distribution or the
+physical target. Exact source hashes, package versions, ELF dependencies and
+execution logs belong in the phase handoff, not Git. See
+[ARM64 runtime requirements](platform-setup.md#arm64-linux-runtime) and
+[hardware boundaries](limitations.md#headless-proof-boundaries).
+
 ## Fast checks
 
 The standalone verifier also copies `quick_blue_linux/example` into an external
