@@ -153,6 +153,16 @@
 
 ### Fixed
 
+- Reject explorer refresh during explicit connection release and retire late
+  discovery results/errors across its deadline; preserve subsequent reconnect.
+  Public-coordinator fake-clock regressions prove UI behavior, not native abort.
+
+- Isolate explorer discovery/read/write/notification results by selected-session
+  GATT epoch, including A-to-B-to-A switching. Clear invalidated rows, values,
+  drafts and notification claims; coalesce and serialize discovery refresh while
+  observing retired failures. Do not automatically retry writes. Injected Dart
+  regressions establish UI isolation, not native callback or hardware semantics.
+
 - Remove the redundant workspace-level `bluez` dependency and document that
   Linux consumers resolve it through `quick_blue_linux`. Add cold-cache external
   Git installation, analysis, and Linux build coverage for Linux-only and
