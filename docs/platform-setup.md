@@ -56,6 +56,37 @@ For a shared host, adapt the policy to an authorized group rather than granting
 all users ownership. L2CAP separately needs `libbluetooth.so.3` at use time;
 the Linux capability flag does not probe that library. See [L2CAP](l2cap.md).
 
+### Linux service-account permissions
+
+A headless CLI/service uses the system bus, not a desktop/session bus. It needs
+running `bluetoothd`, kernel Bluetooth/LE support and a powered authorized
+adapter. Run it as the intended non-root service user; changing `$USER` in the
+recipe above to that identity is an administrative policy change, not a reason
+to run the application as root. A systemd service must have access to the
+system-bus socket (normally `/run/dbus/system_bus_socket`); container/sandbox
+restrictions and LSM/SELinux rules can deny access independently.
+
+The connection-name template grants `dev.quick_blue.Connection.*` name ownership
+only. It does NOT grant `org.bluez` method authorization. Review the distribution's
+BlueZ D-Bus policy and any authorization rules for that exact service identity:
+it needs ObjectManager/Properties enumeration and signal reception, Adapter1
+SetDiscoveryFilter/StartDiscovery/StopDiscovery, Device1 Connect/Disconnect
+(Pair only when explicitly requested), and GattCharacteristic1
+ReadValue/WriteValue/StartNotify/StopNotify for the chosen workflow. Reply/event
+delivery must also be permitted. Do not grant unrestricted system-bus send/own
+rights or assume membership in a universally named `bluetooth` group suffices.
+Administrative policy installation/reload is separate from ordinary app runtime.
+Validate least-privilege rules on the actual distribution as the service user;
+there is no portable policy bypass or guaranteed desktop authorization fallback.
+
+An external [pairing agent](pairing.md#headless-linux-agent-lifecycle) additionally
+needs its AgentManager1 registration and, if used, default-agent authorization,
+plus delivery of BlueZ callbacks to its Agent1 object. A denied default-agent
+request must be surfaced, not ignored. The CLI does not register an agent,
+power adapters, set Trusted, or call RemoveDevice. See the
+[operator example](quickstart.md#headless-linux-operator-workflow) and
+[verification boundary](limitations.md#headless-proof-boundaries).
+
 ## Windows
 
 Use Windows 10 1809+ or Windows 11 with a working BLE adapter. Normal app use

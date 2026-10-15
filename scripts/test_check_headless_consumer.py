@@ -13,7 +13,7 @@ spec.loader.exec_module(headless)
 
 
 class HeadlessGraphTests(unittest.TestCase):
-    def fixture(self, mutate=None):
+    def fixture(self, mutate=None, expected_root='headless_consumer'):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             consumer = root / 'consumer'
@@ -33,7 +33,13 @@ class HeadlessGraphTests(unittest.TestCase):
                 mutate(graph, config, snapshot)
             (consumer / '.dart_tool/package_graph.json').write_text(json.dumps(graph))
             (consumer / '.dart_tool/package_config.json').write_text(json.dumps(config))
-            return headless.inspect_graph(consumer, snapshot)
+            return headless.inspect_graph(consumer, snapshot, expected_root)
+
+    def test_cli_root_is_explicit_not_an_accepted_workspace(self):
+        mutate = lambda graph, config, snapshot: graph.update(roots=['quick_blue_linux_cli'])
+        self.fixture(mutate, expected_root='quick_blue_linux_cli')
+        with self.assertRaisesRegex(ValueError, 'roots'):
+            self.fixture(mutate)
 
     def test_plugin_metadata_is_not_an_sdk_dependency(self):
         manifests = self.fixture()

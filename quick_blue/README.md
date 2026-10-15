@@ -8,6 +8,13 @@ handles retain their ID-only behavior. See the
 `quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
 Android, iOS, macOS, Windows, and Linux.
 
+For standalone Linux services use the [public headless operator CLI](../quick_blue_linux/example/README.md)
+over `quick_blue_core` plus `quick_blue_linux`. Its opt-in pairing policy and
+external BlueZ agent/service-user requirements are documented in
+[pairing guidance](../docs/pairing.md#headless-linux-agent-lifecycle). Flutter
+imports and normal library security recovery remain unchanged. No local
+fake/compile result implies hardware, ARM64 or hosted release acceptance.
+
 - [Example app](https://github.com/prefanatic/quick_blue/tree/master/quick_blue/example)
 - [Changelog](https://github.com/prefanatic/quick_blue/blob/master/quick_blue/CHANGELOG.md)
 - [Issue tracker](https://github.com/prefanatic/quick_blue/issues)

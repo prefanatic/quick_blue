@@ -24,6 +24,21 @@ sources: [{"id": "source1", "resource": "../quick_blue_linux/lib/quick_blue_linu
 
 ## Verification gaps
 
+### Headless proof boundaries
+
+The [external CLI fixture](install.md#operator-cli-fixture) compiles with
+standalone Dart and starts `--help` with DISPLAY/WAYLAND_DISPLAY absent; help
+does not contact BlueZ. The separately compiled fake flow uses public APIs,
+asserts scan/selection/connect/discovery/read/explicit write/notify/cancel/
+disconnect ordering and cleanup without a bus, engine, agent or radio.
+Linux injected pairing errors and CLI security tests prove observable failures
+and no automatic bond replacement/unrelated acceptance, not real authentication.
+Real scanning, pairing, GATT delivery, distribution service-user policy, ARM64
+loader/native-library execution and physical Zero 2 W RAM/throughput remain
+separate evidence requirements. No physical-device access is authorized by the
+fixture. [Publication metadata limits](install.md#publication-compatibility-limit)
+also remain unresolved; a successful local build is not hosted release readiness.
+
 - Runtime BLE multi-engine suites exist for Android and iOS. Other ownership
   implementations have unit/native coverage, not equivalent runtime suites.
 - AccessorySetupKit and Android companion association have Dart host-API mapping

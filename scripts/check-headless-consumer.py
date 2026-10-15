@@ -31,9 +31,9 @@ def run(args, cwd, env):
     return result.stdout
 
 
-def inspect_graph(consumer, snapshot):
+def inspect_graph(consumer, snapshot, expected_root='headless_consumer'):
     graph = json.loads((consumer / '.dart_tool/package_graph.json').read_text())
-    if graph['roots'] != ['headless_consumer']:
+    if graph['roots'] != [expected_root]:
         raise ValueError(f'Unexpected graph roots: {graph["roots"]}')
     config_path = consumer / '.dart_tool/package_config.json'
     config = json.loads(config_path.read_text())
@@ -122,6 +122,22 @@ def main():
         run([str(dart), 'pub', 'get'], package, env)
         run([str(dart), 'analyze'], package, env)
         run([str(dart), 'test', '--reporter=expanded'], package, env)
+    # Copy the public operator example outside the Flutter workspace as well.
+    cli = fixture / 'cli'
+    shutil.copytree(root / 'quick_blue_linux/example', cli,
+                    ignore=shutil.ignore_patterns('.dart_tool', 'build', 'pubspec.lock', 'pubspec_overrides.yaml'))
+    (cli / 'pubspec_overrides.yaml').write_text('resolution: null\n' + overrides)
+    run([str(dart), 'pub', 'get'], cli, env)
+    inspect_graph(cli, snapshot, 'quick_blue_linux_cli')
+    run([str(dart), 'analyze'], cli, env)
+    run([str(dart), 'test', '--reporter=expanded'], cli, env)
+    (cli / 'build').mkdir(exist_ok=True)
+    run([str(dart), 'compile', 'exe', 'bin/main.dart', '-o', 'build/ble_cli'], cli, env)
+    headless_env = {key: value for key, value in env.items()
+                    if key not in ('DISPLAY', 'WAYLAND_DISPLAY')}
+    run([str(cli / 'build/ble_cli'), '--help'], cli, headless_env)
+    run([str(dart), 'compile', 'exe', 'bin/fake_flow.dart', '-o', 'build/fake_flow'], cli, env)
+    run([str(cli / 'build/fake_flow')], cli, headless_env)
     if args.flutter:
         for name in ('quick_blue_linux', 'quick_blue'):
             app = fixture / ('flutter_consumer_' + name)

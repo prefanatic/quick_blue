@@ -2,6 +2,14 @@
 
 ### Linux headless lifecycle
 
+- Add a public pure-Dart Linux operator CLI and external copied fixture with
+  explicit adapter/device selection, service-data-preserving scan output,
+  GATT discovery, opt-in reads/writes/notifications/pairing and final cleanup.
+  The CLI declines automatic pairing recovery without changing library policy.
+  Compile/no-display-help/fake-flow checks do not establish hardware or ARM64
+  readiness. Document external BlueZ agent lifecycle and service-user policy;
+  retain observable pairing/authentication/no-agent errors without bond removal.
+
 - Add Linux `adapterAddress`, immutable `adapters()` snapshots and idempotent
   `close()` for quiescent clients; retain first-powered defaults and never fall
   back from an explicit selection. Release partial initialization resources,

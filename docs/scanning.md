@@ -61,6 +61,14 @@ filters. [Testing](testing.md) includes an advertisement-only profile.
 
 ## Linux adapter selection
 
+The [operator CLI](quickstart.md#headless-linux-operator-workflow) requires an explicit
+adapter and service filter for scanning. It retains full `BlueScanResult`
+objects keyed by device ID and emits JSON including service data in hex;
+names never decide identity. `--device` must match a result from the current
+scan. Service-filter absence in an advertisement can legitimately exclude a
+device that has that GATT service after connecting. Scan-only mode never pairs
+or connects. Canceling its subscription stops this client's scan ownership.
+
 Construct `QuickBlueLinux(adapterAddress: '02:00:00:00:00:01')` and register
 that instance with `QuickBluePlatform.instance = platform` (import the platform
 interface as well as core and Linux); the address is a

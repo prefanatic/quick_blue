@@ -27,6 +27,15 @@ Missing or duplicate UUIDs produce `notFound` or `ambiguous`, not an arbitrary p
 
 ## Snapshot-bound submissions
 
+The [headless CLI](quickstart.md#headless-linux-operator-workflow) resolves the operator's
+characteristic under the selected service with `boundCharacteristic`. Discovery
+alone performs no attribute read/write. `--read`, `--write-hex` and
+`--notify-seconds` are separate opt-ins. The CLI awaits acknowledged writes
+without inventing framing or safe payloads. Notification errors propagate and
+the subscription is canceled before disconnect; merely waiting an interval
+does not assert that any value arrived. Protected IO failures do not silently
+pair in this example (see [pairing](pairing.md#headless-linux-agent-lifecycle)).
+
 `gatt.boundCharacteristic(characteristicId, service: serviceId)` is opt-in.
 After a reported service-database change, new reads, writes and explicit
 notification changes fail with `invalidState` before platform submission.

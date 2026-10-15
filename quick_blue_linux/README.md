@@ -8,6 +8,13 @@ See the [matched-source migration recipe](../docs/install.md#standalone-dart-lin
 Flutter's generated registration remains supported through federated plugin
 metadata. Package/fake tests do not prove hardware or ARM64 deployment.
 
+The [pure-Dart operator CLI](example/README.md) lists/selects adapters, scans with
+a service filter and requires an exact discovered device selection. Pairing,
+reads, writes and notifications are explicit opt-ins with `finally` cleanup.
+Unlike normal library recovery, it never pairs automatically after a security
+error. See [external agent lifecycle](../docs/pairing.md#headless-linux-agent-lifecycle)
+and [service-user permissions](../docs/platform-setup.md#linux-service-account-permissions).
+
 Follow the main package's
 [Git installation instructions](https://github.com/prefanatic/quick_blue/blob/master/quick_blue/README.md#install)
 to use this implementation from the fork.
@@ -17,7 +24,8 @@ usage, platform setup, and development documentation.
 
 ## Requirements
 
-- A running BlueZ daemon and a working BLE adapter.
+- A running BlueZ daemon and a working BLE adapter; service-user access to the
+  system bus and authorized `org.bluez` method calls (not implied by name ownership).
 - A D-Bus system-bus policy that lets the application user own names under
   `dev.quick_blue.Connection.*`. Without it every `connect()` fails with
   `Request to own name refused by policy`; install the supplied template:
@@ -50,10 +58,15 @@ also makes it unusable; create a fresh instance. See
 ## Tests
 
 ```sh
-flutter test
+python3 ../scripts/check-headless-consumer.py --dart /absolute/dart-sdk/bin/dart
 ```
 
-Hardware-backed BLE behaviour is covered by the example app's integration test
+Run this from the package directory with a standalone Dart 3.13 SDK. It creates
+external matched-source copies, runs `dart test`/analysis and compiles the CLI
+plus controlled fake flow. It does not access hardware. `flutter test` remains
+usable in the development workspace; it is not standalone dependency proof.
+
+Hardware-backed BLE behaviour can be exercised by the Flutter example app's integration test
 (the Linux package exercises fake BlueZ/D-Bus contracts, not hardware):
 
 ```sh

@@ -44,6 +44,20 @@ check remains separate and includes core at the same snapshot revision.
 
 ## Fast checks
 
+The standalone verifier also copies `quick_blue_linux/example` into an external
+CLI fixture, checks its transitive manifests, analyzes/tests, compiles
+`bin/main.dart` and `bin/fake_flow.dart`, and runs both without DISPLAY or
+WAYLAND_DISPLAY (`--help` for the real CLI). The fake flow asserts operator
+selection, advertisement/service-data retention, explicit pairing/write,
+notification cancellation and final disconnect/close. CLI tests reject malformed
+options before initialization and cover scan/security/pair/cleanup errors and
+stop signals. Linux `test/pairing_failure_test.dart` injects rejected,
+failed/canceled authentication and no-agent-style D-Bus errors through public
+pairing. Neither check contacts hardware or provisions an agent. Run
+[service-account/agent recipes](pairing.md#headless-linux-agent-lifecycle) only
+with the intended host/peripheral authorization; documentation recipes are not
+executed proof. ARM64 build/runtime and physical hardware remain separate.
+
 ```sh
 flutter pub get
 flutter analyze
@@ -69,7 +83,7 @@ python3 -O -m unittest discover -s scripts -p 'test_*.py'
 The Documentation workflow runs these tests alongside OKF validation and a clean
 site build. The suite includes 13 OKF tests, 15 built-site tests, four release
 metadata tests and five consumer-construction tests.
-Six additional headless graph/manifest tests reject Flutter SDK constraints,
+Seven additional headless graph/manifest tests reject Flutter SDK constraints,
 mixed repository snapshots and workspace roots while permitting plugin metadata. Site fixtures run the copied
 validator in normal and optimized subprocesses, checking navigation coverage and
 duplicates, rendered pages, anchors, missing targets, absolute/encoded project

@@ -117,6 +117,23 @@ ARM64 runtime support, or complete operator workflows. No new release or remote
 revision is implied by this local recipe; use matched tested Git refs only after
 the change is published with separate approval.
 
+### Operator CLI fixture
+
+The public Linux CLI (`quick_blue_linux/example/`, repository-relative) is copied by
+`scripts/check-headless-consumer.py` into a retained external `cli/` directory,
+with matched core/interface/Linux sources and explicit path overrides. The
+example's three direct dependencies are core, Linux and platform interface;
+`test` is development-only. Runtime dependency closure is the same as above.
+The verifier checks this CLI's graph/manifests too, runs `dart analyze` and
+`dart test`, then `dart compile exe bin/main.dart -o build/ble_cli` and
+`env -u DISPLAY -u WAYLAND_DISPLAY ./build/ble_cli --help` (equivalent environment
+removal is performed by Python). It also compiles/runs `bin/fake_flow.dart` with
+both display variables absent. No radio/agent actions occur during verification.
+Use [quickstart](quickstart.md#headless-linux-operator-workflow) for deliberate
+device operations and [pairing](pairing.md#headless-linux-agent-lifecycle) for
+the external agent/security boundary. ARM64 and hardware verification are
+separate, not implied by compilation on the build host.
+
 ### Publication compatibility limit
 
 This split currently supports matched source consumers, not a verified hosted

@@ -75,6 +75,15 @@ For cross-engine handoff, read [multi-engine ownership](multi-engine.md).
 
 ## Linux client shutdown
 
+The [headless operator CLI](quickstart.md#headless-linux-operator-workflow) uses built-in
+connect/discovery deadlines and a Ctrl-C cancellation token, cancels scans and
+notifications, then attempts disconnect and Linux close in nested `finally`
+blocks. Primary failures propagate while secondary cleanup failures are printed.
+It does not treat caller cancellation as a native abort. Already submitted
+pair/read/write/notification setup calls and teardown must settle before exit;
+a stalled D-Bus call can delay it. The example is not a process supervisor or
+an unlimited reconnecting service.
+
 `QuickBlueLinux.close()` is Linux-owned and idempotent, not a portable facade
 API. Cancel public scan, Bluetooth-state, notification and managed-connection
 subscriptions and await outstanding requests first. Shutdown is not a native
