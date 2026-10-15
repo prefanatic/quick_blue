@@ -5,6 +5,7 @@ environment:
   sdk: ^3.12.2
 
 workspace:
+  - quick_blue_core
   - quick_blue
   - quick_blue/example
   - quick_blue_darwin

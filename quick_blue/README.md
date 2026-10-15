@@ -51,6 +51,11 @@ dependencies:
       path: quick_blue
 
 dependency_overrides:
+  quick_blue_core:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_core
   quick_blue_platform_interface:
     git:
       url: https://github.com/prefanatic/quick_blue.git
@@ -73,7 +78,7 @@ dependency_overrides:
       path: quick_blue_windows
 ```
 
-For reproducible builds, replace `master` with a tested commit SHA in all five
+For reproducible builds, replace `master` with a tested commit SHA in all six
 entries. If these changes become available in a hosted release, replace the Git
 dependency and overrides with the corresponding version constraint.
 

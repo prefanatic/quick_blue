@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 import 'test_support/fake_quick_blue_platform.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   test('BlueScanResult exposes advertising manufacturer bytes', () {
     final manufacturerDataHead = Uint8List.fromList(<int>[0x4c, 0x00, 1, 2]);
     final manufacturerData = Uint8List.fromList(<int>[1, 2]);

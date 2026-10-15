@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 /// Pins the copy rules the managed scan coordinator relies on: a fully

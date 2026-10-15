@@ -54,7 +54,8 @@ class ConsumerTests(unittest.TestCase):
 
     def test_valid_linux(self):
         overrides = self.exercise(package="quick_blue_linux").split("dependency_overrides:\n")[1]
-        self.assertEqual(overrides.count("    git:"), 1)
+        self.assertEqual(overrides.count("    git:"), 2)
+        self.assertIn("quick_blue_core", overrides)
         self.assertIn("quick_blue_platform_interface", overrides)
 
     def test_git_dependency(self):

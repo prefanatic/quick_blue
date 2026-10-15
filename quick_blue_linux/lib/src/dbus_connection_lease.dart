@@ -1,7 +1,7 @@
 import 'dart:io' show pid;
 
 import 'package:dbus/dbus.dart';
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 
 import 'connection_lease.dart';
 import 'connection_ownership.dart';

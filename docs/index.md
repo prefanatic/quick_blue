@@ -7,7 +7,7 @@ okf_version: "0.2"
 ## Start here
 
 - [Choose quick_blue](overview.md) - Understand the federated packages and the handle-based BLE API.
-- [Install from Git](install.md) - Use a consistent repository revision for every federated package.
+- [Install from Git or a standalone local snapshot](install.md) - Match package revisions and isolate pure-Dart Linux consumers from the Flutter workspace.
 - [Configure each platform](platform-setup.md) - Set permissions, entitlements and host policy before using Bluetooth.
 - [Scan, connect and read](quickstart.md) - Run a small read-only workflow with explicit cleanup and caller timeouts.
 

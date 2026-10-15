@@ -1,13 +1,11 @@
 import 'dart:async';
 
 import 'package:bluez/bluez.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_linux/quick_blue_linux.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   test('registers as platform implementation', () {
     final previous = QuickBluePlatform.instance;
     try {

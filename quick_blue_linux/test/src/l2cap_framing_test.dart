@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_linux/src/l2cap_framing.dart';
 
 /// Covers the L2CAP branching rules that used to live inline in the FFI channel

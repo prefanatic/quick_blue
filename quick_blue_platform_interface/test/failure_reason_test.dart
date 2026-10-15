@@ -1,12 +1,9 @@
-import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 import 'test_support/fake_quick_blue_platform.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   test('attaching a reason preserves all exception context', () {
     final diagnostics = <String, Object>{'domain': 'native', 'code': 999};
     final error = QuickBlueException(
@@ -55,32 +52,6 @@ void main() {
     expect(recovered.message, security.message);
     expect(recovered.failureReason, QuickBlueFailureReason.connectionFailed);
   });
-
-  test(
-    'raw native connect exception is retained, not parsed by wording',
-    () async {
-      final native = PlatformException(
-        code: 'VendorConnectionError',
-        message: 'cancelled remotely: misleading words',
-        details: <String, Object>{'status': 999},
-        stacktrace: 'native stack trace',
-      );
-      final platform = FakeQuickBluePlatform(connectErrors: [native]);
-      addTearDown(platform.dispose);
-      await expectLater(
-        platform.device('device-a').connect(),
-        throwsA(
-          isA<QuickBlueException>()
-              .having(
-                (e) => e.failureReason,
-                'reason',
-                QuickBlueFailureReason.connectionFailed,
-              )
-              .having((e) => e.details, 'diagnostics', same(native)),
-        ),
-      );
-    },
-  );
 
   test(
     'programming errors and invalid-state errors are not connection failures',

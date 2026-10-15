@@ -17,6 +17,7 @@ import tempfile
 
 PACKAGES = (
     "quick_blue",
+    "quick_blue_core",
     "quick_blue_platform_interface",
     "quick_blue_darwin",
     "quick_blue_linux",
@@ -64,7 +65,7 @@ def check_consumer(package, snapshot, revision, fixture):
     )
     overrides = (
         [name for name in PACKAGES if name != package]
-        if package == "quick_blue" else ["quick_blue_platform_interface"]
+        if package == "quick_blue" else ["quick_blue_core", "quick_blue_platform_interface"]
     )
     for name in overrides:
         manifest += git_dependency(name, snapshot.as_uri(), revision)
@@ -107,7 +108,7 @@ def main():
         snapshot = fixture / "repository"
         snapshot.mkdir()
         tracked = subprocess.check_output(
-            ["git", "ls-files", "-z"], cwd=root
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=root
         ).decode().split("\0")
         for relative in filter(None, tracked):
             source = root / relative

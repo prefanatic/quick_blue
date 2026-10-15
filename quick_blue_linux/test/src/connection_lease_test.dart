@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io' show pid;
 
 import 'package:dbus/dbus.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_linux/quick_blue_linux.dart';
 import 'package:quick_blue_linux/src/connection_lease.dart';
 

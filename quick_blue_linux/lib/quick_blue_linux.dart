@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:bluez/bluez.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 import 'package:logging/logging.dart';
-import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
+import 'package:quick_blue_core/quick_blue_core.dart';
+import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart'
+    show QuickBluePlatform;
 
 import 'src/l2cap_endpoint.dart';
 import 'src/connection_ownership.dart';

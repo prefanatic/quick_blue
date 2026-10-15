@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:bluez/bluez.dart';
 import 'package:dbus/dbus.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:logging/logging.dart';
 import 'package:quick_blue_linux/quick_blue_linux.dart';
 import 'package:quick_blue_linux/src/device_property.dart';

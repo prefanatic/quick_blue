@@ -2,6 +2,12 @@
 
 The Linux BlueZ implementation of the `quick_blue` federated Flutter plugin.
 
+Also usable with standalone Dart through `quick_blue_core`, with explicit
+`QuickBlueLinux.registerWith()` registration and no Flutter SDK or engine.
+See the [matched-source migration recipe](../docs/install.md#standalone-dart-linux).
+Flutter's generated registration remains supported through federated plugin
+metadata. Package/fake tests do not prove hardware or ARM64 deployment.
+
 Follow the main package's
 [Git installation instructions](https://github.com/prefanatic/quick_blue/blob/master/quick_blue/README.md#install)
 to use this implementation from the fork.

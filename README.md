@@ -3,6 +3,12 @@
 `quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
 Android, iOS, macOS, Windows, and Linux.
 
+The generic facade now lives in pure-Dart `quick_blue_core`; Flutter imports
+remain unchanged. Linux services can combine core with `quick_blue_linux` and
+explicit registration without a Flutter SDK or engine. See the
+[local standalone migration and verification recipe](docs/install.md#standalone-dart-linux).
+Adapter selection, operator CLI and ARM64/hardware acceptance are separate work.
+
 Connection ownership is shared safely across Flutter engines. On Android, bounded
 disconnect reconciliation keeps missing native callbacks from blocking later
 reconnects. Remote GATT database changes are surfaced across supported
