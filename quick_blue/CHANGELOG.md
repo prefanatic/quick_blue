@@ -99,6 +99,9 @@
   verify the bundle as part of ordinary repository changes. Keep the bundle
   without a separate update log or generation metadata; regression-test the
   documentation quality gate while preserving source and link validation.
+- Document fresh-checkout example setup, artifact sources of truth, and update
+  steps; guard local credentials/device profiles with example ignore rules and
+  replace captured device identifiers in example documentation with placeholders.
 
 - Add subscription-owned `maintainConnection` with bounded exponential
   backoff, retry exhaustion errors, and explicit cancellation/disconnect

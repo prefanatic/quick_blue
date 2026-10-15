@@ -40,6 +40,31 @@ link closed: another engine may remain attached. Fake-clock controller tests in
 Native callbacks lack portable request IDs, so arbitrary late events racing a
 new same-device native attempt cannot be distinguished solely by Dart UI guards.
 
+## Reproduce a fresh checkout
+
+From the repository root run `flutter pub get`, then run `flutter analyze` and
+`flutter test` inside `quick_blue/example`. The tracked fake platform and test
+data suffice for these non-hardware checks; no captured advertisements, local
+device profile or custom fixture generator is required. Dependency downloads
+need network access unless cached. These commands do not run `integration_test/`.
+
+Tracked app, test, icon and native-runner sources are the inputs. Flutter tooling
+recreates plugin registrants and build configuration after dependency changes;
+review tracked generated changes rather than hand-editing them. Pigeon outputs
+follow [the owning-package generation rules](testing.md#native-and-generated-boundaries).
+On macOS, the tracked iOS `Podfile.lock` is updated through `pod install` after
+root dependency setup. Dart lockfiles remain ignored: this reproduces usable
+inputs, not byte-identical builds or a permanently pinned dependency graph.
+
+Keep caches, VM disks, build output, device profiles, identifiers, captures and
+signing material local. The example ignores `.env*`, `smoke.local.json`,
+`key.properties`, `*.jks` and `*.keystore`, but those patterns do not guarantee
+other filenames are safe. Inspect every shared diff and use placeholders or
+synthetic data. The example README's fresh-checkout artifact inventory
+provides platform-specific update paths; see [evidence storage](testing.md#store-reproducibility-separately-from-raw-execution-records)
+for raw execution records. Hardware tests still require platform permissions,
+powered Bluetooth and controlled peripherals; these are not Git artifacts.[^source2]
+
 ## Choose the right hardware test
 
 | Test | Purpose | Important boundary |
@@ -84,3 +109,5 @@ reported throughput is specific to your peripheral and host, not a plugin guaran
 All 66 compile-time inputs, including deadlines omitted from the older example
 README, are listed in [Dart defines](example-options.md). See [testing](testing.md)
 for baseline, stress, multi-engine and Windows recipes.
+
+[^source2]: Example setup, tracked-input inventory and local secret/profile policy.

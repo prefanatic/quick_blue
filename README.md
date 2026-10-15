@@ -51,6 +51,7 @@ the first error and adds no framing, automatic reassembly, or application ACKs.
 - [Linux GATT teardown characterization and proof boundary](docs/limitations.md#linux-gatt-teardown-characterization)
 - [Contributing and verification](CONTRIBUTING.md)
 - [Minimum-toolchain reproduction and proof boundaries](docs/testing.md)
+- [Example setup and artifact policy](quick_blue/example/README.md#fresh-checkout-setup-and-artifact-policy)
 - [Issue tracker](https://github.com/prefanatic/quick_blue/issues)
 
 ## Download the example app
