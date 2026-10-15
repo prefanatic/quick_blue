@@ -534,6 +534,21 @@ reports `BluetoothBondState.bonding`. QuickBlue observes that transition for a
 short bound before it starts an explicit bond. This policy prevents a second
 `createBond()` call while Android starts or processes the implicit bond.
 
+On Android 17/API 37, Android can retain the existing bond while autonomously
+repairing lost peer keys. When official pairing or bond broadcasts explicitly
+identify repair context, QuickBlue waits up to 30 seconds without starting a
+competing bond request or handling the system confirmation dialog. Recovery
+requires a subsequent successful, enabled LE encryption broadcast for that
+observed repair; a `bonded` snapshot alone is not proof. `KEY_MISSING`,
+disconnect, unavailable evidence, or a bounded wait ending returns
+`userActionRequired`, not a definitive claim that Android's repair failed.
+Successful observed repair permits the existing single operation retry. Cached
+successes are not reused for later operations. Per-device observations are
+cleared on disconnect and engine detach. Android 16/older and OEMs without
+explicit repair context retain the previous behavior, including ordinary fresh
+pairing. No automatic bond removal, UI approval, or generic GATT-status-to-key-loss
+mapping is performed. API-37 hardware/OEM behavior still requires device testing.
+
 If automatic recovery cannot proceed, QuickBlue exposes
 `QuickBlueSecurityException`. Its `reason` identifies authentication,
 authorization, encryption, encryption-key-size, encryption-timeout, and

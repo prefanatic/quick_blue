@@ -80,6 +80,8 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     private val mtuChangedListener = MtuChangedListener()
     private val l2CapSocketEventsListener = L2CapSocketEventsListener()
     private val bondStateChangesListener = BondStateChangesListener()
+    private val repairChangesListener = RepairChangesListener()
+    private val repairObserver = AndroidRepairObserver()
     private val bondStateReceiver = BondStateReceiver()
     private lateinit var bluetoothStateListener: BluetoothStateListener
 
@@ -88,6 +90,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         bluetoothStateListener = BluetoothStateListener(context, bluetoothManager)
         BluetoothStateStreamHandler.register(messenger, bluetoothStateListener)
         BondStateChangesStreamHandler.register(messenger, bondStateChangesListener)
+        RepairChangesStreamHandler.register(messenger, repairChangesListener)
         ScanResultsStreamHandler.register(messenger, scanResultListener)
         MtuChangedStreamHandler.register(messenger, mtuChangedListener)
         L2CapSocketEventsStreamHandler.register(messenger, l2CapSocketEventsListener)
@@ -100,7 +103,13 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         ContextCompat.registerReceiver(
             context,
             bondStateReceiver,
-            IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+            IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED).apply {
+                if (Build.VERSION.SDK_INT >= 37) addAction(RepairBroadcast.PAIRING_REQUEST)
+                if (Build.VERSION.SDK_INT >= 36) {
+                    addAction(RepairBroadcast.KEY_MISSING)
+                    addAction(RepairBroadcast.ENCRYPTION_CHANGE)
+                }
+            },
             ContextCompat.RECEIVER_EXPORTED
         )
     }
@@ -147,6 +156,8 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         }
         scanResultListener.onEventsDone()
         bondStateChangesListener.onEventsDone()
+        repairObserver.clear()
+        repairChangesListener.onEventsDone()
         mtuChangedListener.onEventsDone()
         l2CapSocketEventsListener.onEventsDone()
     }
@@ -203,10 +214,34 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
 
     private inner class BondStateReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
-                return
-            }
+            if (!isAttachedToEngine || intent == null) return
             val device = intent.bluetoothDeviceExtra ?: return
+            val repair = repairObserver.dispatch(
+                sdk = Build.VERSION.SDK_INT,
+                deviceId = device.address,
+                action = intent.action,
+                pairingContext = if (intent.hasExtra(RepairBroadcast.PAIRING_CONTEXT))
+                    intent.getIntExtra(RepairBroadcast.PAIRING_CONTEXT, -1) else null,
+                transport = if (intent.hasExtra(RepairBroadcast.TRANSPORT))
+                    intent.getIntExtra(RepairBroadcast.TRANSPORT, -1) else null,
+                encryptionStatus = if (intent.hasExtra(RepairBroadcast.ENCRYPTION_STATUS))
+                    intent.getIntExtra(RepairBroadcast.ENCRYPTION_STATUS, -1) else null,
+                encryptionEnabled = if (intent.hasExtra(RepairBroadcast.ENCRYPTION_ENABLED))
+                    intent.getBooleanExtra(RepairBroadcast.ENCRYPTION_ENABLED, false) else null,
+                bondState = if (intent.hasExtra(BluetoothDevice.EXTRA_BOND_STATE))
+                    intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR).toPlatformBondState() else null,
+                previousBondState = if (intent.hasExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE))
+                    intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR).toPlatformBondState() else null,
+            )
+            if (repair != null) {
+                repairChangesListener.onRepairChanged(repair)
+                when (repair.state) {
+                    PlatformRepairState.SUCCEEDED -> pendingPairRegistry.complete(device.address, Result.success(Unit))
+                    PlatformRepairState.FAILED -> pendingPairRegistry.fail(device.address, "Repair failed for ${device.address}")
+                    else -> Unit
+                }
+            }
+            if (intent.action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) return
             val state = intent.getIntExtra(
                 BluetoothDevice.EXTRA_BOND_STATE,
                 BluetoothDevice.ERROR
@@ -222,15 +257,17 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                     previousState = previousState.toPlatformBondState(),
                 )
             )
-            when (state) {
-                BluetoothDevice.BOND_BONDED -> pendingPairRegistry.complete(
+            // Intermediate bond changes do not settle an observed OS repair.
+            when (repairObserver.bondPairOutcome(device.address, state.toPlatformBondState())) {
+                PlatformRepairState.SUCCEEDED -> pendingPairRegistry.complete(
                     device.address,
                     Result.success(Unit)
                 )
-                BluetoothDevice.BOND_NONE -> pendingPairRegistry.fail(
+                PlatformRepairState.FAILED -> pendingPairRegistry.fail(
                     device.address,
                     "Pairing failed for ${device.address}"
                 )
+                else -> Unit
             }
         }
     }
@@ -242,8 +279,14 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         nativeStatus: Int,
     ) {
         if (!isAttachedToEngine) return
+        val repairConnectionToken = repairObserver.connectionToken(deviceId)
+        // Invalidate on the native callback thread, not in the queued Flutter
+        // delivery: reconnect can start before the main thread drains it.
+        val repairReset = if (state == PlatformConnectionState.DISCONNECTED)
+            repairObserver.disconnectIfCurrent(deviceId, repairConnectionToken) else null
         mainThreadHandler.post {
             if (!isAttachedToEngine) return@post
+            repairReset?.let { repairChangesListener.onRepairChanged(it) }
             sendToFlutter {
                 it.onConnectionStateChange(
                     PlatformConnectionStateChange(
@@ -516,16 +559,29 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
         ensureBluetoothConnectPermission()
 
         executor.execute {
-            AndroidGattBroker.connect(
-                this,
-                context,
-                bluetoothManager.adapter.getRemoteDevice(deviceId),
-            )
+            val previousToken = repairObserver.connectionToken(deviceId)
+            repairObserver.connect(deviceId)
+            try {
+                AndroidGattBroker.connect(
+                    this,
+                    context,
+                    bluetoothManager.adapter.getRemoteDevice(deviceId),
+                )
+            } catch (error: Throwable) {
+                if (previousToken == null) repairObserver.disconnect(deviceId)
+                throw error
+            }
         }
     }
 
     override fun disconnect(deviceId: String) {
+        repairChangesListener.onRepairChanged(repairObserver.disconnect(deviceId))
         disableUnclaimedNotifications(AndroidGattBroker.disconnect(this, deviceId))
+    }
+
+    override fun repairObservation(deviceId: String): PlatformRepairObservation {
+        ensureBluetoothConnectPermission()
+        return repairObserver.snapshot(deviceId)
     }
 
     override fun bondState(deviceId: String): PlatformBondState {
@@ -536,6 +592,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
     override fun startPairing(deviceId: String) {
         ensureBluetoothConnectPermission()
         val device = remoteDevice(deviceId)
+        if (repairObserver.snapshot(deviceId).state == PlatformRepairState.IN_PROGRESS) return
         if (device.bondState != BluetoothDevice.BOND_NONE) {
             return
         }
@@ -566,7 +623,8 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             throw error
         }
 
-        if (device.bondState == BluetoothDevice.BOND_BONDED) {
+        val repairing = repairObserver.snapshot(deviceId).state == PlatformRepairState.IN_PROGRESS
+        if (!repairing && device.bondState == BluetoothDevice.BOND_BONDED) {
             return
         }
 
@@ -586,7 +644,7 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
                 }
                 pendingPairRegistry.register(device.address, completer)
 
-                if (device.bondState == BluetoothDevice.BOND_BONDING) {
+                if (repairing || device.bondState == BluetoothDevice.BOND_BONDING) {
                     return@suspendCancellableCoroutine Unit
                 }
 
