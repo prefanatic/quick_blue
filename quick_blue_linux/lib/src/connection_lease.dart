@@ -32,6 +32,8 @@ final class SystemConnectionLeaseBus implements ConnectionLeaseBus {
 
   final DBusClient _client;
 
+  Future<void> close() => _client.close();
+
   @override
   String get uniqueName => _client.uniqueName;
 

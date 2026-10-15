@@ -16,7 +16,9 @@ class LinuxScanSession {
     required BlueZClient client,
     required void Function(BlueZDevice) onTrackDevice,
     required Logger logger,
+    bool Function(BlueZDevice)? acceptsDevice,
   }) : _client = client,
+       _acceptsDevice = acceptsDevice,
        _onTrackDevice = onTrackDevice,
        _logger = logger {
     _scanResultController = StreamController<BlueScanResult>.broadcast(
@@ -25,6 +27,7 @@ class LinuxScanSession {
   }
 
   final BlueZClient _client;
+  final bool Function(BlueZDevice)? _acceptsDevice;
   final void Function(BlueZDevice) _onTrackDevice;
   final Logger _logger;
   final _scanDevicePropertySubscriptions =
@@ -47,6 +50,16 @@ class LinuxScanSession {
   late final StreamController<BlueScanResult> _scanResultController;
 
   Stream<BlueScanResult> get results => _scanResultController.stream;
+
+  Future<void> close() async {
+    await _clearScanDevicePropertySubscriptions();
+    _scanResultController.close().then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stack) {
+        _logger.warning('Unable to close scan results', error, stack);
+      },
+    );
+  }
 
   Future<void> start(
     BlueZAdapter adapter,
@@ -118,6 +131,7 @@ class LinuxScanSession {
   }
 
   void _trackDevice(BlueZDevice device) {
+    if (!(_acceptsDevice?.call(device) ?? true)) return;
     _onTrackDevice(device);
     if (_isScanning) {
       _watchScanDeviceProperties(device);
@@ -125,6 +139,7 @@ class LinuxScanSession {
   }
 
   void _emitScanResult(BlueZDevice device) {
+    if (!(_acceptsDevice?.call(device) ?? true)) return;
     if (!_isScanning) {
       return;
     }

@@ -24,17 +24,23 @@ typedef _BlueZPropertySubscription = StreamSubscription<List<String>>;
 typedef _DevicePropertySubscriptions = Map<String, _BlueZPropertySubscription>;
 
 class QuickBlueLinux extends QuickBluePlatform {
-  QuickBlueLinux() : this.withClient(BlueZClient());
+  /// Uses the first powered adapter unless [adapterAddress] is specified.
+  /// An explicit address never falls back to another adapter.
+  QuickBlueLinux({String? adapterAddress})
+    : this.withClient(BlueZClient(), adapterAddress: adapterAddress);
 
   @visibleForTesting
   QuickBlueLinux.withClient(
     this._client, {
     QuickBlueLinuxConnectionLease? connectionLease,
+    this.adapterAddress,
   }) : _connectionOwnership = ConnectionOwnership(
          connectionLease ?? DbusConnectionLease(),
        ) {
     _scanSession = LinuxScanSession(
       client: _client,
+      acceptsDevice: (device) =>
+          adapterAddress == null || device.adapter.address == adapterAddress,
       onTrackDevice: (device) => _devices[device.address] = device,
       logger: _logger,
     );
@@ -59,6 +65,22 @@ class QuickBlueLinux extends QuickBluePlatform {
     QuickBluePlatform.instance = QuickBlueLinux();
   }
 
+  /// Linux adapter address selected by the operator, or null for the default.
+  final String? adapterAddress;
+
+  /// Returns immutable snapshots; this never powers on an adapter.
+  Future<List<QuickBlueLinuxAdapter>> adapters() async {
+    await _ensureInitialized();
+    return List.unmodifiable(
+      _client.adapters.map(
+        (adapter) => QuickBlueLinuxAdapter(
+          address: adapter.address,
+          powered: adapter.powered,
+        ),
+      ),
+    );
+  }
+
   @override
   Future<QuickBlueCapabilities> capabilities() async {
     return const QuickBlueCapabilities(
@@ -75,6 +97,62 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   var _isInitialized = false;
   Future<void>? _initialization;
+  bool _closed = false;
+  Future<void>? _closing;
+  bool _clientClosed = false;
+
+  Future<void> _closeClient() async {
+    if (_clientClosed) return;
+    _clientClosed = true;
+    await _client.close();
+  }
+
+  /// Releases this client's resources. Callers must first cancel their public
+  /// scan/connection/notification subscriptions and await outstanding requests.
+  /// Idempotent; a closed instance cannot be reused.
+  Future<void> close() {
+    return _closing ??= _close();
+  }
+
+  Future<void> _close() async {
+    _closed = true;
+    try {
+      await _initialization;
+    } catch (_) {
+      // Initialization already reports its primary failure.
+    }
+    Object? failure;
+    StackTrace? failureStack;
+    Future<void> release(Future<void> Function() action) async {
+      try {
+        await action();
+      } catch (error, stack) {
+        failure ??= error;
+        failureStack ??= stack;
+        _logger.warning('Linux shutdown cleanup failed', error, stack);
+      }
+    }
+
+    await release(() => _scanSession.stop(_scanAdapter));
+    _scanAdapter = null;
+    for (final deviceId in _connectionOwnership.deviceIds) {
+      await release(() => disconnect(deviceId));
+    }
+    for (final deviceId in _devices.keys.toList()) {
+      await release(() => _clearDeviceState(deviceId, removeDevice: true));
+    }
+    await release(() async {
+      await _deviceAddedSubscription?.cancel();
+    });
+    await release(() async {
+      await _deviceRemovedSubscription?.cancel();
+    });
+    await release(_scanSession.close);
+    await release(_closeClient);
+    await release(_connectionOwnership.close);
+    _isInitialized = false;
+    if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
+  }
 
   /// Whether the BlueZ client has finished initializing.
   ///
@@ -98,6 +176,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   StreamSubscription<BlueZDevice>? _deviceRemovedSubscription;
 
   BlueZAdapter? _activeAdapter;
+  BlueZAdapter? _scanAdapter;
   late final LinuxScanSession _scanSession;
   late final LinuxGattSession _gattSession;
   late final LinuxL2capEndpoint _l2capEndpoint;
@@ -106,6 +185,15 @@ class QuickBlueLinux extends QuickBluePlatform {
   Stream<BlueScanResult> get scanResultStream => _scanSession.results;
 
   Future<void> _ensureInitialized() {
+    if (_closed) {
+      return Future.error(
+        const QuickBlueException(
+          code: QuickBlueErrorCode.invalidState,
+          operation: 'initialize',
+          message: 'Linux client is closed.',
+        ),
+      );
+    }
     final existing = _initialization;
     if (existing != null) {
       return existing;
@@ -136,13 +224,37 @@ class QuickBlueLinux extends QuickBluePlatform {
       );
 
       for (final device in _client.devices) {
-        _devices[device.address] = device;
+        if (_matchesAdapter(device)) _devices[device.address] = device;
       }
 
       _isInitialized = true;
-    } catch (_) {
+    } catch (error, stack) {
       _initialization = null;
-      rethrow;
+      _closed = true;
+      for (final subscription in [
+        _deviceAddedSubscription,
+        _deviceRemovedSubscription,
+      ]) {
+        try {
+          await subscription?.cancel();
+        } catch (cleanupError, cleanupStack) {
+          _logger.warning(
+            'Initialization subscription cleanup failed',
+            cleanupError,
+            cleanupStack,
+          );
+        }
+      }
+      try {
+        await _closeClient();
+      } catch (cleanupError, cleanupStack) {
+        _logger.warning(
+          'Initialization transport cleanup failed',
+          cleanupError,
+          cleanupStack,
+        );
+      }
+      Error.throwWithStackTrace(error, stack);
     }
   }
 
@@ -165,7 +277,11 @@ class QuickBlueLinux extends QuickBluePlatform {
       void emitState() {
         final adapters = _client.adapters;
         _activeAdapter = _selectPoweredAdapter();
-        if (adapters.isEmpty) {
+        if (adapters.isEmpty ||
+            (adapterAddress != null &&
+                !adapters.any(
+                  (adapter) => adapter.address == adapterAddress,
+                ))) {
           controller.add(BlueBluetoothState.unavailable);
         } else if (_activeAdapter != null) {
           controller.add(BlueBluetoothState.poweredOn);
@@ -243,19 +359,24 @@ class QuickBlueLinux extends QuickBluePlatform {
     }
 
     await _scanSession.start(adapter, scanFilter, scanOptions);
+    _scanAdapter = adapter;
   }
 
   @override
   Future<void> stopScan() async {
     await _ensureInitialized();
-    await _scanSession.stop(_activeAdapter);
+    final adapter = _scanAdapter;
+    _scanAdapter = null;
+    await _scanSession.stop(adapter);
   }
 
   void _onDeviceAdd(BlueZDevice device) {
+    if (!_matchesAdapter(device)) return;
     _scanSession.deviceAdded(device);
   }
 
   void _onDeviceRemoved(BlueZDevice device) {
+    if (!_matchesAdapter(device)) return;
     _observeBackgroundOperation(
       _clearDeviceState(device.address, removeDevice: true),
       'Unable to clear removed device ${device.address}',
@@ -268,11 +389,16 @@ class QuickBlueLinux extends QuickBluePlatform {
   }) async {
     await _ensureInitialized();
     for (final device in _client.devices) {
-      _devices[device.address] = device;
+      if (_matchesAdapter(device)) _devices[device.address] = device;
     }
 
     final canonicalServiceUuids = serviceUuids.map(canonicalizeUuid).toSet();
     return _devices.values
+        .where(
+          (device) =>
+              adapterAddress == null ||
+              device.adapter.address == adapterAddress,
+        )
         .where((device) => device.connected)
         .where(
           (device) =>
@@ -322,7 +448,8 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   @override
   Future<void> disconnect(String deviceId) async {
-    await _ensureInitialized();
+    // Shutdown may detach already-owned devices after closing the public gate.
+    if (!_closed) await _ensureInitialized();
     if (!_connectionOwnership.owns(deviceId)) {
       throw QuickBlueException(
         code: QuickBlueErrorCode.invalidState,
@@ -461,6 +588,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   @override
   Future<BleL2capSocket> openL2cap(String deviceId, int psm) async {
     await _ensureInitialized();
+    _getDeviceOrThrow(deviceId, operation: 'openL2cap');
     return _l2capEndpoint.open(deviceId, psm);
   }
 
@@ -497,23 +625,34 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   BlueZAdapter? _selectPoweredAdapter() {
-    return _client.adapters.firstWhereOrNull((adapter) => adapter.powered);
+    return _client.adapters.firstWhereOrNull(
+      (adapter) =>
+          adapter.powered &&
+          (adapterAddress == null || adapter.address == adapterAddress),
+    );
   }
 
-  BlueZDevice _getDeviceOrThrow(String deviceId) {
+  BlueZDevice _getDeviceOrThrow(String deviceId, {String? operation}) {
     final device =
         _devices[deviceId] ??
-        _client.devices.firstWhereOrNull((d) => d.address == deviceId);
-    if (device == null) {
+        _client.devices.firstWhereOrNull(
+          (d) => d.address == deviceId && _matchesAdapter(d),
+        );
+    if (device == null ||
+        (adapterAddress != null && device.adapter.address != adapterAddress)) {
       throw QuickBlueException(
         code: QuickBlueErrorCode.notFound,
         deviceId: deviceId,
+        operation: operation,
         message: 'Bluetooth device $deviceId was not found.',
       );
     }
     _devices[deviceId] = device;
     return device;
   }
+
+  bool _matchesAdapter(BlueZDevice device) =>
+      adapterAddress == null || device.adapter.address == adapterAddress;
 
   Future<void> _ensureConnectedDevice(BlueZDevice device) async {
     if (device.connected) {
@@ -644,4 +783,11 @@ class QuickBlueLinux extends QuickBluePlatform {
       },
     );
   }
+}
+
+/// Snapshot of a Linux adapter's identity and power state.
+class QuickBlueLinuxAdapter {
+  const QuickBlueLinuxAdapter({required this.address, required this.powered});
+  final String address;
+  final bool powered;
 }

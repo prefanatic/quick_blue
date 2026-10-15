@@ -7,7 +7,11 @@ The generic facade now lives in pure-Dart `quick_blue_core`; Flutter imports
 remain unchanged. Linux services can combine core with `quick_blue_linux` and
 explicit registration without a Flutter SDK or engine. See the
 [local standalone migration and verification recipe](docs/install.md#standalone-dart-linux).
-Adapter selection, operator CLI and ARM64/hardware acceptance are separate work.
+Linux supports explicit adapter addresses and client shutdown; see
+[adapter selection](docs/scanning.md#linux-adapter-selection) and
+[cleanup](docs/connections.md#linux-client-shutdown).
+Use opt-in [snapshot-bound handles](docs/gatt.md#snapshot-bound-submissions) to reject
+new IO after GATT invalidation. Operator CLI and ARM64/hardware acceptance remain separate work.
 
 Connection ownership is shared safely across Flutter engines. On Android, bounded
 disconnect reconciliation keeps missing native callbacks from blocking later

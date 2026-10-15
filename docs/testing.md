@@ -248,6 +248,23 @@ machine-specific dumps in durable Kanban attachments or CI artifacts, not Git.
 Scratch paths alone are not preservation. Exceptions require justified executable
 test inputs or curated stable baselines, not an unfiltered execution dump.
 
+### Linux deterministic lifecycle matrix
+
+Run `dart test` in the isolated Linux copy created by the standalone consumer
+check. `test/lifecycle_cleanup_test.dart` covers caller cancellation before
+start, during lease acquisition and during native connect, delayed completion,
+retry, permission denial, failed connect, acquired setup cleanup and double
+close. `test/gatt_session_test.dart` covers failed/cleared discovery, retry,
+stale opt-in bound handles rejecting before IO, late notification setup and
+final-listener cleanup and overlapping retired-setup/retry claim ordering.
+Delayed client StopNotify cleanup also serializes with clear/retry, including
+native stop failures, so a retired release cannot disable the retry claim.
+Adapter tests cover the same remote address on multiple adapters without foreign
+native connect submissions. `test/src/connection_lease_test.dart` records shared
+D-Bus owners and last-client serialization; adapter tests retain first-powered
+defaults and missing/unpowered/removed explicit selections. Watchdogs bound
+pending regression futures. None of these tests accesses Bluetooth hardware.
+
 Before removing existing tracked raw evidence, archive the originals durably,
 read the stored attachment/artifact back and verify its hashes against the originals.
 Keep artifact identifiers and concise provenance in the handoff. Preserve historical

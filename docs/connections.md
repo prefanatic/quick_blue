@@ -72,3 +72,28 @@ await subscription.cancel();
 For cross-engine handoff, read [multi-engine ownership](multi-engine.md).
 
 [^source4]: Android GATT broker disconnect reconciliation.
+
+## Linux client shutdown
+
+`QuickBlueLinux.close()` is Linux-owned and idempotent, not a portable facade
+API. Cancel public scan, Bluetooth-state, notification and managed-connection
+subscriptions and await outstanding requests first. Shutdown is not a native
+request abort or a deadline for stalled BlueZ calls. It releases only this
+client's owned connections under the last-client lease rule, then property
+watches and transports. Cleanup attempts continue after failures; the first
+shutdown failure is thrown and secondary failures are logged. Initialization
+failure releases acquired subscriptions/transport, preserves its primary error
+and makes the instance unusable; construct a new instance rather than retrying
+it. Source paths: `quick_blue_linux/lib/quick_blue_linux.dart` and
+`quick_blue_linux/test/lifecycle_cleanup_test.dart` (repository root-relative).
+
+Caller cancellation still stops only that caller's wait. A connect completing
+late retains the client lease until explicit disconnect; an immediate retry
+joins it. Local fakes record native connect/disconnect calls and D-Bus owners.
+Clearing device state cancels pending discovery waits, and a late notification
+setup releases its native claim without installing a watch. Notification setup
+and disable requests for the same characteristic are serialized across clears:
+a retry waits for retired native setup and cleanup before acquiring its claim,
+so old cleanup cannot disable the new generation. A stalled native setup still
+requires native completion; serialization is not an abort or deadline. These are fake
+contracts, not hardware disconnect or notification-delivery proof.

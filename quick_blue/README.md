@@ -1,5 +1,10 @@
 # quick_blue
 
+Use opt-in `gatt.boundCharacteristic(...)` when newly submitted IO must reject
+a reported stale GATT snapshot. Existing `gatt.characteristic(...)` and direct-ID
+handles retain their ID-only behavior. See the
+[snapshot-bound compatibility contract](../docs/gatt.md#snapshot-bound-submissions).
+
 `quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
 Android, iOS, macOS, Windows, and Linux.
 

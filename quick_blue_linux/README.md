@@ -32,6 +32,21 @@ usage, platform setup, and development documentation.
   sockets; `QuickBlue.capabilities().supportsL2capSockets` reports support
   regardless, and `openL2cap` fails with an error when the library is absent.
 
+## Adapter selection and shutdown
+
+`QuickBlueLinux(adapterAddress: '02:00:00:00:00:01')` selects that exact
+BlueZ adapter address. Omit it for the first powered adapter. `await
+platform.adapters()` lists immutable address/power snapshots without powering
+an adapter. A missing or unpowered selection never falls back.
+See [selection](../docs/scanning.md#linux-adapter-selection).
+
+Cancel public scan, Bluetooth-state, managed-connection and notification
+subscriptions and await outstanding requests before `await platform.close()`.
+Close is idempotent, disconnects only this client's owned devices using the
+last-client lease rule, and makes the instance unusable. Initialization failure
+also makes it unusable; create a fresh instance. See
+[cleanup contracts](../docs/connections.md#linux-client-shutdown).
+
 ## Tests
 
 ```sh
@@ -39,7 +54,7 @@ flutter test
 ```
 
 Hardware-backed BLE behaviour is covered by the example app's integration test
-(the Linux package itself only exercises pure helpers):
+(the Linux package exercises fake BlueZ/D-Bus contracts, not hardware):
 
 ```sh
 cd ../quick_blue/example

@@ -8,11 +8,23 @@ abstract interface class QuickBlueLinuxConnectionLease {
 }
 
 /// Tracks the device leases held by one Linux Flutter-engine instance.
+abstract interface class QuickBlueLinuxDisposableConnectionLease {
+  Future<void> close();
+}
+
 class ConnectionOwnership {
   ConnectionOwnership(this._lease);
 
   final QuickBlueLinuxConnectionLease _lease;
   final Set<String> _deviceIds = <String>{};
+
+  List<String> get deviceIds => List.unmodifiable(_deviceIds);
+
+  Future<void> close() async {
+    if (_lease case final QuickBlueLinuxDisposableConnectionLease lease) {
+      await lease.close();
+    }
+  }
 
   bool owns(String deviceId) => _deviceIds.contains(deviceId);
 

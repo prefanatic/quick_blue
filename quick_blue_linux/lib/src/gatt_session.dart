@@ -42,6 +42,25 @@ class LinuxGattSession {
       <String, _DevicePropertySubscriptions>{};
   final Map<String, Future<void>> _serviceDiscoveryEmits =
       <String, Future<void>>{};
+  final Map<String, Completer<void>> _deviceCancellations = {};
+  // Survives clearDevice: retired native setup must settle and release its
+  // client claim before a new generation can acquire the same claim.
+  final Map<String, Future<void>> _notificationOperations = {};
+
+  Completer<void> _cancellation(String deviceId) =>
+      _deviceCancellations.putIfAbsent(deviceId, Completer<void>.new);
+
+  void _checkCurrent(String deviceId, Completer<void> cancellation) {
+    if (cancellation.isCompleted) {
+      throw QuickBlueException(
+        code: QuickBlueErrorCode.cancelled,
+        operation: 'gatt',
+        deviceId: deviceId,
+        message: 'Device state was cleared.',
+      );
+    }
+  }
+
   final Map<String, bool> _servicesResolvedStates = <String, bool>{};
   final Map<String, String> _gattFingerprints = <String, String>{};
   final Map<String, _ResolvedCharacteristic> _resolvedCharacteristics =
@@ -69,6 +88,7 @@ class LinuxGattSession {
   }
 
   Future<void> clearDevice(String deviceId) async {
+    _deviceCancellations.remove(deviceId)?.complete();
     _servicesResolvedStates.remove(deviceId);
     _gattFingerprints.remove(deviceId);
     _serviceDiscoveryEmits.remove(deviceId);
@@ -81,6 +101,46 @@ class LinuxGattSession {
     String service,
     String characteristic,
     BleInputProperty bleInputProperty,
+  ) async {
+    final cancellation = _cancellation(deviceId);
+    final operationKey =
+        '$deviceId/${_characteristicKey(service, characteristic)}';
+    await _serializeNotification(operationKey, () async {
+      _checkCurrent(deviceId, cancellation);
+      await _setNotifiable(
+        deviceId,
+        service,
+        characteristic,
+        bleInputProperty,
+        cancellation,
+      );
+    });
+  }
+
+  Future<void> _serializeNotification(
+    String operationKey,
+    Future<void> Function() action,
+  ) async {
+    final previous = _notificationOperations[operationKey];
+    final done = Completer<void>();
+    _notificationOperations[operationKey] = done.future;
+    try {
+      await previous;
+      await action();
+    } finally {
+      done.complete();
+      if (identical(_notificationOperations[operationKey], done.future)) {
+        _notificationOperations.remove(operationKey);
+      }
+    }
+  }
+
+  Future<void> _setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+    Completer<void> cancellation,
   ) async {
     final resolved = await _resolveCharacteristic(
       deviceId,
@@ -136,7 +196,16 @@ class LinuxGattSession {
       // This D-Bus client already enabled notifications.
     }
 
+    if (cancellation.isCompleted) {
+      try {
+        await targetCharacteristic.stopNotify();
+      } catch (error, stack) {
+        _logger.warning('Late notification cleanup failed', error, stack);
+      }
+      _checkCurrent(deviceId, cancellation);
+    }
     await _removeNotificationSubscription(deviceId, key);
+    _checkCurrent(deviceId, cancellation);
 
     final subscription = targetCharacteristic.propertiesChanged.listen(
       (changed) {
@@ -241,8 +310,10 @@ class LinuxGattSession {
       return existing;
     }
 
+    final cancellation = _cancellation(device.address);
     final emit = () async {
-      await _waitForServicesResolved(device);
+      await _waitForServicesResolved(device, cancellation: cancellation);
+      _checkCurrent(device.address, cancellation);
       _emitResolvedServices(device);
     }();
     _serviceDiscoveryEmits[device.address] = emit;
@@ -302,12 +373,14 @@ class LinuxGattSession {
   Future<void> _waitForServicesResolved(
     BlueZDevice device, {
     Duration timeout = const Duration(seconds: 15),
+    Completer<void>? cancellation,
   }) async {
     return waitForDeviceProperty(
       device,
       propertyName: 'ServicesResolved',
       isReady: () => device.servicesResolved,
       timeout: timeout,
+      cancelled: (cancellation ?? _cancellation(device.address)).future,
     );
   }
 
@@ -317,8 +390,11 @@ class LinuxGattSession {
     String characteristicId,
   ) async {
     final device = _getDevice(deviceId);
+    final cancellation = _cancellation(deviceId);
     await _ensureConnected(device);
-    await _waitForServicesResolved(device);
+    _checkCurrent(deviceId, cancellation);
+    await _waitForServicesResolved(device, cancellation: cancellation);
+    _checkCurrent(deviceId, cancellation);
 
     final canonicalService = canonicalizeUuid(serviceId);
     final canonicalCharacteristic = canonicalizeUuid(characteristicId);
@@ -401,23 +477,42 @@ class LinuxGattSession {
   }
 
   Future<void> stopNotificationsForClient(String deviceId) async {
-    final keys =
-        _notificationSubscriptions[deviceId]?.keys.toList() ?? const [];
-    for (final key in keys) {
+    final subscriptions = Map<String, _BlueZPropertySubscription>.of(
+      _notificationSubscriptions[deviceId] ?? {},
+    );
+    // Enqueue every release before yielding. Both setup and teardown share this
+    // boundary across clearDevice generations; a late native stop must finish
+    // before a retry can acquire the same D-Bus client's notification claim.
+    final releases = <Future<void>>[];
+    for (final entry in subscriptions.entries) {
+      final key = entry.key;
       final resolved = _resolvedCharacteristics['$deviceId|$key'];
       if (resolved == null) {
         continue;
       }
-      try {
-        await resolved.characteristic.stopNotify();
-      } on Object catch (error, stackTrace) {
-        _logger.warning(
-          'Failed to release this engine\'s notification for $deviceId',
-          error,
-          stackTrace,
-        );
-      }
+      releases.add(
+        _serializeNotification('$deviceId/$key', () async {
+          // A queued release belongs only to the subscription captured above,
+          // never to a replacement installed while it waited.
+          if (!identical(
+            _notificationSubscriptions[deviceId]?[key],
+            entry.value,
+          )) {
+            return;
+          }
+          try {
+            await resolved.characteristic.stopNotify();
+          } on Object catch (error, stackTrace) {
+            _logger.warning(
+              'Failed to release this engine\'s notification for $deviceId',
+              error,
+              stackTrace,
+            );
+          }
+        }),
+      );
     }
+    await Future.wait(releases);
   }
 
   Future<void> _removeNotificationSubscription(
