@@ -15,7 +15,7 @@ okf_version: "0.2"
 
 - [Scan results and filters](scanning.md) - Own scanning through subscriptions and select portable or native scan controls.
 - [Connection lifetimes and retries](connections.md) - Choose one-shot or subscription-owned connections and handle overlapping operations.
-- [Discover, write and subscribe](gatt.md) - Use valid GATT snapshots, explicit write framing and subscription-owned notifications.
+- [Discover, write and subscribe](gatt.md) - Use valid GATT snapshots, opt-in snapshot-bound handles, explicit write framing and subscription-owned notifications.
 - [Share a connection across engines](multi-engine.md) - Attach the receiving engine before detaching the previous owner.
 - [Pairing and security failures](pairing.md) - Gate bonding APIs and handle coordinated security recovery without blind retries.
 - [Open an L2CAP socket](l2cap.md) - Use the socket event stream and sink with explicit platform and framing checks.

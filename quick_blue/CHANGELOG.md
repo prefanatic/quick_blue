@@ -23,6 +23,7 @@
 - Make closing a remote-closed Darwin L2CAP sink a no-op so stale cleanup cannot
   close a replacement socket; cover late close/write bridge reply isolation.
 
+
 ### Added
 
 - Add deterministic fake-BlueZ characterizations of delayed Linux GATT discovery,
@@ -46,6 +47,17 @@
   and killable watchdog children for persistent retry/receive loops. The internal
   channel accepts an optional allocator (default `calloc`); socket behavior is
   unchanged. Watchdog termination is failure characterization, not hardware proof.
+
+- Add executable Dart adapter contracts for Android, Darwin, Windows and fake
+  BlueZ/Linux; document event-only Windows reads and the mock-only proof boundary.
+- Add opt-in `BluetoothGatt.boundCharacteristic`, which resolves a
+  characteristic handle bound to its GATT snapshot. After a service-database
+  change, new read, write and notification submissions through that handle
+  fail with `QuickBlueException` (`invalidState`) before platform submission;
+  rediscover and resolve a fresh bound handle to continue. Existing ID-only
+  handles keep their current behavior, already-submitted IO is not rolled
+  back, and disconnect/reconnect snapshot policy is unchanged.
+
 
 - Reject docs-site links that resolve outside the site root, including decoded
   traversal and symlink targets, while preserving internal parent-relative links.

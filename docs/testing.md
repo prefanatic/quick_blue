@@ -118,6 +118,41 @@ cancellation token instead; `test/bond_state_wait_test.dart` exercises their
 cleanup. Neither path cancels OS pairing. Do not add this failing reproduction
 to the normal package suite.
 
+## Dart adapter contracts
+
+Run the checked-in parameterized wrapper harness and Linux fake-dependency
+cases from the repository root:
+
+```sh
+for package in quick_blue quick_blue_darwin quick_blue_windows quick_blue_linux; do
+  (cd "$package" && flutter test test/adapter_contract_test.dart --reporter expanded)
+done
+(cd quick_blue_windows && flutter test ../evidence/adapter-contracts/windows-read-boundary/read_boundary_test.dart --reporter expanded)
+```
+
+The package suites automatically discover the adapter contract tests.
+The extra Windows boundary test requires the explicit command above.
+Cases cover read/event ordering, service identity, typed errors,
+notification claim setup/teardown, capability gates, legacy service-less routing
+and snapshot-bound submission. Shared fixtures exist only for matching Dart
+wrapper contracts; Linux uses fake BlueZ/lease dependencies.
+
+Windows exposes a void host read and inherits event-only fallback: an early
+matching notification can satisfy the read, while a wrong-service event cannot,
+even after host success. This is characterization, not direct-result correlation
+proof or a native/schema repair. Linux service-less lookup deliberately rejects
+ambiguous native routing, and Linux setup-error coverage does not assert stream
+done settlement. Harness teardown releases owned subscriptions/claims; it does
+not prove a public plugin-wide dispose API.
+
+The executable specifications are `test/adapter_contract_test.dart` in each
+package and the shared wrapper fixture
+`quick_blue/test/test_support/adapter_contract_harness.dart`.
+The harness is verification-only; notification settlement and Darwin L2CAP
+corrections are separately scoped dependencies, not fixes made by these tests.
+Fake messengers and fake BlueZ establish Dart translation/event contracts only:
+not real D-Bus, native ordering, Apple/WinRT runtime or BLE hardware behavior.
+
 ## Native and generated boundaries
 
 | Change | Check |
