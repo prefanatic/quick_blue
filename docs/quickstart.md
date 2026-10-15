@@ -38,8 +38,8 @@ env -u DISPLAY -u WAYLAND_DISPLAY ./build/fake_flow
 ```
 
 `build/` is created by the verifier. Help and fake flow do not access a radio.
-The following real-bus/radio recipes require separate host/peripheral
-authorization. Replace the synthetic IDs with your actual authorized selection:
+The following commands access the system bus and Bluetooth radio. Use only
+devices you are authorized to operate; replace the synthetic IDs with their IDs:
 
 ```sh
 ./build/ble_cli --list-adapters

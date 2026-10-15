@@ -48,7 +48,7 @@ Existing `gatt.characteristic()` and device direct-ID APIs remain unbound:
 resolving an invalid snapshot is rejected, but a previously resolved ID-only
 handle does not gain the new guard. Disconnect/reconnect alone retains the
 existing snapshot generation policy; it is not an invalidation event. Pure-Dart
-regressions and Linux native-submission counters verify these boundaries, not
+tests and Linux fake-client call counters check these guards; they do not test
 remote device behavior.[^source1][^source2]
 
 ## Notifications own their teardown

@@ -55,7 +55,7 @@ workspace root instead.
 
 ## Standalone Dart Linux
 
-The generic facade is `package:quick_blue_core/quick_blue_core.dart`.
+Import `package:quick_blue_core/quick_blue_core.dart` instead of the Flutter package.
 Use it together with `package:quick_blue_linux/quick_blue_linux.dart`; call
 `QuickBlueLinux.registerWith()` before using `QuickBlue`. Handles, models and
 lifecycle state remain in the existing platform interface. Flutter consumers
@@ -111,11 +111,10 @@ Runtime dependencies are core → platform interface (`async`, `collection`,
 `args`, `xml` and their descendants; inspect the verifier's retained
 `dependencies.json` and `resolved-manifests.json` for exact versions and closure.
 Flutter plugin metadata is retained but is not a Flutter SDK dependency.
-Pairing/host policy requirements still apply; see [platform setup](platform-setup.md)
-and [pairing](pairing.md). Package extraction alone does not prove hardware,
-ARM64 runtime support, or complete operator workflows. No new release or remote
-revision is implied by this local recipe; use matched tested Git refs only after
-the change is published with separate approval.
+For real Bluetooth operations, complete [platform setup](platform-setup.md) and
+[pairing setup](pairing.md). This local installation does not test Bluetooth
+hardware or ARM64 execution. For Git dependencies, use one tested revision
+containing these packages.
 
 ### Operator CLI fixture
 
@@ -141,10 +140,8 @@ release. `dart pub publish --dry-run` rejects Linux's retained
 `flutter.plugin.platforms` metadata without a Flutter environment minimum.
 Restoring that minimum would violate the standalone dependency requirement;
 removing metadata would lose Flutter automatic registration. The repository's
-publish-readiness check therefore currently fails at Linux. No validator is
-disabled or success inferred. A separately approved publication design (such as
-a Flutter-only registration wrapper) is needed before hosted release readiness;
-it is not part of this source-only extraction.
+publish-readiness check therefore currently fails at Linux. A publication solution
+is still needed; this change does not disable validation or provide a hosted release.
 
 ## Requirements
 

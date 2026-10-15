@@ -1,19 +1,20 @@
 # quick_blue
 
-Use opt-in `gatt.boundCharacteristic(...)` when newly submitted IO must reject
-a reported stale GATT snapshot. Existing `gatt.characteristic(...)` and direct-ID
-handles retain their ID-only behavior. See the
-[snapshot-bound compatibility contract](../docs/gatt.md#snapshot-bound-submissions).
-
 `quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
 Android, iOS, macOS, Windows, and Linux.
+
+Use `gatt.boundCharacteristic(...)` to reject new reads, writes and notification
+changes after a reported GATT database change. Existing `gatt.characteristic(...)`
+and direct-ID handles remain unbound. See [GATT handles](../docs/gatt.md#snapshot-bound-submissions).
 
 For standalone Linux services use the [public headless operator CLI](../quick_blue_linux/example/README.md)
 over `quick_blue_core` plus `quick_blue_linux`. Its opt-in pairing policy and
 external BlueZ agent/service-user requirements are documented in
 [pairing guidance](../docs/pairing.md#headless-linux-agent-lifecycle). Flutter
-imports and normal library security recovery remain unchanged. No local
-fake/compile result implies hardware, ARM64 or hosted release acceptance.
+imports and normal library security recovery remain unchanged. Use matched source
+revisions: the [Linux publication metadata issue](../docs/install.md#publication-compatibility-limit)
+currently prevents a hosted release. Bluetooth hardware and physical ARM64 devices
+remain untested.
 
 - [Example app](https://github.com/prefanatic/quick_blue/tree/master/quick_blue/example)
 - [Changelog](https://github.com/prefanatic/quick_blue/blob/master/quick_blue/CHANGELOG.md)

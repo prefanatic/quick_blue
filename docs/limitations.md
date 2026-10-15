@@ -31,13 +31,14 @@ standalone Dart and starts `--help` with DISPLAY/WAYLAND_DISPLAY absent; help
 does not contact BlueZ. The separately compiled fake flow uses public APIs,
 asserts scan/selection/connect/discovery/read/explicit write/notify/cancel/
 disconnect ordering and cleanup without a bus, engine, agent or radio.
-Linux injected pairing errors and CLI security tests prove observable failures
-and no automatic bond replacement/unrelated acceptance, not real authentication.
-Real scanning, pairing, GATT delivery, distribution service-user policy, ARM64
-loader/native-library execution and physical Zero 2 W RAM/throughput remain
-separate evidence requirements. No physical-device access is authorized by the
-fixture. [Publication metadata limits](install.md#publication-compatibility-limit)
-also remain unresolved; a successful local build is not hosted release readiness.
+Pairing and CLI tests use injected errors to check that failures reach callers
+without automatic bond replacement or pairing with another device. They do not
+test authentication. Real scanning, pairing, GATT delivery, service-account
+permissions and physical Zero 2 W memory use/throughput remain untested.
+ARM64 library loading can be checked separately with the
+[QEMU verifier](testing.md#arm64-build-and-controlled-runtime); it does not test
+radio or kernel behavior. The [publication metadata issue](install.md#publication-compatibility-limit)
+also prevents a hosted release.
 
 - Runtime BLE multi-engine suites exist for Android and iOS. Other ownership
   implementations have unit/native coverage, not equivalent runtime suites.

@@ -98,11 +98,11 @@ it. Source paths: `quick_blue_linux/lib/quick_blue_linux.dart` and
 
 Caller cancellation still stops only that caller's wait. A connect completing
 late retains the client lease until explicit disconnect; an immediate retry
-joins it. Local fakes record native connect/disconnect calls and D-Bus owners.
+joins it.
 Clearing device state cancels pending discovery waits, and a late notification
 setup releases its native claim without installing a watch. Notification setup
 and disable requests for the same characteristic are serialized across clears:
 a retry waits for retired native setup and cleanup before acquiring its claim,
 so old cleanup cannot disable the new generation. A stalled native setup still
-requires native completion; serialization is not an abort or deadline. These are fake
-contracts, not hardware disconnect or notification-delivery proof.
+requires native completion; serialization is not an abort or deadline. Tests use
+fake BlueZ clients; hardware disconnect and notification delivery remain untested.

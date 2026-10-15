@@ -107,7 +107,7 @@ permissions, kernel L2CAP support or communication. See the
 
 Neither cross-compilation nor user-mode QEMU validates Zero 2 W memory limits,
 throughput, pairing, peripheral interoperability or radio/kernel behavior.
-Physical Zero 2 W verification requires separately authorized hardware access.
+Test these on the intended device before deployment.
 
 ## Windows
 

@@ -6,7 +6,10 @@ Also usable with standalone Dart through `quick_blue_core`, with explicit
 `QuickBlueLinux.registerWith()` registration and no Flutter SDK or engine.
 See the [matched-source migration recipe](../docs/install.md#standalone-dart-linux).
 Flutter's generated registration remains supported through federated plugin
-metadata. Package/fake tests do not prove hardware or ARM64 deployment.
+metadata. Use matched source revisions: the
+[Linux publication metadata issue](../docs/install.md#publication-compatibility-limit)
+currently prevents a hosted release. Bluetooth hardware and physical ARM64 devices
+remain untested.
 
 The [pure-Dart operator CLI](example/README.md) lists/selects adapters, scans with
 a service filter and requires an exact discovered device selection. Pairing,
@@ -53,7 +56,7 @@ subscriptions and await outstanding requests before `await platform.close()`.
 Close is idempotent, disconnects only this client's owned devices using the
 last-client lease rule, and makes the instance unusable. Initialization failure
 also makes it unusable; create a fresh instance. See
-[cleanup contracts](../docs/connections.md#linux-client-shutdown).
+[shutdown details](../docs/connections.md#linux-client-shutdown).
 
 ## Tests
 
@@ -63,8 +66,9 @@ python3 ../scripts/check-headless-consumer.py --dart /absolute/dart-sdk/bin/dart
 
 Run this from the package directory with a standalone Dart 3.13 SDK. It creates
 external matched-source copies, runs `dart test`/analysis and compiles the CLI
-plus controlled fake flow. It does not access hardware. `flutter test` remains
-usable in the development workspace; it is not standalone dependency proof.
+plus a fake-device workflow. It does not access hardware. You can also run
+`flutter test` in the development workspace, but that does not check installation
+without Flutter.
 
 Hardware-backed BLE behaviour can be exercised by the Flutter example app's integration test
 (the Linux package exercises fake BlueZ/D-Bus contracts, not hardware):

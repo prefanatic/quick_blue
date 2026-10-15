@@ -99,8 +99,8 @@ UI. According to the [BlueZ AgentManager contract](https://github.com/bluez/blue
 an application's registered agent handles its requests; otherwise BlueZ uses
 the default agent. [Device1.Pair](https://github.com/bluez/bluez/blob/master/doc/org.bluez.Device.rst)
 fails when interaction is required but no suitable agent is available. Some
-pairings may need no interactive exchange; do not promise that all require a
-dialog, or that NoInputNoOutput guarantees a protected peripheral will pair.
+pairings need no interactive exchange, but NoInputNoOutput does not
+guarantee that a protected peripheral will pair.
 
 Provision a separate, operator-controlled agent process before invoking
 `--pair`. Its D-Bus connection must remain alive for the complete exchange;
@@ -114,8 +114,7 @@ agent KeyboardDisplay
 default-agent
 ```
 
-This is an operator recipe, not an automatically executed setup. Verify agent
-registration/default-agent success and keep that session open while the CLI
+Verify agent registration/default-agent success and keep that session open while the CLI
 pairs the selected device. Review the actual device address before entering a
 passkey or approving a confirmation. Do not approve unexpected requests. Finish
 with `agent off` and quit that session when maintenance ends. Choose a capability
@@ -143,7 +142,7 @@ Linux fake pairing regressions (`quick_blue_linux/test/pairing_failure_test.dart
 preserve exact injected D-Bus errors and reject unrelated actions;
 CLI regressions (`quick_blue_linux/example/test/cli_test.dart`) also verify
 protected read/notify failures do not initiate hidden pairing or replay IO.
-These are fake contracts, not actual agent or peripheral authentication proof.
+These tests do not exercise a real agent or peripheral authentication.
 
 ## Preserve structured diagnostics
 

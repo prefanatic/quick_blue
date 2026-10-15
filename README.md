@@ -3,18 +3,19 @@
 `quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
 Android, iOS, macOS, Windows, and Linux.
 
-The generic facade now lives in pure-Dart `quick_blue_core`; Flutter imports
-remain unchanged. Linux services can combine core with `quick_blue_linux` and
-explicit registration without a Flutter SDK or engine. See the
-[local standalone migration and verification recipe](docs/install.md#standalone-dart-linux).
+For Linux services without Flutter, use `quick_blue_core` with `quick_blue_linux`
+and register the Linux implementation explicitly. Flutter imports stay unchanged.
+Follow the [standalone installation instructions](docs/install.md#standalone-dart-linux);
+the packages currently require matched source revisions because Linux publication
+metadata validation fails.
 Linux supports explicit adapter addresses and client shutdown; see
 [adapter selection](docs/scanning.md#linux-adapter-selection) and
 [cleanup](docs/connections.md#linux-client-shutdown).
 Use opt-in [snapshot-bound handles](docs/gatt.md#snapshot-bound-submissions) to reject
 new IO after GATT invalidation. The [headless operator CLI](quick_blue_linux/example/README.md)
-provides explicit selection, pairing and IO with fake-backed executable checks;
-[ARM64 cross-build and controlled emulator checks](docs/testing.md#arm64-build-and-controlled-runtime)
-remain distinct from real hardware acceptance.
+provides adapter/device selection and opt-in pairing, reads, writes and notifications.
+[ARM64 cross-build and emulator checks](docs/testing.md#arm64-build-and-controlled-runtime)
+do not test a physical Raspberry Pi or Bluetooth radio.
 
 Connection ownership is shared safely across Flutter engines. On Android, bounded
 disconnect reconciliation keeps missing native callbacks from blocking later

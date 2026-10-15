@@ -68,11 +68,10 @@ The script removes display and host loader variables and supplies guest library
 search paths. It runs help, the fake flow and a glibc/libbluetooth symbol probe.
 No Bluetooth socket, agent or system bus is opened by those runtime checks.
 
-The local P4 check used standalone Dart 3.13.5, QEMU 10.0.13 and Debian 13
-ARM64 userspace. It passed help, fake flow and library loading. This establishes
-only that controlled userspace combination, not every distribution or the
-physical target. Exact source hashes, package versions, ELF dependencies and
-execution logs belong in the phase handoff, not Git. See
+Help, fake flow and library loading have been tested with Dart 3.13.5,
+QEMU 10.0.13 and Debian 13 ARM64 libraries. Other distributions and physical
+hardware remain untested. Retain source hashes, package versions, ELF dependencies
+and execution logs as CI or review artifacts. See
 [ARM64 runtime requirements](platform-setup.md#arm64-linux-runtime) and
 [hardware boundaries](limitations.md#headless-proof-boundaries).
 
@@ -115,10 +114,10 @@ python3 -O -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 The Documentation workflow runs these tests alongside OKF validation and a clean
-site build. The suite includes 13 OKF tests, 15 built-site tests, four release
-metadata tests and five consumer-construction tests.
-Seven additional headless graph/manifest tests reject Flutter SDK constraints,
-mixed repository snapshots and workspace roots while permitting plugin metadata. Site fixtures run the copied
+site build. Tests cover OKF structure, site links, release metadata and consumer
+construction. Headless graph/manifest tests reject Flutter SDK constraints,
+mixed repository snapshots and workspace roots while permitting plugin metadata.
+Site fixtures run the copied
 validator in normal and optimized subprocesses, checking navigation coverage and
 duplicates, rendered pages, anchors, missing targets, absolute/encoded project
 prefix escapes, resolved dot-segment/encoded/relative traversal, file and directory

@@ -1,24 +1,23 @@
 ## Unreleased
 
-### Linux headless lifecycle
+### Headless Linux
 
 - Add a standalone ARM64 cross-build/ELF verifier with optional controlled QEMU
   help, fake-flow and glibc/libbluetooth loader checks. Document distribution
-  runtime requirements separately from GATT, L2CAP and physical hardware proof.
+  runtime requirements. These checks do not exercise Bluetooth or physical hardware.
 
 - Add a public pure-Dart Linux operator CLI and external copied fixture with
   explicit adapter/device selection, service-data-preserving scan output,
   GATT discovery, opt-in reads/writes/notifications/pairing and final cleanup.
   The CLI declines automatic pairing recovery without changing library policy.
-  Compile/no-display-help/fake-flow checks do not establish hardware or ARM64
-  readiness. Document external BlueZ agent lifecycle and service-user policy;
+  Document external BlueZ agents and service-account permissions;
   retain observable pairing/authentication/no-agent errors without bond removal.
 
 - Add Linux `adapterAddress`, immutable `adapters()` snapshots and idempotent
   `close()` for quiescent clients; retain first-powered defaults and never fall
   back from an explicit selection. Release partial initialization resources,
   canceled discovery waiters and late notification claims. Preserve primary
-  lease errors when cleanup also fails; fake contracts are not hardware proof.
+  lease errors when cleanup also fails.
 - Serialize notification setup and client StopNotify across device generations so retired cleanup
   cannot stop a retry's claim. Scope device cache population and removal to the
   selected adapter even when another adapter knows the same remote address.
@@ -36,8 +35,9 @@
   in the Flutter package. Linux retains explicit registration and declares
   `implements: quick_blue` for Flutter's desktop Dart plugin selection.
 - Add a standalone Dart 3.13 fresh-cache dependency/manifest check and isolated
-  package analysis/tests. These establish package/API compatibility, not BLE
-  hardware, operator CLI readiness or ARM64 deployment acceptance.
+  package analysis/tests. Bluetooth hardware and physical ARM64 devices remain
+  untested. Linux publication still fails because Pub requires a Flutter minimum
+  for its plugin metadata; matched-source installations remain necessary.
 
 ### Fixed
 
