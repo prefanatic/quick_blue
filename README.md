@@ -51,7 +51,63 @@ the first error and adds no framing, automatic reassembly, or application ACKs.
 - [Linux GATT teardown characterization and proof boundary](docs/limitations.md#linux-gatt-teardown-characterization)
 - [Contributing and verification](CONTRIBUTING.md)
 - [Minimum-toolchain reproduction and proof boundaries](docs/testing.md)
+- [Android 17 bond-repair verification](#android-17-bond-repair-verification)
 - [Issue tracker](https://github.com/prefanatic/quick_blue/issues)
+
+## Android 17 bond-repair verification
+
+The canonical [controlled-hardware runbook](docs/testing.md#android-17-bond-repair-verification)
+and [pairing boundaries](docs/pairing.md) describe this prospective verification.
+The procedure below is not a claim of observed hardware or emulator success.
+
+Use an authorized physical Android 17/API 37 handset and a controlled BLE
+peripheral with stable identity, durable bonded keys, a protected GATT
+characteristic, and an out-of-band command to erase only the handset's peer key.
+Record the firmware-specific erase/restore commands and negotiated security
+level. A second controlled peer is needed for device-switch isolation.
+Bluetooth ON, emulator boot, a build or injected broadcasts do not establish
+autonomous repair. Emulator HCI bridging is not a validated substitute for these
+security controls.
+
+Select the reviewed repair implementation and the exact device serial; this
+runbook does not add repair support. Record the selected implementation's
+revision, APK hash, handset SDK/build/patch and Bluetooth module version:
+
+```sh
+adb devices -l
+adb -s "$SERIAL" shell getprop
+adb -s "$SERIAL" shell pm list packages --apex-only --show-versioncode
+adb -s "$SERIAL" shell dumpsys bluetooth_manager
+flutter pub get
+(cd quick_blue/example && flutter run -d "$SERIAL")
+```
+
+Capture app output, timestamped `adb -s "$SERIAL" logcat -v threadtime`,
+before/after Bluetooth dumps, peripheral security logs and the actual system
+dialog. Establish durable BONDED state and a successful protected read before
+each case. Erase only the peripheral key, retaining Android's bond and the peer
+identity, then reconnect and perform a protected operation.
+
+Exercise accept, reject, ignore and delayed confirmation separately. For delay,
+wait at least 35 measured seconds; observe early OS dismissal or competing app
+pairing rather than assuming the dialog persists. Give ignored/unresolved cases
+an explicit observation window. Success requires repair-context-correlated
+enabled LE encryption with status zero and a protected read, not retained
+BONDED alone. KEY_MISSING during active repair is a failure signal; BOND_NONE
+alone does not establish peripheral-only key loss. Compare signals with the
+installed implementation and actual OEM ordering.
+
+Also test Settings Forget (distinct from peripheral-only key loss), repeated
+protected operations, reconnect, second-peer switching and engine teardown
+during repair. Check generations, retry and pairing-call/dialog counts for stale
+or competing work. Repeat lower-security re-pairing and Android 16/older cases
+on suitable hardware. Restore only controlled peer state; never clear
+phone-wide Bluetooth data or pair nearby consumer devices. Redact identifiers
+and never publish bond keys, PINs or credentials.
+
+Mocks and the generic BLE smoke test do not prove this matrix. Report every
+case's actual trigger, negotiated security, duration, OS/app terminal signals
+and operation result; missing hardware leaves those cases unverified.
 
 ## Download the example app
 

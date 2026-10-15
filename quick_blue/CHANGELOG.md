@@ -59,6 +59,9 @@
   cleanup errors. Cover deadlines, late events, switching and simulated client
   isolation with fake-clock tests; native connection behavior is unchanged.
 
+- Document Android 17 bond-loss/autonomous-repair verification with a physical
+  handset and controlled bond-erasing peripheral, including scenario controls
+  and the limits of emulator and mocked evidence.
 
 
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
