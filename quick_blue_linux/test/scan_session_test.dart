@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:bluez/bluez.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_linux/quick_blue_linux.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 

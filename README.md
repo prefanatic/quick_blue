@@ -3,6 +3,24 @@
 `quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
 Android, iOS, macOS, Windows, and Linux.
 
+Flutter consumers require Flutter 3.47.7 or newer; CI pins stable 3.47.7 with
+Dart 3.13.5. Older Flutter support is dropped; upgrade the SDK before resolving.
+Standalone Dart 3.13 acceptance and its Flutter-free dependency graph are retained.
+
+For Linux services without Flutter, use `quick_blue_core` with `quick_blue_linux`
+and register the Linux implementation explicitly. Flutter imports stay unchanged.
+Follow the [standalone installation instructions](docs/install.md#standalone-dart-linux);
+the packages currently require matched source revisions because Linux publication
+metadata validation fails.
+Linux supports explicit adapter addresses and client shutdown; see
+[adapter selection](docs/scanning.md#linux-adapter-selection) and
+[cleanup](docs/connections.md#linux-client-shutdown).
+Use opt-in [snapshot-bound handles](docs/gatt.md#snapshot-bound-submissions) to reject
+new IO after GATT invalidation. The [headless operator CLI](quick_blue_linux/example/README.md)
+provides adapter/device selection and opt-in pairing, reads, writes and notifications.
+[ARM64 cross-build and emulator checks](docs/testing.md#arm64-build-and-controlled-runtime)
+do not test a physical Raspberry Pi or Bluetooth radio.
+
 Connection ownership is shared safely across Flutter engines. On Android, bounded
 disconnect reconciliation keeps missing native callbacks from blocking later
 reconnects. Remote GATT database changes are surfaced across supported
@@ -49,6 +67,7 @@ the first error and adds no framing, automatic reassembly, or application ACKs.
 - [Package README](quick_blue/README.md)
 - [Changelog](quick_blue/CHANGELOG.md)
 - [Linux GATT teardown characterization and proof boundary](docs/limitations.md#linux-gatt-teardown-characterization)
+- [Linux adapter-scoped connection ownership](docs/multi-engine.md#verification-boundary) - Same-adapter clients share final-owner cleanup; reconnect restores real membership after failed teardown or explicit detach without joining retired native replies. A final explicit disconnect retires queued reconnects; intentionally newer requests wait for the complete old cleanup, including notification release. Late native events during cleanup cannot suppress a joining facade disconnect's terminal completion. Cooperating clients require matching revisions.
 - [Contributing and verification](CONTRIBUTING.md)
 - [Minimum-toolchain reproduction and proof boundaries](docs/testing.md)
 - [Issue tracker](https://github.com/prefanatic/quick_blue/issues)

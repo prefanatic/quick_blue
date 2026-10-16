@@ -1,13 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 import 'test_support/fake_quick_blue_platform.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   // Independent Dart platform instances model engine-local wait tables over
   // shared native work. These tests do not replace hardware multi-engine tests.
   for (final operation in [

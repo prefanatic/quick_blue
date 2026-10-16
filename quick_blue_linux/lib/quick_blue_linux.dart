@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:bluez/bluez.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 import 'package:logging/logging.dart';
-import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
+import 'package:quick_blue_core/quick_blue_core.dart';
+import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart'
+    show QuickBluePlatform;
 
 import 'src/l2cap_endpoint.dart';
 import 'src/connection_ownership.dart';
@@ -21,17 +24,23 @@ typedef _BlueZPropertySubscription = StreamSubscription<List<String>>;
 typedef _DevicePropertySubscriptions = Map<String, _BlueZPropertySubscription>;
 
 class QuickBlueLinux extends QuickBluePlatform {
-  QuickBlueLinux() : this.withClient(BlueZClient());
+  /// Uses the first powered adapter unless [adapterAddress] is specified.
+  /// An explicit address never falls back to another adapter.
+  QuickBlueLinux({String? adapterAddress})
+    : this.withClient(BlueZClient(), adapterAddress: adapterAddress);
 
   @visibleForTesting
   QuickBlueLinux.withClient(
     this._client, {
     QuickBlueLinuxConnectionLease? connectionLease,
+    this.adapterAddress,
   }) : _connectionOwnership = ConnectionOwnership(
          connectionLease ?? DbusConnectionLease(),
        ) {
     _scanSession = LinuxScanSession(
       client: _client,
+      acceptsDevice: (device) =>
+          adapterAddress == null || device.adapter.address == adapterAddress,
       onTrackDevice: (device) => _devices[device.address] = device,
       logger: _logger,
     );
@@ -56,6 +65,22 @@ class QuickBlueLinux extends QuickBluePlatform {
     QuickBluePlatform.instance = QuickBlueLinux();
   }
 
+  /// Linux adapter address selected by the operator, or null for the default.
+  final String? adapterAddress;
+
+  /// Returns immutable snapshots; this never powers on an adapter.
+  Future<List<QuickBlueLinuxAdapter>> adapters() async {
+    await _ensureInitialized();
+    return List.unmodifiable(
+      _client.adapters.map(
+        (adapter) => QuickBlueLinuxAdapter(
+          address: adapter.address,
+          powered: adapter.powered,
+        ),
+      ),
+    );
+  }
+
   @override
   Future<QuickBlueCapabilities> capabilities() async {
     return const QuickBlueCapabilities(
@@ -72,6 +97,62 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   var _isInitialized = false;
   Future<void>? _initialization;
+  bool _closed = false;
+  Future<void>? _closing;
+  bool _clientClosed = false;
+
+  Future<void> _closeClient() async {
+    if (_clientClosed) return;
+    _clientClosed = true;
+    await _client.close();
+  }
+
+  /// Releases this client's resources. Callers must first cancel their public
+  /// scan/connection/notification subscriptions and await outstanding requests.
+  /// Idempotent; a closed instance cannot be reused.
+  Future<void> close() {
+    return _closing ??= _close();
+  }
+
+  Future<void> _close() async {
+    _closed = true;
+    try {
+      await _initialization;
+    } catch (_) {
+      // Initialization already reports its primary failure.
+    }
+    Object? failure;
+    StackTrace? failureStack;
+    Future<void> release(Future<void> Function() action) async {
+      try {
+        await action();
+      } catch (error, stack) {
+        failure ??= error;
+        failureStack ??= stack;
+        _logger.warning('Linux shutdown cleanup failed', error, stack);
+      }
+    }
+
+    await release(() => _scanSession.stop(_scanAdapter));
+    _scanAdapter = null;
+    for (final deviceId in _connectionOwnership.deviceIds) {
+      await release(() => disconnect(deviceId));
+    }
+    for (final deviceId in _devices.keys.toList()) {
+      await release(() => _clearDeviceState(deviceId, removeDevice: true));
+    }
+    await release(() async {
+      await _deviceAddedSubscription?.cancel();
+    });
+    await release(() async {
+      await _deviceRemovedSubscription?.cancel();
+    });
+    await release(_scanSession.close);
+    await release(_closeClient);
+    await release(_connectionOwnership.close);
+    _isInitialized = false;
+    if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
+  }
 
   /// Whether the BlueZ client has finished initializing.
   ///
@@ -87,6 +168,12 @@ class QuickBlueLinux extends QuickBluePlatform {
 
   // Cached BlueZ objects and active subscriptions.
   final Map<String, BlueZDevice> _devices = <String, BlueZDevice>{};
+  // Native targets follow the held lease, not the refreshable discovery cache.
+  final Map<String, BlueZDevice> _ownedDevices = <String, BlueZDevice>{};
+  final Map<String, Future<void>> _connecting = <String, Future<void>>{};
+  // Explicit disconnect includes notification release and state cleanup, not
+  // just the lease detach (which native callbacks may independently reenter).
+  final Map<String, Future<void>> _disconnecting = <String, Future<void>>{};
   final _DevicePropertySubscriptions _devicePropertySubscriptions =
       <String, _BlueZPropertySubscription>{};
   final Map<String, bool> _lastConnectionState = <String, bool>{};
@@ -95,6 +182,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   StreamSubscription<BlueZDevice>? _deviceRemovedSubscription;
 
   BlueZAdapter? _activeAdapter;
+  BlueZAdapter? _scanAdapter;
   late final LinuxScanSession _scanSession;
   late final LinuxGattSession _gattSession;
   late final LinuxL2capEndpoint _l2capEndpoint;
@@ -103,6 +191,15 @@ class QuickBlueLinux extends QuickBluePlatform {
   Stream<BlueScanResult> get scanResultStream => _scanSession.results;
 
   Future<void> _ensureInitialized() {
+    if (_closed) {
+      return Future.error(
+        const QuickBlueException(
+          code: QuickBlueErrorCode.invalidState,
+          operation: 'initialize',
+          message: 'Linux client is closed.',
+        ),
+      );
+    }
     final existing = _initialization;
     if (existing != null) {
       return existing;
@@ -133,13 +230,37 @@ class QuickBlueLinux extends QuickBluePlatform {
       );
 
       for (final device in _client.devices) {
-        _devices[device.address] = device;
+        if (_matchesAdapter(device)) _devices[device.address] = device;
       }
 
       _isInitialized = true;
-    } catch (_) {
+    } catch (error, stack) {
       _initialization = null;
-      rethrow;
+      _closed = true;
+      for (final subscription in [
+        _deviceAddedSubscription,
+        _deviceRemovedSubscription,
+      ]) {
+        try {
+          await subscription?.cancel();
+        } catch (cleanupError, cleanupStack) {
+          _logger.warning(
+            'Initialization subscription cleanup failed',
+            cleanupError,
+            cleanupStack,
+          );
+        }
+      }
+      try {
+        await _closeClient();
+      } catch (cleanupError, cleanupStack) {
+        _logger.warning(
+          'Initialization transport cleanup failed',
+          cleanupError,
+          cleanupStack,
+        );
+      }
+      Error.throwWithStackTrace(error, stack);
     }
   }
 
@@ -162,7 +283,11 @@ class QuickBlueLinux extends QuickBluePlatform {
       void emitState() {
         final adapters = _client.adapters;
         _activeAdapter = _selectPoweredAdapter();
-        if (adapters.isEmpty) {
+        if (adapters.isEmpty ||
+            (adapterAddress != null &&
+                !adapters.any(
+                  (adapter) => adapter.address == adapterAddress,
+                ))) {
           controller.add(BlueBluetoothState.unavailable);
         } else if (_activeAdapter != null) {
           controller.add(BlueBluetoothState.poweredOn);
@@ -240,19 +365,26 @@ class QuickBlueLinux extends QuickBluePlatform {
     }
 
     await _scanSession.start(adapter, scanFilter, scanOptions);
+    _scanAdapter = adapter;
   }
 
   @override
   Future<void> stopScan() async {
     await _ensureInitialized();
-    await _scanSession.stop(_activeAdapter);
+    final adapter = _scanAdapter;
+    _scanAdapter = null;
+    await _scanSession.stop(adapter);
   }
 
   void _onDeviceAdd(BlueZDevice device) {
+    if (!_matchesAdapter(device)) return;
     _scanSession.deviceAdded(device);
   }
 
   void _onDeviceRemoved(BlueZDevice device) {
+    if (!_matchesAdapter(device)) return;
+    final owned = _ownedDevices[device.address];
+    if (owned != null && !identical(owned, device)) return;
     _observeBackgroundOperation(
       _clearDeviceState(device.address, removeDevice: true),
       'Unable to clear removed device ${device.address}',
@@ -265,11 +397,16 @@ class QuickBlueLinux extends QuickBluePlatform {
   }) async {
     await _ensureInitialized();
     for (final device in _client.devices) {
-      _devices[device.address] = device;
+      if (_matchesAdapter(device)) _devices[device.address] = device;
     }
 
     final canonicalServiceUuids = serviceUuids.map(canonicalizeUuid).toSet();
     return _devices.values
+        .where(
+          (device) =>
+              adapterAddress == null ||
+              device.adapter.address == adapterAddress,
+        )
         .where((device) => device.connected)
         .where(
           (device) =>
@@ -286,20 +423,91 @@ class QuickBlueLinux extends QuickBluePlatform {
   @override
   Future<void> connect(String deviceId) async {
     await _ensureInitialized();
+    final existing = _connecting[deviceId];
+    if (existing != null) return existing;
+    late final Future<void> pending;
+    bool isCurrent() => identical(_connecting[deviceId], pending);
+    pending = Future<void>.microtask(() async {
+      try {
+        await _connect(deviceId, isCurrent);
+      } finally {
+        // A retired native reply must not remove a replacement connect.
+        if (isCurrent()) _connecting.remove(deviceId);
+      }
+    });
+    _connecting[deviceId] = pending;
+    await pending;
+  }
+
+  Future<void> _connect(String deviceId, bool Function() isCurrent) async {
+    void checkCurrent() {
+      if (!isCurrent()) {
+        throw QuickBlueException(
+          code: QuickBlueErrorCode.cancelled,
+          operation: 'connect',
+          deviceId: deviceId,
+          message: 'The connection request was superseded by detach.',
+        );
+      }
+    }
+
+    // Settle the whole old transition before selecting a target or touching
+    // observers: a held StopNotify or late clear must not destroy a newer link.
+    await _disconnecting[deviceId];
+    checkCurrent();
     final device = _getDeviceOrThrow(deviceId);
 
-    await _connectionOwnership.attach(deviceId);
+    // This observer belongs to the previous connection. Retire it before lease
+    // registration/native connect can suspend, so a delayed disconnected event
+    // cannot release the new membership. In-flight detach is joined by attach.
+    await _cancelMappedSubscription(_devicePropertySubscriptions, deviceId);
+    checkCurrent();
+
+    // Capture the actual BlueZ adapter, including for default selection. Retain
+    // this identity through detach even if the cached device is later replaced.
+    try {
+      await _connectionOwnership.attach(
+        deviceId,
+        leaseId: '${device.adapter.address}/$deviceId',
+        isCurrent: isCurrent,
+      );
+    } catch (error, stackTrace) {
+      // Failed reattach retains the cleanup target. Keep observing it for a
+      // later spontaneous disconnect, without hiding the registration error.
+      if (isCurrent() && _connectionOwnership.owns(deviceId)) {
+        try {
+          await _watchDeviceProperties(device, checkCurrent: checkCurrent);
+        } catch (watchError, watchStack) {
+          _logger.warning(
+            'Unable to restore device observer',
+            watchError,
+            watchStack,
+          );
+        }
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+    checkCurrent();
+    _ownedDevices.putIfAbsent(deviceId, () => device);
 
     try {
-      await _ensureConnectedDevice(device);
+      await _ensureConnectedDevice(device, checkCurrent: checkCurrent);
+      checkCurrent();
       _emitConnectionState(
         deviceId,
         BlueConnectionState.connected,
         BleStatus.success,
       );
     } on Object catch (error, stackTrace) {
+      // Supersession does not abort the submitted native call. Its eventual
+      // error still belongs to its caller, not the replacement's ownership.
+      if (!isCurrent()) rethrow;
       try {
-        await _connectionOwnership.detach(deviceId, onLastClient: () async {});
+        await _detachDevice(
+          device,
+          onLastClient: () async {},
+          retireConnect: false,
+        );
       } on Object catch (releaseError, releaseStackTrace) {
         _logger.warning(
           'Failed to release the connection lease for $deviceId',
@@ -308,19 +516,23 @@ class QuickBlueLinux extends QuickBluePlatform {
         );
       }
       _logger.severe('Failed to connect to $deviceId', error, stackTrace);
-      _emitConnectionState(
-        deviceId,
-        BlueConnectionState.disconnected,
-        BleStatus.failure,
-      );
+      if (isCurrent()) {
+        _emitConnectionState(
+          deviceId,
+          BlueConnectionState.disconnected,
+          BleStatus.failure,
+        );
+      }
       rethrow;
     }
   }
 
   @override
   Future<void> disconnect(String deviceId) async {
-    await _ensureInitialized();
-    if (!_connectionOwnership.owns(deviceId)) {
+    // Shutdown may detach already-owned devices after closing the public gate.
+    if (!_closed) await _ensureInitialized();
+    if (!_connectionOwnership.owns(deviceId) &&
+        !_disconnecting.containsKey(deviceId)) {
       throw QuickBlueException(
         code: QuickBlueErrorCode.invalidState,
         operation: 'disconnect',
@@ -328,13 +540,30 @@ class QuickBlueLinux extends QuickBluePlatform {
         message: 'This Flutter engine is not connected to $deviceId.',
       );
     }
+    // Each explicit disconnect is new intent, even when joining old teardown.
+    // Retire only the connect preceding this request, before cleanup suspends;
+    // a later reconnect may intentionally wait for that same teardown.
+    _connecting.remove(deviceId);
     final device = _getDeviceOrThrow(deviceId);
+    await _disconnecting.putIfAbsent(
+      deviceId,
+      () => Future<void>.microtask(() => _disconnect(deviceId, device)),
+    );
+    // A joining facade request may have subscribed after the native event.
+    // Publish completion after clear, before waiting reconnects can emit state.
+    _emitConnectionState(
+      deviceId,
+      BlueConnectionState.disconnected,
+      BleStatus.success,
+    );
+  }
 
+  Future<void> _disconnect(String deviceId, BlueZDevice device) async {
     try {
       await _gattSession.stopNotificationsForClient(deviceId);
       await runDisconnectRequest(deviceId, () async {
-        await _connectionOwnership.detach(
-          deviceId,
+        await _detachDevice(
+          device,
           onLastClient: () async {
             try {
               await device.disconnect();
@@ -342,18 +571,26 @@ class QuickBlueLinux extends QuickBluePlatform {
               // Already disconnected, ignore.
             }
           },
+          retireConnect: false,
         );
       });
 
-      _emitConnectionState(
-        deviceId,
-        BlueConnectionState.disconnected,
-        BleStatus.success,
-      );
       await _clearDeviceState(deviceId, removeDevice: false);
     } on Object catch (error, stackTrace) {
       _logger.severe('Failed to disconnect from $deviceId', error, stackTrace);
+      if (!device.connected) {
+        // Native disconnect may have succeeded before lease cleanup failed.
+        // Reconcile the facade even when BlueZ emits no property event, while
+        // preserving the teardown error and the retained lease/target for retry.
+        _emitConnectionState(
+          deviceId,
+          BlueConnectionState.disconnected,
+          BleStatus.success,
+        );
+      }
       rethrow;
+    } finally {
+      _disconnecting.remove(deviceId);
     }
   }
 
@@ -458,6 +695,7 @@ class QuickBlueLinux extends QuickBluePlatform {
   @override
   Future<BleL2capSocket> openL2cap(String deviceId, int psm) async {
     await _ensureInitialized();
+    _getDeviceOrThrow(deviceId, operation: 'openL2cap');
     return _l2capEndpoint.open(deviceId, psm);
   }
 
@@ -494,17 +732,26 @@ class QuickBlueLinux extends QuickBluePlatform {
   }
 
   BlueZAdapter? _selectPoweredAdapter() {
-    return _client.adapters.firstWhereOrNull((adapter) => adapter.powered);
+    return _client.adapters.firstWhereOrNull(
+      (adapter) =>
+          adapter.powered &&
+          (adapterAddress == null || adapter.address == adapterAddress),
+    );
   }
 
-  BlueZDevice _getDeviceOrThrow(String deviceId) {
+  BlueZDevice _getDeviceOrThrow(String deviceId, {String? operation}) {
     final device =
+        _ownedDevices[deviceId] ??
         _devices[deviceId] ??
-        _client.devices.firstWhereOrNull((d) => d.address == deviceId);
-    if (device == null) {
+        _client.devices.firstWhereOrNull(
+          (d) => d.address == deviceId && _matchesAdapter(d),
+        );
+    if (device == null ||
+        (adapterAddress != null && device.adapter.address != adapterAddress)) {
       throw QuickBlueException(
         code: QuickBlueErrorCode.notFound,
         deviceId: deviceId,
+        operation: operation,
         message: 'Bluetooth device $deviceId was not found.',
       );
     }
@@ -512,9 +759,40 @@ class QuickBlueLinux extends QuickBluePlatform {
     return device;
   }
 
-  Future<void> _ensureConnectedDevice(BlueZDevice device) async {
+  bool _matchesAdapter(BlueZDevice device) =>
+      adapterAddress == null || device.adapter.address == adapterAddress;
+
+  Future<void> _detachDevice(
+    BlueZDevice device, {
+    required Future<void> Function() onLastClient,
+    bool retireConnect = true,
+  }) async {
+    final deviceId = device.address;
+    // Native events join the complete explicit transition, including a pending
+    // StopNotify. They must not retire a reconnect waiting behind that cleanup.
+    final disconnecting = _disconnecting[deviceId];
+    if (retireConnect && disconnecting != null) return disconnecting;
+    if (!identical(_ownedDevices[deviceId], device)) return;
+    // A fresh connect must acquire membership, even if the retired native
+    // Connect reply is still outstanding. Failed detach remains retryable too.
+    await _connectionOwnership.detach(
+      deviceId,
+      onLastClient: onLastClient,
+      onStart: retireConnect ? () => _connecting.remove(deviceId) : null,
+    );
+    if (!_connectionOwnership.owns(deviceId) &&
+        identical(_ownedDevices[deviceId], device)) {
+      _ownedDevices.remove(deviceId);
+    }
+  }
+
+  Future<void> _ensureConnectedDevice(
+    BlueZDevice device, {
+    void Function()? checkCurrent,
+  }) async {
+    checkCurrent?.call();
     if (device.connected) {
-      await _watchDeviceProperties(device);
+      await _watchDeviceProperties(device, checkCurrent: checkCurrent);
       return;
     }
 
@@ -523,20 +801,30 @@ class QuickBlueLinux extends QuickBluePlatform {
     } on BlueZAlreadyConnectedException {
       // Already connected, nothing to do.
     } on BlueZInProgressException {
+      checkCurrent?.call();
       await _waitForConnected(device);
     }
 
+    checkCurrent?.call();
     await _waitForConnected(device);
-    await _watchDeviceProperties(device);
+    checkCurrent?.call();
+    await _watchDeviceProperties(device, checkCurrent: checkCurrent);
   }
 
-  Future<void> _watchDeviceProperties(BlueZDevice device) async {
+  Future<void> _watchDeviceProperties(
+    BlueZDevice device, {
+    void Function()? checkCurrent,
+  }) async {
     final deviceId = device.address;
+    checkCurrent?.call();
     await _cancelMappedSubscription(_devicePropertySubscriptions, deviceId);
+    checkCurrent?.call();
     _gattSession.watchDevice(device);
 
     final subscription = device.propertiesChanged.listen(
       (properties) {
+        final owned = _ownedDevices[deviceId];
+        if (owned != null && !identical(owned, device)) return;
         if (properties.contains('Connected')) {
           final state = device.connected
               ? BlueConnectionState.connected
@@ -544,7 +832,7 @@ class QuickBlueLinux extends QuickBluePlatform {
           _emitConnectionState(deviceId, state, BleStatus.success);
           if (!device.connected) {
             _observeBackgroundOperation(
-              _connectionOwnership.detach(deviceId, onLastClient: () async {}),
+              _detachDevice(device, onLastClient: () async {}),
               'Unable to detach the connection client for $deviceId',
             );
             _observeBackgroundOperation(
@@ -610,10 +898,13 @@ class QuickBlueLinux extends QuickBluePlatform {
       _devices.remove(deviceId);
     }
 
-    _lastConnectionState.remove(deviceId);
     await _gattSession.clearDevice(deviceId);
     await _scanSession.removeDevice(deviceId);
     await _cancelMappedSubscription(_devicePropertySubscriptions, deviceId);
+    // The native observer can emit while earlier cleanup is suspended. Forget
+    // its state only after it is retired, so terminal disconnect replay cannot
+    // be suppressed for a facade request that joined after that native event.
+    _lastConnectionState.remove(deviceId);
   }
 
   Future<void> _cancelMappedSubscription<T>(
@@ -641,4 +932,11 @@ class QuickBlueLinux extends QuickBluePlatform {
       },
     );
   }
+}
+
+/// Snapshot of a Linux adapter's identity and power state.
+class QuickBlueLinuxAdapter {
+  const QuickBlueLinuxAdapter({required this.address, required this.powered});
+  final String address;
+  final bool powered;
 }

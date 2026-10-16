@@ -1,13 +1,12 @@
 import 'dart:async';
 
 import 'package:bluez/bluez.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_linux/quick_blue_linux.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
+import 'adapter_selection_test.dart' as adapter_fake;
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   test('registers as platform implementation', () {
     final previous = QuickBluePlatform.instance;
     try {
@@ -200,6 +199,8 @@ class _FakeBlueZClient implements BlueZClient {
 
 class _FakeBlueZDevice implements BlueZDevice {
   _FakeBlueZDevice(this.address);
+  @override
+  BlueZAdapter get adapter => adapter_fake.Adapter('02:00:00:00:00:00');
 
   final properties = StreamController<List<String>>.broadcast();
 

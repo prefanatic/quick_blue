@@ -35,28 +35,43 @@ pin observed gaps, not corrected behavior:
 | `StartNotify` suspended until client release and clear finish | Teardown makes zero `StopNotify` calls; resumed setup installs a watch and emits initial `[0]` and later `[6]`. Later client release also makes zero calls with its cache cleared. |
 | Enable notifications, invalidate cache with `ServicesResolved=false`, then release and clear | Listener survives invalidation; release and clear make zero `StopNotify` calls and the fake stays notifying. Cache-intact control makes exactly one call and stops notifying. |
 
-Run from the repository root:
+Run the current regression suite from the repository root:
 
 ```sh
-(cd quick_blue_linux && flutter test test/gatt_session_test.dart \
-  --plain-name 'characterization:' --reporter expanded)
+(cd quick_blue_linux && flutter test test/gatt_session_test.dart --reporter expanded)
 ```
 
 The one-shot `FutureGate` observes setup entry before teardown and explicitly
 releases it afterward; no sleep determines ordering. Replacement is a new fake
-BlueZ object at the same address, not a physical reconnect. Passing assertions
-preserve gaps, not safe teardown. Evidence proves reproducible fake-BlueZ
-lifetime behavior only, not real BlueZ cleanup, D-Bus ownership release, or
-hardware semantics. Production code is unchanged by these tests.
+BlueZ object at the same address, not a physical reconnect. Current regressions
+require cleared discovery to fail with `cancelled` without replacement-lifetime
+emissions, and late notification setup to release its claim without installing
+a watch or delivering values. These corrections are part of the headless Linux
+lifecycle implementation. Fake-BlueZ tests do not prove real BlueZ cleanup,
+D-Bus ownership release or hardware semantics.
 
-To fix these gaps, old resolution
-must not emit into a replacement lifetime and must settle observably; late setup
-must not revive watches/values and must balance acquired native ownership;
-cache-invalidated final release must stop the old characteristic exactly once
-and remove its listener without re-resolution. The current implementation does
-not meet these requirements.
+The cache-invalidated final-release gap remains characterized: release must
+eventually stop the old characteristic exactly once and remove its listener
+without re-resolution, but the current implementation still loses that native
+release when its characteristic cache has already been cleared.
 
 ## Verification gaps
+
+### Headless proof boundaries
+
+The [external CLI fixture](install.md#operator-cli-fixture) compiles with
+standalone Dart and starts `--help` with DISPLAY/WAYLAND_DISPLAY absent; help
+does not contact BlueZ. The separately compiled fake flow uses public APIs,
+asserts scan/selection/connect/discovery/read/explicit write/notify/cancel/
+disconnect ordering and cleanup without a bus, engine, agent or radio.
+Pairing and CLI tests use injected errors to check that failures reach callers
+without automatic bond replacement or pairing with another device. They do not
+test authentication. Real scanning, pairing, GATT delivery, service-account
+permissions and physical Zero 2 W memory use/throughput remain untested.
+ARM64 library loading can be checked separately with the
+[QEMU verifier](testing.md#arm64-build-and-controlled-runtime); it does not test
+radio or kernel behavior. The [publication metadata issue](install.md#publication-compatibility-limit)
+also prevents a hosted release.
 
 - Runtime BLE multi-engine suites exist for Android and iOS. Other ownership
   implementations have unit/native coverage, not equivalent runtime suites.

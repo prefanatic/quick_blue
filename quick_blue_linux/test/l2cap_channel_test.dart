@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:logging/logging.dart';
 import 'package:quick_blue_linux/src/l2cap_channel.dart';
 import 'package:quick_blue_linux/src/l2cap_framing.dart';

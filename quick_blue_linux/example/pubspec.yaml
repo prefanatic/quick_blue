@@ -1,0 +1,11 @@
+name: quick_blue_linux_cli
+publish_to: none
+resolution: workspace
+environment:
+  sdk: ^3.12.2
+dependencies:
+  quick_blue_core: ^0.5.0
+  quick_blue_linux: ^0.5.0
+  quick_blue_platform_interface: ^0.5.0
+dev_dependencies:
+  test: ^1.25.0

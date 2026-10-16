@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_platform_interface/src/cancellation_signal.dart';
 
 /// The shared cancellation primitive every coordinator now races against. Its

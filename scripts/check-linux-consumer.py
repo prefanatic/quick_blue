@@ -17,6 +17,7 @@ import tempfile
 
 PACKAGES = (
     "quick_blue",
+    "quick_blue_core",
     "quick_blue_platform_interface",
     "quick_blue_darwin",
     "quick_blue_linux",
@@ -43,10 +44,15 @@ def check_consumer(package, snapshot, revision, fixture):
     consumer = fixture / f"consumer_{package}"
     cache = fixture / f"cache_{package}"
     cache.mkdir()
+    # A cold Flutter SDK can populate Pub's cache while creating templates even
+    # with --no-pub. Keep that bootstrap separate from the empty consumer cache.
+    template_cache = fixture / f"template_cache_{package}"
+    template_cache.mkdir()
     env = dict(os.environ, PUB_CACHE=str(cache))
     run(
         "flutter", "create", "--empty", "--no-pub", "--platforms=linux",
-        "--project-name=linux_consumer", str(consumer), cwd=fixture, env=env,
+        "--project-name=linux_consumer", str(consumer), cwd=fixture,
+        env=dict(env, PUB_CACHE=str(template_cache)),
     )
     if any(cache.iterdir()):
         raise ValueError("Consumer cache must be empty before pub get")
@@ -57,14 +63,14 @@ def check_consumer(package, snapshot, revision, fixture):
     # No workspace membership, path dependency, or direct hosted runtime deps.
     manifest = (
         "name: linux_consumer\npublish_to: none\n"
-        "environment:\n  sdk: ^3.12.2\n"
+        "environment:\n  sdk: ^3.13.5\n  flutter: '>=3.47.7'\n"
         "dependencies:\n  flutter:\n    sdk: flutter\n"
         + git_dependency(package, snapshot.as_uri(), revision)
         + "dependency_overrides:\n"
     )
     overrides = (
         [name for name in PACKAGES if name != package]
-        if package == "quick_blue" else ["quick_blue_platform_interface"]
+        if package == "quick_blue" else ["quick_blue_core", "quick_blue_platform_interface"]
     )
     for name in overrides:
         manifest += git_dependency(name, snapshot.as_uri(), revision)
@@ -107,7 +113,7 @@ def main():
         snapshot = fixture / "repository"
         snapshot.mkdir()
         tracked = subprocess.check_output(
-            ["git", "ls-files", "-z"], cwd=root
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=root
         ).decode().split("\0")
         for relative in filter(None, tracked):
             source = root / relative

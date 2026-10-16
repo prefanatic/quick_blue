@@ -4,7 +4,7 @@ title: "Observe operations without leaking device data"
 description: "Adapt typed operation lifecycles to telemetry and redact sensitive context."
 tags: ["telemetry", "privacy"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/observability.dart"}, {"id": "source2", "resource": "../quick_blue/test/quick_blue_test.dart"}, {"id": "source3", "resource": "../quick_blue/lib/src/quick_blue.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/observability.dart"}, {"id": "source2", "resource": "../quick_blue_core/test/quick_blue_test.dart"}, {"id": "source3", "resource": "../quick_blue_core/lib/src/quick_blue.dart"}]
 ---
 
 # Observe operations without leaking device data

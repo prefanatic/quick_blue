@@ -1,14 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
+import 'test_support/test_clock.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 import 'package:quick_blue_platform_interface/src/operation_wait.dart';
 
 import 'test_support/fake_quick_blue_platform.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   for (final operation in [
     'connect',
     'disconnect',
@@ -127,23 +126,24 @@ void main() {
     },
   );
 
-  testWidgets('success removes long deadline timer before later cancellation', (
-    tester,
-  ) async {
-    final coordinator = OperationWaitCoordinator();
-    final token = QuickBlueCancellationToken();
-    expect(
-      await coordinator.run<int>(
-        deviceId: 'a',
-        operation: 'requestMtu',
-        action: () async => 247,
-        timeout: const Duration(hours: 1),
-        cancellationToken: token,
-      ),
-      247,
-    );
-    token.cancel();
-  });
+  testWithClock(
+    'success removes long deadline timer before later cancellation',
+    (tester) async {
+      final coordinator = OperationWaitCoordinator();
+      final token = QuickBlueCancellationToken();
+      expect(
+        await coordinator.run<int>(
+          deviceId: 'a',
+          operation: 'requestMtu',
+          action: () async => 247,
+          timeout: const Duration(hours: 1),
+          cancellationToken: token,
+        ),
+        247,
+      );
+      token.cancel();
+    },
+  );
 
   test('synchronous cancellation during native start is not missed', () async {
     final coordinator = OperationWaitCoordinator();

@@ -6,7 +6,7 @@ repository: https://github.com/prefanatic/quick_blue/tree/master/quick_blue
 
 environment:
   sdk: ^3.12.2
-  flutter: ">=3.44.2"
+  flutter: ">=3.47.7"
 
 resolution: workspace
 
@@ -14,6 +14,7 @@ dependencies:
   flutter:
     sdk: flutter
   quick_blue_platform_interface: ^0.5.0
+  quick_blue_core: ^0.5.0
   quick_blue_darwin: ^0.5.0
   quick_blue_windows: ^0.5.0
   quick_blue_linux: ^0.5.0
