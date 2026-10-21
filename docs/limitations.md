@@ -18,6 +18,7 @@ sources: [{"id": "source1", "resource": "../quick_blue_linux/lib/quick_blue_linu
 | Any connected lookup works without UUIDs | Darwin requires service UUIDs |
 | Future timeout aborts Bluetooth work | Explicitly detach/clean up before retrying; use built-in bond-wait options to release observation, not to cancel OS pairing |
 | A valid GATT snapshot remains valid forever | Rediscover after service change; old snapshots are invalid |
+| A bound handle proves native-side rejection | It is a Dart pre-submission guard; native or hardware rejection is not established |
 | Chunked writes implement long-write/reassembly | Choose your own framing and acknowledgement protocol |
 | Shared engines share Dart objects | Recreate local handles/subscriptions and coordinate handoff |
 | Persistent restoration can precede accessory picker | Choose one startup flow; the picker must run first |
@@ -76,6 +77,10 @@ events or releases native notification ownership.
   the gaps or add timer-based recovery. The start-throw path
   remains untested: JVM `android.util.Log.e` is not mocked; covering it requires
   injectable logging or Android test configuration.
+- Snapshot-bound submission guards and the disconnect/reconnect snapshot
+  policy are covered by fake-platform Dart tests; native-side rejection and
+  rollback behavior are not established.
+
 
 Do not add platform guarantees based on another platform's tests. Report hardware
 or host unavailability explicitly. Android bounded disconnect reconciliation is

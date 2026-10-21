@@ -9,6 +9,10 @@ and connection sharing across Flutter engines. Optional operations differ by
 platform; check [runtime capabilities](docs/capabilities.md) and
 [known limitations](docs/limitations.md) before relying on them.
 
+Opt-in [snapshot-bound characteristic handles](docs/gatt.md) reject new reads,
+writes and notification setup after their snapshot is invalidated. Existing
+ID-only handles keep their current behavior.
+
 ## Get started
 
 1. [Install from Git](docs/install.md), using the same revision for all federated
@@ -25,6 +29,9 @@ and troubleshooting. For specific operations, see:
 - [Pairing and security failures](docs/pairing.md)
 - [Multiple Flutter engines](docs/multi-engine.md)
 - [L2CAP sockets](docs/l2cap.md)
+
+The [executable Dart adapter contracts](docs/testing.md#dart-adapter-contracts)
+cover fake messenger/BlueZ behavior, not native or hardware certification.
 
 ## Try the BLE explorer
 
