@@ -54,6 +54,13 @@
 - Migrate the explorer to public connection lifecycle methods with one connect
   deadline, bounded client-local abandonment, awaitable shutdown and observable
   cleanup errors. Native connection behavior is unchanged.
+
+- Document Android 17 bond-loss/autonomous-repair verification with a physical
+  handset and controlled bond-erasing peripheral, including scenario controls
+  and the limits of emulator and mocked evidence.
+
+
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.
