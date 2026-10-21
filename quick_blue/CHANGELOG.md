@@ -88,6 +88,9 @@
 
 - Add a source-linked OKF v0.2 knowledge bundle covering setup, device workflows,
   platform capabilities, L2CAP, diagnostics and verification.
+- Document fresh-checkout example setup, artifact sources of truth, and update
+  steps; guard local credentials/device profiles with example ignore rules and
+  replace captured device identifiers in example documentation with placeholders.
 
 - Add subscription-owned `maintainConnection` with bounded exponential
   backoff, retry exhaustion errors, and explicit cancellation/disconnect

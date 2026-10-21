@@ -30,7 +30,7 @@ okf_version: "0.2"
 
 ## Repository work
 
-- [Use the BLE explorer and test profiles](example-app.md) - Exercise device workflows and choose an integration test that proves the intended behavior.
+- [Use the BLE explorer and test profiles](example-app.md) - Reproduce a fresh checkout safely, exercise device workflows and choose an integration test that proves the intended behavior.
 - [Integration-test Dart defines](example-options.md) - Look up compile-time test inputs and their source defaults.
 - [Verify repository changes](testing.md) - Select package, native and hardware checks and record precise evidence.
 - [Maintain the knowledge bundle](maintenance.md) - Read relevant source docs before work and update and verify them with every behavior change.

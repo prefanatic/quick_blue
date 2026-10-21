@@ -31,6 +31,7 @@ and troubleshooting. For specific operations, see:
 Run the [example app](quick_blue/example/README.md) to scan for devices and
 interact with their characteristics. See [example workflows](docs/example-app.md)
 for source setup and hardware-test profiles.
+For a fresh checkout, follow the [setup and artifact policy](quick_blue/example/README.md#fresh-checkout-setup-and-artifact-policy).
 
 Versioned [GitHub Releases](https://github.com/prefanatic/quick_blue/releases)
 provide evaluation builds for Android, iOS Simulator, macOS, Linux x64 and
