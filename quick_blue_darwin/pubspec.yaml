@@ -6,7 +6,7 @@ repository: https://github.com/prefanatic/quick_blue/tree/master/quick_blue_darw
 
 environment:
   sdk: ^3.12.2
-  flutter: ">=3.44.2"
+  flutter: ">=3.47.7"
 
 resolution: workspace
 

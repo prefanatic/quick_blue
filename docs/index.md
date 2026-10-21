@@ -7,17 +7,17 @@ okf_version: "0.2"
 ## Start here
 
 - [Choose quick_blue](overview.md) - Understand the federated packages and the handle-based BLE API.
-- [Install from Git](install.md) - Use a consistent repository revision for every federated package.
+- [Install from Git or a standalone local snapshot](install.md) - Match package revisions and isolate pure-Dart Linux consumers from the Flutter workspace.
 - [Configure each platform](platform-setup.md) - Set permissions, entitlements and host policy before using Bluetooth.
-- [Scan, connect and read](quickstart.md) - Run a small read-only workflow with explicit cleanup and caller timeouts.
+- [Scan, connect and read](quickstart.md) - Use the headless Linux operator CLI or a read-only Flutter workflow with explicit cleanup.
 
 ## Device workflows
 
 - [Scan results and filters](scanning.md) - Own scanning through subscriptions and select portable or native scan controls.
 - [Connection lifetimes and retries](connections.md) - Choose one-shot or subscription-owned connections and handle overlapping operations.
-- [Discover, write and subscribe](gatt.md) - Use valid GATT snapshots, explicit write framing and subscription-owned notifications.
+- [Discover, write and subscribe](gatt.md) - Use opt-in snapshot-bound submissions, explicit write framing and subscription-owned notifications.
 - [Share a connection across engines](multi-engine.md) - Attach the receiving engine before detaching the previous owner.
-- [Pairing and security failures](pairing.md) - Gate bonding APIs and handle coordinated security recovery without blind retries.
+- [Pairing and security failures](pairing.md) - Provision external headless BlueZ agents and service-user policy; preserve explicit pairing and failure visibility.
 - [Open an L2CAP socket](l2cap.md) - Use the socket event stream and sink with explicit platform and framing checks.
 
 ## Platform and diagnostics reference
@@ -32,5 +32,5 @@ okf_version: "0.2"
 
 - [Use the BLE explorer and test profiles](example-app.md) - Exercise device workflows and choose an integration test that proves the intended behavior.
 - [Integration-test Dart defines](example-options.md) - Look up compile-time test inputs and their source defaults.
-- [Verify repository changes](testing.md) - Select package, native and hardware checks and record precise evidence.
+- [Verify repository changes](testing.md) - Select standalone ARM64 build/emulator, package, native and hardware checks and record precise evidence.
 - [Maintain the knowledge bundle](maintenance.md) - Read relevant source docs before work and update and verify them with every behavior change.

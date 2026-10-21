@@ -6,13 +6,12 @@ repository: https://github.com/prefanatic/quick_blue/tree/master/quick_blue_linu
 
 environment:
   sdk: ^3.12.2
-  flutter: ">=3.44.2"
 
 resolution: workspace
 
 dependencies:
-  flutter:
-    sdk: flutter
+  quick_blue_core: ^0.5.0
+  meta: ^1.18.0
   quick_blue_platform_interface: ^0.5.0
   bluez: ^0.8.3
   collection: ^1.15.0
@@ -21,11 +20,10 @@ dependencies:
   dbus: ^0.7.14
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  # ffigen 22 requires meta ^1.19.0, incompatible with Flutter 3.44.2.
+  test: ^1.26.0
+  # Keep regeneration reproducible; this is not a runtime dependency.
   ffigen: 21.0.0
-  flutter_lints: ^6.0.0
+  lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -37,6 +35,7 @@ flutter:
   # be modified. They are used by the tooling to maintain consistency when
   # adding or updating assets for this project.
   plugin:
+    implements: quick_blue
     platforms:
       linux:
         dartPluginClass: QuickBlueLinux

@@ -1,12 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 import 'test_support/fake_quick_blue_platform.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   for (final legacy in <bool>[false, true]) {
     for (final cancelOldFirst in <bool>[false, true]) {
       test('old and fresh streams overlap: legacy=$legacy, '

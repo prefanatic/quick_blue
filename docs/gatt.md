@@ -1,7 +1,7 @@
 ---
 type: "Reference"
 title: "Discover, write and subscribe"
-description: "Use valid GATT snapshots, explicit write framing and subscription-owned notifications."
+description: "Use opt-in snapshot-bound submissions, explicit write framing and subscription-owned notifications."
 tags: ["gatt", "notifications", "writes"]
 
 sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_gatt.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_characteristic.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/bluetooth_gatt_test.dart"}, {"id": "routing", "resource": "../quick_blue_platform_interface/lib/src/characteristic_lifecycle.dart"}, {"id": "retained", "resource": "../quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart"}, {"id": "settlement", "resource": "../quick_blue_platform_interface/test/bluetooth_notifications_test.dart"}]
@@ -24,6 +24,32 @@ final value = await characteristic.read();
 Omit `service` only when the UUID identifies one characteristic across the snapshot.
 Missing or duplicate UUIDs produce `notFound` or `ambiguous`, not an arbitrary pick.
 `hasCharacteristic(uuid, service: ...)` is available for presence checks.
+
+## Snapshot-bound submissions
+
+The [headless CLI](quickstart.md#headless-linux-operator-workflow) resolves the operator's
+characteristic under the selected service with `boundCharacteristic`. Discovery
+alone performs no attribute read/write. `--read`, `--write-hex` and
+`--notify-seconds` are separate opt-ins. The CLI awaits acknowledged writes
+without inventing framing or safe payloads. Notification errors propagate and
+the subscription is canceled before disconnect; merely waiting an interval
+does not assert that any value arrived. Protected IO failures do not silently
+pair in this example (see [pairing](pairing.md#headless-linux-agent-lifecycle)).
+
+`gatt.boundCharacteristic(characteristicId, service: serviceId)` is opt-in.
+After a reported service-database change, new reads, writes and explicit
+notification changes fail with `invalidState` before platform submission.
+`notifications()` checks at listen time, including a retained stream. Rediscover
+and resolve a fresh bound handle. Chunked writes check each chunk; already
+submitted IO is not rolled back. Raw `valueStream` routing and active notification
+subscriptions are not automatically ended by this guard.
+
+Existing `gatt.characteristic()` and device direct-ID APIs remain unbound:
+resolving an invalid snapshot is rejected, but a previously resolved ID-only
+handle does not gain the new guard. Disconnect/reconnect alone retains the
+existing snapshot generation policy; it is not an invalidation event. Pure-Dart
+tests and Linux fake-client call counters check these guards; they do not test
+remote device behavior.[^source1][^source2]
 
 ## Notifications own their teardown
 
@@ -156,6 +182,8 @@ refresh work, await it, and surface failures instead of discarding an async
 listener future. See [capabilities](capabilities.md) for OS gates.
 
 [^source3]: GATT discovery, invalidation and chunked-write tests.
+[^source1]: GATT resolvers, including the opt-in snapshot-bound handle.
+[^source2]: Submission guards for reads, writes and notifications.
 [^routing]: Raw value controller registration, identity-safe cancellation and event dispatch.
 [^retained]: Injected-event regressions for retained streams and overlapping listeners; no native notification calls.
 [^settlement]: Controlled-future notification setup, cancellation, retry, shared ownership and conflicting-mode regressions; Dart lifecycle evidence only.

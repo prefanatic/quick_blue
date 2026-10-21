@@ -3,6 +3,19 @@
 `quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
 Android, iOS, macOS, Windows, and Linux.
 
+Use `gatt.boundCharacteristic(...)` to reject new reads, writes and notification
+changes after a reported GATT database change. Existing `gatt.characteristic(...)`
+and direct-ID handles remain unbound. See [GATT handles](../docs/gatt.md#snapshot-bound-submissions).
+
+For standalone Linux services use the [public headless operator CLI](../quick_blue_linux/example/README.md)
+over `quick_blue_core` plus `quick_blue_linux`. Its opt-in pairing policy and
+external BlueZ agent/service-user requirements are documented in
+[pairing guidance](../docs/pairing.md#headless-linux-agent-lifecycle). Flutter
+imports and normal library security recovery remain unchanged. Use matched source
+revisions: the [Linux publication metadata issue](../docs/install.md#publication-compatibility-limit)
+currently prevents a hosted release. Bluetooth hardware and physical ARM64 devices
+remain untested.
+
 - [Example app](https://github.com/prefanatic/quick_blue/tree/master/quick_blue/example)
 - [Changelog](https://github.com/prefanatic/quick_blue/blob/master/quick_blue/CHANGELOG.md)
 - [Issue tracker](https://github.com/prefanatic/quick_blue/issues)
@@ -29,7 +42,7 @@ rules. This package README remains a package-level introduction and usage guide.
 
 | Target | Minimum or runtime requirement |
 | :--- | :--- |
-| Flutter | 3.44.2 (CI and hardware verification run 3.47.6) |
+| Flutter | 3.47.7 (declared minimum and pinned CI; older releases unsupported) |
 | Dart | 3.12.2 |
 | Android | API 26 |
 | iOS | 13.0 |
@@ -51,6 +64,11 @@ dependencies:
       path: quick_blue
 
 dependency_overrides:
+  quick_blue_core:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_core
   quick_blue_platform_interface:
     git:
       url: https://github.com/prefanatic/quick_blue.git
@@ -73,7 +91,7 @@ dependency_overrides:
       path: quick_blue_windows
 ```
 
-For reproducible builds, replace `master` with a tested commit SHA in all five
+For reproducible builds, replace `master` with a tested commit SHA in all six
 entries. If these changes become available in a hosted release, replace the Git
 dependency and overrides with the corresponding version constraint.
 

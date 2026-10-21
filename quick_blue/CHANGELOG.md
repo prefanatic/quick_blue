@@ -1,7 +1,100 @@
 ## Unreleased
 
-- Restore workspace dependency resolution on the declared Flutter 3.44.2 /
-  Dart 3.12.2 minimum by pinning development-only ffigen to 21.0.0.
+
+- Drop older Flutter support: require stable Flutter 3.47.7 (bundled Dart
+  3.13.5), pin primary and fresh-resolution minimum-toolchain CI to that release,
+  and document SDK migration. Retain standalone Dart 3.13 acceptance, the
+  Flutter-free dependency graph and existing generation pins. The separate Linux
+  publication metadata failure remains unresolved; no validation is disabled.
+- Isolate cold-SDK Flutter template bootstrap from external consumer dependency
+  resolution, retaining the assertion that the consumer Pub cache starts empty.
+
+
+### Headless Linux
+
+- Retire connection-state deduplication only after all asynchronous device clear
+  and native-observer cleanup completes. A delayed native disconnected event
+  cannot suppress terminal completion for a joining facade disconnect. Preserve
+  newer-connect ordering, duplicate joins and observable cleanup errors/retry.
+- Gate reconnect on the complete explicit disconnect before StopNotify can
+  suspend, through lease release and old state/observer cleanup. Preserve newer
+  reconnect intent and native-event coalescing during notification release;
+  joining facade disconnects receive terminal state after cleanup. Keep logged
+  notification errors and observable failed-teardown/retry behavior.
+- Retire older queued reconnect intent on every explicit disconnect, even when
+  joining an existing teardown. Preserve intentionally newer reconnects and
+  native-event cleanup coalescing, failed-cleanup retry and visible errors.
+- Limit pending native-connect coalescing to its ownership lifetime. Explicit
+  detach retires that request; reconnect reacquires actual Client membership and
+  its native target without awaiting the retired reply. Late success/error cannot
+  emit replacement state, replace its observer, release its lease or remove its
+  pending connect. Preserve duplicate coalescing, failed-detach retry and native
+  error visibility; retired registration cannot resurrect membership on cleanup.
+- Coordinate pending attach with native-event detach and coalesce concurrent
+  connects. Retire the preceding native observer before reconnect registration
+  and native connect suspend; do not report successful membership after an
+  intervening teardown. Preserve original-target retry and visible errors;
+  attempt cleanup of names granted before a failed registration reply.
+- Restore actual D-Bus Client membership before reconnect succeeds after failed
+  teardown; retained cleanup identity alone is not an active lease. Preserve
+  same-adapter peer disconnect/close protection, original native targets and
+  observable retry errors.
+- Coalesce reentrant connection detach until teardown settles, retaining native
+  target and lease identity through late unlock failure. Reconcile an already
+  disconnected native device on cleanup failure even without a property event,
+  so facade reconnect can retry without hanging or disconnecting another adapter.
+- Retain the leased native device across default-adapter cache replacement so
+  disconnect and close cannot disconnect another adapter's owner or leak the
+  original connection. Preserve that target on failed detach; retire it after
+  successful or spontaneous release before retry selects a replacement.
+- Scope connection leases by actual local adapter plus remote address. Preserve
+  same-adapter last-client cleanup while independently releasing connections to
+  the same peripheral through different adapters. Cooperating clients must use
+  matching revisions; legacy remote-only lease names do not interoperate.
+- Correct connection documentation to describe cancelled cleared discovery
+  waiters as implemented behavior, not the historical characterization gap.
+
+- Retain the pure-Dart CLI example's Dart 3.12.2 package constraint and
+  run standalone L2CAP watchdog children with the active SDK even off `PATH`.
+
+- Add a standalone ARM64 cross-build/ELF verifier with optional controlled QEMU
+  help, fake-flow and glibc/libbluetooth loader checks. Document distribution
+  runtime requirements. These checks do not exercise Bluetooth or physical hardware.
+
+- Add a public pure-Dart Linux operator CLI and external copied fixture with
+  explicit adapter/device selection, service-data-preserving scan output,
+  GATT discovery, opt-in reads/writes/notifications/pairing and final cleanup.
+  The CLI declines automatic pairing recovery without changing library policy.
+  Document external BlueZ agents and service-account permissions;
+  retain observable pairing/authentication/no-agent errors without bond removal.
+
+- Add Linux `adapterAddress`, immutable `adapters()` snapshots and idempotent
+  `close()` for quiescent clients; retain first-powered defaults and never fall
+  back from an explicit selection. Release partial initialization resources,
+  canceled discovery waiters and late notification claims. Preserve primary
+  lease errors when cleanup also fails.
+- Serialize notification setup and client StopNotify across device generations so retired cleanup
+  cannot stop a retry's claim. Scope device cache population and removal to the
+  selected adapter even when another adapter knows the same remote address.
+- Add opt-in `BluetoothGatt.boundCharacteristic()` through both facades. New
+  read/write/notification submissions reject invalid snapshots before platform
+  IO; existing `characteristic()` and direct-ID handles remain unbound.
+
+
+### Changed
+
+- Extract the generic facade into `quick_blue_core`, sharing existing
+  platform-interface state. Flutter's public and former `src/quick_blue.dart`
+  entrypoints reexport the same classes; Android/Pigeon remains Flutter-owned.
+- Remove Flutter SDK constraints from core, platform interface and Linux;
+  migrate pure contracts to `dart test` and keep native exception/channel tests
+  in the Flutter package. Linux retains explicit registration and declares
+  `implements: quick_blue` for Flutter's desktop Dart plugin selection.
+- Add a standalone Dart 3.13 fresh-cache dependency/manifest check and isolated
+  package analysis/tests. Bluetooth hardware and physical ARM64 devices remain
+  untested. Linux publication still fails because Pub requires a Flutter minimum
+  for its plugin metadata; matched-source installations remain necessary.
+
 
 ### Fixed
 

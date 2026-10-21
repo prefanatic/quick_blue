@@ -4,7 +4,7 @@ title: "Connection lifetimes and retries"
 description: "Choose one-shot or subscription-owned connections and handle overlapping operations."
 tags: ["connections", "lifecycle"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_device.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/managed_connection_lifecycle.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/bluetooth_device_connection_test.dart"}, {"id": "source4", "resource": "../quick_blue/android/src/main/kotlin/com/example/quick_blue/AndroidGattBroker.kt"}]
+sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_device.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/managed_connection_lifecycle.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/bluetooth_device_connection_test.dart"}, {"id": "source4", "resource": "../quick_blue/android/src/main/kotlin/com/example/quick_blue/AndroidGattBroker.kt"}, {"id": "linux-gatt", "resource": "../quick_blue_linux/lib/src/gatt_session.dart"}, {"id": "linux-gatt-tests", "resource": "../quick_blue_linux/test/gatt_session_test.dart"}]
 ---
 
 # Connection lifetimes and retries
@@ -54,10 +54,11 @@ does not provide a portable reset for MTU negotiation.
 Service discoveries coalesce; disconnect cancels pending discovery. Android
 additionally bounds final-client teardown and ignores retired-GATT callbacks;
 this disconnect reconciliation guarantee is Android-specific.[^source4]
-Linux's pending property waiter can survive clear and emit after same-address
-replacement discovery in the
-[fake-BlueZ characterization](limitations.md#linux-gatt-teardown-characterization).
-Facade cancellation does not prove this native-session work stopped.
+Linux clear cancels its pending discovery waiter and prevents old resolution
+from emitting into a replacement discovery. The
+[fake-BlueZ characterization](limitations.md#linux-gatt-teardown-characterization)
+distinguishes the historical gap from current regression behavior. Facade caller
+cancellation alone still does not prove submitted native-session work stopped.
 
 ## Managed reconnection
 
@@ -112,3 +113,55 @@ subclasses remain available. Raw native connection exceptions are wrapped with
 the Dart throw stack. Unknown causes do not acquire a reason from their text.
 
 [^source4]: Android GATT broker disconnect reconciliation.
+
+## Linux client shutdown
+
+The [headless operator CLI](quickstart.md#headless-linux-operator-workflow) uses built-in
+connect/discovery deadlines and a Ctrl-C cancellation token, cancels scans and
+notifications, then attempts disconnect and Linux close in nested `finally`
+blocks. Primary failures propagate while secondary cleanup failures are printed.
+It does not treat caller cancellation as a native abort. Already submitted
+pair/read/write/notification setup calls and teardown must settle before exit;
+a stalled D-Bus call can delay it. The example is not a process supervisor or
+an unlimited reconnecting service.
+
+`QuickBlueLinux.close()` is Linux-owned and idempotent, not a portable facade
+API. Cancel public scan, Bluetooth-state, notification and managed-connection
+subscriptions and await outstanding requests first. Shutdown is not a native
+request abort or a deadline for stalled BlueZ calls. It releases only this
+client's owned connections under the last-client lease rule, scoped by actual
+local adapter address plus remote device address, then property
+watches and transports. Cleanup attempts continue after failures; the first
+shutdown failure is thrown and secondary failures are logged. Initialization
+failure releases acquired subscriptions/transport, preserves its primary error
+and makes the instance unusable; construct a new instance rather than retrying
+it. Source paths: `quick_blue_linux/lib/quick_blue_linux.dart` and
+`quick_blue_linux/test/lifecycle_cleanup_test.dart` (repository root-relative).
+
+Caller cancellation still stops only that caller's wait. A connect completing
+late retains the client lease until explicit disconnect; an immediate retry
+without detach joins it. Explicit disconnect supersedes that pending connect.
+A fresh reconnect after detach must reacquire actual membership and a native
+target, not join a retired native Connect reply. Late success/error cannot alter
+the replacement connection; this is lifetime retirement, not native abort.
+A new explicit disconnect also retires a reconnect queued behind an earlier
+teardown, even when both disconnects join that cleanup. A reconnect requested
+after the new disconnect remains intentional; old native-event cleanup does not
+retire it merely by joining the same teardown.
+Linux exposes the entire explicit disconnect as pending before notification
+release can suspend. A newer connect waits for StopNotify, lease detach and old
+state/observer cleanup before selecting its native target and acquiring membership.
+Native events during that release join the same transition. Only after GATT,
+scan and native-observer cleanup settle is the old state deduplication cache
+retired, so an earlier native event cannot suppress terminal state for a joining
+facade disconnect. Completion remains ordered before a waiting newer connect.
+Failed teardown remains
+observable to waiting platform requests and retryable, not a successful reconnect.
+See the [Linux ownership regression boundary](multi-engine.md#verification-boundary).
+Clearing device state cancels pending discovery waits, and a late notification
+setup releases its native claim without installing a watch. Notification setup
+and disable requests for the same characteristic are serialized across clears:
+a retry waits for retired native setup and cleanup before acquiring its claim,
+so old cleanup cannot disable the new generation. A stalled native setup still
+requires native completion; serialization is not an abort or deadline. Tests use
+fake BlueZ clients; hardware disconnect and notification delivery remain untested.

@@ -10,16 +10,17 @@ sources: [{"id": "source1", "resource": "../.github/workflows/ci.yml"}, {"id": "
 # Verify repository changes
 
 Run commands from the repository root unless a subshell below changes directory.
-CI keeps the primary Flutter `3.47.6` pin and separately exercises the declared
-minimum Flutter `3.44.2` / Dart `3.12.2` with fresh resolution, root analysis and
+CI pins the primary and declared-minimum Flutter lanes to stable `3.47.7`
+(framework `abaf9c523780a608bd46686fd5e53740a07077f8`, bundled Dart `3.13.5`).
+The minimum lane independently uses fresh resolution, root analysis and
 all six package test suites. The verification step uses an isolated pub cache and no
 Flutter action cache; it proves Dart compatibility, not native or BLE behavior.
 
-To reproduce locally, select an isolated Flutter `3.44.2` SDK (do not replace the
+To reproduce locally, select an isolated Flutter `3.47.7` SDK (do not replace the
 host SDK), then run:
 
 ```sh
-export PATH="/absolute/path/to/flutter-3.44.2/bin:$PATH"
+export PATH="/absolute/path/to/flutter-3.47.7/bin:$PATH"
 export PUB_CACHE="$PWD/.dart_tool/pub-cache-minimum"
 flutter --version
 flutter pub get
@@ -30,9 +31,16 @@ for package in quick_blue quick_blue/example quick_blue_darwin quick_blue_linux 
 done
 ```
 
-Linux's development-only ffigen pin is `21.0.0`: version `22.0.0` pulls
-`code_assets ^2.0.0` / `hooks ^2.2.0` / `record_use ^1.0.0`, requiring
-`meta ^1.19.0`, while Flutter `3.44.2` pins `meta 1.18.0`. On Fedora,
+
+Older Flutter versions are no longer supported. Keep both CI pins and Flutter
+package constraints aligned when advancing this floor; standalone Dart 3.13
+acceptance remains separate and must not gain a Flutter SDK dependency.
+`scripts/test_flutter_support_policy.py` checks that both CI pins, Flutter package
+floors and the external Flutter consumer recipe agree, and that standalone
+package environments remain Flutter-free. It does not execute either SDK.
+Linux's development-only ffigen pin remains `21.0.0` for reproducible generation;
+no runtime dependency or generated binding is changed. On Fedora,
+
 regenerate with `dart run ffigen --config ffigen.yaml --compiler-opts
 '-I/usr/lib/clang/22/include'` inside `quick_blue_linux` when libclang's bundled
 resource headers are not found automatically. This host-specific include path
@@ -49,7 +57,74 @@ require affected package tests plus a matching platform build or smoke test when
 available. Use platform builds or the example app for Android, iOS, macOS,
 Windows and Linux behavior that unit tests cannot cover.
 
+## Standalone package boundary
+
+With a separately installed Dart 3.13 SDK, run:
+
+```sh
+python3 scripts/check-headless-consumer.py --dart /absolute/dart-sdk/bin/dart --flutter
+```
+
+The script retains an external matched-source fixture and fresh pub caches,
+checks consumer graph roots and every resolved manifest for Flutter SDK
+dependencies/constraints, saves exact dependency versions, then runs `dart
+analyze` and `dart test` in isolated core, platform-interface and Linux copies.
+`--flutter` additionally builds external Flutter consumers and verifies generated
+Linux registration; omit it on a host without Flutter. It makes no source Git
+commits, no pub-cache edits and no Bluetooth calls. Pure fake-clock tests retain
+timer cleanup checks, while native `PlatformException` coverage stays in
+`quick_blue/test/native_failure_reason_test.dart`. These are dependency/API and
+translation checks, not hardware proof. The existing external Git-consumer CI
+check remains separate and includes core at the same snapshot revision.
+
+## ARM64 build and controlled runtime
+
+The reproducible verifier is `scripts/check-arm64-consumer.py`;
+its hermetic argv tests are `scripts/test_check_arm64_consumer.py`.
+
+After the standalone verifier prints its retained fixture path, use the same
+standalone SDK and its external `cli/` directory:
+
+```sh
+python3 scripts/check-arm64-consumer.py --dart /absolute/dart-sdk/bin/dart \
+  --cli /absolute/retained-fixture/cli
+```
+
+This runs `dart compile exe --target-os=linux --target-arch=arm64` for the
+operator CLI, fake flow and a loader-only FFI probe, then checks `file` and
+`readelf -h -l -d`. It records `build/arm64-result.json`. Cross-build mode
+explicitly records runtime as not executed. To exercise the artifacts without
+radio access, additionally pass `--qemu /absolute/qemu-aarch64 --sysroot
+/absolute/arm64-sysroot`. Provision these separately from trusted distribution
+packages, retaining package versions and hashes. The sysroot must contain
+`/lib/ld-linux-aarch64.so.1`, ARM64 glibc and its dependencies, and optional
+`libbluetooth.so.3`; a merged-/usr distribution also needs its `/lib` link.
+The script removes display and host loader variables and supplies guest library
+search paths. It runs help, the fake flow and a glibc/libbluetooth symbol probe.
+No Bluetooth socket, agent or system bus is opened by those runtime checks.
+
+For a reproducible emulator environment, use Dart 3.13.5, QEMU 10.0.13 and
+Debian 13 ARM64 libraries. Emulator checks do not establish compatibility with
+other distributions or physical hardware. Retain source hashes, package versions, ELF dependencies
+and execution logs as CI or review artifacts. See
+[ARM64 runtime requirements](platform-setup.md#arm64-linux-runtime) and
+[hardware boundaries](limitations.md#headless-proof-boundaries).
+
 ## Fast checks
+
+The standalone verifier also copies `quick_blue_linux/example` into an external
+CLI fixture, checks its transitive manifests, analyzes/tests, compiles
+`bin/main.dart` and `bin/fake_flow.dart`, and runs both without DISPLAY or
+WAYLAND_DISPLAY (`--help` for the real CLI). The fake flow asserts operator
+selection, advertisement/service-data retention, explicit pairing/write,
+notification cancellation and final disconnect/close. CLI tests reject malformed
+options before initialization and cover scan/security/pair/cleanup errors and
+stop signals. Linux `test/pairing_failure_test.dart` injects rejected,
+failed/canceled authentication and no-agent-style D-Bus errors through public
+pairing. Neither check contacts hardware or provisions an agent. Run
+[service-account/agent recipes](pairing.md#headless-linux-agent-lifecycle) only
+with the intended host/peripheral authorization; documentation recipes are not
+executed proof. ARM64 build/runtime and physical hardware remain separate.
 
 ```sh
 flutter pub get
@@ -74,7 +149,15 @@ python3 -O -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 The Documentation workflow runs these tests alongside OKF validation and a clean
-site build. Site fixtures run the copied
+site build. Tests cover OKF structure, site links, release metadata and consumer
+construction. Headless graph/manifest tests reject Flutter SDK constraints,
+mixed repository snapshots and workspace roots while permitting plugin metadata.
+The external Git-consumer check isolates Flutter template bootstrap in a separate
+Pub cache, since a cold SDK can populate it even for `flutter create --no-pub`.
+The actual consumer cache must still be empty immediately before `pub get`;
+fixtures model template-cache writes and continue rejecting a dirty consumer cache.
+Site fixtures run the copied
+
 validator in normal and optimized subprocesses, checking navigation coverage and
 duplicates, rendered pages, anchors, missing targets, absolute/encoded project
 prefix escapes, resolved dot-segment/encoded/relative traversal, file and directory
@@ -265,6 +348,10 @@ for process exit/reaping. Cleanup also kills/reaps on assertion/startup failure.
 JSON records include the actual exit code, elapsed time, syscall/ownership counters,
 main-isolate heartbeat and an independent reporter-isolate heartbeat. Do not run
 the child runner directly: its non-yielding cases cannot be stopped by Dart timers.
+The pure-Dart tests locate the package or workspace Pub configuration for child
+processes, so the same watchdog runs in both workspace and isolated package checks.
+Standalone tests reuse their running Dart executable even when its SDK is absent
+from `PATH`; Flutter's test runner uses the Flutter toolchain's `dart` on `PATH`.
 For a safely bounded single reproduction:
 
 ```sh
@@ -301,6 +388,54 @@ logs, red/green transcripts, screenshots, generated reports, evidence archives a
 machine-specific dumps in durable Kanban attachments or CI artifacts, not Git.
 Scratch paths alone are not preservation. Exceptions require justified executable
 test inputs or curated stable baselines, not an unfiltered execution dump.
+
+### Linux deterministic lifecycle matrix
+
+These are checked-in regression assertions, not a record of a run on a particular
+revision. Record actual commands, revision and results separately.
+
+Run `dart test` in the isolated Linux copy created by the standalone consumer
+check. `test/lifecycle_cleanup_test.dart` covers caller cancellation before
+start, during lease acquisition and during native connect, delayed completion,
+retry, permission denial, failed connect, acquired setup cleanup and double
+close. `test/gatt_session_test.dart` covers failed/cleared discovery, retry,
+stale opt-in bound handles rejecting before IO, late notification setup and
+final-listener cleanup and overlapping retired-setup/retry claim ordering.
+Delayed client StopNotify cleanup also serializes with clear/retry, including
+native stop failures, so a retired release cannot disable the retry claim.
+Adapter tests cover the same remote address on multiple adapters without foreign
+native connect submissions. `test/adapter_lease_test.dart` integrates the real
+D-Bus lease with fake bus/BlueZ clients: different adapters disconnect independently,
+default clients retain the leased native device across cache replacement on
+disconnect and close, failed detach preserves that target for retry, and
+spontaneous release allows retry on a replacement without stale property events
+detaching its ownership. Default/explicit clients on one adapter share final-owner
+cleanup, and failed connect releases only its own lease. The late-unlock matrix
+combines native disconnect events during pending teardown, successful and failed
+unlock replies, cache replacement and public platform/facade retries. A no-event
+failed-unlock case verifies facade retry completes rather than silently pending.
+Five-second watchdogs and completion markers bound these integrated scenarios;
+the independent adapter's connection and final lease cleanup are asserted.
+Failed-cleanup/reconnect tests additionally assert the actual D-Bus Client name
+is restored before success, same-adapter peer disconnect and close leave the
+reconnected owner live, and final cleanup leaves no names. Controlled ownership
+tests verify pending reattach cannot report success early and a failed reattach
+remains retryable with the original identity.
+`test/reattach_transition_test.dart` extends this to delayed native disconnect
+events during pending Client-registration and final-unlock replies, peer
+disconnect/close, duplicate initial and retry connects, registration rejection,
+transport errors before/after name acquisition, and native-connect suspension.
+Pending replies cannot report success; error paths remain retryable and successful
+cleanup leaves no Client/Lock names. Ownership tests invoke detach synchronously
+and in a microtask inside lease registration, checking same-client serialization,
+intervening teardown and original-identity restoration without a waiter cycle.
+The five-second scenario watchdog is a test bound, not a production abort timeout.
+`test/src/connection_lease_test.dart` records shared
+D-Bus owners and last-client serialization; adapter tests retain first-powered
+defaults and missing/unpowered/removed explicit selections. Watchdogs bound
+pending regression futures. None of these tests accesses Bluetooth hardware.
+
+### Archive existing raw evidence before removal
 
 Before removing existing tracked raw evidence, archive the originals durably,
 read the stored attachment/artifact back and verify its hashes against the originals.

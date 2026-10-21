@@ -58,3 +58,27 @@ filters. [Testing](testing.md) includes an advertisement-only profile.
 
 [^source3]: Shared scan lifecycle tests.
 [^source4]: Linux facade delegating to `lib/src/scan_session.dart`.
+
+## Linux adapter selection
+
+The [operator CLI](quickstart.md#headless-linux-operator-workflow) requires an explicit
+adapter and service filter for scanning. It retains full `BlueScanResult`
+objects keyed by device ID and emits JSON including service data in hex;
+names never decide identity. `--device` must match a result from the current
+scan. Service-filter absence in an advertisement can legitimately exclude a
+device that has that GATT service after connecting. Scan-only mode never pairs
+or connects. Canceling its subscription stops this client's scan ownership.
+
+Construct `QuickBlueLinux(adapterAddress: '02:00:00:00:00:01')` and register
+that instance with `QuickBluePlatform.instance = platform` (import the platform
+interface as well as core and Linux); the address is a
+synthetic placeholder, not a discovered device. `await platform.adapters()`
+returns immutable address/power snapshots. Neither call powers on an adapter.
+Omitting the selector retains the first-powered default and `registerWith()`
+continues to use that default for Flutter registration. A requested missing,
+unpowered or removed adapter never falls back to another. Scan results and
+device resolution are scoped to an explicit selection, including when multiple
+adapters know the same remote address; foreign add/remove events cannot replace
+or clear the selected device. Stop retains the adapter
+that started discovery even if availability changes. Local BlueZ fakes test
+these contracts; adapter removal/radio behavior remains unverified.[^source4]

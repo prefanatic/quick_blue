@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:bluez/bluez.dart';
 import 'package:dbus/dbus.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:logging/logging.dart';
 import 'package:quick_blue_linux/quick_blue_linux.dart';
 import 'package:quick_blue_linux/src/device_property.dart';
@@ -11,6 +11,7 @@ import 'package:quick_blue_linux/src/gatt_session.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 import 'test_support/future_gate.dart';
+import 'adapter_selection_test.dart' as adapter_fake;
 
 void main() {
   late _Fixture f;
@@ -50,18 +51,28 @@ void main() {
     },
   );
 
-  // Characterizations of 0596865a0a46e18f7dc6d56561a79f538cf7bcea.
-  // These passing assertions describe gaps, not desired teardown guarantees.
-  test('characterization: old discovery survives clear and reconnect', () async {
+  // Regressions for the discovery and late-setup gaps characterized on master.
+  test('cleared discovery cannot complete in a replacement lifetime', () async {
     f.device.servicesResolved = false;
     var oldCompleted = false;
     final old = f.session.discoverServices(f.device).then((_) {
       oldCompleted = true;
     });
+    final cancelled = expectLater(
+      old,
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.cancelled,
+        ),
+      ),
+    );
     expect(f.device.properties.hasListener, isTrue);
     await f.session.clearDevice(f.device.address);
+    await cancelled;
     expect(oldCompleted, isFalse);
-    expect(f.device.properties.hasListener, isTrue);
+    expect(f.device.properties.hasListener, isFalse);
 
     // A replacement BlueZ object at the same address represents reconnect.
     final replacement = _Device()..gattServices = f.device.gattServices;
@@ -71,44 +82,47 @@ void main() {
     expect(oldCompleted, isFalse);
     f.device.servicesResolved = true;
     f.device.properties.add(['ServicesResolved']);
-    await old;
-    expect(f.completions, [f.device.address, f.device.address]);
-    expect(f.discoveries.length, 2);
+    await pumpEventQueue();
+    expect(f.completions, [f.device.address]);
+    expect(f.discoveries.length, 1);
     expect(f.device.properties.hasListener, isFalse);
-    // Desired correction: cleared discovery must not emit into a new lifetime.
   });
 
-  test(
-    'characterization: suspended StartNotify installs watch after clear',
-    () async {
-      final gate = FutureGate();
-      f.characteristic.startGate = gate;
-      final setup = f.notify();
-      await gate.entered;
-      expect(f.characteristic.starts, 1);
-      expect(f.characteristic.properties.hasListener, isFalse);
-      await f.session.stopNotificationsForClient(f.device.address);
-      await f.session.clearDevice(f.device.address);
-      expect(f.characteristic.stops, 0);
-      expect(f.values, isEmpty);
-      gate.release();
-      await setup;
-      expect(f.characteristic.notifying, isTrue);
-      expect(f.characteristic.properties.hasListener, isTrue);
-      expect(f.values.single.$4, [0]);
-      f.characteristic.value = [6];
-      f.characteristic.properties.add(['Value']);
-      await pumpEventQueue();
-      expect(f.values.last.$4, [6]);
-      expect(f.values.length, 2);
-      // The cleared cache also prevents release of the late native reference.
-      await f.session.stopNotificationsForClient(f.device.address);
-      expect(f.characteristic.stops, 0);
-      await f.session.clearDevice(f.device.address);
-      expect(f.characteristic.properties.hasListener, isFalse);
-      // Desired correction: late setup cannot resurrect delivery or ownership.
-    },
-  );
+  test('suspended StartNotify releases its late claim after clear', () async {
+    final gate = FutureGate();
+    f.characteristic.startBarrier = gate;
+    final setup = f.notify();
+    final cancelled = expectLater(
+      setup,
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.cancelled,
+        ),
+      ),
+    );
+    await gate.entered;
+    expect(f.characteristic.starts, 1);
+    expect(f.characteristic.properties.hasListener, isFalse);
+    await f.session.stopNotificationsForClient(f.device.address);
+    await f.session.clearDevice(f.device.address);
+    expect(f.characteristic.stops, 0);
+    expect(f.values, isEmpty);
+    gate.release();
+    await cancelled;
+    expect(f.characteristic.notifying, isFalse);
+    expect(f.characteristic.properties.hasListener, isFalse);
+    expect(f.values, isEmpty);
+    f.characteristic.value = [6];
+    f.characteristic.properties.add(['Value']);
+    await pumpEventQueue();
+    expect(f.values, isEmpty);
+    await f.session.stopNotificationsForClient(f.device.address);
+    expect(f.characteristic.stops, 1);
+    await f.session.clearDevice(f.device.address);
+    expect(f.characteristic.properties.hasListener, isFalse);
+  });
 
   test(
     'characterization: cache invalidation loses last notification release',
@@ -289,6 +303,73 @@ void main() {
     );
   }
 
+  test('Linux invalidation rejects bound handles before native IO', () async {
+    final platform = QuickBlueLinux.withClient(
+      _Client(f.device),
+      connectionLease: _Lease(),
+    );
+    await platform.connect(f.device.address);
+    final snapshot = await platform.device(f.device.address).discoverGatt();
+    final bound = snapshot.boundCharacteristic('2a19', service: '180f');
+    await bound.read();
+    expect(f.characteristic.reads, 1);
+    f.device.servicesResolved = false;
+    f.device.properties.add(['ServicesResolved']);
+    await pumpEventQueue();
+    expect(snapshot.isValid, isFalse);
+    final stale = isA<QuickBlueException>().having(
+      (e) => e.code,
+      'code',
+      QuickBlueErrorCode.invalidState,
+    );
+    await expectLater(
+      bound.read().timeout(const Duration(seconds: 1)),
+      throwsA(stale),
+    );
+    expect(
+      () =>
+          bound.write(Uint8List.fromList([1]), BleOutputProperty.withResponse),
+      throwsA(stale),
+    );
+    expect(
+      () => bound.setNotifiable(BleInputProperty.notification),
+      throwsA(stale),
+    );
+    await expectLater(
+      bound.notifications(),
+      emitsInOrder([emitsError(stale), emitsDone]),
+    );
+    expect(f.characteristic.reads, 1);
+    expect(f.characteristic.writes, isEmpty);
+    expect(f.characteristic.starts, 0);
+    await platform.disconnect(f.device.address);
+  });
+
+  test(
+    'public notification cancellation stops only after final listener',
+    () async {
+      final platform = QuickBlueLinux.withClient(
+        _Client(f.device),
+        connectionLease: _Lease(),
+      );
+      await platform.connect(f.device.address);
+      final snapshot = await platform.device(f.device.address).discoverGatt();
+      final bound = snapshot.characteristic('2a19', service: '180f');
+      final first = bound.notifications().listen((_) {});
+      final second = bound.notifications().listen((_) {});
+      await pumpEventQueue();
+      expect(f.characteristic.starts, 1);
+      await first.cancel();
+      expect(f.characteristic.stops, 0);
+      expect(f.characteristic.properties.hasListener, isTrue);
+      await second.cancel();
+      expect(f.characteristic.stops, 1);
+      expect(f.characteristic.properties.hasListener, isFalse);
+      await platform.disconnect(f.device.address);
+      expect(f.device.properties.hasListener, isFalse);
+    },
+  );
+
   test('non-authorization BlueZ failures propagate unchanged', () async {
     final error = StateError('read failed');
     f.characteristic.error = error;
@@ -316,6 +397,32 @@ void main() {
     expect(f.characteristic.properties.hasListener, isFalse);
   });
 
+  test(
+    'late StartNotify after clear releases native notify without a watch',
+    () async {
+      f.characteristic.startGate = Completer<void>();
+      final pending = f.notify();
+      final canceled = expectLater(
+        pending.timeout(const Duration(seconds: 1)),
+        throwsA(
+          isA<QuickBlueException>().having(
+            (e) => e.code,
+            'code',
+            QuickBlueErrorCode.cancelled,
+          ),
+        ),
+      );
+      await pumpEventQueue();
+      expect(f.characteristic.starts, 1);
+      await f.session.clearDevice(f.device.address);
+      f.characteristic.startGate!.complete();
+      await canceled;
+      expect(f.characteristic.stops, 1);
+      expect(f.characteristic.properties.hasListener, isFalse);
+      expect(f.values, isEmpty);
+    },
+  );
+
   test('AlreadyExists still installs the notification watch', () async {
     f.characteristic.error = BlueZAlreadyExistsException(
       DBusMethodErrorResponse('org.bluez.Error.AlreadyExists'),
@@ -324,6 +431,64 @@ void main() {
     expect(f.characteristic.properties.hasListener, isTrue);
     expect(f.values.length, 1);
   });
+
+  test(
+    'retired notify setup settles before overlapping retry claims',
+    () async {
+      final gate = Completer<void>();
+      f.characteristic.startGate = gate;
+      final old = f.notify();
+      final canceled = expectLater(old, throwsA(isA<QuickBlueException>()));
+      await pumpEventQueue();
+      await f.session.clearDevice(f.device.address);
+      f.characteristic.startGate = null;
+      final retry = f.notify();
+      await pumpEventQueue();
+      final startsBeforeRetiredCompletion = f.characteristic.starts;
+      gate.complete();
+      await canceled.timeout(const Duration(seconds: 1));
+      await retry.timeout(const Duration(seconds: 1));
+      expect(startsBeforeRetiredCompletion, 1);
+      expect(f.characteristic.starts, 2);
+      expect(f.characteristic.stops, 1);
+      expect(f.characteristic.notifying, isTrue);
+      expect(f.characteristic.properties.hasListener, isTrue);
+      expect(f.values.length, 1);
+      await f.session.stopNotificationsForClient(f.device.address);
+      expect(f.characteristic.stops, 2);
+    },
+  );
+
+  for (final fails in [false, true]) {
+    test(
+      'retired delayed client stop serializes retry (failure=$fails)',
+      () async {
+        await f.notify();
+        final gate = Completer<void>();
+        f.characteristic.stopGate = gate;
+        final cleanup = f.session.stopNotificationsForClient(f.device.address);
+        await pumpEventQueue();
+        expect(f.characteristic.stops, 1);
+        await f.session.clearDevice(f.device.address);
+        final retry = f.notify();
+        await pumpEventQueue();
+        final startsBeforeStop = f.characteristic.starts;
+        f.characteristic.stopError = fails ? StateError('stop failed') : null;
+        gate.complete();
+        await cleanup.timeout(const Duration(seconds: 1));
+        await retry.timeout(const Duration(seconds: 1));
+        expect(startsBeforeStop, 1);
+        expect(f.characteristic.starts, 2);
+        expect(f.characteristic.stops, 1);
+        expect(f.characteristic.notifying, isTrue);
+        expect(f.characteristic.properties.hasListener, isTrue);
+        f.characteristic.stopGate = null;
+        f.characteristic.stopError = null;
+        await f.session.stopNotificationsForClient(f.device.address);
+        expect(f.characteristic.stops, 2);
+      },
+    );
+  }
 
   test('notification mode requires matching flag', () async {
     f.characteristic.flags = {BlueZGattCharacteristicFlag.indicate};
@@ -400,6 +565,27 @@ void main() {
     ];
     f.session.servicesResolvedChanged(f.device);
     expect(f.changes, [f.device.address]);
+  });
+
+  test('clear while discovery waits cancels waiter before reconnect', () async {
+    f.device.servicesResolved = false;
+    final pending = f.session.discoverServices(f.device);
+    final canceled = expectLater(
+      pending.timeout(const Duration(seconds: 1)),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (e) => e.code,
+          'code',
+          QuickBlueErrorCode.cancelled,
+        ),
+      ),
+    );
+    await f.session.clearDevice(f.device.address);
+    await canceled;
+    expect(f.device.properties.hasListener, isFalse);
+    f.device.servicesResolved = true;
+    await f.session.discoverServices(f.device);
+    expect(f.completions, [f.device.address]);
   });
 
   test('clearDevice clears cache, discovery state and watches', () async {
@@ -519,6 +705,8 @@ class _Fixture {
 
 class _Device implements BlueZDevice {
   @override
+  BlueZAdapter get adapter => adapter_fake.Adapter('02:00:00:00:00:00');
+  @override
   final address = 'AA:BB:CC:DD:EE:FF';
   @override
   bool connected = true;
@@ -569,10 +757,13 @@ class _Characteristic implements BlueZGattCharacteristic {
   final properties = StreamController<List<String>>.broadcast();
   final writes = <(List<int>, BlueZGattCharacteristicWriteType?)>[];
   Object? error;
-  FutureGate? startGate;
+  FutureGate? startBarrier;
   int starts = 0;
   int stops = 0;
   int reads = 0;
+  Completer<void>? startGate;
+  Completer<void>? stopGate;
+  Object? stopError;
   @override
   Stream<List<String>> get propertiesChanged => properties.stream;
   void _checkError() {
@@ -603,8 +794,9 @@ class _Characteristic implements BlueZGattCharacteristic {
   @override
   Future<void> startNotify() async {
     starts++;
+    await startGate?.future;
     _checkError();
-    final gate = startGate;
+    final gate = startBarrier;
     if (gate != null) {
       await gate.suspend();
     }
@@ -614,6 +806,8 @@ class _Characteristic implements BlueZGattCharacteristic {
   @override
   Future<void> stopNotify() async {
     stops++;
+    await stopGate?.future;
+    if (stopError != null) throw stopError!;
     _checkError();
     notifying = false;
   }

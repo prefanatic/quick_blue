@@ -1,12 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 import 'test_support/fake_quick_blue_platform.dart';
+import 'test_support/test_clock.dart';
 
 void main() {
-  testWidgets('timeout releases the bond listener without a target event', (
+  testWithClock('timeout releases the bond listener without a target event', (
     tester,
   ) async {
     final platform = _CountingBondPlatform();
@@ -39,7 +40,7 @@ void main() {
     expect(platform.calls, ['bondState device-a']);
   });
 
-  testWidgets('cancellation releases the listener without a target event', (
+  testWithClock('cancellation releases the listener without a target event', (
     tester,
   ) async {
     final platform = _CountingBondPlatform();
@@ -61,12 +62,12 @@ void main() {
       await expectation;
     });
     expect(platform.listenerCount, 0);
-    // testWidgets also checks that no deadline timer remains at test exit.
+    // The fake-clock harness also checks timer cleanup at test exit.
     expect(platform.calls, ['bondState device-a']);
   });
 
   for (final stopWithTimeout in [true, false]) {
-    testWidgets(
+    testWithClock(
       'stopping during snapshot cleans up; timeout=$stopWithTimeout',
       (tester) async {
         final platform = _CountingBondPlatform();
@@ -103,7 +104,7 @@ void main() {
       },
     );
 
-    testWidgets(
+    testWithClock(
       'concurrent waiters are independent; timeout=$stopWithTimeout',
       (tester) async {
         final platform = _CountingBondPlatform();
@@ -145,7 +146,7 @@ void main() {
     );
   }
 
-  testWidgets('snapshot/event race retains a matching event', (tester) async {
+  testWithClock('snapshot/event race retains a matching event', (tester) async {
     final platform = _CountingBondPlatform();
     addTearDown(platform.dispose);
     final snapshot = platform.snapshot = Completer<BluetoothBondState>();
@@ -168,7 +169,7 @@ void main() {
     expect(platform.listenerCount, 0);
   });
 
-  testWidgets('immediate snapshot releases listeners and timer', (
+  testWithClock('immediate snapshot releases listeners and timer', (
     tester,
   ) async {
     final platform = _CountingBondPlatform()
@@ -189,7 +190,7 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('snapshot failure is preserved and releases the listener', (
+  testWithClock('snapshot failure is preserved and releases the listener', (
     tester,
   ) async {
     final platform = _CountingBondPlatform();
@@ -211,7 +212,7 @@ void main() {
     expect(platform.listenerCount, 0);
   });
 
-  testWidgets('pre-cancelled and invalid timeout do no platform work', (
+  testWithClock('pre-cancelled and invalid timeout do no platform work', (
     tester,
   ) async {
     final platform = _CountingBondPlatform();
@@ -239,7 +240,7 @@ void main() {
     expect(platform.listenerCount, 0);
   });
 
-  testWidgets('no options stays pending and filters state and device', (
+  testWithClock('no options stays pending and filters state and device', (
     tester,
   ) async {
     final platform = _CountingBondPlatform();

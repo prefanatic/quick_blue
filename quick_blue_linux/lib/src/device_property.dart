@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:bluez/bluez.dart';
+import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 Future<void> waitForDeviceProperty(
   BlueZDevice device, {
   required String propertyName,
   required bool Function() isReady,
   required Duration timeout,
+  Future<void>? cancelled,
 }) async {
   if (isReady()) {
     return;
@@ -30,7 +32,18 @@ Future<void> waitForDeviceProperty(
   );
 
   try {
-    await completer.future.timeout(timeout);
+    await Future.any<void>([
+      completer.future,
+      if (cancelled != null)
+        cancelled.then<void>(
+          (_) => throw QuickBlueException(
+            code: QuickBlueErrorCode.cancelled,
+            deviceId: device.address,
+            operation: 'waitFor$propertyName',
+            message: 'Device state was cleared.',
+          ),
+        ),
+    ]).timeout(timeout);
   } finally {
     await subscription.cancel();
   }
