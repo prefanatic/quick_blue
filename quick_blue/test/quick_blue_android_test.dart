@@ -18,6 +18,7 @@ void main() {
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.connect',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.disconnect',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.bondState',
+    'dev.flutter.pigeon.quick_blue.QuickBlueApi.repairObservation',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.startPairing',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.pair',
     'dev.flutter.pigeon.quick_blue.QuickBlueApi.isCompanionAssociationSupported',
@@ -37,6 +38,7 @@ void main() {
   const eventChannels = <String>[
     'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bluetoothState',
     'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.bondStateChanges',
+    'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.repairChanges',
     'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.scanResults',
     'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.mtuChanged',
     'dev.flutter.pigeon.quick_blue.QuickBlueEventApi.l2CapSocketEvents',
@@ -472,6 +474,146 @@ void main() {
         ]),
       );
     });
+
+    test(
+      'observed retained-bond repair retries once without explicit pairing',
+      () async {
+        final harness = AndroidBondHarness(
+          initialState: messages.PlatformBondState.bonded,
+          repairState: messages.PlatformRepairState.inProgress,
+        )..install();
+        final platform = QuickBlueAndroid();
+        var calls = 0;
+        final operation = platform.runWithSecurityRecovery<void>(
+          'device-a',
+          () async {
+            calls++;
+            if (calls == 1) throw _securityError;
+          },
+        );
+        await harness.repairListening.future;
+        await pumpEventQueue();
+        expect(calls, 1);
+        await harness.emit(messages.PlatformBondState.bonded);
+        expect(calls, 1);
+        await harness.emitRepair(messages.PlatformRepairState.succeeded);
+        await operation;
+        expect(calls, 2);
+        expect(harness.startPairingCalls, 0);
+      },
+    );
+
+    test(
+      'terminal repair plus late bond does not stall subsequent recovery or explicit pair',
+      () async {
+        // The native seam separately proves contextual terminal bond broadcasts
+        // emit no new repair event. Feed that preserved snapshot through Pigeon.
+        for (final terminal in <messages.PlatformRepairState>[
+          messages.PlatformRepairState.succeeded,
+          messages.PlatformRepairState.failed,
+        ]) {
+          final harness = AndroidBondHarness(
+            initialState: messages.PlatformBondState.bonded,
+            repairState: terminal,
+          )..install();
+          final platform = QuickBlueAndroid();
+          final subscription = platform.bondStateStream.listen((_) {});
+          await pumpEventQueue();
+          await harness.emit(
+            terminal == messages.PlatformRepairState.succeeded
+                ? messages.PlatformBondState.bonded
+                : messages.PlatformBondState.notBonded,
+          );
+          QuickBlueSecurityRecoveryResult? result;
+          final pending = platform
+              .performSecurityRecovery('device-a', _securityError)
+              .then((value) {
+                result = value;
+              });
+          await pending.timeout(const Duration(seconds: 1));
+          // No 30-second wait on a phantom repair, and cached terminal state
+          // cannot authorize another protected-operation retry.
+          expect(result, QuickBlueSecurityRecoveryResult.userActionRequired);
+          var pairCalls = 0;
+          binaryMessenger.setMockDecodedMessageHandler<Object?>(
+            const BasicMessageChannel<Object?>(
+              'dev.flutter.pigeon.quick_blue.QuickBlueApi.pair',
+              messages.QuickBlueApi.pigeonChannelCodec,
+            ),
+            (_) async {
+              pairCalls++;
+              return <Object?>[null];
+            },
+          );
+          await platform.pair('device-a');
+          expect(pairCalls, 1);
+          expect(harness.startPairingCalls, 0);
+          await subscription.cancel();
+        }
+      },
+    );
+
+    test(
+      'repaired operation still failing security is not retried again',
+      () async {
+        final harness = AndroidBondHarness(
+          initialState: messages.PlatformBondState.bonded,
+          repairState: messages.PlatformRepairState.inProgress,
+        )..install();
+        var calls = 0;
+        final operation = QuickBlueAndroid().runWithSecurityRecovery<void>(
+          'device-a',
+          () async {
+            calls++;
+            throw _securityError;
+          },
+        );
+        final assertion = expectLater(
+          operation,
+          throwsA(isA<QuickBlueSecurityException>()),
+        );
+        await harness.repairListening.future;
+        await pumpEventQueue();
+        await harness.emitRepair(messages.PlatformRepairState.succeeded);
+        await assertion;
+        expect(calls, 2);
+        expect(harness.startPairingCalls, 0);
+      },
+    );
+
+    test(
+      'repair rejection preserves security error without retrying',
+      () async {
+        final harness = AndroidBondHarness(
+          initialState: messages.PlatformBondState.bonded,
+          repairState: messages.PlatformRepairState.inProgress,
+        )..install();
+        var calls = 0;
+        final operation = QuickBlueAndroid().runWithSecurityRecovery<void>(
+          'device-a',
+          () async {
+            calls++;
+            throw _securityError;
+          },
+        );
+        final assertion = expectLater(
+          operation,
+          throwsA(
+            isA<QuickBlueSecurityException>().having(
+              (error) => error.recoveryResult,
+              'recoveryResult',
+              QuickBlueSecurityRecoveryResult.userActionRequired,
+            ),
+          ),
+        );
+        await harness.repairListening.future;
+        await pumpEventQueue();
+        await harness.emitRepair(messages.PlatformRepairState.failed);
+        await assertion;
+        expect(calls, 1);
+        expect(harness.startPairingCalls, 0);
+      },
+    );
 
     test('uses an implicit bond and retries the operation once', () async {
       final harness = AndroidBondHarness(
