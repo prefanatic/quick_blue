@@ -9,6 +9,10 @@ and connection sharing across Flutter engines. Optional operations differ by
 platform; check [runtime capabilities](docs/capabilities.md) and
 [known limitations](docs/limitations.md) before relying on them.
 
+Opt-in [snapshot-bound characteristic handles](docs/gatt.md) reject new reads,
+writes and notification setup after their snapshot is invalidated. Existing
+ID-only handles keep their current behavior.
+
 ## Get started
 
 1. [Install from Git](docs/install.md), using the same revision for all federated

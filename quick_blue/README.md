@@ -335,6 +335,11 @@ final characteristic = gatt.characteristic(
 `BluetoothService.characteristicDetails` reports whether each discovered
 characteristic supports reads, writes, notifications, or indications.
 
+Resolve with `gatt.boundCharacteristic(characteristicId, service: serviceId)`
+instead when new submissions must fail after the snapshot is invalidated; see
+[GATT service changes](#gatt-service-changes). `gatt.characteristic(...)`
+keeps the existing ID-only behavior.
+
 ### Chunked writes
 
 Use `writeInChunks` when an application protocol expects a large value to be
@@ -386,6 +391,24 @@ attempting to resolve a characteristic from an invalid snapshot throws
 If a change arrives during service discovery, that discovery completes with
 `QuickBlueErrorCode.cancelled` so callers can retry without receiving a mixture
 of the old and new databases.
+
+To opt individual handles into that validity check, resolve them with
+`gatt.boundCharacteristic(...)`:
+
+```dart
+final bound = gatt.boundCharacteristic(characteristicId, service: serviceId);
+```
+
+After invalidation, new `read`, `write`, `setNotifiable` and `notifications`
+submissions through that handle fail with
+`QuickBlueErrorCode.invalidState` before reaching the platform;
+already-submitted IO is not rolled back. Rediscover and resolve a fresh bound
+handle to continue. Handles from `gatt.characteristic(...)` and the direct-ID
+helpers (`device.characteristic(...)`, `device.readValue(...)`,
+`device.writeValue(...)`, `device.setNotifiable(...)`) are unaffected and
+remain the compatibility escape hatch. Disconnecting and reconnecting does
+not invalidate snapshots under the current policy; only service-database
+change events do.
 
 ### Notifications
 

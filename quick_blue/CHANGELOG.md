@@ -45,6 +45,15 @@
 - Add bounded regression tests for Linux L2CAP retry/receive loops and resource
   cleanup. Persistent-loop cases document failures; socket behavior is unchanged.
 
+- Add opt-in `BluetoothGatt.boundCharacteristic`, which resolves a
+  characteristic handle bound to its GATT snapshot. After a service-database
+  change, new read, write and notification submissions through that handle
+  fail with `QuickBlueException` (`invalidState`) before platform submission;
+  rediscover and resolve a fresh bound handle to continue. Existing ID-only
+  handles keep their current behavior, already-submitted IO is not rolled
+  back, and disconnect/reconnect snapshot policy is unchanged.
+
+
 - Reject docs-site links that resolve outside the site root, including decoded
   traversal and symlink targets, while preserving internal parent-relative links.
 - Add hermetic docs-site, release-metadata and Linux consumer-construction
