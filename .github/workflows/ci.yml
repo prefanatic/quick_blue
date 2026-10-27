@@ -116,6 +116,32 @@ jobs:
               - 'quick_blue_windows/**'
               - 'quick_blue_platform_interface/**'
 
+  minimum-toolchain:
+    name: Minimum toolchain
+    needs: changes
+    if: ${{ needs.changes.outputs.validate == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          flutter-version: "3.44.2"
+          cache: false
+      - name: Resolve and verify declared minimum
+        env:
+          PUB_CACHE: ${{ runner.temp }}/pub-cache-minimum
+        run: |
+          set -euo pipefail
+          flutter --version
+          flutter pub get
+          flutter pub deps --json
+          flutter analyze
+          for package in quick_blue quick_blue/example quick_blue_darwin quick_blue_linux quick_blue_platform_interface quick_blue_windows; do
+            (cd "$package" && flutter test)
+          done
+
   format:
     name: Format
     needs: changes

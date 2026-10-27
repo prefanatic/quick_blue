@@ -26,7 +26,23 @@ await device.connect(timeout: const Duration(seconds: 15));
 `QuickBlueCancellationToken` is one-shot. Cancellation reports `cancelled` with
 `failureReason: QuickBlueFailureReason.callerCancelled`; deadlines throw
 `TimeoutException`. Without options waits are unbounded. MTU work with no callback
-remains outstanding until platform completion or engine disposal.
+remains outstanding until platform completion or engine disposal. Negative
+timeouts fail before work starts; zero follows Dart timer/event-loop ordering.
+Timers and token listeners are removed when each caller's wait settles.
+
+Expiration only stops that caller's wait. A late successful connect can still
+attach this engine, and cancelling a wait cannot undo a disconnect already
+requested. Retries join the outstanding operation rather than starting work
+that could consume an old native callback. Late completion retires shared work;
+late errors are consumed even if every caller has left. If a callback never
+arrives, one operation per device/kind remains quarantined. Each caller can
+still set its own deadline; there is no portable abort/reset for pending MTU
+work. Managed-connection policy and deprecated static helpers do not acquire
+these device-method wait options.
+
+Identical MTU requests share work; a different requested value is rejected while
+negotiation is pending. Disconnect or GATT invalidation resets discovery, but
+does not provide a portable reset for MTU negotiation.
 
 | Overlap for the same device | Result |
 | --- | --- |
@@ -38,6 +54,10 @@ remains outstanding until platform completion or engine disposal.
 Service discoveries coalesce; disconnect cancels pending discovery. Android
 additionally bounds final-client teardown and ignores retired-GATT callbacks;
 this disconnect reconciliation guarantee is Android-specific.[^source4]
+Linux's pending property waiter can survive clear and emit after same-address
+replacement discovery in the
+[fake-BlueZ characterization](limitations.md#linux-gatt-teardown-characterization).
+Facade cancellation does not prove this native-session work stopped.
 
 ## Managed reconnection
 
@@ -70,6 +90,26 @@ await subscription.cancel();
   manual `connect()` calls for that device.
 
 For cross-engine handoff, read [multi-engine ownership](multi-engine.md).
+
+## Typed connection failures
+
+Match `QuickBlueException.failureReason` rather than diagnostic text. Its nullable
+`QuickBlueFailureReason` values distinguish `connectionFailed`, `callerCancelled`
+and `remoteDisconnected`; a reason does not establish whether retrying is safe.
+
+Connection attempts through the static, device and managed APIs classify failures
+using operation context. Unexpected loss after an observed connection appears in
+`BluetoothConnectionStateChange.error`, even when native status is success; the
+original state and status are unchanged. A local disconnect is not a remote
+failure. Superseded connection work and discovery cancelled by local disconnect
+report `callerCancelled`. Database invalidation uses code `cancelled` without
+claiming caller cancellation. Discovery interrupted by remote link loss retains
+the remote reason and diagnostic cause in `details`.
+
+Existing codes, messages, native GATT statuses, Darwin domains/codes and security
+subclasses remain available. Raw native connection exceptions are wrapped with
+`connectionFailed`, retaining the original exception in `details` and preserving
+the Dart throw stack. Unknown causes do not acquire a reason from their text.
 
 [^source4]: Android GATT broker disconnect reconciliation.
 

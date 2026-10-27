@@ -10,6 +10,8 @@ import 'package:quick_blue_linux/src/device_property.dart';
 import 'package:quick_blue_linux/src/gatt_session.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
+import 'test_support/future_gate.dart';
+
 void main() {
   late _Fixture f;
   setUp(() => f = _Fixture());
@@ -45,6 +47,34 @@ void main() {
       expect(f.device.properties.hasListener, isFalse);
       await f.session.discoverServices(f.device);
       expect(f.completions.length, 2);
+    },
+  );
+
+  // Characterizations of 0596865a0a46e18f7dc6d56561a79f538cf7bcea.
+  // These passing assertions describe gaps, not desired teardown guarantees.
+  test(
+    'characterization: cache invalidation loses last notification release',
+    () async {
+      f.session.watchDevice(f.device);
+      await f.notify();
+      expect(f.characteristic.starts, 1);
+      f.device.servicesResolved = false;
+      f.session.servicesResolvedChanged(f.device);
+      expect(f.changes, [f.device.address]);
+      expect(f.characteristic.properties.hasListener, isTrue);
+      await f.session.stopNotificationsForClient(f.device.address);
+      expect(f.characteristic.stops, 0);
+      expect(f.characteristic.notifying, isTrue);
+      await f.session.clearDevice(f.device.address);
+      expect(f.characteristic.properties.hasListener, isFalse);
+      expect(f.characteristic.stops, 0);
+      // Control: with the cache intact, the same final-client release reaches BlueZ.
+      f.device.servicesResolved = true;
+      await f.notify();
+      await f.session.stopNotificationsForClient(f.device.address);
+      expect(f.characteristic.stops, 1);
+      expect(f.characteristic.notifying, isFalse);
+      // Desired correction: release ownership must survive cache invalidation.
     },
   );
 
@@ -298,7 +328,7 @@ void main() {
   test(
     'late StartNotify after clear releases native notify without a watch',
     () async {
-      f.characteristic.startGate = Completer<void>();
+      f.characteristic.startGate = FutureGate();
       final pending = f.notify();
       final canceled = expectLater(
         pending.timeout(const Duration(seconds: 1)),
@@ -313,7 +343,7 @@ void main() {
       await pumpEventQueue();
       expect(f.characteristic.starts, 1);
       await f.session.clearDevice(f.device.address);
-      f.characteristic.startGate!.complete();
+      f.characteristic.startGate!.release();
       await canceled;
       expect(f.characteristic.stops, 1);
       expect(f.characteristic.properties.hasListener, isFalse);
@@ -333,7 +363,7 @@ void main() {
   test(
     'retired notify setup settles before overlapping retry claims',
     () async {
-      final gate = Completer<void>();
+      final gate = FutureGate();
       f.characteristic.startGate = gate;
       final old = f.notify();
       final canceled = expectLater(old, throwsA(isA<QuickBlueException>()));
@@ -343,7 +373,7 @@ void main() {
       final retry = f.notify();
       await pumpEventQueue();
       final startsBeforeRetiredCompletion = f.characteristic.starts;
-      gate.complete();
+      gate.release();
       await canceled.timeout(const Duration(seconds: 1));
       await retry.timeout(const Duration(seconds: 1));
       expect(startsBeforeRetiredCompletion, 1);
@@ -653,10 +683,10 @@ class _Characteristic implements BlueZGattCharacteristic {
   final properties = StreamController<List<String>>.broadcast();
   final writes = <(List<int>, BlueZGattCharacteristicWriteType?)>[];
   Object? error;
+  FutureGate? startGate;
   int starts = 0;
   int stops = 0;
   int reads = 0;
-  Completer<void>? startGate;
   Completer<void>? stopGate;
   Object? stopError;
   @override
@@ -689,8 +719,11 @@ class _Characteristic implements BlueZGattCharacteristic {
   @override
   Future<void> startNotify() async {
     starts++;
-    await startGate?.future;
     _checkError();
+    final gate = startGate;
+    if (gate != null) {
+      await gate.suspend();
+    }
     notifying = true;
   }
 

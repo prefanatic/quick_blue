@@ -81,6 +81,6 @@ readable one. Only enable write defines with a known safe command and writable
 UUID pair. A benchmark requires the notify service/characteristic UUIDs; its
 reported throughput is specific to your peripheral and host, not a plugin guarantee.
 
-All 66 compile-time inputs, including deadlines omitted from the older example
-README, are listed in [Dart defines](example-options.md). See [testing](testing.md)
+See [Dart defines](example-options.md) for integration-test inputs and defaults,
+and [testing](testing.md)
 for baseline, stress, multi-engine and Windows recipes.

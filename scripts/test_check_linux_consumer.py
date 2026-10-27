@@ -33,9 +33,15 @@ class ConsumerTests(unittest.TestCase):
                 calls.append(args)
                 if args[1] == "create":
                     (app / "lib").mkdir(parents=True)
+                    # Model first-run Flutter bootstrap, not consumer pub get.
+                    template_cache = Path(kwargs["env"]["PUB_CACHE"])
+                    self.assertNotEqual(template_cache, cache)
+                    (template_cache / "flutter-bootstrap").touch()
                     if dirty:
                         (cache / "seed").touch()
                 if args[1:3] == ("pub", "get"):
+                    self.assertEqual(Path(kwargs["env"]["PUB_CACHE"]), cache)
+                    self.assertEqual(list(cache.iterdir()), [])
                     (app / ".dart_tool").mkdir()
                     (app / ".dart_tool/package_graph.json").write_text(json.dumps(graph))
                     (app / ".dart_tool/package_config.json").write_text(json.dumps(config))

@@ -41,19 +41,31 @@
 
 ### Fixed
 
+- Classify Darwin GATT native `Disconnected` failures as `remoteDisconnected`
+  without inferring causes from messages or changing security/cancellation errors.
+
+- Isolate Flutter template bootstrap from external Linux consumer dependency
+  resolution, retaining the assertion that the consumer Pub cache starts empty.
+
 - Close notification streams after terminal setup failure with one error followed
   by done, without requiring consumer cancellation. Preserve acquired-claim
   cleanup after pending setup settles, shared last-owner teardown and mode
-  conflicts; controlled-future tests establish Dart lifecycle behavior only.
+  conflicts.
 
 - Restore raw characteristic `valueStream` routing when a retained stream is
   listened to again after cancellation. Old and fresh getter streams can overlap
   without either stream's cancellation evicting the other's active listeners.
-  Native notification setup/teardown is unchanged; injected-event regressions
-  verify Dart routing, not hardware notification delivery.
+  Native notification setup/teardown is unchanged.
+- Repair Darwin Dart L2CAP listener ordering, terminal open failures, observable
+  sink bridge failures, exactly-once sink close and bounded late-open cleanup;
+  leave native Swift and Pigeon APIs unchanged.
+- Make closing a remote-closed Darwin L2CAP sink a no-op so stale cleanup cannot
+  close a replacement socket; cover late close/write bridge reply isolation.
 
 ### Added
 
+- Document unresolved Linux discovery and notification teardown gaps with
+  deterministic fake-BlueZ regression cases; these do not fix native cleanup.
 - Add a side-effect-free Windows VM launch-argument dry run and executed shell
   regression coverage; bind console TCP and RDP TCP/UDP to loopback by default
   and require explicit opt-in for non-loopback exposure.
@@ -66,19 +78,18 @@
   the snapshot or target event never arrives; concurrent observers remain
   independent. Stopping observation does not initiate, modify, or cancel bonding.
 
+- Add bounded regression tests for Linux L2CAP retry/receive loops and resource
+  cleanup. Persistent-loop cases document failures; socket behavior is unchanged.
+
 - Reject docs-site links that resolve outside the site root, including decoded
   traversal and symlink targets, while preserving internal parent-relative links.
 - Add hermetic docs-site, release-metadata and Linux consumer-construction
   regressions to documentation CI under normal and optimized Python. Keep site
   and consumer validation failures enabled under optimization, and reject release
-  constraint prefix drift and duplicate dependency declarations. Fixture results
-  prove maintenance-tool behavior only, not deployment or native/hardware behavior.
+  constraint prefix drift and duplicate dependency declarations.
 - Migrate the explorer to public connection lifecycle methods with one connect
   deadline, bounded client-local abandonment, awaitable shutdown and observable
-  cleanup errors. Cover deadlines, late events, switching and simulated client
-  isolation with fake-clock tests; native connection behavior is unchanged.
-
-
+  cleanup errors. Native connection behavior is unchanged.
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.
@@ -112,11 +123,7 @@
   Pages workflow that validates pull requests before upstream-only deployment.
 
 - Add a source-linked OKF v0.2 knowledge bundle covering setup, device workflows,
-  platform capabilities, L2CAP, diagnostics and verification, plus an ongoing
-  requirement in both agent and contribution instructions to read, update and
-  verify the bundle as part of ordinary repository changes. Keep the bundle
-  without a separate update log or generation metadata; regression-test the
-  documentation quality gate while preserving source and link validation.
+  platform capabilities, L2CAP, diagnostics and verification.
 
 - Add subscription-owned `maintainConnection` with bounded exponential
   backoff, retry exhaustion errors, and explicit cancellation/disconnect

@@ -4,7 +4,7 @@ title: "Known boundaries and pitfalls"
 description: "Distinguish implemented support from runtime readiness and hardware evidence."
 tags: ["limitations", "platforms"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_linux/lib/quick_blue_linux.dart"}, {"id": "source2", "resource": "../quick_blue_windows/lib/src/quick_blue_windows.dart"}, {"id": "source3", "resource": "../quick_blue_darwin/test/quick_blue_darwin_test.dart"}, {"id": "source4", "resource": "../quick_blue/example/integration_test/android_multi_engine_test.dart"}, {"id": "source5", "resource": "../quick_blue/example/integration_test/ios_multi_engine_test.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue_linux/lib/quick_blue_linux.dart"}, {"id": "source2", "resource": "../quick_blue_windows/lib/src/quick_blue_windows.dart"}, {"id": "source3", "resource": "../quick_blue_darwin/test/quick_blue_darwin_test.dart"}, {"id": "source4", "resource": "../quick_blue/example/integration_test/android_multi_engine_test.dart"}, {"id": "source5", "resource": "../quick_blue/example/integration_test/ios_multi_engine_test.dart"}, {"id": "gatt_tests", "resource": "../quick_blue_linux/test/gatt_session_test.dart"}, {"id": "gatt_session", "resource": "../quick_blue_linux/lib/src/gatt_session.dart"}, {"id": "gate", "resource": "../quick_blue_linux/test/test_support/future_gate.dart"}]
 ---
 
 # Known boundaries and pitfalls
@@ -21,6 +21,32 @@ sources: [{"id": "source1", "resource": "../quick_blue_linux/lib/quick_blue_linu
 | Chunked writes implement long-write/reassembly | Choose your own framing and acknowledgement protocol |
 | Shared engines share Dart objects | Recreate local handles/subscriptions and coordinate handoff |
 | Persistent restoration can precede accessory picker | Choose one startup flow; the picker must run first |
+
+## Linux GATT teardown characterization
+
+Linux teardown does not reliably stop pending discovery or notification setup.
+The `characterization:` tests in
+[`gatt_session_test.dart`](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/gatt_session_test.dart)
+reproduce these unresolved lifetime gaps with fake BlueZ objects:
+
+| Controlled ordering | Observed fake-BlueZ result |
+| --- | --- |
+| Pending `ServicesResolved`, then clear, replacement discovery, then old resolution | Old waiter survives clear; replacement completes first, then old resolution emits a second discovery and completion. |
+| `StartNotify` suspended until client release and clear finish | Teardown makes zero `StopNotify` calls; resumed setup installs a watch and emits initial `[0]` and later `[6]`. Later client release also makes zero calls with its cache cleared. |
+| Enable notifications, invalidate cache with `ServicesResolved=false`, then release and clear | Listener survives invalidation; release and clear make zero `StopNotify` calls and the fake stays notifying. Cache-intact control makes exactly one call and stops notifying. |
+
+Run from the repository root:
+
+```sh
+(cd quick_blue_linux && flutter test test/gatt_session_test.dart \
+  --plain-name 'characterization:' --reporter expanded)
+```
+
+The tests control ordering explicitly. A replacement is a new fake object at the
+same address, not a physical reconnect. Passing these assertions confirms the
+gaps still exist; it does not establish safe teardown, real BlueZ cleanup or
+D-Bus ownership release. Do not assume cancellation prevents late discovery
+events or releases native notification ownership.
 
 ## Verification gaps
 
@@ -48,6 +74,24 @@ also prevents a hosted release.
   verify adapter behavior for every native knob.
 - Darwin type checking on Linux uses stubs and cannot verify platform runtime
   callbacks or background relaunch.
+- Android queue characterization in
+  `quick_blue/android/src/test/kotlin/com/example/quick_blue/GattQueueStallCharacterizationTest.kt`
+  proves JVM state-machine behavior only: an accepted operation without a callback
+  blocks later admission; teardown clears active/queued state; detached clients
+  receive no settlement callback at admission or teardown. Resource-loss draining
+  admits in FIFO order but dispatches disconnected callbacks in reverse order
+  through recursive advancement. Queue completion returns an operation without
+  delivering its success callback and has no GATT identity argument: bypassing
+  the broker gate after reconnect returns the replacement operation for a
+  same-kind late completion. The broker's `isCurrentGatt` checks in
+  `quick_blue/android/src/main/kotlin/com/example/quick_blue/AndroidGattBroker.kt`
+  are inspection-only evidence here, not an executed old-GATT callback test.
+  A fix must settle dropped clients explicitly and include tests that
+  prove stale callbacks cannot settle replacement work at the identity gate
+  (instrumented) or an identity-aware queue boundary. These tests do not fix
+  the gaps or add timer-based recovery. The start-throw path
+  remains untested: JVM `android.util.Log.e` is not mocked; covering it requires
+  injectable logging or Android test configuration.
 
 Do not add platform guarantees based on another platform's tests. Report hardware
 or host unavailability explicitly. Android bounded disconnect reconciliation is

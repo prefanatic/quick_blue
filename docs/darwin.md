@@ -9,6 +9,15 @@ sources: [{"id": "source1", "resource": "../quick_blue_darwin/darwin/quick_blue_
 
 # Darwin restoration and accessory setup
 
+## GATT disconnect failures
+
+Pending reads, writes and notification updates rejected with native structured
+`Disconnected` carry `QuickBlueFailureReason.remoteDisconnected` while retaining
+the broad `invalidState` code and operation/native diagnostics. An `InvalidState`
+message mentioning a disconnect does not establish this cause. Structured security
+errors retain their security exception classification; caller cancellation is not
+reclassified. This is an error classification, not permission to replay writes.
+
 ## Persistent restoration
 
 For reliable iOS background relaunch, configure native startup before Dart runs.

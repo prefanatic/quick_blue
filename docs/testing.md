@@ -4,13 +4,40 @@ title: "Verify repository changes"
 description: "Select package, native and hardware checks and record precise evidence."
 tags: ["development", "testing", "ci"]
 
-sources: [{"id": "source1", "resource": "../.github/workflows/ci.yml"}, {"id": "source2", "resource": "../AGENTS.md"}, {"id": "source3", "resource": "../CONTRIBUTING.md"}, {"id": "source4", "resource": "../scripts/publish-packages.sh"}, {"id": "source5", "resource": "../scripts/windows-integration-test.sh"}, {"id": "site-tests", "resource": "../scripts/test_check_docs_site.py"}, {"id": "release-tests", "resource": "../scripts/test_publish_packages.py"}, {"id": "consumer-tests", "resource": "../scripts/test_check_linux_consumer.py"}, {"id": "maintenance-ci", "resource": "../.github/workflows/docs.yml"}]
+sources: [{"id": "source1", "resource": "../.github/workflows/ci.yml"}, {"id": "source2", "resource": "../AGENTS.md"}, {"id": "source3", "resource": "../CONTRIBUTING.md"}, {"id": "source4", "resource": "../scripts/publish-packages.sh"}, {"id": "source5", "resource": "../scripts/windows-integration-test.sh"}, {"id": "site-tests", "resource": "../scripts/test_check_docs_site.py"}, {"id": "release-tests", "resource": "../scripts/test_publish_packages.py"}, {"id": "consumer-tests", "resource": "../scripts/test_check_linux_consumer.py"}, {"id": "maintenance-ci", "resource": "../.github/workflows/docs.yml"}, {"id": "linux-dev", "resource": "../quick_blue_linux/pubspec.yaml"}, {"id": "linux-generator", "resource": "../quick_blue_linux/ffigen.yaml"}]
 ---
 
 # Verify repository changes
 
 Run commands from the repository root unless a subshell below changes directory.
-CI pins Flutter `3.47.6`; package minimum versions are not the CI version.
+CI keeps the primary Flutter `3.47.6` pin and separately exercises the declared
+minimum Flutter `3.44.2` / Dart `3.12.2` with fresh resolution, root analysis and
+all six package test suites. The verification step uses an isolated pub cache and no
+Flutter action cache; it proves Dart compatibility, not native or BLE behavior.
+
+To reproduce locally, select an isolated Flutter `3.44.2` SDK (do not replace the
+host SDK), then run:
+
+```sh
+export PATH="/absolute/path/to/flutter-3.44.2/bin:$PATH"
+export PUB_CACHE="$PWD/.dart_tool/pub-cache-minimum"
+flutter --version
+flutter pub get
+flutter pub deps --json
+flutter analyze
+for package in quick_blue quick_blue/example quick_blue_darwin quick_blue_linux quick_blue_platform_interface quick_blue_windows; do
+  (cd "$package" && flutter test) || exit
+done
+```
+
+Linux's development-only ffigen pin is `21.0.0`: version `22.0.0` pulls
+`code_assets ^2.0.0` / `hooks ^2.2.0` / `record_use ^1.0.0`, requiring
+`meta ^1.19.0`, while Flutter `3.44.2` pins `meta 1.18.0`. On Fedora,
+regenerate with `dart run ffigen --config ffigen.yaml --compiler-opts
+'-I/usr/lib/clang/22/include'` inside `quick_blue_linux` when libclang's bundled
+resource headers are not found automatically. This host-specific include path
+is not a portable default. Dependency resolution is time-dependent because the
+workspace lockfile is ignored; retain the dependency snapshot with test evidence.
 
 ## Select checks
 
@@ -124,7 +151,7 @@ prefix escapes, resolved dot-segment/encoded/relative traversal, file and direct
 symlink escapes (where supported), valid parent-relative links and search assets.
 Release fixtures check version/constraint drift,
 malformed version values, dependency membership and usage errors before a logging
-Dart stand-in can run. Bash itself has no Python optimization mode.
+Dart stand-in can run.
 
 Consumer fixtures mock command execution and synthesize package graphs/configs;
 they check Git dependency quoting/overrides, isolated roots and dependencies,
@@ -160,6 +187,12 @@ cleanup. Neither path cancels OS pairing. Do not add this failing reproduction
 to the normal package suite.
 
 ## Native and generated boundaries
+
+The external Git-consumer check (`python3 scripts/check-linux-consumer.py`)
+isolates Flutter template bootstrap in a separate Pub cache: a cold SDK can
+populate it even with `flutter create --no-pub`. The consumer cache must remain
+empty immediately before dependency resolution; fixtures also reject a dirty
+consumer cache. Each external consumer is analyzed and built for Linux.
 
 | Change | Check |
 | --- | --- |
@@ -273,6 +306,50 @@ Dockur persists `.dart_tool/dockur_windows/`; the guest caches its checkout at
 `C:\quick_blue_workspace\quick_blue`. `QUICK_BLUE_WINDOWS_CLEAN_WORKTREE=1`
 refreshes checkout without reinstalling Windows. `QUICK_BLUE_WINDOWS_RESET=1`
 rebuilds the VM disk; do not use it for routine reruns.
+
+## Linux L2CAP syscall characterization
+
+Run the real channel control flow against scripted syscall wrappers, without
+loading BlueZ or opening a Bluetooth socket:
+
+```sh
+(cd quick_blue_linux && flutter test test/l2cap_channel_test.dart \
+  test/l2cap_harness_test.dart --reporter expanded)
+(cd quick_blue_linux && flutter test --reporter expanded)
+(cd quick_blue_linux && flutter analyze)
+(cd quick_blue/example && flutter build linux --debug)
+```
+
+The [channel tests](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/l2cap_channel_test.dart) cover exact
+bytes for success, partial sends, finite EINTR and EAGAIN, failed connect (including
+the eight-attempt EINTR limit), send/receive closure and allocation/fd cleanup.
+The `Libc`/`LibBluetooth` wrappers supply scripted calls. The counting
+allocator delegates to real zeroed allocations; fd counts describe fake ownership,
+not kernel descriptors.
+
+The [parent watchdog](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/l2cap_harness_test.dart) launches
+separate Dart processes for persistent first-chunk EINVAL, send/recv EINTR,
+always-readable receive and zero-byte send. It waits at most 15 seconds for the
+armed record, observes for 500 ms, then sends SIGKILL and waits at most five seconds
+for process exit/reaping. Cleanup also kills/reaps on assertion/startup failure.
+JSON records include the actual exit code, elapsed time, syscall/ownership counters,
+main-isolate heartbeat and an independent reporter-isolate heartbeat. Do not run
+the child runner directly: its non-yielding cases cannot be stopped by Dart timers.
+For a safely bounded single reproduction:
+
+```sh
+(cd quick_blue_linux && flutter test test/l2cap_harness_test.dart \
+  --plain-name 'send-einval: watchdog termination is failure characterization' \
+  --reporter expanded)
+```
+
+The watchdog assertions characterize
+non-yielding send/receive loops, versus zero-send's responsive but non-completing
+retry loop. SIGKILL is **failure characterization, never successful operation or
+channel cleanup**: live allocations/fake fds in the last snapshot remain owned
+until process termination, which does not execute channel finalizers. These tests
+and the example build prove scripted control flow and compilation only, not a
+working L2CAP peripheral, real syscalls, MTU negotiation or native readiness.
 
 ## Report evidence, not assumptions
 

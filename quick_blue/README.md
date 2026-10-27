@@ -482,17 +482,21 @@ Prefer keeping a `BluetoothDevice` handle when performing more than one
 operation. The deprecated static connection, discovery, and characteristic
 methods delegate through the same handle API.
 
-Only one connect or disconnect operation may be pending for a device. Calling
+Only one connect or disconnect operation may be pending for a device. Concurrent
+same-kind callers share outstanding work with independent optional `timeout`
+and `cancellationToken` waits. Calling
 `disconnect()` during a pending `connect()` supersedes it: the connect completes
 with `QuickBlueErrorCode.cancelled`, then the native device disconnects. A later
 `connect()` likewise supersedes a disconnect still waiting for its terminal
-native callback. Other overlapping operations of the same kind fail with
-`QuickBlueErrorCode.invalidState`. Different devices can connect concurrently.
+native callback. Different devices can connect concurrently.
 
 This makes it safe to follow a caller-side `connect().timeout(...)` with
 `disconnect()` before retrying, or to reconnect after a caller-side disconnect
-timeout. Android bounds final-client native teardown and ignores callbacks from
-the retired GATT after a replacement connection starts.
+timeout. Caller timeout/cancellation does not abort native work or release this
+engine's ownership. Retries without an intervening disconnect join outstanding
+work. See [connection lifetimes](../docs/connections.md) for deadline, cancellation
+and typed-failure semantics. Android bounds final-client native teardown and
+ignores callbacks from the retired GATT after a replacement connection starts.
 
 Concurrent service-discovery calls for one device share the same result. A
 disconnect cancels any pending discovery with `QuickBlueErrorCode.cancelled`,

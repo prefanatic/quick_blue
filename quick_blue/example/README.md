@@ -26,8 +26,8 @@ The integration smoke test scans for nearby BLE advertisements, tries to connect
 to matching devices, discovers services, reads a discovered readable
 characteristic, optionally writes a caller-provided characteristic, and
 disconnects. It is headless: no manual device picker is shown. Set
-`QUICK_BLUE_HIDE_TEST_WINDOW=1` for desktop agent runs that should not show a
-visible app window. Run it against any supported Flutter target with Bluetooth
+`QUICK_BLUE_HIDE_TEST_WINDOW=1` to hide the desktop app window.
+Run it against any supported Flutter target with Bluetooth
 LE hardware and permissions; for example:
 
 ```sh
@@ -103,7 +103,7 @@ flutter test integration_test/ble_smoke_test.dart -d linux \
   --dart-define=QUICK_BLUE_SMOKE_PROFILE=valve_lighthouse
 ```
 
-Use `xvfb-run` for headless Linux agents:
+Use `xvfb-run` on headless Linux:
 
 ```sh
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
@@ -112,11 +112,7 @@ QUICK_BLUE_HIDE_TEST_WINDOW=1 \
 ```
 
 The built-in `valve_lighthouse` profile matches `LHB-*` advertisements and a
-Valve Lighthouse manufacturer-data prefix (`00 02`). Example captured
-advertisements:
-
-- `CB:48:BE:B2:AC:69` / `LHB-DD207A0C`: `00 02 02 01 00 06 00`
-- `F7:CA:86:52:A9:1D` / `LHB-9433D15E`: `00 02 01 01 00 06 00`
+Valve Lighthouse manufacturer-data prefix (`00 02`).
 
 Add device-specific values after a scan captures them:
 
@@ -138,7 +134,7 @@ Example targeted GATT service run:
 
 ```sh
 flutter test integration_test/ble_smoke_test.dart -d linux \
-  --dart-define=QUICK_BLUE_SMOKE_DEVICE_ID='CB:48:BE:B2:AC:69' \
+  --dart-define=QUICK_BLUE_SMOKE_DEVICE_ID='DEVICE_ID' \
   --dart-define=QUICK_BLUE_SMOKE_EXPECTED_SERVICE_UUIDS='1800,1801,180a' \
   --dart-define=QUICK_BLUE_SMOKE_CONNECT_TIMEOUT_SECONDS=30
 ```
@@ -289,7 +285,7 @@ SwitchBot Meter-style command/notification response benchmark:
 ```sh
 QUICK_BLUE_HIDE_TEST_WINDOW=1 \
   flutter test integration_test/ble_characteristic_benchmark_test.dart -d linux \
-    --dart-define=QUICK_BLUE_BENCHMARK_DEVICE_ID='D1:B4:29:F5:B8:7D' \
+    --dart-define=QUICK_BLUE_BENCHMARK_DEVICE_ID='DEVICE_ID' \
     --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_SERVICE_UUID='cba20d00-224d-11e6-9fb8-0002a5d5c51b' \
     --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_CHARACTERISTIC_UUID='cba20003-224d-11e6-9fb8-0002a5d5c51b' \
     --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_WRITE_SERVICE_UUID='cba20d00-224d-11e6-9fb8-0002a5d5c51b' \

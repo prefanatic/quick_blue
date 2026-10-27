@@ -62,7 +62,9 @@ final notifications = characteristic.notifications().listen(
 await notifications.cancel();
 ```
 
-Concurrent listeners share native setup; the final listener disables it. Use
+Concurrent listeners share native setup; the final listener requests its release.
+Linux has reproduced [fake-BlueZ teardown gaps](limitations.md#linux-gatt-teardown-characterization);
+do not interpret cancellation as proof of native cleanup. Use
 `valueStream` plus `setNotifiable(...)` only when setup/teardown must be managed
 separately (listen before enabling).
 
@@ -146,11 +148,26 @@ upper bound, not a recommended application frame size.
 Query `await characteristic.maximumWriteValueLength(mode)` after connecting
 and again after reconnecting. Darwin returns CoreBluetooth's per-mode maximum;
 Android, Linux and Windows return `null` (unknown), not an MTU-derived guess.
-Darwin rejects oversized writes and fails fast with `invalidState` when its
-without-response buffer is full. The caller owns any retry budget; awaiting a
-previous handoff is not proof that buffer space is available. See the
-[repository write/backpressure reference](https://github.com/prefanatic/quick_blue#write-payload-limits-and-backpressure)
-for platform-specific completion boundaries.
+Darwin queries CoreBluetooth's `maximumWriteValueLength(for:)` independently for
+each mode, so acknowledged and unacknowledged writes may have different limits.
+A transport limit does not guarantee a characteristic's application-level length.
+
+### Write payload limits and backpressure
+
+Writes without response never confirm receipt or processing by the peripheral:
+
+| Platform | Future completion and backpressure |
+| --- | --- |
+| iOS/macOS | Completes after CoreBluetooth handoff. Rejects before handoff with `invalidState` when `canSendWriteWithoutResponse` is false; the caller decides when to retry. Oversized writes are rejected against the native limit for the selected mode. |
+| Android | The shared per-device GATT queue serializes operations and completes on `onCharacteristicWrite`. Failure to initiate or a failing native status is an error, not a successful handoff. |
+| Linux | Completes on the BlueZ `WriteValue` D-Bus reply with type `command`. BlueZ busy/in-progress and other errors propagate; no automatic busy retry. |
+| Windows | Completes when WinRT `WriteValueAsync` returns success for `WriteWithoutResponse`. Failing communication statuses and native errors propagate; no automatic busy retry. |
+
+Await writes sequentially. Darwin's busy rejection is fail-fast, not an internal
+queue or a readiness subscription: awaiting a previous handoff does not ensure
+the next write will fit its buffer. Choose any retry delay and retry budget in
+the application. Writes with response await the platform's acknowledged-write
+result. Chunked writes add no automatic reassembly or application ACKs.
 
 ## Database changes invalidate snapshots
 
