@@ -69,6 +69,9 @@ enum BluetoothConnectedDeviceLookupCapability {
 
   /// At least one service UUID must be supplied for lookup.
   requiresServiceUuids,
+
+  /// System-wide connected-device enumeration is unavailable.
+  unsupported,
 }
 
 /// Runtime capabilities of the active Quick Blue platform implementation.

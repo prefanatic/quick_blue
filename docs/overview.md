@@ -10,7 +10,7 @@ sources: [{"id": "source1", "resource": "../pubspec.yaml"}, {"id": "source2", "r
 # Choose quick_blue
 
 Use Quick Blue for a shared Flutter BLE API on Android, iOS, macOS, Windows,
-and Linux. Keep application policy (permissions, timeouts, framing, telemetry)
+Linux, and supported [Web Bluetooth browsers](web.md). Keep application policy (permissions, timeouts, framing, telemetry)
 explicit; use [capabilities](capabilities.md) for platform differences.
 
 ## Package map
@@ -22,6 +22,7 @@ explicit; use [capabilities](capabilities.md) for platform differences.
 | `quick_blue_darwin/` | iOS/macOS CoreBluetooth and Swift |
 | `quick_blue_linux/` | BlueZ, D-Bus and native L2CAP bindings |
 | `quick_blue_windows/` | WinRT and C++ |
+| `quick_blue_web/` | Browser chooser and authorized GATT; not raw scanning |
 | `quick_blue/example/` | Explorer UI and integration tests |
 
 Import `package:quick_blue/quick_blue.dart`. Prefer `QuickBlue.device(id)` and

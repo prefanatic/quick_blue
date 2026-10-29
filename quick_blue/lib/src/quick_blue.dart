@@ -163,6 +163,18 @@ class QuickBlue {
   /// Creating a handle does not connect or validate that the device is nearby.
   static BluetoothDevice device(String deviceId) => _platform.device(deviceId);
 
+  /// Opens the Web Bluetooth chooser directly from a user gesture.
+  /// This returns an authorized handle, not an advertisement or connection.
+  static Future<BluetoothDevice> requestDevice({
+    List<String> serviceUuids = const [],
+    List<String> optionalServices = const [],
+    String? namePrefix,
+  }) => _platform.requestDevice(
+    serviceUuids: serviceUuids,
+    optionalServices: optionalServices,
+    namePrefix: namePrefix,
+  );
+
   /// Returns handles for devices already connected at the system level.
   ///
   /// iOS and macOS require [serviceUuids] for CoreBluetooth lookup.

@@ -1,7 +1,10 @@
 # quick_blue
 
 `quick_blue` is a federated Flutter plugin for Bluetooth Low Energy (BLE) on
-Android, iOS, macOS, Windows, and Linux.
+Android, iOS, macOS, Windows, Linux, and supported Web Bluetooth browsers.
+
+Web uses a direct-gesture `QuickBlue.requestDevice` chooser instead of raw
+scanning. See the [browser setup and hardware runbook](../docs/web.md).
 
 - [Example app](https://github.com/prefanatic/quick_blue/tree/master/quick_blue/example)
 - [Changelog](https://github.com/prefanatic/quick_blue/blob/master/quick_blue/CHANGELOG.md)
@@ -36,6 +39,7 @@ rules. This package README remains a package-level introduction and usage guide.
 | macOS | 10.15 |
 | Windows | Windows 10 or 11 with a BLE adapter |
 | Linux | BlueZ with a BLE adapter |
+| Web | Supported Chromium browser, HTTPS/localhost, user-gesture chooser |
 
 ## Install
 
@@ -71,9 +75,14 @@ dependency_overrides:
       url: https://github.com/prefanatic/quick_blue.git
       ref: master
       path: quick_blue_windows
+  quick_blue_web:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_web
 ```
 
-For reproducible builds, replace `master` with a tested commit SHA in all five
+For reproducible builds, replace `master` with a tested commit SHA in all six
 entries. If these changes become available in a hosted release, replace the Git
 dependency and overrides with the corresponding version constraint.
 
@@ -832,6 +841,13 @@ current OS and device; use `bluetoothStateStream` for changing power and
 authorization state.
 
 ## Platform support
+
+Web supports chooser access and authorized GATT connect/disconnect, discovery,
+read/write and notifications. Native scanning, connected-device lookup, bonding,
+MTU, service-change events, L2CAP and native accessory APIs are unsupported.
+Availability is only an adapter/API hint; the state snapshot reports unknown
+when available. See the canonical [capability matrix](../docs/capabilities.md)
+and [web lifetime/security limits](../docs/web.md). The table below is native-only.
 
 | API | Android | iOS | macOS | Windows | Linux |
 | :--- | :---: | :---: | :---: | :---: | :---: |

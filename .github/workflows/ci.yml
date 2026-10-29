@@ -25,6 +25,37 @@ env:
 # MACOS_RUNNER: "macos-latest"
 # WINDOWS_RUNNER: "windows-latest"
 jobs:
+  web:
+    name: Web Bluetooth browser contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - name: Browser simulator contracts (not radio evidence)
+        run: |
+          set -o pipefail
+          cd quick_blue_web
+          flutter test --platform chrome --reporter expanded 2>&1 | tee browser-tests.log
+          cd ../quick_blue/example
+          flutter test test/web_hardware_ui_test.dart --platform chrome --dart-define=QUICK_BLUE_SOURCE_SHA=${{ github.sha }} --reporter expanded
+      - name: Build hardware entry point
+        run: |
+          cd quick_blue/example
+          flutter build web --target lib/web_bluetooth_hardware.dart --dart-define=QUICK_BLUE_SOURCE_SHA=${{ github.sha }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: web-bluetooth-browser-evidence
+          path: |
+            quick_blue_web/browser-tests.log
+            quick_blue/example/build/web
+
   changes:
     name: Changes
     runs-on: ubuntu-latest

@@ -25,6 +25,7 @@ nav = [
   ] },
   { "Platform and diagnostics reference" = [
     { "Capability matrix" = "capabilities.md" },
+    { "Web Bluetooth" = "web.md" },
     { "Android companion association" = "android.md" },
     { "Darwin restoration and accessories" = "darwin.md" },
     { "Observability" = "observability.md" },

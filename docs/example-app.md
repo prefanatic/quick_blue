@@ -42,6 +42,10 @@ new same-device native attempt cannot be distinguished solely by Dart UI guards.
 
 ## Choose the right hardware test
 
+For web, use `lib/web_bluetooth_hardware.dart` rather than the native scanning
+explorer. The [browser runbook](web.md) covers gesture selection, safe profile
+configuration, bounded loops, manual cancel/loss checks and JSON export.
+
 | Test | Purpose | Important boundary |
 | --- | --- | --- |
 | `ble_smoke_test.dart` | Scan, connect, discover, read; opt-in write | Missing Bluetooth fails; no universally safe write |

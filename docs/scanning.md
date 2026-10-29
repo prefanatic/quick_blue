@@ -9,6 +9,10 @@ sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/sr
 
 # Scan results and filters
 
+These scan APIs are native-only. On [web](web.md), invoke
+`QuickBlue.requestDevice` directly from a gesture. Chooser results are authorized
+device handles, never fabricated advertisement telemetry.
+
 Choose `QuickBlue.scan()` for device handles, or `scanResults()` for advertisement
 name, RSSI, service UUIDs, service data and manufacturer bytes.
 

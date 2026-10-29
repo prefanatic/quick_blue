@@ -50,6 +50,12 @@ events or releases native notification ownership.
 
 ## Verification gaps
 
+- Web Bluetooth browser simulator tests and web builds do not prove permission
+  UI or real-radio behavior. The [browser hardware path](web.md) exports explicit
+  stage outcomes; hardware acceptance remains pending until run on a known
+  peripheral. Browsers cannot provide raw advertisements, system-connected
+  lookup, bonding, MTU, L2CAP or cross-tab/native-engine ownership guarantees.
+
 - Runtime BLE multi-engine suites exist for Android and iOS. Other ownership
   implementations have unit/native coverage, not equivalent runtime suites.
 - AccessorySetupKit and Android companion association have Dart host-API mapping

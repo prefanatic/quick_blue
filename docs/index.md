@@ -23,6 +23,7 @@ okf_version: "0.2"
 ## Platform and diagnostics reference
 
 - [Runtime capability matrix](capabilities.md) - Gate optional APIs using modes rather than assuming uniform platform support.
+- [Web Bluetooth and hardware loops](web.md) - Select authorized browser devices and distinguish simulator, build and real-radio evidence.
 - [Android companion association](android.md) - Keep companion UI separate from BLE connections and check OS support.
 - [Darwin restoration and accessory setup](darwin.md) - Choose a restoration-first or AccessorySetupKit-first startup flow.
 - [Observe operations without leaking device data](observability.md) - Adapt typed operation lifecycles to telemetry and redact sensitive context.

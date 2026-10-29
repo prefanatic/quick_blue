@@ -127,7 +127,7 @@ the workflow's upstream guard together.
 
 ## Release metadata
 
-All five publishable packages share a version. In the same change, bump every
+All six publishable packages share a version. In the same change, bump every
 package's `pubspec.yaml` version and align federated constraints: each platform
 package depends on `quick_blue_platform_interface` at that version and the
 app-facing package pins all federated packages. The script enforces these

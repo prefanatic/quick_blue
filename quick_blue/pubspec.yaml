@@ -17,6 +17,7 @@ dependencies:
   quick_blue_darwin: ^0.5.0
   quick_blue_windows: ^0.5.0
   quick_blue_linux: ^0.5.0
+  quick_blue_web: ^0.5.0
   convert: ^3.0.0
   meta: ^1.18.0
 
@@ -50,6 +51,8 @@ flutter:
         default_package: quick_blue_windows
       linux:
         default_package: quick_blue_linux
+      web:
+        default_package: quick_blue_web
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:

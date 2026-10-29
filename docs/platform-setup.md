@@ -62,6 +62,13 @@ Use Windows 10 1809+ or Windows 11 with a working BLE adapter. Normal app use
 needs no additional manifest changes. Native builds need Visual Studio's C++
 desktop workload, C++/WinRT, and `nuget.exe` on PATH.[^source4]
 
+## Web
+
+Use HTTPS or trusted localhost and a Chromium browser exposing Web Bluetooth.
+Call `QuickBlue.requestDevice` directly from a user gesture; declare all needed
+services before selection. Linux may need the experimental web platform flag.
+Permission/policy restrictions still apply. See [browser setup and hardware loops](web.md).
+
 Next: [quick start](quickstart.md), [capabilities](capabilities.md).
 
 [^source1]: Android plugin manifest.
