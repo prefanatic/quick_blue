@@ -69,6 +69,10 @@ protecting it from peer disconnect or close.
 The old native observer is retired so delayed disconnect events cannot disturb
 pending reattachment.
 
+The [executable Dart adapter contracts](docs/testing.md#dart-adapter-contracts)
+cover fake messenger/BlueZ behavior, not native or hardware certification.
+
+
 ## Try the BLE explorer
 
 Run the [example app](quick_blue/example/README.md) to scan for devices and

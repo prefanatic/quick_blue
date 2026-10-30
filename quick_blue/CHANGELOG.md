@@ -154,6 +154,8 @@
 - Add bounded regression tests for Linux L2CAP retry/receive loops and resource
   cleanup. Persistent-loop cases document failures; socket behavior is unchanged.
 
+- Add executable Dart adapter contracts for Android, Darwin, Windows and fake
+  BlueZ/Linux; document event-only Windows reads and the mock-only proof boundary.
 - Reject docs-site links that resolve outside the site root, including decoded
   traversal and symlink targets, while preserving internal parent-relative links.
 - Add hermetic docs-site, release-metadata and Linux consumer-construction
