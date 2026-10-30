@@ -32,6 +32,12 @@ provides adapter/device selection and opt-in pairing, reads, writes and notifica
 do not test a physical Raspberry Pi or Bluetooth radio.
 
 
+On Android 17, security recovery passively coordinates with explicitly observed
+system-managed bond repair, including when Android retains the old bond. Android
+owns confirmation UI and key replacement; an app timeout does not establish
+that system repair failed. Missing repair evidence retains conservative legacy
+behavior. See [pairing and security recovery](docs/pairing.md).
+
 
 ## Get started
 
@@ -103,6 +109,35 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) and choose the relevant checks from
 behavior they describe. See the [changelog](quick_blue/CHANGELOG.md) for changes
 and the [issue tracker](https://github.com/prefanatic/quick_blue/issues) to report
 problems.
+
+## Android repair verification
+
+Regenerate the owning Pigeon bindings with the checked-in wrapper, which also
+normalizes generator whitespace without changing generated logic:
+
+```sh
+python3 scripts/generate-android-messages.py
+(cd quick_blue && flutter test)
+(cd quick_blue_platform_interface && flutter test)
+```
+
+These deterministic checks cover Dart recovery, not native observer state,
+Android dialogs or peripheral security. Native observer tests additionally
+require a configured Android build environment and a provisioned Gradle wrapper
+in `quick_blue/example/android`. This checkout does not include `gradlew`;
+the commands above do not provision it. Only after that prerequisite is met,
+run `./gradlew :quick_blue:testDebugUnitTest` from that directory. This is a
+conditional native check, not a ready-to-run fresh-checkout recipe.
+
+For device verification use an
+authorized Android 17 handset and a stable-identity bonded peripheral whose
+peer key can be erased independently while Android retains its bond. Establish
+a protected read, erase only the peer key, then test accept/reject/ignore and
+confirmation delayed beyond 30 seconds. Capture pairing context, LE encryption,
+KEY_MISSING, GATT results and competing bond requests. Retained BONDED is not
+repair success; app timeout is not proof that OS repair failed. Compare Settings
+Forget separately, and repeat reconnect, engine teardown, two-peer isolation,
+lower-security re-pairing and Android 16/older behavior on suitable hardware.
 
 ## License
 

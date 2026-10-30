@@ -17,7 +17,7 @@ okf_version: "0.2"
 - [Connection lifetimes and retries](connections.md) - Choose one-shot or subscription-owned connections and handle overlapping operations.
 - [Discover, write and subscribe](gatt.md) - Use opt-in snapshot-bound submissions, explicit write framing and subscription-owned notifications.
 - [Share a connection across engines](multi-engine.md) - Attach the receiving engine before detaching the previous owner.
-- [Pairing and security failures](pairing.md) - Provision external headless BlueZ agents and service-user policy; preserve explicit pairing and failure visibility.
+- [Pairing and security failures](pairing.md) - Provision external headless BlueZ agents and distinguish bounded legacy recovery from passive Android 17 system repair without blind retries.
 - [Open an L2CAP socket](l2cap.md) - Use the socket event stream and sink with explicit platform and framing checks.
 
 ## Platform and diagnostics reference

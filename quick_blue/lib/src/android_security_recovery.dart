@@ -2,11 +2,17 @@ import 'dart:async';
 
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
+import 'android_repair_observation.dart';
+import 'messages.g.dart' as messages;
+
 final class AndroidSecurityRecovery {
   AndroidSecurityRecovery({
     required this.stateChanges,
     required this.readState,
     required this.startPairing,
+    this.repairChanges =
+        const Stream<messages.PlatformRepairObservation>.empty(),
+    this.readRepair,
     this.implicitBondStartTimeout = const Duration(milliseconds: 500),
     this.bondCompletionTimeout = const Duration(seconds: 30),
     this.bondStateQueryTimeout = const Duration(seconds: 2),
@@ -15,70 +21,106 @@ final class AndroidSecurityRecovery {
   final Stream<BluetoothBondStateChange> stateChanges;
   final Future<BluetoothBondState> Function(String deviceId) readState;
   final Future<void> Function(String deviceId) startPairing;
+  final Stream<messages.PlatformRepairObservation> repairChanges;
+  final Future<messages.PlatformRepairObservation> Function(String deviceId)?
+  readRepair;
   final Duration implicitBondStartTimeout;
   final Duration bondCompletionTimeout;
   final Duration bondStateQueryTimeout;
 
   Future<QuickBlueSecurityRecoveryResult> perform(String deviceId) async {
+    final repair = AndroidRepairObservation(deviceId, repairChanges);
     final observation = _AndroidBondStateObservation(
       deviceId: deviceId,
       stateChanges: stateChanges,
       readState: () => readState(deviceId),
       stateQueryTimeout: bondStateQueryTimeout,
+      repairStarted: repair.started.future,
     );
     final initialEventSequence = observation.eventSequence;
 
     try {
-      final initialState = await observation.readCurrentState();
-      switch (initialState) {
-        case BluetoothBondState.bonded:
-          return QuickBlueSecurityRecoveryResult.userActionRequired;
-        case BluetoothBondState.unknown:
-          return QuickBlueSecurityRecoveryResult.unsupported;
-        case BluetoothBondState.bonding:
-          return await _waitForBondCompletion(
-            observation,
-            afterEventSequence: initialEventSequence,
-          );
-        case BluetoothBondState.notBonded:
-          break;
-      }
-
-      final implicitState = await _waitForBondStart(
-        observation,
-        afterEventSequence: initialEventSequence,
-      );
-      if (implicitState == BluetoothBondState.bonded) {
-        return QuickBlueSecurityRecoveryResult.recovered;
-      }
-      if (implicitState == BluetoothBondState.bonding) {
-        return await _waitForBondCompletion(
-          observation,
-          afterEventSequence: observation.eventSequence,
+      final query = readRepair;
+      if (query != null) {
+        repair.acceptSnapshot(
+          await query(deviceId).timeout(bondStateQueryTimeout),
         );
       }
-
-      final explicitPairEventSequence = observation.eventSequence;
-      await startPairing(deviceId).timeout(bondStateQueryTimeout);
-      final explicitState = await _waitForBondStart(
+      if (repair.wasActive) return await repair.result(bondCompletionTimeout);
+      final result = await _recoverBond(
+        deviceId,
         observation,
-        afterEventSequence: explicitPairEventSequence,
+        repair,
+        initialEventSequence,
       );
-      if (explicitState == BluetoothBondState.bonded) {
-        return QuickBlueSecurityRecoveryResult.recovered;
-      }
-      if (explicitState == BluetoothBondState.bonding) {
-        return await _waitForBondCompletion(
-          observation,
-          afterEventSequence: observation.eventSequence,
-        );
-      }
-      return QuickBlueSecurityRecoveryResult.userActionRequired;
+      return repair.wasActive
+          ? await repair.result(bondCompletionTimeout)
+          : result;
     } on Object {
       return QuickBlueSecurityRecoveryResult.userActionRequired;
     } finally {
       await observation.dispose();
+      await repair.dispose(bondStateQueryTimeout);
     }
+  }
+
+  Future<QuickBlueSecurityRecoveryResult> _recoverBond(
+    String deviceId,
+    _AndroidBondStateObservation observation,
+    AndroidRepairObservation repair,
+    int initialEventSequence,
+  ) async {
+    final initialState = await observation.readCurrentState();
+    if (repair.wasActive) {
+      return QuickBlueSecurityRecoveryResult.userActionRequired;
+    }
+    switch (initialState) {
+      case BluetoothBondState.bonded:
+        return QuickBlueSecurityRecoveryResult.userActionRequired;
+      case BluetoothBondState.unknown:
+        return QuickBlueSecurityRecoveryResult.unsupported;
+      case BluetoothBondState.bonding:
+        return await _waitForBondCompletion(
+          observation,
+          afterEventSequence: initialEventSequence,
+        );
+      case BluetoothBondState.notBonded:
+        break;
+    }
+
+    final implicitState = await _waitForBondStart(
+      observation,
+      afterEventSequence: initialEventSequence,
+    );
+    if (repair.wasActive) {
+      return QuickBlueSecurityRecoveryResult.userActionRequired;
+    }
+    if (implicitState == BluetoothBondState.bonded) {
+      return QuickBlueSecurityRecoveryResult.recovered;
+    }
+    if (implicitState == BluetoothBondState.bonding) {
+      return await _waitForBondCompletion(
+        observation,
+        afterEventSequence: observation.eventSequence,
+      );
+    }
+
+    final explicitPairEventSequence = observation.eventSequence;
+    await startPairing(deviceId).timeout(bondStateQueryTimeout);
+    final explicitState = await _waitForBondStart(
+      observation,
+      afterEventSequence: explicitPairEventSequence,
+    );
+    if (explicitState == BluetoothBondState.bonded) {
+      return QuickBlueSecurityRecoveryResult.recovered;
+    }
+    if (explicitState == BluetoothBondState.bonding) {
+      return await _waitForBondCompletion(
+        observation,
+        afterEventSequence: observation.eventSequence,
+      );
+    }
+    return QuickBlueSecurityRecoveryResult.userActionRequired;
   }
 
   Future<BluetoothBondState?> _waitForBondStart(
@@ -119,10 +161,18 @@ final class _AndroidBondStateObservation {
     required Stream<BluetoothBondStateChange> stateChanges,
     required Future<BluetoothBondState> Function() readState,
     required this.stateQueryTimeout,
+    required Future<void> repairStarted,
   }) : _readState = readState {
     _subscription = stateChanges
         .where((change) => change.deviceId == deviceId)
         .listen(_handleStateChange, onError: _handleStateError);
+    repairStarted.then((_) {
+      _repairStarted = true;
+      final wait = _pendingWait;
+      if (wait != null && !wait.completer.isCompleted) {
+        wait.completer.complete(null);
+      }
+    });
   }
 
   final String deviceId;
@@ -132,6 +182,7 @@ final class _AndroidBondStateObservation {
   _AndroidBondStateWait? _pendingWait;
   BluetoothBondState? _latestEventState;
   int _eventSequence = 0;
+  bool _repairStarted = false;
 
   int get eventSequence => _eventSequence;
 
@@ -144,6 +195,7 @@ final class _AndroidBondStateObservation {
     required int afterEventSequence,
     required Duration timeout,
   }) async {
+    if (_repairStarted) return null;
     if (_pendingWait != null) {
       throw StateError('An Android bond-state wait is already active.');
     }

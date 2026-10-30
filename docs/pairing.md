@@ -4,7 +4,7 @@ title: "Pairing and security failures"
 description: "Gate bonding APIs and handle coordinated security recovery without blind retries."
 tags: ["security", "bonding", "errors"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_device.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/quick_blue_exception.dart"}, {"id": "source3", "resource": "../quick_blue/lib/src/android_security_recovery.dart"}, {"id": "source4", "resource": "../quick_blue_platform_interface/test/bluetooth_device_connection_test.dart"}, {"id": "bondWaitTests", "resource": "../quick_blue_platform_interface/test/bond_state_wait_test.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_device.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/quick_blue_exception.dart"}, {"id": "source3", "resource": "../quick_blue/lib/src/android_security_recovery.dart"}, {"id": "source4", "resource": "../quick_blue_platform_interface/test/bluetooth_device_connection_test.dart"}, {"id": "bondWaitTests", "resource": "../quick_blue_platform_interface/test/bond_state_wait_test.dart"}, {"id": "repair-native", "resource": "../quick_blue/android/src/main/kotlin/com/example/quick_blue/AndroidRepairObserver.kt"}]
 ---
 
 # Pairing and security failures
@@ -84,9 +84,29 @@ not a change to normal core/Linux/Flutter recovery described below.
 
 Normal managed connect, read, notification setup and acknowledged-write paths
 coordinate one security recovery per device, then retry a rejected operation
-once after successful recovery. Android first observes implicit bonding for a
-bounded period before attempting explicit bonding; calling `pair()` preemptively
-is not required for a protected GATT access.
+once after successful recovery. Without explicit system repair evidence, Android
+observes implicit bonding for a bounded period before attempting explicit bonding;
+calling `pair()` preemptively is not required for protected GATT access.
+
+On Android 17/API 37, an active connection can instead observe explicit REPAIRING
+context from a pairing request or a qualifying transition into BONDING. This
+selects passive system-managed repair, without competing app pairing. Retained
+BONDED is not repair success: the active repair generation must observe enabled
+LE encryption with status zero. KEY_MISSING during that repair reports failure;
+unrelated or stale terminal events cannot establish success. Disconnect clears
+eligibility and a replacement connection needs fresh context.[^repair-native]
+
+The Dart coordinator reads the repair snapshot and observes events before recovery.
+Once repair is active, its result supersedes the legacy bonding path. The default
+30-second completion timeout limits app observation, not the OS dialog lifetime
+or system repair; timeout/query failure returns `userActionRequired`, not success.
+Android 16 and older, or missing explicit repair context, retain conservative
+legacy behavior. This does not remove keys or control system confirmation UI.[^source3]
+
+Regression mocks/JVM tests and a compiled APK do not prove OEM broadcast ordering,
+negotiated security or real peripheral key-loss repair. A physical API 37 handset
+and controlled protected peripheral are still required; no hardware matrix is
+claimed by these semantics.
 
 Opt-in [snapshot-bound handles](gatt.md#snapshot-bound-submissions) recheck validity
 before the retry, not just before recovery. If the database changes while recovery
@@ -178,3 +198,6 @@ See [capabilities](capabilities.md) and [observability privacy](observability.md
 
 [^source1]: Bond-state wait and pairing handle contract.
 [^bondWaitTests]: Fake-clock deadlines, cancellation, races and independent observers.
+
+[^source3]: AndroidSecurityRecovery.perform and its bounded legacy/repair branches.
+[^repair-native]: AndroidRepairObserver.dispatch connection-scoped API 37 correlation.
