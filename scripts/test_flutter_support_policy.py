@@ -21,7 +21,7 @@ class FlutterSupportPolicyTest(unittest.TestCase):
         minimum = workflow.split('  minimum-toolchain:', 1)[1].split('  format:', 1)[0]
         self.assertIn(f'flutter-version: "{version}"', minimum)
         for package in ('quick_blue', 'quick_blue/example', 'quick_blue_darwin',
-                        'quick_blue_windows'):
+                        'quick_blue_windows', 'quick_blue_web'):
             with self.subTest(package=package):
                 manifest = (ROOT / package / 'pubspec.yaml').read_text()
                 self.assertIn(f'flutter: ">={version}"', manifest)

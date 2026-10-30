@@ -29,7 +29,19 @@ monitor.[^source7]
 
 ## Portable operations
 
-Scan, connect/disconnect, managed connections, service/GATT discovery, read/write,
+### Browser boundary
+
+The federated web backend reports `unsupported` for bonding, MTU,
+GATT service changes and connected-device lookup, and false for L2CAP,
+companion association and Apple accessory setup. Its availability snapshot is
+an API/adapter hint, not a power/permission guarantee (`unknown` when available).
+`QuickBlue.requestDevice` is a direct-gesture chooser; raw scan APIs are
+unsupported. Connect/disconnect, authorized primary service discovery,
+read/write and notifications use the normal device/characteristic handles.
+See [Web Bluetooth](web.md) for service authorization, security and hardware
+verification. The native matrix above does not apply to browsers.
+
+On the five native targets, scan, connect/disconnect, managed connections, service/GATT discovery, read/write,
 chunked writes, and notifications have implementations on all five targets.
 That does not mean every peripheral supports every characteristic operation.
 Windows discovery fails as a whole if enumeration of one returned service fails.

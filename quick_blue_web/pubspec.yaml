@@ -1,0 +1,27 @@
+name: quick_blue_web
+description: Web Bluetooth implementation of Quick Blue.
+version: 0.5.0
+repository: https://github.com/prefanatic/quick_blue/tree/master/quick_blue_web
+environment:
+  sdk: ^3.12.2
+  flutter: ">=3.47.7"
+resolution: workspace
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  quick_blue_platform_interface: ^0.5.0
+  flutter_web_bluetooth: ^1.2.0
+  web: ^1.1.1
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  plugin:
+    implements: quick_blue
+    platforms:
+      web:
+        pluginClass: QuickBlueWeb
+        fileName: quick_blue_web.dart

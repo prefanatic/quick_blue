@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import unittest
 
-PACKAGES = ("quick_blue_platform_interface", "quick_blue_core", "quick_blue_darwin", "quick_blue_linux", "quick_blue_windows", "quick_blue")
+PACKAGES = ("quick_blue_platform_interface", "quick_blue_core", "quick_blue_darwin", "quick_blue_linux", "quick_blue_windows", "quick_blue_web", "quick_blue")
 
 
 class PublishTests(unittest.TestCase):
@@ -18,7 +18,7 @@ class PublishTests(unittest.TestCase):
             shutil.copyfile(Path(__file__).with_name("publish-packages.sh"), script)
             for package in PACKAGES:
                 (root / package).mkdir()
-                dependencies = PACKAGES[:5] if package == "quick_blue" else ((PACKAGES[0],) if package != PACKAGES[0] else ())
+                dependencies = PACKAGES[:-1] if package == "quick_blue" else ((PACKAGES[0],) if package != PACKAGES[0] else ())
                 if package == "quick_blue_linux":
                     dependencies += ("quick_blue_core",)
                 (root / package / "pubspec.yaml").write_text(
@@ -40,7 +40,7 @@ class PublishTests(unittest.TestCase):
     def test_valid(self):
         result, calls = self.fixture()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(calls), 6)
+        self.assertEqual(len(calls), len(PACKAGES))
         self.assertTrue(all("publish --dry-run --ignore-warnings" in call for call in calls))
 
     def test_usage(self):
@@ -68,7 +68,7 @@ class PublishTests(unittest.TestCase):
 
 
     def test_facade_dependency_membership(self):
-        for dependency in PACKAGES[:5]:
+        for dependency in PACKAGES[:-1]:
             for replacement in ("", f"  {dependency}: ^1.2.3\n  {dependency}: ^9.0.0"):
                 with self.subTest(dependency=dependency, replacement=replacement):
                     result, calls = self.fixture(("quick_blue", f"  {dependency}: ^1.2.3", replacement))

@@ -13,6 +13,7 @@ workspace:
   - quick_blue_linux/example
   - quick_blue_platform_interface
   - quick_blue_windows
+  - quick_blue_web
 
 # Workspace-level constraints. Platform-only dependencies such as bluez belong
 # to the package that imports them, not the workspace or external consumers.

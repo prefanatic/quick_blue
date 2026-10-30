@@ -133,7 +133,7 @@ though standalone resolution and Flutter consumer registration/builds work.
 Do not treat the local dependency/API checks as publish-readiness or suppress
 the existing release validation to hide this failure.
 
-All six publishable packages (including `quick_blue_core`) share a version.
+All seven publishable packages (including `quick_blue_core` and `quick_blue_web`) share a version.
 In the same change, bump every
 package's `pubspec.yaml` version and align federated constraints: each platform
 package depends on `quick_blue_platform_interface` at that version and the

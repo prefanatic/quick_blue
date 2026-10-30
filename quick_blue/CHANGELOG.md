@@ -1,5 +1,19 @@
 ## Unreleased
 
+- Add a federated Web Bluetooth backend with a direct-gesture `requestDevice`
+  chooser, authorized GATT discovery/read/write/notifications, bounded waits and
+  stale-session fencing. Native scanning, bonding, MTU and L2CAP remain unsupported
+  in browsers. Add Chrome interop contracts and a read-only-by-default browser
+  hardware loop with explicit stage outcomes and JSON export; builds and simulator
+  tests do not constitute real-radio verification.
+  Share the chooser facade through `quick_blue_core` for Flutter and headless
+  clients. Preserve snapshot validation before browser notification setup.
+  Standalone hardware checks retain full-suite blocked stages and provenance;
+  cancellation confirmation is bounded and excludes denial/API/timeout errors.
+  Hardware profiles can independently configure chooser name/service filters and
+  optional service grants; undocumented reads remain explicitly blocked while
+  safe connection/discovery loops still execute.
+
 
 - Drop older Flutter support: require stable Flutter 3.47.7 (bundled Dart
   3.13.5), pin primary and fresh-resolution minimum-toolchain CI to that release,

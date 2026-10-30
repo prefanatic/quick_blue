@@ -22,6 +22,7 @@ PACKAGES = (
     "quick_blue_darwin",
     "quick_blue_linux",
     "quick_blue_windows",
+    "quick_blue_web",
 )
 
 

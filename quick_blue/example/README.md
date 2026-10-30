@@ -2,6 +2,14 @@
 
 Demonstrates how to use the quick_blue plugin.
 
+## Web Bluetooth hardware loops
+
+Use the separate browser entry point `lib/web_bluetooth_hardware.dart`, not the
+native scan explorer. The [canonical browser runbook](../../docs/web.md) covers
+HTTPS/localhost setup, direct-gesture selection, known-peripheral profiles,
+read-only defaults, bounded repeated GATT checks, cancel/loss scenarios and JSON
+export. Browser simulator contracts and web builds are not hardware evidence.
+
 ## Download a release build
 
 Published versioned [GitHub Releases](https://github.com/prefanatic/quick_blue/releases)

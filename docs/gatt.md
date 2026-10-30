@@ -11,6 +11,13 @@ sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/sr
 
 ## Resolve a characteristic
 
+On [web](web.md), select a device with all required services declared first.
+Discovery is restricted to browser-authorized primary services. Cancel
+notifications before rediscovery; rediscover after reconnect. Browser deadlines
+bound settlement, not physical promise cancellation. Browser writes without
+response complete on the browser promise, not a peripheral application ACK;
+maximum write length is unknown (`null`).
+
 Dart fragments below assume a connected `device`, real UUIDs, and `quick_blue.dart`
 imported. Inspect `BluetoothService.characteristicDetails` for read/write/subscribe
 support before performing an operation.

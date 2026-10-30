@@ -47,9 +47,19 @@ dependency_overrides:
       url: https://github.com/prefanatic/quick_blue.git
       ref: master
       path: quick_blue_windows
+  quick_blue_web:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_web
+  quick_blue_web:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_web
 ```
 
-Replace all six `master` refs with the same tested commit SHA for reproducibility.
+Replace all seven `master` refs with the same tested commit SHA for reproducibility.
 Run `flutter pub get` in your app. For repository development, run it at the
 workspace root instead.
 

@@ -26,6 +26,7 @@ packages=(
   quick_blue_darwin
   quick_blue_linux
   quick_blue_windows
+  quick_blue_web
   quick_blue
 )
 
@@ -55,7 +56,7 @@ for package in "${packages[@]}"; do
 done
 
 expected_constraint="^$release_version"
-for package in quick_blue_core quick_blue_darwin quick_blue_linux quick_blue_windows; do
+for package in quick_blue_core quick_blue_darwin quick_blue_linux quick_blue_windows quick_blue_web; do
   if ! dependency_matches "$package" quick_blue_platform_interface; then
     echo "$package does not depend on quick_blue_platform_interface $expected_constraint" >&2
     exit 65
@@ -65,7 +66,7 @@ if ! dependency_matches quick_blue_linux quick_blue_core; then
   echo "quick_blue_linux does not depend on quick_blue_core $expected_constraint" >&2
   exit 65
 fi
-for package in "${packages[@]:0:5}"; do
+for package in "${packages[@]:0:${#packages[@]}-1}"; do
   if ! dependency_matches quick_blue "$package"; then
     echo "quick_blue does not depend on $package $expected_constraint" >&2
     exit 65

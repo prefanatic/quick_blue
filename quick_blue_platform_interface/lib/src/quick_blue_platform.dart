@@ -50,6 +50,22 @@ abstract class QuickBluePlatform extends PlatformInterface {
   /// Returns whether Bluetooth is currently powered on and usable.
   Future<bool> isBluetoothAvailable();
 
+  /// Opens a browser device chooser. Invoke directly from a user gesture.
+  ///
+  /// Service filters are ANDed. Additional services must be declared before
+  /// selection to authorize subsequent GATT access. This is not scanning.
+  Future<BluetoothDevice> requestDevice({
+    List<String> serviceUuids = const [],
+    List<String> optionalServices = const [],
+    String? namePrefix,
+  }) => Future.error(
+    const QuickBlueException(
+      code: QuickBlueErrorCode.unsupported,
+      operation: 'requestDevice',
+      message: 'The browser device chooser is unsupported on this platform.',
+    ),
+  );
+
   /// Returns implemented behavior for the current platform and OS version.
   Future<QuickBlueCapabilities> capabilities() async {
     return const QuickBlueCapabilities(

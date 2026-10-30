@@ -234,6 +234,24 @@ Each source is `pigeons/messages.dart` relative to its owning package:
 
 ## Hardware BLE smoke
 
+Web uses a direct user-gesture chooser, not the native scan smoke. Run
+`(cd quick_blue_web && flutter test --platform chrome)` for deterministic JS
+interop simulation, then build and exercise the separate
+[browser hardware entry point](web.md#safe-real-hardware-loop). Simulator tests,
+browser builds and exported real-radio stage results are distinct evidence.
+Missing hardware or expected payloads are BLOCKED, not successful skips.
+
+The browser hardware UI also has Chrome-only validation regressions:
+
+```sh
+(cd quick_blue/example && flutter test test/web_hardware_ui_test.dart \
+  --platform chrome --dart-define=QUICK_BLUE_SOURCE_SHA=ui-test-fixture)
+```
+
+These prove read-only defaults and blocked missing-profile/API outcomes, not
+physical peripheral behavior. The six native/example suites above do not run
+the web backend's browser-only contracts.
+
 Required for scan, connect, discovery, read/write, notification, switching or
 platform Bluetooth changes when the matching host/hardware is available.
 From `quick_blue/example`:
