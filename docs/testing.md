@@ -280,6 +280,55 @@ flutter test integration_test/ble_characteristic_benchmark_test.dart -d macos \
   --dart-define=QUICK_BLUE_BENCHMARK_NOTIFY_CHARACTERISTIC_UUID='CHARACTERISTIC_UUID'
 ```
 
+## Android 17 bond-repair verification
+
+This is a prospective controlled-hardware runbook, not recorded hardware proof.
+Use an authorized physical Android 17/API 37 handset and a peripheral with stable
+identity, durable bonded keys, protected GATT and an out-of-band command that
+erases only the handset's peer key. Record firmware erase/restore commands and
+negotiated security; use a second controlled peer for switching isolation.
+Emulator boot, Bluetooth ON, builds and injected broadcasts do not establish
+repair. Emulator HCI bridging is not a validated substitute.
+
+Select the reviewed repair implementation and device serial; this runbook adds
+no repair support. Record the selected implementation's revision, APK hash,
+handset SDK/build/patch and Bluetooth module version. With `SERIAL` set to the
+authorized handset, inspect it before running the example:
+
+```sh
+adb devices -l
+adb -s "$SERIAL" shell getprop
+adb -s "$SERIAL" shell pm list packages --apex-only --show-versioncode
+adb -s "$SERIAL" shell dumpsys bluetooth_manager
+flutter pub get
+(cd quick_blue/example && flutter run -d "$SERIAL")
+```
+
+Capture timestamped logcat, app output, before/after Bluetooth dumps, peripheral
+security logs and actual system dialogs locally. Establish BONDED and a successful
+protected read before each case. Erase only the peripheral key while retaining
+Android's bond and peer identity, reconnect and perform a protected operation.
+
+Exercise accept, reject, ignore and delayed confirmation independently. For delay,
+measure at least 35 seconds, observing early dismissal or competing app pairing
+rather than assuming dialog persistence. Bound ignored/unresolved observation.
+Success requires repair-context-correlated enabled LE encryption with status zero
+and a protected read, not retained BONDED. KEY_MISSING during repair is a failure
+signal; BOND_NONE alone does not prove peripheral-only key loss. Compare actual
+OEM ordering against the installed implementation.
+
+Also exercise Settings Forget, repeated protected operations, reconnect, second
+peer switching and engine teardown. Inspect generations, retry counts and pairing
+calls/dialogs for stale or competing work. Repeat lower-security re-pairing and
+Android 16/older cases on suitable hardware. Restore only controlled peer state;
+never clear phone-wide Bluetooth data or pair nearby consumer devices. Redact
+identifiers and never publish keys, PINs or credentials.
+
+Report every case's trigger, negotiated security, duration, terminal OS/app signals
+and operation result. Mocks and generic BLE smoke cannot prove this matrix;
+missing hardware leaves cases unverified. See [pairing boundaries](pairing.md)
+and [evidence storage](#store-reproducibility-separately-from-raw-execution-records).
+
 ## Windows VM
 
 Console TCP 8006 and RDP TCP/UDP 3389 bind to `127.0.0.1` by default.
