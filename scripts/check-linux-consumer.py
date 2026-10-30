@@ -3,8 +3,8 @@
 
 Run from any directory with Python 3, Git, Flutter and the Linux build toolchain.
 The disposable Git snapshot includes tracked working-tree contents, so local
-changes are tested without committing them to the source repository. Failed
-runs retain their fixture directory for inspection; successful runs remove it.
+changes are tested without committing them to the source repository. All runs
+retain their fixture directory for inspection and negative-control replay.
 """
 
 import json
@@ -21,6 +21,7 @@ PACKAGES = (
     "quick_blue_platform_interface",
     "quick_blue_darwin",
     "quick_blue_linux",
+    "quick_blue_linux_dart",
     "quick_blue_windows",
 )
 
@@ -70,18 +71,37 @@ def check_consumer(package, snapshot, revision, fixture):
     )
     overrides = (
         [name for name in PACKAGES if name != package]
-        if package == "quick_blue" else ["quick_blue_core", "quick_blue_platform_interface"]
+        if package == "quick_blue" else ["quick_blue_core", "quick_blue_platform_interface", "quick_blue_linux_dart"]
     )
     for name in overrides:
         manifest += git_dependency(name, snapshot.as_uri(), revision)
     (consumer / "pubspec.yaml").write_text(manifest)
-    plugin_type = "QuickBlue" if package == "quick_blue" else "QuickBlueLinux"
     (consumer / "lib" / "main.dart").write_text(
-        "import 'package:flutter/material.dart';\n"
-        f"import 'package:{package}/{package}.dart';\n\n"
-        "void main() {\n"
-        f"  final Type implementation = {plugin_type};\n"
-        "  runApp(MaterialApp(home: Text('$implementation')));\n"
+        "import 'dart:io';\n"
+        "import 'package:flutter/widgets.dart';\n"
+        "import 'package:quick_blue_core/quick_blue_core.dart' as core;\n"
+        "import 'package:quick_blue_linux/quick_blue_linux.dart' as legacy;\n"
+        "import 'package:quick_blue_linux_dart/quick_blue_linux_dart.dart' as backend;\n"
+        "import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';\n"
+        + ("import 'package:quick_blue/quick_blue.dart' as facade;\n" if package == "quick_blue" else "")
+        + "Future<void> main() async {\n"
+        "  WidgetsFlutterBinding.ensureInitialized();\n"
+        "  try {\n"
+        "    final installed = QuickBluePlatform.instance;\n"
+        "    if (installed is! backend.QuickBlueLinux || "
+        "legacy.QuickBlueLinux != backend.QuickBlueLinux) {\n"
+        "      throw StateError('Generated registration did not install the shared backend');\n"
+        "    }\n"
+        "    if (!identical(core.QuickBlue.bluetoothStateStream, installed.bluetoothStateStream)) {\n"
+        "      throw StateError('Core singleton differs from registered backend');\n"
+        "    }\n"
+        + ("    if (!identical(facade.QuickBlue.bluetoothStateStream, installed.bluetoothStateStream)) {\n"
+           "      throw StateError('Flutter facade singleton differs');\n    }\n" if package == "quick_blue" else "")
+        + "    await installed.capabilities();\n"
+        "    await installed.close();\n"
+        "    print('PASS: generated auto-registration and shared backend identity');\n"
+        "    exit(0);\n"
+        "  } catch (error, stack) { stderr.writeln('$error\\n$stack'); exit(1); }\n"
         "}\n"
     )
     run("flutter", "pub", "get", cwd=consumer, env=env)
@@ -91,8 +111,10 @@ def check_consumer(package, snapshot, revision, fixture):
     nodes = {node["name"]: node for node in graph["packages"]}
     if nodes["linux_consumer"]["dependencies"] != ["flutter", package]:
         raise ValueError(f"Consumer dependencies must be flutter and {package}")
-    if "bluez" not in nodes["quick_blue_linux"]["dependencies"]:
-        raise ValueError("quick_blue_linux dependencies must include bluez")
+    if "quick_blue_linux_dart" not in nodes["quick_blue_linux"]["dependencies"]:
+        raise ValueError("quick_blue_linux must depend on quick_blue_linux_dart")
+    if "bluez" not in nodes["quick_blue_linux_dart"]["dependencies"]:
+        raise ValueError("quick_blue_linux_dart dependencies must include bluez")
     if "bluez" not in nodes:
         raise ValueError("bluez must resolve transitively")
     config = json.loads((consumer / ".dart_tool" / "package_config.json").read_text())
@@ -102,6 +124,10 @@ def check_consumer(package, snapshot, revision, fixture):
                 raise ValueError(f"Package must resolve inside fixture cache: {node}")
     run("flutter", "analyze", "--no-pub", cwd=consumer, env=env)
     run("flutter", "build", "linux", "--debug", "--no-pub", cwd=consumer, env=env)
+    binaries = list((consumer / "build/linux").glob("*/debug/bundle/linux_consumer"))
+    if len(binaries) != 1:
+        raise ValueError(f"Expected one Linux executable, got {binaries}")
+    run("timeout", "60", "xvfb-run", "-a", str(binaries[0]), cwd=consumer, env=env)
     print(f"PASS: {package} installs and builds with transitive bluez", flush=True)
 
 
@@ -136,7 +162,7 @@ def main():
         print(f"Failed fixtures retained at {fixture}", flush=True)
         raise
     else:
-        shutil.rmtree(fixture)
+        print(f"Passed fixtures retained at {fixture}", flush=True)
 
 
 if __name__ == "__main__":

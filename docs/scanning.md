@@ -4,7 +4,7 @@ title: "Scan results and filters"
 description: "Own scanning through subscriptions and select portable or native scan controls."
 tags: ["scan", "filters"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/scan_lifecycle.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/models.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart"}, {"id": "source4", "resource": "../quick_blue_linux/lib/quick_blue_linux.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/scan_lifecycle.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/models.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/quick_blue_platform_scan_test.dart"}, {"id": "source4", "resource": "../quick_blue_linux_dart/lib/quick_blue_linux_dart.dart"}]
 ---
 
 # Scan results and filters
@@ -50,7 +50,7 @@ is distinct from filtering the advertised service UUID list.
   Native knobs include Android PHY, Darwin solicited services, Linux pathloss,
   and Windows signal-strength timing. Omitted common values preserve defaults.
 - Linux option forwarding has dedicated filter/default unit tests in
-  `quick_blue_linux/test/scan_session_test.dart`; mocked forwarding is not
+  `quick_blue_linux_dart/test/scan_session_test.dart`; mocked forwarding is not
   hardware verification.[^source4]
 
 If scanning is empty, check permissions, power, advertisements, and overly narrow
@@ -90,6 +90,6 @@ observable and must succeed before a replacement scan starts. Shutdown uses the
 same queue; it does not abort stalled native calls. Local BlueZ fakes test
 these contracts; adapter removal/radio behavior remains unverified.[^source4]
 
-The [scan lifecycle regressions](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/scan_session_test.dart)
+The [scan lifecycle regressions](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux_dart/test/scan_session_test.dart)
 hold native start/stop replies, inject a failed stop, remove/replace adapters and
 assert retries, queued starts, independent filter/watch state and final stop calls.

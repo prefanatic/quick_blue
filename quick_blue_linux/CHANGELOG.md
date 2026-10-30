@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Delegate to `quick_blue_linux_dart`, retaining legacy type/constructor exports
+  and Flutter auto-registration. Declare the Flutter SDK minimum in this shell.
+
 - Map BlueZ authorization failures into cross-platform security recovery.
 - Apply service-data UUID and payload-prefix filters to scan results.
 - Share BlueZ connections across Flutter engines using serialized per-engine

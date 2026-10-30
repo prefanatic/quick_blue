@@ -127,13 +127,12 @@ the workflow's upstream guard together.
 
 ## Release metadata
 
-The standalone split has a known [publication compatibility limit](install.md#publication-compatibility-limit):
-Pub's plugin validator rejects Linux metadata without a Flutter minimum, even
-though standalone resolution and Flutter consumer registration/builds work.
-Do not treat the local dependency/API checks as publish-readiness or suppress
-the existing release validation to hide this failure.
+Distribution is [Git/local only](install.md#publication-compatibility-limit).
+The Linux Flutter shell owns plugin metadata and its Flutter minimum; the pure
+Dart backend has neither. Keep release validation enabled, but do not equate a
+passing dry-run with registry name ownership, availability or an uploaded release.
 
-All six publishable packages (including `quick_blue_core`) share a version.
+All seven package manifests (including core and the Linux Dart backend) share a version.
 In the same change, bump every
 package's `pubspec.yaml` version and align federated constraints: each platform
 package depends on `quick_blue_platform_interface` at that version and the

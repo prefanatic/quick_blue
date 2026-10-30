@@ -4,7 +4,7 @@ title: "Share a connection across engines"
 description: "Attach the receiving engine before detaching the previous owner."
 tags: ["connections", "multi-engine"]
 
-sources: [{"id": "source1", "resource": "../quick_blue/android/src/main/kotlin/com/example/quick_blue/ConnectionClientSet.kt"}, {"id": "source2", "resource": "../quick_blue_darwin/darwin/quick_blue_darwin/connection_ownership/Sources/QuickBlueConnectionOwnership/SharedConnectionOwnership.swift"}, {"id": "source3", "resource": "../quick_blue_windows/windows/connection_ownership.h"}, {"id": "source4", "resource": "../quick_blue_linux/lib/src/connection_ownership.dart"}, {"id": "source5", "resource": "../quick_blue/example/integration_test/android_multi_engine_test.dart"}, {"id": "source6", "resource": "../quick_blue/example/integration_test/ios_multi_engine_test.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue/android/src/main/kotlin/com/example/quick_blue/ConnectionClientSet.kt"}, {"id": "source2", "resource": "../quick_blue_darwin/darwin/quick_blue_darwin/connection_ownership/Sources/QuickBlueConnectionOwnership/SharedConnectionOwnership.swift"}, {"id": "source3", "resource": "../quick_blue_windows/windows/connection_ownership.h"}, {"id": "source4", "resource": "../quick_blue_linux_dart/lib/src/connection_ownership.dart"}, {"id": "source5", "resource": "../quick_blue/example/integration_test/android_multi_engine_test.dart"}, {"id": "source6", "resource": "../quick_blue/example/integration_test/ios_multi_engine_test.dart"}]
 ---
 
 # Share a connection across engines
@@ -88,8 +88,8 @@ Spontaneous disconnect releases the target before a later connection can select
 a replacement.
 Use matching package revisions for cooperating clients: older remote-address-only
 lease namespaces do not coordinate with the corrected adapter-scoped namespace.
-`quick_blue_linux/test/adapter_lease_test.dart` exercises the real ownership
-coordinator and `quick_blue_linux/lib/src/dbus_connection_lease.dart`
+`quick_blue_linux_dart/test/adapter_lease_test.dart` exercises the real ownership
+coordinator and `quick_blue_linux_dart/lib/src/dbus_connection_lease.dart`
 with a fake bus and BlueZ devices, including default-client cache replacement
 on disconnect/close, independent close, failed connect, detach retry and
 spontaneous-disconnect/retry subscription cleanup, pending unlock failures with
@@ -97,13 +97,13 @@ reentrant native events, and no-event facade retries. Each integrated late-unloc
 scenario has a watchdog and completion marker.
 The failed-cleanup/reconnect matrix also asserts actual bus membership and
 same-adapter peer disconnect/close protection with and without native events.
-`quick_blue_linux/test/reattach_transition_test.dart` additionally holds Client
+`quick_blue_linux_dart/test/reattach_transition_test.dart` additionally holds Client
 registration and final unlock replies while delivering delayed native events,
 checks peer disconnect/close, duplicate initial/retry connects, rejected/error
 replies, retry and complete name cleanup. It also holds native reconnect itself
 after registration. Ownership tests exercise synchronous and microtask callbacks
 during registration without awaiting their own attach waiter.
-`quick_blue_linux/test/connect_transition_test.dart` holds native Connect replies
+`quick_blue_linux_dart/test/connect_transition_test.dart` holds native Connect replies
 after connected state, explicitly detaches/reconnects through facade and platform
 paths, and checks actual Client names, peer disconnect/close protection, stale
 success/error, pending replacement coalescing, adapter replacement and full
@@ -113,13 +113,13 @@ It also holds successful/failed final unlock replies while reconnect and a newer
 explicit disconnect overlap through public calls. Tests assert actual membership,
 native state, pending-reply behavior, newer/duplicate reconnect controls, failed
 cleanup retry, peer protection and complete final name cleanup.
-`quick_blue_linux/test/notification_disconnect_test.dart` holds StopNotify through
+`quick_blue_linux_dart/test/notification_disconnect_test.dart` holds StopNotify through
 public facade/direct disconnect/reconnect, with native events and no-event
 controls. It checks settled/no-reconnect, duplicate and newer/final intent,
 late StopNotify errors (logged), failed unlock/retry, native events during the
 held release, restored notification watches, peer disconnect/close protection and
 complete Client/Lock/native/subscription cleanup under a five-second watchdog.
-`quick_blue_linux/test/clear_disconnect_test.dart` also holds asynchronous
+`quick_blue_linux_dart/test/clear_disconnect_test.dart` also holds asynchronous
 subscription cancellation at each final-clear boundary (GATT, scan and native
 observer). Delayed native events before/after the joining listener, direct/facade
 and duplicate final disconnects, intentionally newer reconnects and cleanup-error

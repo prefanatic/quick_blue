@@ -8,12 +8,12 @@ changes after a reported GATT database change. Existing `gatt.characteristic(...
 and direct-ID handles remain unbound. See [GATT handles](../docs/gatt.md#snapshot-bound-submissions).
 
 For standalone Linux services use the [public headless operator CLI](../quick_blue_linux/example/README.md)
-over `quick_blue_core` plus `quick_blue_linux`. Its opt-in pairing policy and
+over `quick_blue_core` plus `quick_blue_linux_dart`. Its opt-in pairing policy and
 external BlueZ agent/service-user requirements are documented in
 [pairing guidance](../docs/pairing.md#headless-linux-agent-lifecycle). Flutter
 imports and normal library security recovery remain unchanged. Use matched source
-revisions: the [Linux publication metadata issue](../docs/install.md#publication-compatibility-limit)
-currently prevents a hosted release. Bluetooth hardware and physical ARM64 devices
+revisions: distribution is [Git/local only](../docs/install.md#publication-compatibility-limit),
+not a hosted release. Bluetooth hardware and physical ARM64 devices
 remain untested.
 
 - [Example app](https://github.com/prefanatic/quick_blue/tree/master/quick_blue/example)
@@ -84,6 +84,11 @@ dependency_overrides:
       url: https://github.com/prefanatic/quick_blue.git
       ref: master
       path: quick_blue_linux
+  quick_blue_linux_dart:
+    git:
+      url: https://github.com/prefanatic/quick_blue.git
+      ref: master
+      path: quick_blue_linux_dart
   quick_blue_windows:
     git:
       url: https://github.com/prefanatic/quick_blue.git
@@ -91,12 +96,12 @@ dependency_overrides:
       path: quick_blue_windows
 ```
 
-For reproducible builds, replace `master` with a tested commit SHA in all six
+For reproducible builds, replace `master` with a tested commit SHA in all seven
 entries. If these changes become available in a hosted release, replace the Git
 dependency and overrides with the corresponding version constraint.
 
 Linux consumers do not need a direct `bluez` dependency: `quick_blue_linux`
-declares it and Pub resolves it transitively, including from an empty cache.
+depends on `quick_blue_linux_dart`, which declares it transitively, including from an empty cache.
 Keep all Git entries on the same revision; the repository workspace is not a
 consumer dependency and does not supply its dependencies to your app.
 
@@ -195,7 +200,7 @@ org.freedesktop.DBus.Error.AccessDenied: Request to own name refused by policy
 Install the supplied policy for the user that runs the application:
 
 ```sh
-sed "s/RUN_AS_USER/$USER/" quick_blue_linux/dbus/dev.quick_blue.Connection.conf \
+sed "s/RUN_AS_USER/$USER/" quick_blue_linux_dart/dbus/dev.quick_blue.Connection.conf \
   | sudo tee /usr/share/dbus-1/system.d/dev.quick_blue.Connection.conf >/dev/null
 sudo systemctl reload dbus-broker   # or: sudo systemctl restart dbus
 ```

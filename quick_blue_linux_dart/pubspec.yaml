@@ -1,0 +1,25 @@
+name: quick_blue_linux_dart
+description: Pure Dart Linux Bluetooth LE backend for quick_blue using BlueZ.
+version: 0.5.0
+homepage: https://github.com/prefanatic/quick_blue
+repository: https://github.com/prefanatic/quick_blue/tree/master/quick_blue_linux_dart
+
+environment:
+  sdk: ^3.12.2
+
+resolution: workspace
+
+dependencies:
+  quick_blue_core: ^0.5.0
+  meta: ^1.18.0
+  quick_blue_platform_interface: ^0.5.0
+  bluez: ^0.8.3
+  collection: ^1.15.0
+  logging: ^1.0.2
+  ffi: ^2.1.3
+  dbus: ^0.7.14
+
+dev_dependencies:
+  test: ^1.26.0
+  ffigen: 21.0.0
+  lints: ^6.0.0

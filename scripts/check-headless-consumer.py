@@ -14,10 +14,11 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from urllib.parse import unquote, urljoin, urlparse
 
-PACKAGES = ('quick_blue_core', 'quick_blue_platform_interface', 'quick_blue_linux')
+PACKAGES = ('quick_blue_core', 'quick_blue_platform_interface', 'quick_blue_linux_dart')
 
 
 def run(args, cwd, env):
@@ -44,6 +45,8 @@ def inspect_graph(consumer, snapshot, expected_root='headless_consumer'):
         if package['name'] in PACKAGES and root.resolve() != (snapshot / package['name']).resolve():
             raise ValueError(f'Repository packages must use the matched snapshot: {root}')
         text = (root / 'pubspec.yaml').read_text()
+        if re.search(r'^flutter:\s*$', text, re.M) and re.search(r'^  plugin:', text, re.M):
+            raise ValueError(f'Flutter plugin metadata: {root}')
         if re.search(r'^\s+sdk:\s*flutter\s*$', text, re.M) or re.search(
                 r'^  flutter:\s*[^\s#].*$', text, re.M):
             raise ValueError(f'Flutter SDK dependency/constraint: {root}')
@@ -58,7 +61,7 @@ def inspect_graph(consumer, snapshot, expected_root='headless_consumer'):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dart', required=True, type=Path)
-    parser.add_argument('--flutter', action='store_true', help='Also build external Flutter Linux consumers')
+    parser.add_argument('--flutter', action='store_true', help='Also build/run external Flutter Linux consumers')
     args = parser.parse_args()
     dart = args.dart.resolve()
     root = Path(__file__).resolve().parent.parent
@@ -72,7 +75,7 @@ def main():
            for parent in dart.parents):
         raise ValueError('Use a standalone SDK, not the Flutter SDK wrapper')
     snapshot = fixture / 'packages'
-    names = (*PACKAGES, 'quick_blue', 'quick_blue_darwin', 'quick_blue_windows') if args.flutter else PACKAGES
+    names = PACKAGES
     hashes = {}
     for name in names:
         source = root / name
@@ -90,13 +93,12 @@ def main():
     (fixture / 'source-hashes.json').write_text(json.dumps(hashes, indent=2))
     overrides = 'dependency_overrides:\n' + ''.join(
         f'  {name}:\n    path: {json.dumps(str(snapshot / name))}\n' for name in PACKAGES)
-    flutter_overrides = 'dependency_overrides:\n' + ''.join(
-        f'  {name}:\n    path: {json.dumps(str(snapshot / name))}\n' for name in names)
+
     for name in names:
         dependencies = {
             'quick_blue_core': ('quick_blue_platform_interface',),
             'quick_blue_platform_interface': (),
-            'quick_blue_linux': ('quick_blue_core', 'quick_blue_platform_interface'),
+            'quick_blue_linux_dart': ('quick_blue_core', 'quick_blue_platform_interface'),
         }.get(name, ())
         local_overrides = ('dependency_overrides:\n' + ''.join(
             f'  {dependency}:\n    path: {json.dumps(str(snapshot / dependency))}\n'
@@ -106,10 +108,10 @@ def main():
     (consumer / 'bin').mkdir(parents=True)
     (consumer / 'pubspec.yaml').write_text(
         'name: headless_consumer\npublish_to: none\nenvironment:\n  sdk: ^3.13.0\n'
-        'dependencies:\n  quick_blue_core: ^0.5.0\n  quick_blue_linux: ^0.5.0\n' + overrides)
+        'dependencies:\n  quick_blue_core: ^0.5.0\n  quick_blue_linux_dart: ^0.5.0\n' + overrides)
     (consumer / 'bin/main.dart').write_text(
         "import 'package:quick_blue_core/quick_blue_core.dart';\n"
-        "import 'package:quick_blue_linux/quick_blue_linux.dart';\n"
+        "import 'package:quick_blue_linux_dart/quick_blue_linux_dart.dart';\n"
         "void main() {\n  QuickBlueLinux.registerWith();\n"
         "  print(QuickBlue.device('synthetic-device').id);\n}\n")
     run([str(dart), 'pub', 'get'], consumer, env)
@@ -117,6 +119,7 @@ def main():
     (consumer / 'dependencies.json').write_text(deps)
     inspect_graph(consumer, snapshot)
     run([str(dart), 'analyze'], consumer, env)
+    run([str(dart), 'run', 'bin/main.dart'], consumer, env)
     for name in PACKAGES:
         package = snapshot / name
         run([str(dart), 'pub', 'get'], package, env)
@@ -139,26 +142,7 @@ def main():
     run([str(dart), 'compile', 'exe', 'bin/fake_flow.dart', '-o', 'build/fake_flow'], cli, env)
     run([str(cli / 'build/fake_flow')], cli, headless_env)
     if args.flutter:
-        for name in ('quick_blue_linux', 'quick_blue'):
-            app = fixture / ('flutter_consumer_' + name)
-            flutter_env = dict(os.environ, PUB_CACHE=str(fixture / ('cache_' + name)))
-            run(['flutter', 'create', '--empty', '--no-pub', '--platforms=linux', str(app)], fixture, flutter_env)
-            (app / 'pubspec.lock').unlink(missing_ok=True)
-            (app / 'pubspec.yaml').write_text(
-                'name: flutter_consumer\npublish_to: none\nenvironment:\n  sdk: ^3.13.0\n'
-                'dependencies:\n  flutter:\n    sdk: flutter\n' + f'  {name}: ^0.5.0\n' + flutter_overrides)
-            (app / 'analysis_options.yaml').write_text('{}\n')
-            api = 'QuickBlue' if name == 'quick_blue' else 'QuickBlueLinux'
-            (app / 'lib/main.dart').write_text(
-                "import 'package:flutter/material.dart';\n" + f"import 'package:{name}/{name}.dart';\n"
-                f"void main() {{ final Type implementation = {api}; "
-                "runApp(MaterialApp(home: Text('$implementation'))); }\n")
-            run(['flutter', 'pub', 'get'], app, flutter_env)
-            run(['flutter', 'analyze', '--no-pub'], app, flutter_env)
-            run(['flutter', 'build', 'linux', '--debug', '--no-pub'], app, flutter_env)
-            registrants = list((app / '.dart_tool').rglob('dart_plugin_registrant.dart'))
-            if not registrants or not any('QuickBlueLinux.registerWith()' in p.read_text() for p in registrants):
-                raise ValueError('Missing generated Linux Dart plugin registration')
+        run([sys.executable, str(root / 'scripts/check-linux-consumer.py')], fixture, env)
     print(f'PASS: standalone graph/package checks; evidence: {fixture}', flush=True)
 
 

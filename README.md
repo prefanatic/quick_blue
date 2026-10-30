@@ -13,11 +13,12 @@ Flutter consumers require Flutter 3.47.7 or newer; CI pins stable 3.47.7 with
 Dart 3.13.5. Older Flutter support is dropped; upgrade the SDK before resolving.
 Standalone Dart 3.13 acceptance and its Flutter-free dependency graph are retained.
 
-For Linux services without Flutter, use `quick_blue_core` with `quick_blue_linux`
+For Linux services without Flutter, use `quick_blue_core` with `quick_blue_linux_dart`
 and register the Linux implementation explicitly. Flutter imports stay unchanged.
 Follow the [standalone installation instructions](docs/install.md#standalone-dart-linux);
-the packages currently require matched source revisions because Linux publication
-metadata validation fails.
+use matched Git/local revisions. The existing `quick_blue_linux` Flutter package
+retains automatic registration and exports the same backend class. Registry name
+ownership and hosted availability are not implied by source-consumer readiness.
 Linux supports explicit adapter addresses and client shutdown; see
 [adapter selection](docs/scanning.md#linux-adapter-selection) and
 [cleanup](docs/connections.md#linux-client-shutdown).
@@ -87,7 +88,8 @@ before running an asset.
 
 - `quick_blue/`: app-facing package and Android implementation
 - `quick_blue_darwin/`: iOS and macOS implementation
-- `quick_blue_linux/`: Linux implementation using BlueZ
+- `quick_blue_linux/`: Flutter Linux registration and compatibility exports
+- `quick_blue_linux_dart/`: pure-Dart Linux implementation using BlueZ
 - `quick_blue_windows/`: Windows implementation using WinRT
 - `quick_blue_platform_interface/`: shared APIs, models and tests
 - `quick_blue/example/`: BLE explorer and hardware integration tests

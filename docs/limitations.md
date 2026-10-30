@@ -4,7 +4,7 @@ title: "Known boundaries and pitfalls"
 description: "Distinguish implemented support from runtime readiness and hardware evidence."
 tags: ["limitations", "platforms"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_linux/lib/quick_blue_linux.dart"}, {"id": "source2", "resource": "../quick_blue_windows/lib/src/quick_blue_windows.dart"}, {"id": "source3", "resource": "../quick_blue_darwin/test/quick_blue_darwin_test.dart"}, {"id": "source4", "resource": "../quick_blue/example/integration_test/android_multi_engine_test.dart"}, {"id": "source5", "resource": "../quick_blue/example/integration_test/ios_multi_engine_test.dart"}, {"id": "gatt_tests", "resource": "../quick_blue_linux/test/gatt_session_test.dart"}, {"id": "gatt_session", "resource": "../quick_blue_linux/lib/src/gatt_session.dart"}, {"id": "gate", "resource": "../quick_blue_linux/test/test_support/future_gate.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue_linux_dart/lib/quick_blue_linux_dart.dart"}, {"id": "source2", "resource": "../quick_blue_windows/lib/src/quick_blue_windows.dart"}, {"id": "source3", "resource": "../quick_blue_darwin/test/quick_blue_darwin_test.dart"}, {"id": "source4", "resource": "../quick_blue/example/integration_test/android_multi_engine_test.dart"}, {"id": "source5", "resource": "../quick_blue/example/integration_test/ios_multi_engine_test.dart"}, {"id": "gatt_tests", "resource": "../quick_blue_linux_dart/test/gatt_session_test.dart"}, {"id": "gatt_session", "resource": "../quick_blue_linux_dart/lib/src/gatt_session.dart"}, {"id": "gate", "resource": "../quick_blue_linux_dart/test/test_support/future_gate.dart"}]
 ---
 
 # Known boundaries and pitfalls
@@ -26,7 +26,7 @@ sources: [{"id": "source1", "resource": "../quick_blue_linux/lib/quick_blue_linu
 
 Linux teardown cancels pending discovery and retires late notification setup.
 The regression tests in
-[`gatt_session_test.dart`](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/gatt_session_test.dart)
+[`gatt_session_test.dart`](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux_dart/test/gatt_session_test.dart)
 check lifetime behavior with fake BlueZ objects:
 
 | Controlled ordering | Observed fake-BlueZ result |
@@ -55,14 +55,14 @@ D-Bus ownership release or hardware semantics.
 
 Native claim identity is separate from local property-subscription identity and
 the discovery cache. Controlled reconfiguration tests in
-[notification_reconfiguration_test.dart](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/notification_reconfiguration_test.dart) assert public
+[notification_reconfiguration_test.dart](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux_dart/test/notification_reconfiguration_test.dart) assert public
 disconnect completion and external fake native ownership, not only local maps.
 They do not exercise real D-Bus reference counting or physical notification delivery.
-The [native-target replacement tests](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/notification_target_replacement_test.dart)
+The [native-target replacement tests](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux_dart/test/notification_target_replacement_test.dart)
 also distinguish lifetime identity from native endpoint identity, including an
 obsolete endpoint that throws during stop. These are fake ownership assertions,
 not hardware proof or a guarantee that a failed native stop eventually succeeds.
-`quick_blue_linux/test/notification_native_proxy_test.dart` uses real BlueZ
+`quick_blue_linux_dart/test/notification_native_proxy_test.dart` uses real BlueZ
 wrappers and objects with a fake D-Bus method boundary. Fresh wrappers and object
 recreation at the same path must retain a live claim after successful setup.
 Retirement is followed by current-target confirmation; pending/error controls
@@ -85,8 +85,8 @@ test authentication. Real scanning, pairing, GATT delivery, service-account
 permissions and physical Zero 2 W memory use/throughput remain untested.
 ARM64 library loading can be checked separately with the
 [QEMU verifier](testing.md#arm64-build-and-controlled-runtime); it does not test
-radio or kernel behavior. The [publication metadata issue](install.md#publication-compatibility-limit)
-also prevents a hosted release.
+radio or kernel behavior. Distribution remains [Git/local only](install.md#publication-compatibility-limit);
+registry name ownership and hosted availability are not established by validation.
 
 - Runtime BLE multi-engine suites exist for Android and iOS. Other ownership
   implementations have unit/native coverage, not equivalent runtime suites.

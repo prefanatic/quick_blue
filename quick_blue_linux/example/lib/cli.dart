@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:quick_blue_core/quick_blue_core.dart';
-import 'package:quick_blue_linux/quick_blue_linux.dart';
+import 'package:quick_blue_linux_dart/quick_blue_linux_dart.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 const help =

@@ -96,6 +96,7 @@ jobs:
               - 'quick_blue/pubspec.yaml'
               - 'quick_blue/example/**'
               - 'quick_blue_linux/**'
+              - 'quick_blue_linux_dart/**'
               - 'quick_blue_platform_interface/**'
             darwin:
               - 'quick_blue_core/**'
@@ -138,7 +139,7 @@ jobs:
           flutter pub get
           flutter pub deps --json
           flutter analyze
-          for package in quick_blue quick_blue/example quick_blue_darwin quick_blue_linux quick_blue_platform_interface quick_blue_windows; do
+          for package in quick_blue quick_blue/example quick_blue_darwin quick_blue_linux quick_blue_linux_dart quick_blue_platform_interface quick_blue_windows; do
             (cd "$package" && flutter test)
           done
 
@@ -165,7 +166,8 @@ jobs:
           mapfile -t dart_files < <(git ls-files \
             '*.dart' \
             ':!:**/*.g.dart' \
-            ':!:quick_blue_linux/lib/generated_bindings.dart')
+            ':!:quick_blue_linux/lib/generated_bindings.dart' \
+            ':!:quick_blue_linux_dart/lib/generated_bindings.dart')
 
           # Resolve packages first: the formatter needs the package language
           # versions from .dart_tool/package_config.json, and without them it
@@ -280,6 +282,7 @@ jobs:
           - quick_blue/example
           - quick_blue_darwin
           - quick_blue_linux
+          - quick_blue_linux_dart
           - quick_blue_platform_interface
           - quick_blue_windows
 
@@ -315,6 +318,7 @@ jobs:
           - quick_blue/example
           - quick_blue_darwin
           - quick_blue_linux
+          - quick_blue_linux_dart
           - quick_blue_platform_interface
           - quick_blue_windows
 
@@ -410,7 +414,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev xvfb xauth
 
       - name: Check cold-cache external Git consumers
         run: python3 scripts/check-linux-consumer.py

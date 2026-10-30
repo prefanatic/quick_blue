@@ -6,7 +6,8 @@ import subprocess
 import tempfile
 import unittest
 
-PACKAGES = ("quick_blue_platform_interface", "quick_blue_core", "quick_blue_darwin", "quick_blue_linux", "quick_blue_windows", "quick_blue")
+FACADE_DEPENDENCIES = ("quick_blue_platform_interface", "quick_blue_core", "quick_blue_darwin", "quick_blue_linux", "quick_blue_windows")
+PACKAGES = (*FACADE_DEPENDENCIES, "quick_blue_linux_dart", "quick_blue")
 
 
 class PublishTests(unittest.TestCase):
@@ -18,8 +19,10 @@ class PublishTests(unittest.TestCase):
             shutil.copyfile(Path(__file__).with_name("publish-packages.sh"), script)
             for package in PACKAGES:
                 (root / package).mkdir()
-                dependencies = PACKAGES[:5] if package == "quick_blue" else ((PACKAGES[0],) if package != PACKAGES[0] else ())
+                dependencies = FACADE_DEPENDENCIES if package == "quick_blue" else ((PACKAGES[0],) if package != PACKAGES[0] else ())
                 if package == "quick_blue_linux":
+                    dependencies += ("quick_blue_core", "quick_blue_linux_dart")
+                if package == "quick_blue_linux_dart":
                     dependencies += ("quick_blue_core",)
                 (root / package / "pubspec.yaml").write_text(
                     f"name: {package}\nversion: 1.2.3\ndependencies:\n" +
@@ -40,7 +43,7 @@ class PublishTests(unittest.TestCase):
     def test_valid(self):
         result, calls = self.fixture()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(calls), 6)
+        self.assertEqual(len(calls), 7)
         self.assertTrue(all("publish --dry-run --ignore-warnings" in call for call in calls))
 
     def test_usage(self):
@@ -68,10 +71,23 @@ class PublishTests(unittest.TestCase):
 
 
     def test_facade_dependency_membership(self):
-        for dependency in PACKAGES[:5]:
+        for dependency in FACADE_DEPENDENCIES:
             for replacement in ("", f"  {dependency}: ^1.2.3\n  {dependency}: ^9.0.0"):
                 with self.subTest(dependency=dependency, replacement=replacement):
                     result, calls = self.fixture(("quick_blue", f"  {dependency}: ^1.2.3", replacement))
+                    self.assertEqual(result.returncode, 65)
+                    self.assertIn(dependency, result.stderr)
+                    self.assertEqual(calls, [])
+
+    def test_linux_backend_dependency_membership(self):
+        for package, dependency in (
+            ('quick_blue_linux', 'quick_blue_linux_dart'),
+            ('quick_blue_linux', 'quick_blue_core'),
+            ('quick_blue_linux_dart', 'quick_blue_core'),
+        ):
+            for replacement in ('', f'  {dependency}: ^9.0.0'):
+                with self.subTest(package=package, dependency=dependency):
+                    result, calls = self.fixture((package, f'  {dependency}: ^1.2.3', replacement))
                     self.assertEqual(result.returncode, 65)
                     self.assertIn(dependency, result.stderr)
                     self.assertEqual(calls, [])

@@ -21,7 +21,8 @@ explicit; use [capabilities](capabilities.md) for platform differences.
 | `quick_blue_core/` | Pure-Dart BLE API using platform-interface state |
 | `quick_blue_platform_interface/` | Shared models, handles and lifecycle coordinators |
 | `quick_blue_darwin/` | iOS/macOS CoreBluetooth and Swift |
-| `quick_blue_linux/` | BlueZ, D-Bus and native L2CAP bindings |
+| `quick_blue_linux/` | Flutter Linux registration and compatibility exports |
+| `quick_blue_linux_dart/` | Pure-Dart BlueZ, D-Bus and native L2CAP implementation |
 | `quick_blue_windows/` | WinRT and C++ |
 | `quick_blue/example/` | Explorer UI and integration tests |
 

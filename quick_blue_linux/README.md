@@ -1,14 +1,17 @@
 # quick_blue_linux
 
-The Linux BlueZ implementation of the `quick_blue` federated Flutter plugin.
+The Flutter Linux registration shell for the `quick_blue` federated plugin.
+It requires Flutter 3.47.7 and exports the identical `QuickBlueLinux` backend
+class, including constructors, adapter snapshots and lease types. No BLE logic
+or lifecycle state is duplicated here. Existing Flutter imports stay unchanged.
 
-Also usable with standalone Dart through `quick_blue_core`, with explicit
-`QuickBlueLinux.registerWith()` registration and no Flutter SDK or engine.
+Standalone Dart consumers use `quick_blue_linux_dart` with `quick_blue_core`,
+explicit `QuickBlueLinux.registerWith()` registration and no Flutter SDK or engine.
 See the [matched-source migration recipe](../docs/install.md#standalone-dart-linux).
 Flutter's generated registration remains supported through federated plugin
-metadata. Use matched source revisions: the
-[Linux publication metadata issue](../docs/install.md#publication-compatibility-limit)
-currently prevents a hosted release. Bluetooth hardware and physical ARM64 devices
+metadata. Use matched source revisions; distribution is
+[Git/local only](../docs/install.md#publication-compatibility-limit).
+Bluetooth hardware and physical ARM64 devices
 remain untested.
 
 The [pure-Dart operator CLI](example/README.md) lists/selects adapters, scans with
@@ -34,7 +37,7 @@ usage, platform setup, and development documentation.
   `Request to own name refused by policy`; install the supplied template:
 
   ```sh
-  sed "s/RUN_AS_USER/$USER/" dbus/dev.quick_blue.Connection.conf \
+  sed "s/RUN_AS_USER/$USER/" ../quick_blue_linux_dart/dbus/dev.quick_blue.Connection.conf \
     | sudo tee /usr/share/dbus-1/system.d/dev.quick_blue.Connection.conf >/dev/null
   sudo systemctl reload dbus-broker   # or: sudo systemctl restart dbus
   ```

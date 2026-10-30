@@ -21,7 +21,7 @@ class FlutterSupportPolicyTest(unittest.TestCase):
         minimum = workflow.split('  minimum-toolchain:', 1)[1].split('  format:', 1)[0]
         self.assertIn(f'flutter-version: "{version}"', minimum)
         for package in ('quick_blue', 'quick_blue/example', 'quick_blue_darwin',
-                        'quick_blue_windows'):
+                        'quick_blue_windows', 'quick_blue_linux'):
             with self.subTest(package=package):
                 manifest = (ROOT / package / 'pubspec.yaml').read_text()
                 self.assertIn(f'flutter: ">={version}"', manifest)
@@ -30,7 +30,7 @@ class FlutterSupportPolicyTest(unittest.TestCase):
 
     def test_standalone_packages_keep_flutter_free_environment(self):
         for package in ('quick_blue_core', 'quick_blue_platform_interface',
-                        'quick_blue_linux', 'quick_blue_linux/example'):
+                        'quick_blue_linux_dart', 'quick_blue_linux/example'):
             with self.subTest(package=package):
                 manifest = (ROOT / package / 'pubspec.yaml').read_text()
                 environment = manifest.split('environment:', 1)[1].split('\n\n', 1)[0]
