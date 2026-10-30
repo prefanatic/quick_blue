@@ -74,6 +74,10 @@ pending reattachment.
 Run the [example app](quick_blue/example/README.md) to scan for devices and
 interact with their characteristics. See [example workflows](docs/example-app.md)
 for source setup and hardware-test profiles.
+The explorer isolates [connection and GATT lifetimes](docs/example-app.md#explorer-connection-ownership)
+so callbacks from retired sessions cannot change the current view.
+Refresh admission stops during release; retired discovery cannot restore a
+disconnected view.
 
 Versioned [GitHub Releases](https://github.com/prefanatic/quick_blue/releases)
 provide evaluation builds for Android, iOS Simulator, macOS, Linux x64 and
