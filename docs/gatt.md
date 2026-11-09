@@ -4,7 +4,7 @@ title: "Discover, write and subscribe"
 description: "Use opt-in snapshot-bound submissions, explicit write framing and subscription-owned notifications."
 tags: ["gatt", "notifications", "writes"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_gatt.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_characteristic.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/bluetooth_gatt_test.dart"}, {"id": "routing", "resource": "../quick_blue_platform_interface/lib/src/characteristic_lifecycle.dart"}, {"id": "retained", "resource": "../quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart"}, {"id": "settlement", "resource": "../quick_blue_platform_interface/test/bluetooth_notifications_test.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_gatt.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_characteristic.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/bluetooth_gatt_test.dart"}, {"id": "routing", "resource": "../quick_blue_platform_interface/lib/src/characteristic_lifecycle.dart"}, {"id": "retained", "resource": "../quick_blue_platform_interface/test/retained_characteristic_value_stream_test.dart"}, {"id": "settlement", "resource": "../quick_blue_platform_interface/test/bluetooth_notifications_test.dart"}, {"id": "darwin-writes", "resource": "../quick_blue_darwin/darwin/quick_blue_darwin/Sources/quick_blue_darwin/QuickBlueDarwinPlugin.swift"}]
 ---
 
 # Discover, write and subscribe
@@ -181,16 +181,23 @@ Writes without response never confirm receipt or processing by the peripheral:
 
 | Platform | Future completion and backpressure |
 | --- | --- |
-| iOS/macOS | Completes after CoreBluetooth handoff. Rejects before handoff with `invalidState` when `canSendWriteWithoutResponse` is false; the caller decides when to retry. Oversized writes are rejected against the native limit for the selected mode. |
+| iOS/macOS | Waits while CoreBluetooth's buffer is full. `peripheralIsReady(toSendWriteWithoutResponse:)` resumes the per-peripheral FIFO queue. Completes after native handoff. Rejects oversized writes against the native limit for the selected mode. |
 | Android | The shared per-device GATT queue serializes operations and completes on `onCharacteristicWrite`. Failure to initiate or a failing native status is an error, not a successful handoff. |
 | Linux | Completes on the BlueZ `WriteValue` D-Bus reply with type `command`. BlueZ busy/in-progress and other errors propagate; no automatic busy retry. |
 | Windows | Completes when WinRT `WriteValueAsync` returns success for `WriteWithoutResponse`. Failing communication statuses and native errors propagate; no automatic busy retry. |
 
-Await writes sequentially. Darwin's busy rejection is fail-fast, not an internal
-queue or a readiness subscription: awaiting a previous handoff does not ensure
-the next write will fit its buffer. Choose any retry delay and retry budget in
-the application. Writes with response await the platform's acknowledged-write
-result. Chunked writes add no automatic reassembly or application ACKs.
+Await writes sequentially. Darwin shares the queue across engines and
+characteristics for each peripheral. Disconnect or engine detach rejects that
+client's unsent writes. Service invalidation rejects unsent writes for affected
+services. A native disconnect rejects all unsent writes. Quick Blue does not
+replay these writes after reconnect.[^darwin-writes]
+
+No readiness timeout exists; a write can remain pending until readiness or one
+of these failures. Writes with response await the platform's acknowledged result.
+Chunked writes add no automatic reassembly or application acknowledgements.
+The [native write tests](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_darwin/darwin/quick_blue_darwin/type_check/Tests/NativeWriteTests/NativeWriteTests.swift)
+use framework stubs to verify queue order, repeated buffer limits, completion,
+and cleanup. These tests do not prove hardware delivery or OTA completion.
 
 ## Database changes invalidate snapshots
 
@@ -210,3 +217,5 @@ listener future. See [capabilities](capabilities.md) for OS gates.
 [^routing]: Raw value controller registration, identity-safe cancellation and event dispatch.
 [^retained]: Injected-event regressions for retained streams and overlapping listeners; no native notification calls.
 [^settlement]: Controlled-future notification setup, cancellation, retry, shared ownership and conflicting-mode regressions; Dart lifecycle evidence only.
+
+[^darwin-writes]: Darwin native write queue, readiness callback, and lifecycle cleanup.

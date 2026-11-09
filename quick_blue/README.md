@@ -382,6 +382,12 @@ and the peripheral protocol. When negotiated MTU lookup is supported, a common
 upper bound for one ATT write payload is `mtu - 3`, but the application protocol
 may require a smaller value.
 
+On iOS and macOS, Quick Blue queues writes without response when CoreBluetooth's
+buffer is full. The readiness callback resumes these writes in order.
+The future completes after native handoff. Disconnect, engine detach, or service
+invalidation rejects affected unsent writes. See [write backpressure](https://github.com/prefanatic/quick_blue/blob/master/docs/gatt.md#write-payload-limits-and-backpressure)
+for lifecycle and verification limits.
+
 ### GATT service changes
 
 Listen for remote GATT database changes and rediscover services before using

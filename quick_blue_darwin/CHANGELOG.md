@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Queue writes without response when CoreBluetooth's buffer is full.
+  Resume writes from `peripheralIsReady(toSendWriteWithoutResponse:)` and reject
+  affected unsent writes on disconnect, engine detach, or service invalidation.
 - Share the CoreBluetooth restoration manager across Flutter engines and replay
   Bluetooth state and restoration callbacks to each registered engine.
 - Emit and buffer privacy-safe aggregate CoreBluetooth restoration callbacks

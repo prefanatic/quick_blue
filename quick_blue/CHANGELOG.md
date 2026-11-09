@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Queue Darwin writes without response when CoreBluetooth's buffer is full.
+  Resume writes from `peripheralIsReady(toSendWriteWithoutResponse:)` and reject
+  affected unsent writes on disconnect, engine detach, or service invalidation.
 
 - Drop older Flutter support: require stable Flutter 3.47.7 (bundled Dart
   3.13.5), pin primary and fresh-resolution minimum-toolchain CI to that release,

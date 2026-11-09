@@ -110,6 +110,7 @@ open class CBPeer: NSObject {
 }
 
 public protocol CBPeripheralDelegate: AnyObject {
+    func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral)
     func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService])
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?)
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?)
@@ -165,12 +166,14 @@ open class CBManager: NSObject {
 open class CBCentralManager: CBManager {
     // Harness-only fixtures for exercising the real plugin against native stubs.
     public static var testPeripherals: [CBPeripheral] = []
+    public static weak var testInstance: CBCentralManager?
     open var delegate: CBCentralManagerDelegate?
     open var isScanning: Bool = false
 
     public init(delegate: CBCentralManagerDelegate?, queue: DispatchQueue?, options: [String: Any]? = nil) {
         super.init()
         self.delegate = delegate
+        Self.testInstance = self
     }
 
     open func scanForPeripherals(withServices serviceUUIDs: [CBUUID]?, options: [String: Any]? = nil) {}

@@ -507,6 +507,15 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         let completion: (Result<Void, Error>) -> Void
     }
 
+    private struct PendingWriteWithoutResponse {
+        let client: QuickBlueDarwinPlugin
+        let peripheral: CBPeripheral
+        let service: String
+        let characteristic: CBCharacteristic
+        let data: Data
+        let completion: (Result<Void, Error>) -> Void
+    }
+
     private static let connectionOwnership = ConnectionOwnership()
     private static let centralManagerDelegate = CentralManagerDelegate()
     private static let managerRegistry = ProcessWideManagerRegistry<
@@ -715,6 +724,10 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
     private var pendingReads:
         [String: [(Result<FlutterStandardTypedData, Error>) -> Void]] = [:]
     private var pendingWrites: [String: [(Result<Void, Error>) -> Void]] = [:]
+    // The host shares one FIFO per peripheral across engines and characteristics.
+    // stateQueue protects the queue and each native readiness check.
+    private var pendingWritesWithoutResponse:
+        [String: [PendingWriteWithoutResponse]] = [:]
     private var pendingNotificationUpdates:
         [NotificationKey: [[PendingNotificationUpdate]]] = [:]
     private var pendingDisconnects: Set<String> = []
@@ -1393,6 +1406,17 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                 details: nil
             )
         }
+        defer {
+            plan.host.failPendingWritesWithoutResponse(
+                forDeviceId: deviceId,
+                matching: { $0.client === self },
+                error: PigeonError(
+                    code: "Disconnected",
+                    message: "The Flutter engine disconnected before the write completed",
+                    details: nil
+                )
+            )
+        }
         try plan.host.disableNotifications(plan.notificationsToDisable)
         if plan.shouldDisconnect {
             try plan.host.stateQueue.sync {
@@ -1586,7 +1610,7 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         let isWithResponse =
             bleOutputProperty != PlatformBleOutputProperty.withoutResponse
         do {
-            try withHostPeripheral(deviceId) { host, peripheral in
+            let (host, peripheral) = try withHostPeripheral(deviceId) { host, peripheral in
                 guard
                     let cbCharacteristic = peripheral.getCharacteristic(
                         characteristic,
@@ -1622,35 +1646,126 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                         details: nil
                     )
                 }
-                guard isWithResponse || peripheral.canSendWriteWithoutResponse
-                else {
-                    throw PigeonError(
-                        code: "InvalidState",
-                        message: "CoreBluetooth write-without-response buffer is full; retry later",
-                        details: nil
-                    )
-                }
                 if isWithResponse {
                     // Resolved when didWriteValueFor fires for this write.
                     host.pendingWrites[
                         host.writeKey(deviceId, cbCharacteristic.uuid.uuidStr),
                         default: []
                     ].append(completion)
+                    peripheral.writeValue(
+                        value.data,
+                        for: cbCharacteristic,
+                        type: writeType
+                    )
+                } else {
+                    guard peripheral.state == .connected,
+                        !host.pendingDisconnects.contains(deviceId),
+                        attachedToEngine
+                    else {
+                        throw PigeonError(
+                            code: "Disconnected",
+                            message: "The peripheral is not connected for the write",
+                            details: nil
+                        )
+                    }
+                    host.pendingWritesWithoutResponse[deviceId, default: []]
+                        .append(
+                            PendingWriteWithoutResponse(
+                                client: self,
+                                peripheral: peripheral,
+                                service: service,
+                                characteristic: cbCharacteristic,
+                                data: value.data,
+                                completion: completion
+                            )
+                        )
                 }
-                peripheral.writeValue(
-                    value.data,
-                    for: cbCharacteristic,
-                    type: writeType
-                )
+                return (host, peripheral)
+            }
+            if !isWithResponse {
+                host.drainPendingWritesWithoutResponse(peripheral)
             }
         } catch {
             completion(.failure(error))
-            return
         }
-        if !isWithResponse {
-            // CoreBluetooth does not acknowledge writes without response, so the
-            // call is complete once the value has been handed off.
-            completion(.success(()))
+    }
+
+    private func drainPendingWritesWithoutResponse(_ peripheral: CBPeripheral) {
+        let deviceId = peripheral.identifier.uuidString
+        var results: [(PendingWriteWithoutResponse, Result<Void, Error>)] = []
+        stateQueue.sync {
+            // Ignore callbacks from a peripheral that a later connection replaced.
+            guard discoveredPeripherals[deviceId] === peripheral else { return }
+            while let write = pendingWritesWithoutResponse[deviceId]?.first {
+                let error: PigeonError?
+                if peripheral.state != .connected
+                    || pendingDisconnects.contains(deviceId)
+                    || !write.client.attachedToEngine
+                    || Self.host(for: deviceId, client: write.client) !== self
+                {
+                    error = PigeonError(
+                        code: "Disconnected",
+                        message: "The peripheral disconnected before the write completed",
+                        details: nil
+                    )
+                } else if write.peripheral !== peripheral
+                    || peripheral.getCharacteristic(
+                        write.characteristic.uuid.uuidStr,
+                        of: write.service
+                    ) !== write.characteristic
+                {
+                    error = PigeonError(
+                        code: "InvalidState",
+                        message: "The characteristic changed before the write completed",
+                        details: nil
+                    )
+                } else {
+                    error = nil
+                }
+                if let error {
+                    _ = popPending(deviceId, from: &pendingWritesWithoutResponse)
+                    results.append((write, .failure(error)))
+                    continue
+                }
+                guard peripheral.canSendWriteWithoutResponse else { break }
+                _ = popPending(deviceId, from: &pendingWritesWithoutResponse)
+                peripheral.writeValue(
+                    write.data,
+                    for: write.characteristic,
+                    type: .withoutResponse
+                )
+                results.append((write, .success(())))
+            }
+        }
+        // Complete outside stateQueue so callers can submit another write.
+        for (write, result) in results {
+            write.completion(result)
+        }
+    }
+
+    private func failPendingWritesWithoutResponse(
+        forDeviceId deviceId: String,
+        matching predicate: (PendingWriteWithoutResponse) -> Bool,
+        error: Error
+    ) {
+        var rejected: [PendingWriteWithoutResponse] = []
+        stateQueue.sync {
+            guard let writes = pendingWritesWithoutResponse.removeValue(forKey: deviceId)
+            else { return }
+            var retained: [PendingWriteWithoutResponse] = []
+            for write in writes {
+                if predicate(write) {
+                    rejected.append(write)
+                } else {
+                    retained.append(write)
+                }
+            }
+            if !retained.isEmpty {
+                pendingWritesWithoutResponse[deviceId] = retained
+            }
+        }
+        for write in rejected {
+            write.completion(.failure(error))
         }
     }
 
@@ -1734,6 +1849,15 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
                     preserveEmptyConnection: true
                 )
             else { continue }
+            plan.host.failPendingWritesWithoutResponse(
+                forDeviceId: deviceId,
+                matching: { $0.client === self },
+                error: PigeonError(
+                    code: "Disconnected",
+                    message: "The Flutter engine detached before the write completed",
+                    details: nil
+                )
+            )
             do {
                 try plan.host.disableNotifications(plan.notificationsToDisable)
             } catch {
@@ -1873,6 +1997,9 @@ public class QuickBlueDarwinPlugin: NSObject, FlutterPlugin, QuickBlueApi {
         var notificationCompletions: [(Result<Void, Error>) -> Void] = []
         stateQueue.sync {
             let prefix = "\(deviceId)/"
+            if let writes = pendingWritesWithoutResponse.removeValue(forKey: deviceId) {
+                writeCompletions.append(contentsOf: writes.map(\.completion))
+            }
             // Snapshot keys before removing to avoid mutating during iteration.
             let matchingReadKeys = pendingReads.keys.filter {
                 $0.hasPrefix(prefix)
@@ -2148,12 +2275,27 @@ extension QuickBlueDarwinPlugin {
 }
 
 extension QuickBlueDarwinPlugin: CBPeripheralDelegate {
+    public func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
+        drainPendingWritesWithoutResponse(peripheral)
+    }
+
     public func peripheral(
         _ peripheral: CBPeripheral,
         didModifyServices invalidatedServices: [CBService]
     ) {
         let deviceId = peripheral.identifier.uuidString
         pendingServiceDiscovery.removeValue(forKey: deviceId)
+        failPendingWritesWithoutResponse(
+            forDeviceId: deviceId,
+            matching: { write in
+                invalidatedServices.contains { $0 === write.characteristic.service }
+            },
+            error: PigeonError(
+                code: "InvalidState",
+                message: "The service changed before the write completed",
+                details: nil
+            )
+        )
         Self.emitGattServicesChanged(
             deviceId: deviceId,
             invalidatedServiceUuids: invalidatedServices.map {

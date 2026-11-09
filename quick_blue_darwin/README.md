@@ -36,6 +36,11 @@ QUICK_BLUE_HIDE_TEST_WINDOW=1 \
 
 Helper-package Swift tests run with
 `swift test --package-path darwin/quick_blue_darwin/connection_ownership` (and
-the same for `restoration_summary`). The main plugin target has no Swift test
-target yet: its behaviour is covered by the Dart channel tests and the hardware
-integration tests.
+the same for `restoration_summary`). The native harness also tests write limits,
+readiness, queue order, and cleanup against framework stubs:
+
+```sh
+./darwin/quick_blue_darwin/type_check/run.sh
+```
+
+These tests do not prove CoreBluetooth behavior on hardware.
