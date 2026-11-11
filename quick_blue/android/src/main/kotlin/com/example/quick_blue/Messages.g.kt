@@ -251,6 +251,19 @@ enum class PlatformBondState(val raw: Int) {
   }
 }
 
+enum class PlatformRepairState(val raw: Int) {
+  UNKNOWN(0),
+  IN_PROGRESS(1),
+  SUCCEEDED(2),
+  FAILED(3);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformRepairState? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 enum class PlatformAndroidScanMode(val raw: Int) {
   OPPORTUNISTIC(0),
   LOW_POWER(1),
@@ -334,6 +347,51 @@ enum class PlatformGattStatus(val raw: Int) {
     fun ofRaw(raw: Int): PlatformGattStatus? {
       return values().firstOrNull { it.raw == raw }
     }
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlatformRepairObservation (
+  val deviceId: String,
+  val generation: Long,
+  val state: PlatformRepairState
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformRepairObservation {
+      val deviceId = pigeonVar_list[0] as String
+      val generation = pigeonVar_list[1] as Long
+      val state = pigeonVar_list[2] as PlatformRepairState
+      return PlatformRepairObservation(deviceId, generation, state)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      deviceId,
+      generation,
+      state,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformRepairObservation
+    return MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.generation, other.generation) && MessagesPigeonUtils.deepEquals(this.state, other.state)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.generation)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.state)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformRepairObservation(deviceId=$deviceId, generation=$generation, state=$state)"
   }
 }
 
@@ -1047,105 +1105,115 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       133.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformAndroidScanMode.ofRaw(it.toInt())
+          PlatformRepairState.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformAndroidScanCallbackType.ofRaw(it.toInt())
+          PlatformAndroidScanMode.ofRaw(it.toInt())
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformAndroidScanMatchMode.ofRaw(it.toInt())
+          PlatformAndroidScanCallbackType.ofRaw(it.toInt())
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformAndroidScanNumOfMatches.ofRaw(it.toInt())
+          PlatformAndroidScanMatchMode.ofRaw(it.toInt())
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformAndroidScanPhy.ofRaw(it.toInt())
+          PlatformAndroidScanNumOfMatches.ofRaw(it.toInt())
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformConnectionState.ofRaw(it.toInt())
+          PlatformAndroidScanPhy.ofRaw(it.toInt())
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformGattStatus.ofRaw(it.toInt())
+          PlatformConnectionState.ofRaw(it.toInt())
         }
       }
       140.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformAndroidScanOptions.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformGattStatus.ofRaw(it.toInt())
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformBleCompanionFilter.fromList(it)
+          PlatformRepairObservation.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCompanionAssociationRequest.fromList(it)
+          PlatformAndroidScanOptions.fromList(it)
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCompanionAssociation.fromList(it)
+          PlatformBleCompanionFilter.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCapabilities.fromList(it)
+          PlatformCompanionAssociationRequest.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformScanResult.fromList(it)
+          PlatformCompanionAssociation.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformConnectionStateChange.fromList(it)
+          PlatformCapabilities.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformBondStateChange.fromList(it)
+          PlatformScanResult.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformServiceDiscovered.fromList(it)
+          PlatformConnectionStateChange.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristic.fromList(it)
+          PlatformBondStateChange.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformMtuChange.fromList(it)
+          PlatformServiceDiscovered.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformCharacteristicValueChanged.fromList(it)
+          PlatformCharacteristic.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformL2CapSocketEvent.fromList(it)
+          PlatformMtuChange.fromList(it)
         }
       }
       153.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCharacteristicValueChanged.fromList(it)
+        }
+      }
+      154.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformL2CapSocketEvent.fromList(it)
+        }
+      }
+      155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformGattServiceChange.fromList(it)
         }
@@ -1171,88 +1239,96 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformAndroidScanMode -> {
+      is PlatformRepairState -> {
         stream.write(133)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformAndroidScanCallbackType -> {
+      is PlatformAndroidScanMode -> {
         stream.write(134)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformAndroidScanMatchMode -> {
+      is PlatformAndroidScanCallbackType -> {
         stream.write(135)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformAndroidScanNumOfMatches -> {
+      is PlatformAndroidScanMatchMode -> {
         stream.write(136)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformAndroidScanPhy -> {
+      is PlatformAndroidScanNumOfMatches -> {
         stream.write(137)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformConnectionState -> {
+      is PlatformAndroidScanPhy -> {
         stream.write(138)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformGattStatus -> {
+      is PlatformConnectionState -> {
         stream.write(139)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformAndroidScanOptions -> {
+      is PlatformGattStatus -> {
         stream.write(140)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PlatformBleCompanionFilter -> {
+      is PlatformRepairObservation -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is PlatformCompanionAssociationRequest -> {
+      is PlatformAndroidScanOptions -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is PlatformCompanionAssociation -> {
+      is PlatformBleCompanionFilter -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is PlatformCapabilities -> {
+      is PlatformCompanionAssociationRequest -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is PlatformScanResult -> {
+      is PlatformCompanionAssociation -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is PlatformConnectionStateChange -> {
+      is PlatformCapabilities -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is PlatformBondStateChange -> {
+      is PlatformScanResult -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is PlatformServiceDiscovered -> {
+      is PlatformConnectionStateChange -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristic -> {
+      is PlatformBondStateChange -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is PlatformMtuChange -> {
+      is PlatformServiceDiscovered -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is PlatformCharacteristicValueChanged -> {
+      is PlatformCharacteristic -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is PlatformL2CapSocketEvent -> {
+      is PlatformMtuChange -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is PlatformGattServiceChange -> {
+      is PlatformCharacteristicValueChanged -> {
         stream.write(153)
+        writeValue(stream, value.toList())
+      }
+      is PlatformL2CapSocketEvent -> {
+        stream.write(154)
+        writeValue(stream, value.toList())
+      }
+      is PlatformGattServiceChange -> {
+        stream.write(155)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1273,6 +1349,7 @@ interface QuickBlueApi {
   fun connect(deviceId: String)
   fun disconnect(deviceId: String)
   fun bondState(deviceId: String): PlatformBondState
+  fun repairObservation(deviceId: String): PlatformRepairObservation
   fun startPairing(deviceId: String)
   suspend fun pair(deviceId: String)
   suspend fun isCompanionAssociationSupported(): Boolean
@@ -1426,6 +1503,23 @@ interface QuickBlueApi {
             val deviceIdArg = args[0] as String
             val wrapped: List<Any?> = try {
               listOf(api.bondState(deviceIdArg))
+            } catch (exception: Throwable) {
+              MessagesPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.quick_blue.QuickBlueApi.repairObservation$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.repairObservation(deviceIdArg))
             } catch (exception: Throwable) {
               MessagesPigeonUtils.wrapError(exception)
             }
@@ -1744,7 +1838,7 @@ class PigeonEventSink<T>(private val sink: EventChannel.EventSink) {
     sink.endOfStream()
   }
 }
-      
+
 abstract class BluetoothStateStreamHandler : MessagesPigeonEventChannelWrapper<PlatformBluetoothState> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: BluetoothStateStreamHandler, instanceName: String = "") {
@@ -1761,7 +1855,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformBluetoothState>) {
 
 override fun onCancel(p0: Any?) {}
 }
-      
+
 abstract class BondStateChangesStreamHandler : MessagesPigeonEventChannelWrapper<PlatformBondStateChange> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: BondStateChangesStreamHandler, instanceName: String = "") {
@@ -1778,7 +1872,24 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformBondStateChange>) 
 
 override fun onCancel(p0: Any?) {}
 }
-      
+
+abstract class RepairChangesStreamHandler : MessagesPigeonEventChannelWrapper<PlatformRepairObservation> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: RepairChangesStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.quick_blue.QuickBlueEventApi.repairChanges"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = MessagesPigeonStreamHandler<PlatformRepairObservation>(streamHandler)
+      EventChannel(messenger, channelName, MessagesPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+// Implement methods from MessagesPigeonEventChannelWrapper
+override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformRepairObservation>) {}
+
+override fun onCancel(p0: Any?) {}
+}
+
 abstract class ScanResultsStreamHandler : MessagesPigeonEventChannelWrapper<PlatformScanResult> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: ScanResultsStreamHandler, instanceName: String = "") {
@@ -1795,7 +1906,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformScanResult>) {}
 
 override fun onCancel(p0: Any?) {}
 }
-      
+
 abstract class MtuChangedStreamHandler : MessagesPigeonEventChannelWrapper<PlatformMtuChange> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: MtuChangedStreamHandler, instanceName: String = "") {
@@ -1812,7 +1923,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformMtuChange>) {}
 
 override fun onCancel(p0: Any?) {}
 }
-      
+
 abstract class L2CapSocketEventsStreamHandler : MessagesPigeonEventChannelWrapper<PlatformL2CapSocketEvent> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: L2CapSocketEventsStreamHandler, instanceName: String = "") {
@@ -1829,7 +1940,7 @@ override fun onListen(p0: Any?, sink: PigeonEventSink<PlatformL2CapSocketEvent>)
 
 override fun onCancel(p0: Any?) {}
 }
-      
+
 /** Generated class from Pigeon that represents Flutter messages that can be called from Kotlin. */
 class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private val messageChannelSuffix: String = "") {
   companion object {
@@ -1853,7 +1964,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
           }
         } else {
           continuation.resumeWithException(MessagesPigeonUtils.createConnectionError(channelName))
-        } 
+        }
       }
     }
   }
@@ -1872,7 +1983,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
           }
         } else {
           continuation.resumeWithException(MessagesPigeonUtils.createConnectionError(channelName))
-        } 
+        }
       }
     }
   }
@@ -1891,7 +2002,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
           }
         } else {
           continuation.resumeWithException(MessagesPigeonUtils.createConnectionError(channelName))
-        } 
+        }
       }
     }
   }
@@ -1910,7 +2021,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
           }
         } else {
           continuation.resumeWithException(MessagesPigeonUtils.createConnectionError(channelName))
-        } 
+        }
       }
     }
   }
@@ -1929,7 +2040,7 @@ class QuickBlueFlutterApi(private val binaryMessenger: BinaryMessenger, private 
           }
         } else {
           continuation.resumeWithException(MessagesPigeonUtils.createConnectionError(channelName))
-        } 
+        }
       }
     }
   }

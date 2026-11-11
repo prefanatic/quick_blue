@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Serialize Android repair observation attachment/retirement with broker connection
+  ownership, so delayed old disconnect delivery cannot clear a replacement repair.
+  Add a held-close regression using actual broker/plugin/observer code over mocked
+  Android IO; physical Android 17 repair remains unverified.
 - Add a federated Web Bluetooth backend with a direct-gesture `requestDevice`
   chooser, authorized GATT discovery/read/write/notifications, bounded waits and
   stale-session fencing. Native scanning, bonding, MTU and L2CAP remain unsupported
@@ -181,6 +185,15 @@
 - Migrate the explorer to public connection lifecycle methods with one connect
   deadline, bounded client-local abandonment, awaitable shutdown and observable
   cleanup errors. Native connection behavior is unchanged.
+
+- Coordinate Android 17 security recovery with explicit OS repair context and
+  correlated LE encryption evidence while retaining Android-owned pairing UI,
+  bounded waits, the single operation retry, and legacy fresh-pairing behavior.
+  A retained bond or app wait timeout is not treated as proof of repair success
+  or definitive system repair failure. Clear internal per-device repair state
+  on disconnect/engine detach; no public cross-platform repair API is added.
+
+
 - Publish tagged example-app builds for Android, iOS Simulator, macOS, Linux
   x64, and Windows x64 with per-asset SHA-256 checksums and platform limitation
   guidance.
