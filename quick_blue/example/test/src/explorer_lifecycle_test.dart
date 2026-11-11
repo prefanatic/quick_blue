@@ -38,6 +38,17 @@ class LifecyclePlatform extends FakeQuickBluePlatform {
   bool emitConnect = true;
   bool emitDisconnect = true;
   Completer<void>? stopScanGate;
+  Completer<void>? discoveryGate;
+  Object? discoveryError;
+  int discoverySubmissions = 0;
+
+  @override
+  Future<void> discoverServices(String deviceId) async {
+    discoverySubmissions++;
+    await discoveryGate?.future;
+    if (discoveryError case final error?) throw error;
+    await super.discoverServices(deviceId);
+  }
 
   @override
   Future<void> stopScan() async {
@@ -105,6 +116,142 @@ void main() {
   tearDown(() async {
     QuickBluePlatform.instance = previous;
     await platform.dispose();
+  });
+
+  for (final trigger in ['manual', 'service-change']) {
+    testWidgets('$trigger refresh cannot start during release', (tester) async {
+      initialize();
+      final controller = BleExplorerController();
+      await drain(tester);
+      await controller.selectDevice('a');
+      final connecting = controller.connectSelected();
+      await drain(tester);
+      await connecting;
+      platform.emitDisconnect = false;
+      final disconnecting = controller.disconnectSelected();
+      await drain(tester);
+      if (trigger == 'manual') {
+        await controller.discoverServices();
+      } else {
+        platform.handleGattServicesChanged('a');
+      }
+      await drain(tester);
+      // Verify admission before the deadline, not just eventual empty rows.
+      expect(platform.discoverySubmissions, 1);
+      await tester.pump(const Duration(seconds: 3));
+      await drain(tester);
+      await disconnecting;
+      expect(controller.status, 'Disconnected.');
+      platform.handleGattServicesChanged('a');
+      await drain(tester);
+      expect(platform.discoverySubmissions, 1);
+      platform.emitDisconnect = true;
+      controller.dispose();
+      await drain(tester);
+      await controller.shutdown();
+    });
+
+    for (final failure in [false, true]) {
+      testWidgets('$trigger refresh is retired during disconnect ($failure)', (
+        tester,
+      ) async {
+        initialize();
+        final controller = BleExplorerController();
+        platform.discoveredServices = [
+          BluetoothService(
+            deviceId: 'a',
+            uuid: 'service',
+            characteristics: ['char'],
+          ),
+        ];
+        try {
+          await drain(tester);
+          await controller.selectDevice('a');
+          final connecting = controller.connectSelected();
+          await drain(tester);
+          await connecting;
+          expect(controller.services, hasLength(1));
+
+          // Work already in flight must also be retired, not just new requests.
+          platform.discoveryGate = Completer<void>();
+          final refresh = controller.discoverServices();
+          await drain(tester);
+          expect(platform.discoverySubmissions, 2);
+          platform.emitDisconnect = false;
+          final disconnecting = controller.disconnectSelected();
+          await drain(tester);
+          if (trigger == 'manual') {
+            await controller.discoverServices();
+          } else {
+            platform.handleGattServicesChanged('a');
+          }
+          await drain(tester);
+          await tester.pump(const Duration(seconds: 3));
+          await drain(tester);
+          await disconnecting;
+          expect(controller.services, isEmpty);
+          expect(controller.status, 'Disconnected.');
+          if (failure) platform.discoveryError = StateError('late discovery');
+          platform.discoveryGate!.complete();
+          await drain(tester);
+          await refresh;
+          expect(platform.discoverySubmissions, 2);
+          expect(controller.services, isEmpty);
+          expect(controller.status, 'Disconnected.');
+          expect(controller.message, isNull);
+          if (failure) expect(controller.gattErrors, isNotEmpty);
+
+          platform.discoveryGate = null;
+          platform.discoveryError = null;
+          final reconnect = controller.connectSelected();
+          await drain(tester);
+          await reconnect;
+          expect(controller.connected, isTrue);
+          expect(controller.services, hasLength(1));
+          expect(platform.discoverySubmissions, 3);
+        } finally {
+          platform.emitDisconnect = true;
+          controller.dispose();
+          await drain(tester);
+          await controller.shutdown();
+        }
+      });
+    }
+  }
+
+  testWidgets('reconnect owns refresh after public discovery supersession', (
+    tester,
+  ) async {
+    initialize();
+    final controller = BleExplorerController();
+    await drain(tester);
+    await controller.selectDevice('a');
+    final connecting = controller.connectSelected();
+    await drain(tester);
+    await connecting;
+    final gate = platform.discoveryGate = Completer<void>();
+    final refresh = controller.discoverServices();
+    await drain(tester);
+    final disconnecting = controller.disconnectSelected();
+    await drain(tester);
+    await disconnecting;
+    platform.discoveryGate = null;
+    final reconnect = controller.connectSelected();
+    await drain(tester);
+    expect(controller.connected, isTrue);
+    expect(platform.discoverySubmissions, 3);
+    platform.handleGattServicesChanged('a');
+    await drain(tester);
+    gate.complete();
+    await drain(tester);
+    await refresh;
+    await reconnect;
+    expect(platform.discoverySubmissions, 4);
+    expect(controller.status, 'Found 0 service(s).');
+    expect(controller.discovering, isFalse);
+    controller.dispose();
+    await drain(tester);
+    await controller.shutdown();
   });
 
   testWidgets('LC-01 deadline actively abandons stalled raw connect', (
