@@ -4,6 +4,8 @@ This is a pure-Dart example, not a service or a pairing agent. Start with the
 [standalone build instructions](../../docs/install.md#operator-cli-fixture)
 and [service-account and pairing setup](../../docs/pairing.md#headless-linux-agent-lifecycle).
 No Flutter SDK, engine, display or desktop session is needed by the executable.
+Its Linux implementation dependency is `quick_blue_linux_dart`; the containing
+`quick_blue_linux` directory is the Flutter shell, not a CLI dependency.
 
 From the repository root, with a separately installed Dart 3.13 SDK:
 

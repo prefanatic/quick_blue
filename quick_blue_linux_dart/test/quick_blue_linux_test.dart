@@ -1,0 +1,237 @@
+import 'dart:async';
+
+import 'package:bluez/bluez.dart';
+import 'package:test/test.dart';
+import 'package:quick_blue_linux_dart/quick_blue_linux_dart.dart';
+import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
+import 'adapter_selection_test.dart' as adapter_fake;
+
+void main() {
+  test('registers as platform implementation', () {
+    final previous = QuickBluePlatform.instance;
+    try {
+      QuickBlueLinux.registerWith();
+      expect(QuickBluePlatform.instance, isA<QuickBlueLinux>());
+    } finally {
+      QuickBluePlatform.instance = previous;
+    }
+  });
+
+  test('reports Linux platform capabilities', () async {
+    expect(
+      await QuickBlueLinux().capabilities(),
+      const QuickBlueCapabilities(
+        bonding: BluetoothBondingCapability.queryAndPair,
+        mtu: BluetoothMtuCapability.unsupported,
+        gattServiceChanges: BluetoothGattServiceChangeCapability.databaseOnly,
+        connectedDeviceLookup:
+            BluetoothConnectedDeviceLookupCapability.unrestricted,
+        supportsL2capSockets: true,
+        supportsCompanionAssociation: false,
+        supportsAppleAccessorySetup: false,
+      ),
+    );
+  });
+
+  test('companion APIs throw QuickBlueException', () async {
+    final platform = QuickBlueLinux();
+
+    expect(await platform.isCompanionAssociationSupported(), isFalse);
+    expect(
+      platform.companionAssociate(CompanionAssociationRequest.ble()),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
+    );
+    expect(
+      () => platform.companionDisassociate(42),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
+    );
+    expect(
+      platform.getCompanionAssociations(),
+      throwsA(
+        isA<QuickBlueException>().having(
+          (error) => error.code,
+          'code',
+          QuickBlueErrorCode.unsupported,
+        ),
+      ),
+    );
+  });
+
+  test('requestMtu reports unsupported instead of returning an estimate', () {
+    final platform = QuickBlueLinux();
+
+    expect(
+      platform.requestMtu('device-a', 247),
+      throwsA(
+        isA<QuickBlueException>()
+            .having(
+              (error) => error.code,
+              'code',
+              QuickBlueErrorCode.unsupported,
+            )
+            .having((error) => error.operation, 'operation', 'requestMtu'),
+      ),
+    );
+  });
+
+  test('concurrent first calls share one BlueZ initialization', () async {
+    final client = _FakeBlueZClient();
+    final platform = QuickBlueLinux.withClient(client);
+
+    final firstAvailability = platform.isBluetoothAvailable();
+    final secondAvailability = platform.isBluetoothAvailable();
+    await pumpEventQueue();
+
+    expect(client.connectCount, 1);
+
+    client.connection.complete();
+    expect(
+      await Future.wait(<Future<bool>>[firstAvailability, secondAvailability]),
+      <bool>[false, false],
+    );
+    expect(await platform.isBluetoothAvailable(), isFalse);
+    expect(client.connectCount, 1);
+  });
+
+  test('security recovery pairs an unpaired BlueZ device', () async {
+    final device = _FakeBlueZDevice('AA:BB:CC:DD:EE:FF');
+    final client = _FakeBlueZClient(devices: <BlueZDevice>[device]);
+    client.connection.complete();
+    final platform = QuickBlueLinux.withClient(client);
+
+    final result = await platform.recoverSecurity(
+      device.address,
+      QuickBlueSecurityException(
+        reason: QuickBlueSecurityErrorReason.insufficientAuthorization,
+        nativeDomain: 'org.bluez.Error.NotAuthorized',
+        nativeCode: null,
+        operation: 'readValue',
+        deviceId: device.address,
+        message: 'Not authorized',
+      ),
+    );
+
+    expect(result, QuickBlueSecurityRecoveryResult.recovered);
+    expect(device.pairCount, 1);
+    expect(device.paired, isTrue);
+  });
+
+  test('ServicesResolved invalidates the connected GATT database', () async {
+    final device = _FakeBlueZDevice('AA:BB:CC:DD:EE:FF')
+      ..connected = true
+      ..servicesResolved = true;
+    final client = _FakeBlueZClient(devices: <BlueZDevice>[device]);
+    final platform = QuickBlueLinux.withClient(
+      client,
+      connectionLease: _FakeConnectionLease(),
+    );
+    client.connection.complete();
+    addTearDown(device.dispose);
+
+    await platform.connect(device.address);
+    final change = platform.gattServiceChangedStream.first;
+
+    device.servicesResolved = false;
+    device.properties.add(const <String>['ServicesResolved']);
+
+    expect(await change, BluetoothGattServiceChange(deviceId: device.address));
+  });
+}
+
+class _FakeConnectionLease implements QuickBlueLinuxConnectionLease {
+  @override
+  Future<void> attach(String deviceId) async {}
+
+  @override
+  Future<void> detach(
+    String deviceId,
+    Future<void> Function() onLastClient,
+  ) async {
+    await onLastClient();
+  }
+}
+
+class _FakeBlueZClient implements BlueZClient {
+  _FakeBlueZClient({this.devices = const <BlueZDevice>[]});
+
+  final connection = Completer<void>();
+  var connectCount = 0;
+
+  @override
+  Future<void> connect() {
+    connectCount++;
+    return connection.future;
+  }
+
+  @override
+  List<BlueZAdapter> get adapters => const <BlueZAdapter>[];
+
+  @override
+  final List<BlueZDevice> devices;
+
+  @override
+  Stream<BlueZAdapter> get adapterAdded => const Stream<BlueZAdapter>.empty();
+
+  @override
+  Stream<BlueZAdapter> get adapterRemoved => const Stream<BlueZAdapter>.empty();
+
+  @override
+  Stream<BlueZDevice> get deviceAdded => const Stream<BlueZDevice>.empty();
+
+  @override
+  Stream<BlueZDevice> get deviceRemoved => const Stream<BlueZDevice>.empty();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeBlueZDevice implements BlueZDevice {
+  _FakeBlueZDevice(this.address);
+  @override
+  BlueZAdapter get adapter => adapter_fake.Adapter('02:00:00:00:00:00');
+
+  final properties = StreamController<List<String>>.broadcast();
+
+  @override
+  final String address;
+
+  @override
+  var paired = false;
+
+  @override
+  var connected = false;
+
+  @override
+  var servicesResolved = false;
+
+  @override
+  Stream<List<String>> get propertiesChanged => properties.stream;
+
+  @override
+  List<BlueZGattService> get gattServices => const <BlueZGattService>[];
+
+  var pairCount = 0;
+
+  @override
+  Future<void> pair() async {
+    pairCount++;
+    paired = true;
+  }
+
+  Future<void> dispose() => properties.close();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}

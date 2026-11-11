@@ -25,8 +25,7 @@ class HeadlessGraphTests(unittest.TestCase):
                 package = snapshot / name
                 package.mkdir(parents=True)
                 text = f'name: {name}\nenvironment:\n  sdk: ^3.13.0\n'
-                if name == 'quick_blue_linux':
-                    text += 'flutter:\n  plugin:\n    implements: quick_blue\n    platforms:\n      linux:\n        dartPluginClass: QuickBlueLinux\n'
+
                 (package / 'pubspec.yaml').write_text(text)
                 config['packages'].append({'name': name, 'rootUri': package.as_uri() + '/'})
             if mutate:
@@ -41,9 +40,12 @@ class HeadlessGraphTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'roots'):
             self.fixture(mutate)
 
-    def test_plugin_metadata_is_not_an_sdk_dependency(self):
-        manifests = self.fixture()
-        self.assertIn('implements: quick_blue', manifests['quick_blue_linux']['pubspec'])
+    def test_rejects_transitive_plugin_metadata(self):
+        def mutate(graph, config, snapshot):
+            path = snapshot / 'dbus/pubspec.yaml'
+            path.write_text(path.read_text() + 'flutter:\n  plugin:\n    platforms: {}\n')
+        with self.assertRaisesRegex(ValueError, 'Flutter plugin metadata'):
+            self.fixture(mutate)
 
     def test_rejects_flutter_sdk_dependency(self):
         def mutate(graph, config, snapshot):

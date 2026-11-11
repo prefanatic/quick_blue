@@ -207,6 +207,7 @@ function Test-PubGetNeeded([string] $workTree) {
     'quick_blue\example\pubspec.yaml',
     'quick_blue_darwin\pubspec.yaml',
     'quick_blue_linux\pubspec.yaml',
+    'quick_blue_linux_dart\pubspec.yaml',
     'quick_blue_platform_interface\pubspec.yaml',
     'quick_blue_windows\pubspec.yaml'
   ) |

@@ -4,7 +4,7 @@ title: "Verify repository changes"
 description: "Select package, native and hardware checks and record precise evidence."
 tags: ["development", "testing", "ci"]
 
-sources: [{"id": "source1", "resource": "../.github/workflows/ci.yml"}, {"id": "source2", "resource": "../AGENTS.md"}, {"id": "source3", "resource": "../CONTRIBUTING.md"}, {"id": "source4", "resource": "../scripts/publish-packages.sh"}, {"id": "source5", "resource": "../scripts/windows-integration-test.sh"}, {"id": "site-tests", "resource": "../scripts/test_check_docs_site.py"}, {"id": "release-tests", "resource": "../scripts/test_publish_packages.py"}, {"id": "consumer-tests", "resource": "../scripts/test_check_linux_consumer.py"}, {"id": "maintenance-ci", "resource": "../.github/workflows/docs.yml"}, {"id": "linux-dev", "resource": "../quick_blue_linux/pubspec.yaml"}, {"id": "linux-generator", "resource": "../quick_blue_linux/ffigen.yaml"}]
+sources: [{"id": "source1", "resource": "../.github/workflows/ci.yml"}, {"id": "source2", "resource": "../AGENTS.md"}, {"id": "source3", "resource": "../CONTRIBUTING.md"}, {"id": "source4", "resource": "../scripts/publish-packages.sh"}, {"id": "source5", "resource": "../scripts/windows-integration-test.sh"}, {"id": "site-tests", "resource": "../scripts/test_check_docs_site.py"}, {"id": "release-tests", "resource": "../scripts/test_publish_packages.py"}, {"id": "consumer-tests", "resource": "../scripts/test_check_linux_consumer.py"}, {"id": "maintenance-ci", "resource": "../.github/workflows/docs.yml"}, {"id": "linux-dev", "resource": "../quick_blue_linux/pubspec.yaml"}, {"id": "linux-generator", "resource": "../quick_blue_linux_dart/ffigen.yaml"}]
 ---
 
 # Verify repository changes
@@ -13,7 +13,7 @@ Run commands from the repository root unless a subshell below changes directory.
 CI pins the primary and declared-minimum Flutter lanes to stable `3.47.7`
 (framework `abaf9c523780a608bd46686fd5e53740a07077f8`, bundled Dart `3.13.5`).
 The minimum lane independently uses fresh resolution, root analysis and
-all six package test suites. The verification step uses an isolated pub cache and no
+all seven Flutter-workspace package test suites. The verification step uses an isolated pub cache and no
 Flutter action cache; it proves Dart compatibility, not native or BLE behavior.
 
 To reproduce locally, select an isolated Flutter `3.47.7` SDK (do not replace the
@@ -26,11 +26,14 @@ flutter --version
 flutter pub get
 flutter pub deps --json
 flutter analyze
-for package in quick_blue quick_blue/example quick_blue_darwin quick_blue_linux quick_blue_platform_interface quick_blue_windows; do
+for package in quick_blue quick_blue/example quick_blue_darwin quick_blue_linux quick_blue_linux_dart quick_blue_platform_interface quick_blue_windows; do
   (cd "$package" && flutter test) || exit
 done
 ```
 
+The seven-suite Flutter loop mirrors CI. `quick_blue_core` is tested separately
+with standalone Dart by the [standalone consumer verifier](#standalone-package-boundary),
+not by this Flutter matrix.
 
 Older Flutter versions are no longer supported. Keep both CI pins and Flutter
 package constraints aligned when advancing this floor; standalone Dart 3.13
@@ -42,7 +45,7 @@ Linux's development-only ffigen pin remains `21.0.0` for reproducible generation
 no runtime dependency or generated binding is changed. On Fedora,
 
 regenerate with `dart run ffigen --config ffigen.yaml --compiler-opts
-'-I/usr/lib/clang/22/include'` inside `quick_blue_linux` when libclang's bundled
+'-I/usr/lib/clang/22/include'` inside `quick_blue_linux_dart` when libclang's bundled
 resource headers are not found automatically. This host-specific include path
 is not a portable default. Dependency resolution is time-dependent because the
 workspace lockfile is ignored; retain the dependency snapshot with test evidence.
@@ -137,7 +140,7 @@ Format touched, non-generated Dart files with `dart format`. Do not format gener
 bindings; update them only through the owning generator. The CI format gate excludes generated
 Dart bindings. Run `flutter analyze` and `flutter test` in affected packages:
 `quick_blue`, `quick_blue_platform_interface`, `quick_blue_darwin`,
-`quick_blue_linux`, `quick_blue_windows`, and `quick_blue/example`.
+`quick_blue_linux`, `quick_blue_linux_dart`, `quick_blue_windows`, and `quick_blue/example`.
 Shared API/model changes require platform-interface and affected facade tests.
 Example changes require `(cd quick_blue/example && flutter analyze && flutter test)`.
 
@@ -151,7 +154,11 @@ python3 -O -m unittest discover -s scripts -p 'test_*.py'
 The Documentation workflow runs these tests alongside OKF validation and a clean
 site build. Tests cover OKF structure, site links, release metadata and consumer
 construction. Headless graph/manifest tests reject Flutter SDK constraints,
-mixed repository snapshots and workspace roots while permitting plugin metadata.
+mixed repository snapshots, workspace roots and transitive Flutter plugin metadata.
+The Git-consumer check builds and launches both external Linux consumers under
+Xvfb without manual app registration. It asserts the generated registrant installed
+the backend, legacy/backend type identity and core/facade singleton stream identity.
+This needs `xvfb-run` and the Linux Flutter runtime libraries, not Bluetooth hardware.
 The external Git-consumer check isolates Flutter template bootstrap in a separate
 Pub cache, since a cold SDK can populate it even for `flutter create --no-pub`.
 The actual consumer cache must still be empty immediately before `pub get`;
@@ -344,21 +351,21 @@ Run the real channel control flow against scripted syscall wrappers, without
 loading BlueZ or opening a Bluetooth socket:
 
 ```sh
-(cd quick_blue_linux && flutter test test/l2cap_channel_test.dart \
+(cd quick_blue_linux_dart && flutter test test/l2cap_channel_test.dart \
   test/l2cap_harness_test.dart --reporter expanded)
-(cd quick_blue_linux && flutter test --reporter expanded)
-(cd quick_blue_linux && flutter analyze)
+(cd quick_blue_linux_dart && flutter test --reporter expanded)
+(cd quick_blue_linux_dart && flutter analyze)
 (cd quick_blue/example && flutter build linux --debug)
 ```
 
-The [channel tests](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/l2cap_channel_test.dart) cover exact
+The [channel tests](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux_dart/test/l2cap_channel_test.dart) cover exact
 bytes for success, partial sends, finite EINTR and EAGAIN, failed connect (including
 the eight-attempt EINTR limit), send/receive closure and allocation/fd cleanup.
 The `Libc`/`LibBluetooth` wrappers supply scripted calls. The counting
 allocator delegates to real zeroed allocations; fd counts describe fake ownership,
 not kernel descriptors.
 
-The [parent watchdog](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux/test/l2cap_harness_test.dart) launches
+The [parent watchdog](https://github.com/prefanatic/quick_blue/blob/master/quick_blue_linux_dart/test/l2cap_harness_test.dart) launches
 separate Dart processes for persistent first-chunk EINVAL, send/recv EINTR,
 always-readable receive and zero-byte send. It waits at most 15 seconds for the
 armed record, observes for 500 ms, then sends SIGKILL and waits at most five seconds
@@ -373,7 +380,7 @@ from `PATH`; Flutter's test runner uses the Flutter toolchain's `dart` on `PATH`
 For a safely bounded single reproduction:
 
 ```sh
-(cd quick_blue_linux && flutter test test/l2cap_harness_test.dart \
+(cd quick_blue_linux_dart && flutter test test/l2cap_harness_test.dart \
   --plain-name 'send-einval: watchdog termination is failure characterization' \
   --reporter expanded)
 ```

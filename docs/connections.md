@@ -4,7 +4,7 @@ title: "Connection lifetimes and retries"
 description: "Choose one-shot or subscription-owned connections and handle overlapping operations."
 tags: ["connections", "lifecycle"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_device.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/managed_connection_lifecycle.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/bluetooth_device_connection_test.dart"}, {"id": "source4", "resource": "../quick_blue/android/src/main/kotlin/com/example/quick_blue/AndroidGattBroker.kt"}, {"id": "linux-gatt", "resource": "../quick_blue_linux/lib/src/gatt_session.dart"}, {"id": "linux-gatt-tests", "resource": "../quick_blue_linux/test/gatt_session_test.dart"}]
+sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_device.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/managed_connection_lifecycle.dart"}, {"id": "source3", "resource": "../quick_blue_platform_interface/test/bluetooth_device_connection_test.dart"}, {"id": "source4", "resource": "../quick_blue/android/src/main/kotlin/com/example/quick_blue/AndroidGattBroker.kt"}, {"id": "linux-gatt", "resource": "../quick_blue_linux_dart/lib/src/gatt_session.dart"}, {"id": "linux-gatt-tests", "resource": "../quick_blue_linux_dart/test/gatt_session_test.dart"}]
 ---
 
 # Connection lifetimes and retries
@@ -135,8 +135,8 @@ watches and transports. Cleanup attempts continue after failures; the first
 shutdown failure is thrown and secondary failures are logged. Initialization
 failure releases acquired subscriptions/transport, preserves its primary error
 and makes the instance unusable; construct a new instance rather than retrying
-it. Source paths: `quick_blue_linux/lib/quick_blue_linux.dart` and
-`quick_blue_linux/test/lifecycle_cleanup_test.dart` (repository root-relative).
+it. Source paths: `quick_blue_linux_dart/lib/quick_blue_linux_dart.dart` and
+`quick_blue_linux_dart/test/lifecycle_cleanup_test.dart` (repository root-relative).
 
 Caller cancellation still stops only that caller's wait. A connect completing
 late retains the client lease until explicit disconnect; an immediate retry
