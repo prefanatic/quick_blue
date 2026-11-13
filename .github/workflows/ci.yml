@@ -18,7 +18,7 @@ permissions:
 env:
   FLUTTER_CHANNEL: stable
   # Keep in sync with the "tested with" row in quick_blue/README.md.
-  FLUTTER_VERSION: "3.47.7"
+  FLUTTER_VERSION: "3.50.0"
 
 # Runner override variables accept JSON. For example:
 # LINUX_RUNNER: ["self-hosted","linux","x64"]
@@ -158,7 +158,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           channel: stable
-          flutter-version: "3.47.7"
+          flutter-version: "3.50.0"
           cache: false
       - name: Resolve and verify declared minimum
         env:
@@ -196,6 +196,8 @@ jobs:
           mapfile -t dart_files < <(git ls-files \
             '*.dart' \
             ':!:**/*.g.dart' \
+            ':!:**/*.g.jni.dart' \
+            ':!:quick_blue/tool/pigeon/*.dart' \
             ':!:quick_blue_linux/lib/generated_bindings.dart')
 
           # Resolve packages first: the formatter needs the package language
@@ -223,17 +225,27 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      - name: Set up Java for JNI generation
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Check generated Pigeon APIs
         run: |
           set -euo pipefail
 
           flutter pub get
 
-          (cd quick_blue && dart run pigeon --input pigeons/messages.dart)
-          (cd quick_blue_darwin && dart run pigeon --input pigeons/messages.dart)
-          (cd quick_blue_windows && dart run pigeon --input pigeons/messages.dart)
+          bash scripts/generate-pigeon.sh
+          bash scripts/generate-pigeon.sh
 
           git diff --exit-code -- \
+            quick_blue/lib/src/availability.g.dart \
+            quick_blue/lib/src/availability.native_interop.g.dart \
+            quick_blue/lib/src/availability.g.jni.dart \
+            quick_blue/tool/pigeon/availability_jnigen_config.dart \
+            quick_blue/android/src/main/kotlin/com/example/quick_blue/Availability.g.kt \
             quick_blue/lib/src/messages.g.dart \
             quick_blue/android/src/main/kotlin/com/example/quick_blue/Messages.g.kt \
             quick_blue_darwin/lib/src/messages.g.dart \
@@ -534,3 +546,74 @@ jobs:
         run: >-
           ctest --test-dir quick_blue/example/build/windows/x64
           -C Debug --output-on-failure
+
+  android-native-runtime:
+    name: Android JNI engine and detach contracts
+    needs: changes
+    if: ${{ needs.changes.outputs.android == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          flutter-version: "3.50.0"
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          cmdline-tools-version: "12266719"
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: flutter pub get
+      - name: Execute generated JNI boundary with two real Flutter engines
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_USER_HOME="$RUNNER_TEMP/quick-blue-android"
+          export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          sdkmanager 'platform-tools' 'emulator' 'system-images;android-36;google_apis;x86_64'
+          echo no | avdmanager create avd --force --name quick_blue_native --path "$ANDROID_AVD_HOME/quick_blue_native.avd" --package 'system-images;android-36;google_apis;x86_64'
+          test -f "$ANDROID_AVD_HOME/quick_blue_native.ini"
+          sudo setfacl -m "u:$USER:rw" /dev/kvm
+          "$ANDROID_HOME/emulator/emulator" -avd quick_blue_native -port 5554 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect > emulator.log 2>&1 &
+          emulator_pid=$!
+          trap 'kill "$emulator_pid" || true' EXIT
+          timeout 120 adb -s emulator-5554 wait-for-device || { cat emulator.log; exit 1; }
+          for attempt in {1..120}; do
+            if [[ "$(adb -s emulator-5554 shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; then break; fi
+            kill -0 "$emulator_pid"
+            sleep 2
+          done
+          test "$(adb -s emulator-5554 shell getprop sys.boot_completed | tr -d '\r')" = 1
+          repo="$PWD"
+          plugin=quick_blue/android/src/main/kotlin/com/example/quick_blue/QuickBluePlugin.kt
+          cp "$plugin" "$RUNNER_TEMP/QuickBluePlugin.kt"
+          trap 'cp "$RUNNER_TEMP/QuickBluePlugin.kt" "$repo/$plugin"; kill "$emulator_pid" || true' EXIT
+          # Negative control: the shipped channel-only host cannot satisfy JNI.
+          git fetch --no-tags origin 6a21f931a50e21face1c38615ea493358864a4a3
+          git show 6a21f931a50e21face1c38615ea493358864a4a3:"$plugin" > "$plugin"
+          cd quick_blue/example
+          if flutter test integration_test/native_availability_test.dart -d emulator-5554 --reporter expanded > ../../native-negative-control.log 2>&1; then
+            echo 'Channel-only host unexpectedly satisfied the JNI contract' >&2
+            exit 1
+          fi
+          grep -F 'No instance named quick_blue.availability.' ../../native-negative-control.log
+          cp "$RUNNER_TEMP/QuickBluePlugin.kt" "$repo/$plugin"
+          git -C "$repo" diff --exit-code
+          flutter test integration_test/native_availability_test.dart -d emulator-5554 --reporter expanded 2>&1 | tee ../../native-interop.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: android-native-interop-runtime
+          path: |
+            emulator.log
+            native-negative-control.log
+            native-interop.log

@@ -9,9 +9,11 @@ and connection sharing across Flutter engines. Optional operations differ by
 platform; check [runtime capabilities](docs/capabilities.md) and
 [known limitations](docs/limitations.md) before relying on them.
 
-Flutter consumers require Flutter 3.47.7 or newer; CI pins stable 3.47.7 with
-Dart 3.13.5. Older Flutter support is dropped; upgrade the SDK before resolving.
+Flutter consumers require Flutter 3.50.0 or newer; CI pins stable 3.50.0 with
+Dart 3.14.0. Older Flutter support is dropped; upgrade the SDK before resolving.
 Standalone Dart 3.13 acceptance and its Flutter-free dependency graph are retained.
+Android availability uses a bounded [Pigeon native-interop preview](docs/android.md#native-interop-preview);
+asynchronous BLE and events retain engine-scoped channels. Darwin retains its existing transport.
 
 For Linux services without Flutter, use `quick_blue_core` with `quick_blue_linux`
 and register the Linux implementation explicitly. Flutter imports stay unchanged.

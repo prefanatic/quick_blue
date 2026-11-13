@@ -18,11 +18,17 @@
   Resume writes from `peripheralIsReady(toSendWriteWithoutResponse:)` and reject
   affected unsent writes on disconnect, engine detach, or service invalidation.
 
-- Drop older Flutter support: require stable Flutter 3.47.7 (bundled Dart
-  3.13.5), pin primary and fresh-resolution minimum-toolchain CI to that release,
-  and document SDK migration. Retain standalone Dart 3.13 acceptance, the
-  Flutter-free dependency graph and existing generation pins. The separate Linux
-  publication metadata failure remains unresolved; no validation is disabled.
+- Require Flutter 3.50.0 (bundled Dart 3.14.0) in the app-facing package and
+  example; update CI and the Android example toolchain. Retain standalone
+  Dart 3.13 acceptance and the Flutter-free core/interface/Linux graph.
+  Pin Pigeon 30.0.2, JNI 1.1.1 and JNIgen 1.0.1. Android availability uses
+  synchronous native interop with engine-unique names and detach invalidation;
+  the public Future API is unchanged. This is a bounded preview adoption, not
+  an asynchronous BLE/event transport migration. Darwin retains channels while
+  native callback shutdown and macOS detach safety remain unresolved.
+  Native OS deployment targets are unchanged. Migrate the example to material_ui.
+  The separate Linux publication metadata failure remains unresolved; no
+  validation is disabled.
 - Isolate cold-SDK Flutter template bootstrap from external consumer dependency
   resolution, retaining the assertion that the consumer Pub cache starts empty.
 

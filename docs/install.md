@@ -127,7 +127,7 @@ The public Linux CLI (`quick_blue_linux/example/`, repository-relative) is copie
 `scripts/check-headless-consumer.py` into a retained external `cli/` directory,
 with matched core/interface/Linux sources and explicit path overrides.
 The pure-Dart CLI example retains a Dart 3.12.2 package constraint; the Flutter
-workspace requires Flutter 3.47.7 with bundled Dart 3.13.5. The standalone
+workspace requires Flutter 3.50.0 with bundled Dart 3.14.0. The standalone
 verification fixture uses Dart 3.13. The example's three direct
 dependencies are core, Linux and platform interface;
 `test` is development-only. Runtime dependency closure is the same as above.
@@ -153,9 +153,12 @@ is still needed; this change does not disable validation or provide a hosted rel
 
 ## Requirements
 
-Flutter consumers now require Flutter 3.47.7 (bundled Dart 3.13.5); older Flutter
-releases are no longer supported. Upgrade the SDK before resolving this snapshot.
-CI pins both its primary and fresh-resolution minimum-toolchain lanes to 3.47.7.
+The app-facing package requires Flutter 3.50.0 (bundled Dart 3.14.0) for
+engine-identified Android native-interop registration. Upgrade before resolving
+this snapshot. CI pins its primary and fresh-resolution lanes to 3.50.0.
+Darwin and Windows package floors stay at 3.47.7; their transports have not
+changed to native interop. Android API 26 and Apple deployment targets are unchanged.
+See the [preview boundary](android.md#native-interop-preview).
 The pure-Dart packages retain their Dart 3.12.2 constraint and Flutter-free graph;
 standalone acceptance still uses a separately installed Dart 3.13 SDK. This
 support-policy change does not solve the publication metadata limit above or

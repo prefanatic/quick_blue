@@ -64,7 +64,7 @@ def check_consumer(package, snapshot, revision, fixture):
     # No workspace membership, path dependency, or direct hosted runtime deps.
     manifest = (
         "name: linux_consumer\npublish_to: none\n"
-        "environment:\n  sdk: ^3.13.5\n  flutter: '>=3.47.7'\n"
+        "environment:\n  sdk: ^3.13.5\n  flutter: '>=3.50.0'\n"
         "dependencies:\n  flutter:\n    sdk: flutter\n"
         + git_dependency(package, snapshot.as_uri(), revision)
         + "dependency_overrides:\n"
@@ -78,11 +78,11 @@ def check_consumer(package, snapshot, revision, fixture):
     (consumer / "pubspec.yaml").write_text(manifest)
     plugin_type = "QuickBlue" if package == "quick_blue" else "QuickBlueLinux"
     (consumer / "lib" / "main.dart").write_text(
-        "import 'package:flutter/material.dart';\n"
+        "import 'package:flutter/widgets.dart';\n"
         f"import 'package:{package}/{package}.dart';\n\n"
         "void main() {\n"
         f"  final Type implementation = {plugin_type};\n"
-        "  runApp(MaterialApp(home: Text('$implementation')));\n"
+        "  runApp(Directionality(textDirection: TextDirection.ltr, child: Text('$implementation')));\n"
         "}\n"
     )
     run("flutter", "pub", "get", cwd=consumer, env=env)

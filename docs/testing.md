@@ -4,23 +4,23 @@ title: "Verify repository changes"
 description: "Select package, native and hardware checks and record precise evidence."
 tags: ["development", "testing", "ci"]
 
-sources: [{"id": "source1", "resource": "../.github/workflows/ci.yml"}, {"id": "source2", "resource": "../AGENTS.md"}, {"id": "source3", "resource": "../CONTRIBUTING.md"}, {"id": "source4", "resource": "../scripts/publish-packages.sh"}, {"id": "source5", "resource": "../scripts/windows-integration-test.sh"}, {"id": "site-tests", "resource": "../scripts/test_check_docs_site.py"}, {"id": "release-tests", "resource": "../scripts/test_publish_packages.py"}, {"id": "consumer-tests", "resource": "../scripts/test_check_linux_consumer.py"}, {"id": "maintenance-ci", "resource": "../.github/workflows/docs.yml"}, {"id": "linux-dev", "resource": "../quick_blue_linux/pubspec.yaml"}, {"id": "linux-generator", "resource": "../quick_blue_linux/ffigen.yaml"}]
+sources: [{"id": "source1", "resource": "../.github/workflows/ci.yml"}, {"id": "source2", "resource": "../AGENTS.md"}, {"id": "source3", "resource": "../CONTRIBUTING.md"}, {"id": "source4", "resource": "../scripts/publish-packages.sh"}, {"id": "source5", "resource": "../scripts/windows-integration-test.sh"}, {"id": "site-tests", "resource": "../scripts/test_check_docs_site.py"}, {"id": "release-tests", "resource": "../scripts/test_publish_packages.py"}, {"id": "consumer-tests", "resource": "../scripts/test_check_linux_consumer.py"}, {"id": "maintenance-ci", "resource": "../.github/workflows/docs.yml"}, {"id": "linux-dev", "resource": "../quick_blue_linux/pubspec.yaml"}, {"id": "linux-generator", "resource": "../quick_blue_linux/ffigen.yaml"}, {"id": "native-generation", "resource": "../scripts/generate-pigeon.sh"}, {"id": "native-runtime", "resource": "../.github/workflows/ci.yml"}, {"id": "native-test", "resource": "../quick_blue/example/integration_test/native_availability_test.dart"}]
 ---
 
 # Verify repository changes
 
 Run commands from the repository root unless a subshell below changes directory.
-CI pins the primary and declared-minimum Flutter lanes to stable `3.47.7`
-(framework `abaf9c523780a608bd46686fd5e53740a07077f8`, bundled Dart `3.13.5`).
+CI pins the primary and declared-minimum Flutter lanes to stable `3.50.0`
+(framework `ab2912035e160d9cad6306df307576da6128ebdb`, bundled Dart `3.14.0`).
 The minimum lane independently uses fresh resolution, root analysis and
 all six package test suites. The verification step uses an isolated pub cache and no
 Flutter action cache; it proves Dart compatibility, not native or BLE behavior.
 
-To reproduce locally, select an isolated Flutter `3.47.7` SDK (do not replace the
+To reproduce locally, select an isolated Flutter `3.50.0` SDK (do not replace the
 host SDK), then run:
 
 ```sh
-export PATH="/absolute/path/to/flutter-3.47.7/bin:$PATH"
+export PATH="/absolute/path/to/flutter-3.50.0/bin:$PATH"
 export PUB_CACHE="$PWD/.dart_tool/pub-cache-minimum"
 flutter --version
 flutter pub get
@@ -32,10 +32,10 @@ done
 ```
 
 
-Older Flutter versions are no longer supported. Keep both CI pins and Flutter
-package constraints aligned when advancing this floor; standalone Dart 3.13
+Older Flutter versions are no longer supported by the app-facing package. Keep
+both CI pins and its constraints aligned when advancing this floor; standalone Dart 3.13
 acceptance remains separate and must not gain a Flutter SDK dependency.
-`scripts/test_flutter_support_policy.py` checks that both CI pins, Flutter package
+`scripts/test_flutter_support_policy.py` checks that both CI pins, app-facing
 floors and the external Flutter consumer recipe agree, and that standalone
 package environments remain Flutter-free. It does not execute either SDK.
 Linux's development-only ffigen pin remains `21.0.0` for reproducible generation;
@@ -46,6 +46,46 @@ regenerate with `dart run ffigen --config ffigen.yaml --compiler-opts
 resource headers are not found automatically. This host-specific include path
 is not a portable default. Dependency resolution is time-dependent because the
 workspace lockfile is ignored; retain the dependency snapshot with test evidence.
+
+## Native interop generation and runtime
+
+Select Flutter 3.50.0, JDK 17 and an Android SDK before running:
+
+```sh
+flutter pub get
+bash scripts/generate-pigeon.sh
+bash scripts/generate-pigeon.sh
+git diff --exit-code -- quick_blue/lib/src quick_blue/tool/pigeon \
+  quick_blue/android/src/main/kotlin/com/example/quick_blue/Availability.g.kt
+(cd quick_blue/example/android && ./gradlew :quick_blue:testDebugUnitTest)
+(cd quick_blue && flutter test test/native_availability_test.dart)
+(cd quick_blue/example && flutter test integration_test/native_availability_test.dart -d ANDROID_DEVICE)
+```
+
+The script is the canonical Pigeon/JNIgen path; do not format or hand-edit
+its outputs (`*.g.dart`, `*.g.jni.dart`, `tool/pigeon/*.dart`, and native generated
+files). It applies the tested, idempotent `scripts/normalize_pigeon.py` pass to
+remove trailing horizontal whitespace and excess EOF blank lines emitted by
+Pigeon 30 (including Swift doc comments); no signatures or interior text are
+rewritten. CI uses the identical script twice and checks all transport outputs. JNI generation
+compiles the Android example release classpath, so it needs a configured Android
+SDK, not merely Dart. Runtime pins are JNI 1.1.1 and JNIgen 1.0.1; Pigeon is 30.0.2
+throughout the workspace. Darwin and Windows still generate channel APIs.
+
+The Android runtime job provisions command-line tools and an isolated AVD home,
+checks the AVD registration, and bounds device discovery to two minutes. It uses
+an emulator and two Flutter engines. It first
+requires the channel-only baseline host to fail with the missing native-instance
+error, then restores the exact candidate. It removes primary channel HostApi
+handlers to require JNI dispatch, destroys secondary engines and detaches the
+primary plugin while a peer remains live, checking stale-handle errors and
+missing-name peer isolation.
+It makes no Bluetooth hardware assertion; an availability result of false is
+valid on an emulator. The JVM registry test uses synthetic keys and cannot prove
+JNI execution or binding engine-ID plumbing. The Dart boundary test injects a
+synchronous implementation into the actual generated API; it cannot prove native
+registration. Native callback shutdown is deliberately outside this sync-only
+slice. See [preview limits](android.md#native-interop-preview).
 
 ## Select checks
 
@@ -209,7 +249,7 @@ consumer cache. Each external consumer is analyzed and built for Linux.
 
 | Change | Check |
 | --- | --- |
-| Pigeon schema | Run `dart run pigeon --input pigeons/messages.dart` inside each changed owning package; inspect generated diff |
+| Pigeon schema | Run `bash scripts/generate-pigeon.sh` at the root; repeat and inspect generated diff (includes JNIgen and whitespace normalization) |
 | Darwin source | `./quick_blue_darwin/darwin/quick_blue_darwin/type_check/run.sh` |
 | Darwin ownership/restoration helpers | `swift test` inside the corresponding `connection_ownership` / `restoration_summary` directories |
 | Android Kotlin | `(cd quick_blue/example/android && ./gradlew :quick_blue:testDebugUnitTest)` |
@@ -231,6 +271,11 @@ Each source is `pigeons/messages.dart` relative to its owning package:
 | `quick_blue` | `lib/src/messages.g.dart`, `android/src/main/kotlin/com/example/quick_blue/Messages.g.kt` |
 | `quick_blue_darwin` | `lib/src/messages.g.dart`, `darwin/quick_blue_darwin/Sources/quick_blue_darwin/Messages.g.swift` |
 | `quick_blue_windows` | `lib/src/messages.g.dart`, `windows/messages.g.h`, `windows/messages.g.cpp` |
+
+The additional `quick_blue/pigeons/availability.dart` generates
+`Availability.g.kt`, `availability.g.dart`, `availability.native_interop.g.dart`,
+`availability.g.jni.dart` and `tool/pigeon/availability_jnigen_config.dart`.
+Use the canonical script rather than committing raw, non-normalized outputs.
 
 ## Hardware BLE smoke
 

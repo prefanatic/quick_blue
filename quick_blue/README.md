@@ -45,7 +45,7 @@ rules. This package README remains a package-level introduction and usage guide.
 
 | Target | Minimum or runtime requirement |
 | :--- | :--- |
-| Flutter | 3.47.7 (declared minimum and pinned CI; older releases unsupported) |
+| Flutter | 3.50.0 (declared minimum and pinned CI; older releases unsupported) |
 | Dart | 3.12.2 |
 | Android | API 26 |
 | iOS | 13.0 |
@@ -55,6 +55,11 @@ rules. This package README remains a package-level introduction and usage guide.
 | Web | Supported Chromium browser, HTTPS/localhost, user-gesture chooser |
 
 ## Install
+
+Android's availability query uses the [Pigeon native-interop preview](../docs/android.md#native-interop-preview)
+with engine-specific registration and the same public Future API. Async BLE
+operations and events remain on engine-scoped channels. Darwin native interop is
+deferred; Linux, Windows and Web retain their existing transports.
 
 Install this fork from Git. Override every federated package so Dart does not
 mix this fork's app-facing package with hosted platform implementations:

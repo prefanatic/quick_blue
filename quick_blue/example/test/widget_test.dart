@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:quick_blue_example/main.dart';
 import 'package:quick_blue_example/src/ble_explorer_page.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
