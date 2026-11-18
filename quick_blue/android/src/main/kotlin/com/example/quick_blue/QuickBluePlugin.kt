@@ -74,7 +74,7 @@ private fun gattError(message: String, status: Int): FlutterError {
 /** QuickBluePlugin */
 @SuppressLint("MissingPermission")
 class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
-    ActivityAware, QuickBlueApi, AndroidGattClient {
+    ActivityAware, QuickBlueApi, QuickBlueAvailabilityApi, AndroidGattClient {
 
     private val scanResultListener = ScanResultListener()
     private val mtuChangedListener = MtuChangedListener()
@@ -114,9 +114,14 @@ class QuickBluePlugin : FlutterPlugin, PluginRegistry.ActivityResultListener,
             binding.applicationContext.getSystemService(Context.COMPANION_DEVICE_SERVICE) as CompanionDeviceManager
 
         setUp(binding.binaryMessenger, binding.applicationContext)
+        // A unique name fences the preview resolver's latest-engine fallback.
+        QuickBlueAvailabilityApiRegistrar().register(
+            this, binding, "quick_blue.availability.${binding.engineId}")
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        QuickBlueAvailabilityApiRegistrar().unregister(
+            this, binding, "quick_blue.availability.${binding.engineId}")
         Log.d("QuickBluePlugin", "onDetachedFromEngine")
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
         isAttachedToEngine = false

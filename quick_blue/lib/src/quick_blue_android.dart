@@ -4,10 +4,20 @@ import 'package:flutter/services.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 import 'android_security_recovery.dart';
+import 'availability.g.dart';
 import 'messages.g.dart' as messages;
+import 'native_availability_stub.dart'
+    if (dart.library.io) 'native_availability.dart';
 
 class QuickBlueAndroid extends QuickBluePlatform {
-  QuickBlueAndroid();
+  QuickBlueAndroid({QuickBlueAvailabilityApi? availabilityApi})
+    : _providedAvailabilityApi = availabilityApi;
+
+  final QuickBlueAvailabilityApi? _providedAvailabilityApi;
+  // Resolve per public query: a plugin can detach and reattach on a live engine.
+  // Retaining a generated native wrapper would retain the retired registration.
+  QuickBlueAvailabilityApi? get _availabilityApi =>
+      _providedAvailabilityApi ?? createNativeAvailabilityApi();
 
   final messages.QuickBlueApi _api = messages.QuickBlueApi();
   messages.QuickBlueFlutterApi? _flutterApi;
@@ -201,10 +211,14 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 
   @override
-  Future<bool> isBluetoothAvailable() {
-    _ensureInitialized();
-
-    return _api.isBluetoothAvailable();
+  Future<bool> isBluetoothAvailable() async {
+    // Preserve root-isolate callback initialization, but a registered worker
+    // cannot install incoming handlers and this query needs no Dart callbacks.
+    if (ServicesBinding.rootIsolateToken != null) _ensureInitialized();
+    final availability = _availabilityApi;
+    return availability != null
+        ? availability.isBluetoothAvailable()
+        : _api.isBluetoothAvailable();
   }
 
   @override

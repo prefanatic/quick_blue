@@ -2,19 +2,23 @@ package com.example.quick_blue_example
 
 import android.content.Context
 import com.example.quick_blue.QuickBluePlugin
+import com.example.quick_blue.QuickBlueApi
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
+import io.flutter.plugin.common.BasicMessageChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 /** Debug-only native controller used by android_multi_engine_test.dart. */
 internal class MultiEngineTestHarness(private val context: Context) : EngineTestHarness {
+    private lateinit var primaryEngine: FlutterEngine
     private var secondaryEngine: FlutterEngine? = null
     private var secondaryChannel: MethodChannel? = null
     private var pendingSecondaryStart: MethodChannel.Result? = null
 
     override fun attach(primaryEngine: FlutterEngine) {
+        this.primaryEngine = primaryEngine
         MethodChannel(
             primaryEngine.dartExecutor.binaryMessenger,
             MULTI_ENGINE_CONTROL_CHANNEL,
@@ -23,6 +27,28 @@ internal class MultiEngineTestHarness(private val context: Context) : EngineTest
 
     private fun handleControlCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            "rejectPrimaryAvailabilityChannel" -> {
+                BasicMessageChannel<Any?>(
+                    primaryEngine.dartExecutor.binaryMessenger,
+                    "dev.flutter.pigeon.quick_blue.QuickBlueApi.isBluetoothAvailable",
+                    QuickBlueApi.codec,
+                ).setMessageHandler { _, reply ->
+                    reply.reply(listOf("primary-engine-only", "Primary engine channel sentinel", null))
+                }
+                result.success(null)
+            }
+            "disablePrimaryHostChannels" -> {
+                QuickBlueApi.setUp(primaryEngine.dartExecutor.binaryMessenger, null)
+                result.success(null)
+            }
+            "detachPrimaryPlugin" -> {
+                primaryEngine.plugins.remove(QuickBluePlugin::class.java)
+                result.success(null)
+            }
+            "attachPrimaryPlugin" -> {
+                primaryEngine.plugins.add(QuickBluePlugin())
+                result.success(null)
+            }
             "startSecondary" -> startSecondaryEngine(result)
             "callSecondary" -> callSecondaryEngine(call, result)
             "stopSecondary" -> {

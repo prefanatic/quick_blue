@@ -5,7 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:quick_blue/quick_blue.dart';
 import 'package:web/web.dart' as web;
 

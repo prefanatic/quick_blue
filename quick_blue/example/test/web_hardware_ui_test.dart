@@ -3,7 +3,7 @@ library;
 
 import 'dart:convert';
 import 'dart:js_interop';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 import 'package:quick_blue_web/quick_blue_web.dart';

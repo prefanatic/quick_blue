@@ -20,8 +20,7 @@ class FlutterSupportPolicyTest(unittest.TestCase):
         version = match.group(1)
         minimum = workflow.split('  minimum-toolchain:', 1)[1].split('  format:', 1)[0]
         self.assertIn(f'flutter-version: "{version}"', minimum)
-        for package in ('quick_blue', 'quick_blue/example', 'quick_blue_darwin',
-                        'quick_blue_windows'):
+        for package in ('quick_blue', 'quick_blue/example'):
             with self.subTest(package=package):
                 manifest = (ROOT / package / 'pubspec.yaml').read_text()
                 self.assertIn(f'flutter: ">={version}"', manifest)
@@ -36,6 +35,14 @@ class FlutterSupportPolicyTest(unittest.TestCase):
                 environment = manifest.split('environment:', 1)[1].split('\n\n', 1)[0]
                 self.assertNotIn('flutter:', environment)
                 self.assertNotIn('sdk: flutter', manifest)
+                self.assertNotIn('  jni:', manifest)
+                self.assertNotIn('  objective_c:', manifest)
+
+    def test_channel_backends_keep_their_existing_flutter_floor(self):
+        for package in ('quick_blue_darwin', 'quick_blue_windows'):
+            with self.subTest(package=package):
+                manifest = (ROOT / package / 'pubspec.yaml').read_text()
+                self.assertIn('flutter: ">=3.47.7"', manifest)
 
 
 if __name__ == '__main__':
