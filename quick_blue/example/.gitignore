@@ -12,6 +12,13 @@
 .swiftpm/
 migrate_working_dir/
 
+# Local credentials, signing material, and device-specific smoke configuration
+.env*
+smoke.local.json
+key.properties
+*.jks
+*.keystore
+
 # IntelliJ related
 *.iml
 *.ipr
