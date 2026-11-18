@@ -37,6 +37,21 @@ hardware.[^source3]
 - Final-client disconnect reconciliation is Android-specific, not a universal
   platform guarantee.
 
+## GATT link-loss failures
+
+Android can complete a read, write or notification update with a GATT failure
+status shortly before it reports the disconnect. A failed operation carries
+`QuickBlueFailureReason.remoteDisconnected` when the device's latest connection
+event is a disconnect. For native statuses 8, 19 and 133, the wrapper waits at
+most one second for that event before it reports the failure; other statuses
+report at once. A failure on a link that stays connected keeps no reason.
+Operations rejected with native `Disconnected` are typed the same way, with the
+`invalidState` code. The exception keeps its native status, and the reason does
+not permit a write replay.[^source3]
+
+`disconnect()` for a device this engine no longer holds completes with a
+disconnected state event; it does not throw.
+
 See [platform setup](platform-setup.md), [pairing](pairing.md),
 [connections](connections.md), and [capabilities](capabilities.md).
 

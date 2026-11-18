@@ -916,6 +916,180 @@ void main() {
       );
     });
 
+    Future<QuickBlueAndroid> initializedPlatform() async {
+      final platform = QuickBlueAndroid();
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.isBluetoothAvailable',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (_) async => <Object?>[true],
+      );
+      await platform.isBluetoothAvailable();
+      return platform;
+    }
+
+    void failWrites(String code, Object? details) {
+      binaryMessenger.setMockDecodedMessageHandler<Object?>(
+        const BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.quick_blue.QuickBlueApi.writeValue',
+          messages.QuickBlueApi.pigeonChannelCodec,
+        ),
+        (_) async => <Object?>[code, 'Synthetic write failure', details],
+      );
+    }
+
+    Future<void> sendConnectionState(
+      messages.PlatformConnectionState state, {
+      int nativeStatus = 0,
+    }) {
+      return _sendFlutterApiMessage(
+        'onConnectionStateChange',
+        messages.PlatformConnectionStateChange(
+          deviceId: 'device-a',
+          state: state,
+          gattStatus: nativeStatus == 0
+              ? messages.PlatformGattStatus.success
+              : messages.PlatformGattStatus.failure,
+          nativeStatus: nativeStatus,
+        ),
+      );
+    }
+
+    Future<void> write(QuickBlueAndroid platform) {
+      return platform.writeValue(
+        'device-a',
+        'service-a',
+        'characteristic-a',
+        Uint8List.fromList(<int>[1]),
+        BleOutputProperty.withResponse,
+      );
+    }
+
+    test('a link-loss GATT failure before the disconnect event is a remote '
+        'disconnect', () async {
+      final platform = await initializedPlatform();
+      await sendConnectionState(messages.PlatformConnectionState.connected);
+      failWrites('GattError', 133);
+
+      final failure = expectLater(
+        write(platform),
+        throwsA(
+          isA<QuickBlueGattException>()
+              .having((error) => error.status, 'status', 133)
+              .having(
+                (error) => error.failureReason,
+                'reason',
+                QuickBlueFailureReason.remoteDisconnected,
+              ),
+        ),
+      );
+      await pumpEventQueue();
+      await sendConnectionState(
+        messages.PlatformConnectionState.disconnected,
+        nativeStatus: 8,
+      );
+      await failure;
+    });
+
+    test('a GATT failure after the disconnect event is a remote disconnect '
+        'without a wait', () async {
+      final platform = await initializedPlatform();
+      await sendConnectionState(messages.PlatformConnectionState.connected);
+      await sendConnectionState(
+        messages.PlatformConnectionState.disconnected,
+        nativeStatus: 8,
+      );
+      failWrites('GattError', 3);
+
+      await expectLater(
+        write(platform).timeout(const Duration(milliseconds: 200)),
+        throwsA(
+          isA<QuickBlueGattException>().having(
+            (error) => error.failureReason,
+            'reason',
+            QuickBlueFailureReason.remoteDisconnected,
+          ),
+        ),
+      );
+    });
+
+    test('a GATT failure on a live link keeps no failure reason', () async {
+      final platform = await initializedPlatform();
+      await sendConnectionState(messages.PlatformConnectionState.connected);
+
+      // An ordinary status reports at once.
+      failWrites('GattError', 3);
+      await expectLater(
+        write(platform).timeout(const Duration(milliseconds: 200)),
+        throwsA(
+          isA<QuickBlueGattException>().having(
+            (error) => error.failureReason,
+            'reason',
+            isNull,
+          ),
+        ),
+      );
+
+      // A link-loss status waits for a disconnect that never arrives.
+      failWrites('GattError', 133);
+      await expectLater(
+        write(platform),
+        throwsA(
+          isA<QuickBlueGattException>().having(
+            (error) => error.failureReason,
+            'reason',
+            isNull,
+          ),
+        ),
+      );
+    });
+
+    test('a reconnect clears the earlier link loss', () async {
+      final platform = await initializedPlatform();
+      await sendConnectionState(messages.PlatformConnectionState.connected);
+      await sendConnectionState(messages.PlatformConnectionState.disconnected);
+      await sendConnectionState(messages.PlatformConnectionState.connected);
+      failWrites('GattError', 3);
+
+      await expectLater(
+        write(platform),
+        throwsA(
+          isA<QuickBlueGattException>().having(
+            (error) => error.failureReason,
+            'reason',
+            isNull,
+          ),
+        ),
+      );
+    });
+
+    test(
+      'an operation rejected at disconnect is a typed remote disconnect',
+      () async {
+        final platform = await initializedPlatform();
+        failWrites('Disconnected', null);
+
+        await expectLater(
+          write(platform),
+          throwsA(
+            isA<QuickBlueException>()
+                .having(
+                  (error) => error.code,
+                  'code',
+                  QuickBlueErrorCode.invalidState,
+                )
+                .having(
+                  (error) => error.failureReason,
+                  'reason',
+                  QuickBlueFailureReason.remoteDisconnected,
+                )
+                .having((error) => error.operation, 'operation', 'writeValue'),
+          ),
+        );
+      },
+    );
+
     test('remote disconnect preserves unknown Android native status', () async {
       final platform = QuickBlueAndroid();
       binaryMessenger.setMockDecodedMessageHandler<Object?>(

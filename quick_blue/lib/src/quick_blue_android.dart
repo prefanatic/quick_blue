@@ -24,6 +24,31 @@ class QuickBlueAndroid extends QuickBluePlatform {
   late final Stream<messages.PlatformMtuChange> _mtuChangedEvents = messages
       .mtuChanged();
   final _pendingMtuRequests = <String, Future<int>>{};
+
+  /// Devices whose latest connection event is a disconnect.
+  final _lostLinks = <String>{};
+
+  /// Whether a failed GATT operation on [deviceId] belongs to a lost link.
+  ///
+  /// Android can complete an operation with a link-loss status before it
+  /// reports the disconnect, so those statuses wait briefly for that event.
+  Future<bool> _isLinkLost(String deviceId, int nativeStatus) async {
+    if (_lostLinks.contains(deviceId)) return true;
+    if (!_linkLossGattStatuses.contains(nativeStatus)) return false;
+    try {
+      await connectionStateStream
+          .firstWhere(
+            (event) =>
+                event.deviceId == deviceId &&
+                event.state == BlueConnectionState.disconnected,
+          )
+          .timeout(_linkLossObservationBound);
+      return true;
+    } on TimeoutException {
+      return false;
+    }
+  }
+
   Map<String, Uint8List>? _activeScanServiceData;
 
   bool _matchesActiveServiceDataFilter(BlueScanResult result) {
@@ -222,6 +247,7 @@ class QuickBlueAndroid extends QuickBluePlatform {
     _ensureInitialized();
 
     final value = await _runGattOperation(
+      isLinkLost: _isLinkLost,
       operation: 'readValue',
       deviceId: deviceId,
       serviceId: service,
@@ -289,6 +315,7 @@ class QuickBlueAndroid extends QuickBluePlatform {
     _ensureInitialized();
 
     return _runGattOperation(
+      isLinkLost: _isLinkLost,
       operation: 'setNotifiable',
       deviceId: deviceId,
       serviceId: service,
@@ -346,6 +373,7 @@ class QuickBlueAndroid extends QuickBluePlatform {
     _ensureInitialized();
 
     return _runGattOperation(
+      isLinkLost: _isLinkLost,
       operation: 'writeValue',
       deviceId: deviceId,
       serviceId: service,
@@ -361,7 +389,12 @@ class QuickBlueAndroid extends QuickBluePlatform {
   }
 }
 
+/// GATT_CONN_TIMEOUT, GATT_CONN_TERMINATE_PEER_USER, and GATT_ERROR.
+const _linkLossGattStatuses = <int>{8, 19, 133};
+const _linkLossObservationBound = Duration(seconds: 1);
+
 Future<T> _runGattOperation<T>({
+  required Future<bool> Function(String deviceId, int nativeStatus) isLinkLost,
   required String operation,
   required String deviceId,
   required String serviceId,
@@ -372,6 +405,21 @@ Future<T> _runGattOperation<T>({
     return await action();
   } on PlatformException catch (error, stackTrace) {
     final status = error.details;
+    if (error.code == 'Disconnected') {
+      Error.throwWithStackTrace(
+        QuickBlueException(
+          code: QuickBlueErrorCode.invalidState,
+          failureReason: QuickBlueFailureReason.remoteDisconnected,
+          operation: operation,
+          deviceId: deviceId,
+          serviceId: serviceId,
+          characteristicId: characteristicId,
+          message: error.message ?? '$operation lost its connection.',
+          details: <String, Object?>{'platformCode': error.code},
+        ),
+        stackTrace,
+      );
+    }
     if (error.code != 'GattError' || status is! num) {
       rethrow;
     }
@@ -394,9 +442,13 @@ Future<T> _runGattOperation<T>({
         stackTrace,
       );
     }
+    final linkLost = await isLinkLost(deviceId, nativeStatus);
     Error.throwWithStackTrace(
       QuickBlueGattException(
         status: nativeStatus,
+        failureReason: linkLost
+            ? QuickBlueFailureReason.remoteDisconnected
+            : null,
         operation: operation,
         deviceId: deviceId,
         serviceId: serviceId,
@@ -593,6 +645,12 @@ class _FlutterApi extends messages.QuickBlueFlutterApi {
   void onConnectionStateChange(
     messages.PlatformConnectionStateChange stateChange,
   ) {
+    if (stateChange.state == messages.PlatformConnectionState.disconnected) {
+      platform._lostLinks.add(stateChange.deviceId);
+    } else if (stateChange.state ==
+        messages.PlatformConnectionState.connected) {
+      platform._lostLinks.remove(stateChange.deviceId);
+    }
     _handleConnectionStateChange(platform, stateChange);
   }
 
