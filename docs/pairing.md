@@ -151,6 +151,12 @@ CLI regressions (`quick_blue_linux/example/test/cli_test.dart`) also verify
 protected read/notify failures do not initiate hidden pairing or replay IO.
 These tests do not exercise a real agent or peripheral authentication.
 
+For prospective Android 17 peripheral-only key-loss testing, use the
+[controlled-hardware runbook](testing.md#android-17-bond-repair-verification).
+Select a repair implementation separately. The runbook adds no repair support
+and records no hardware verification.
+
+
 ## Preserve structured diagnostics
 
 Dart error-handling fragment:
