@@ -216,9 +216,7 @@ internal object AndroidGattBroker {
 
     fun disconnect(client: AndroidGattClient, deviceId: String): List<NotificationKey> {
         val plan = synchronized(lock) {
-            if (!connectionClients.contains(deviceId, client)) {
-                throw FlutterError("IllegalArgument", "Unknown deviceId: $deviceId", null)
-            }
+            if (!connectionClients.contains(deviceId, client)) return@synchronized null
             val detachOnly = connectionClients.clientCount(deviceId) > 1
             val gatt = if (detachOnly) {
                 connectionClients.detach(deviceId, client)
@@ -234,6 +232,17 @@ internal object AndroidGattBroker {
                     it.deviceId == deviceId
                 },
             )
+        }
+        if (plan == null) {
+            // The link already closed. Confirm the state so the caller's
+            // disconnect completes instead of failing.
+            client.emitConnectionState(
+                deviceId,
+                PlatformConnectionState.DISCONNECTED,
+                PlatformGattStatus.SUCCESS,
+                BluetoothGatt.GATT_SUCCESS,
+            )
+            return emptyList()
         }
         if (plan.detachOnly) {
             client.closeGattStreams(deviceId)
