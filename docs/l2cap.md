@@ -4,7 +4,7 @@ title: "Open an L2CAP socket"
 description: "Use the socket event stream and sink with explicit platform and framing checks."
 tags: ["l2cap", "transport"]
 
-sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/models.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_device.dart"}, {"id": "source3", "resource": "../quick_blue_linux/lib/quick_blue_linux.dart"}, {"id": "source4", "resource": "../quick_blue_linux/lib/src/l2cap_channel.dart"}, {"id": "source5", "resource": "../quick_blue_windows/lib/src/quick_blue_windows.dart"}, {"id": "source6", "resource": "../quick_blue_darwin/lib/src/quick_blue_darwin.dart"}, {"id": "regressions", "resource": "../quick_blue_darwin/test/l2cap_lifecycle_test.dart"}, {"id": "native", "resource": "../quick_blue_darwin/darwin/quick_blue_darwin/Sources/quick_blue_darwin/QuickBlueDarwinPlugin.swift"}]
+sources: [{"id": "source1", "resource": "../quick_blue_platform_interface/lib/models.dart"}, {"id": "source2", "resource": "../quick_blue_platform_interface/lib/src/bluetooth_device.dart"}, {"id": "source3", "resource": "../quick_blue_linux_dart/lib/quick_blue_linux_dart.dart"}, {"id": "source4", "resource": "../quick_blue_linux_dart/lib/src/l2cap_channel.dart"}, {"id": "source5", "resource": "../quick_blue_windows/lib/src/quick_blue_windows.dart"}, {"id": "source6", "resource": "../quick_blue_darwin/lib/src/quick_blue_darwin.dart"}, {"id": "regressions", "resource": "../quick_blue_darwin/test/l2cap_lifecycle_test.dart"}, {"id": "native", "resource": "../quick_blue_darwin/darwin/quick_blue_darwin/Sources/quick_blue_darwin/QuickBlueDarwinPlugin.swift"}]
 ---
 
 # Open an L2CAP socket

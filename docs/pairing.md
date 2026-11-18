@@ -145,7 +145,7 @@ No desktop login, root execution or existing desktop agent is assumed.
 AuthenticationRejected, AuthenticationFailed/AuthenticationCanceled and
 missing-agent failures must reach the caller; inspect the native BlueZ name and
 message rather than parsing them into success. The
-Linux fake pairing regressions (`quick_blue_linux/test/pairing_failure_test.dart`)
+Linux fake pairing regressions (`quick_blue_linux_dart/test/pairing_failure_test.dart`)
 preserve exact injected D-Bus errors and reject unrelated actions;
 CLI regressions (`quick_blue_linux/example/test/cli_test.dart`) also verify
 protected read/notify failures do not initiate hidden pairing or replay IO.

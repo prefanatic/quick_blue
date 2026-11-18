@@ -4,7 +4,7 @@ title: "Configure each platform"
 description: "Set permissions, entitlements and host policy before using Bluetooth."
 tags: ["setup", "permissions", "android", "darwin", "linux", "windows"]
 
-sources: [{"id": "source1", "resource": "../quick_blue/android/src/main/AndroidManifest.xml"}, {"id": "source2", "resource": "../quick_blue/README.md"}, {"id": "source3", "resource": "../quick_blue_linux/dbus/dev.quick_blue.Connection.conf"}, {"id": "source4", "resource": "../quick_blue_windows/README.md"}]
+sources: [{"id": "source1", "resource": "../quick_blue/android/src/main/AndroidManifest.xml"}, {"id": "source2", "resource": "../quick_blue/README.md"}, {"id": "source3", "resource": "../quick_blue_linux_dart/dbus/dev.quick_blue.Connection.conf"}, {"id": "source4", "resource": "../quick_blue_windows/README.md"}]
 ---
 
 # Configure each platform
@@ -47,7 +47,7 @@ supplied policy for the application user.[^source3]
 Repository-root shell recipe (requires administrative permission; review before running):
 
 ```sh
-sed "s/RUN_AS_USER/$USER/" quick_blue_linux/dbus/dev.quick_blue.Connection.conf \
+sed "s/RUN_AS_USER/$USER/" quick_blue_linux_dart/dbus/dev.quick_blue.Connection.conf \
   | sudo tee /usr/share/dbus-1/system.d/dev.quick_blue.Connection.conf >/dev/null
 sudo systemctl reload dbus-broker   # use your distro's D-Bus reload procedure
 ```

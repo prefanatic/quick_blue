@@ -2,7 +2,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:quick_blue_linux/quick_blue_linux.dart';
+import 'package:quick_blue_linux_dart/quick_blue_linux_dart.dart';
 import 'package:quick_blue_platform_interface/quick_blue_platform_interface.dart';
 
 import 'cli.dart';

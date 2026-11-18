@@ -1,5 +1,13 @@
 ## Unreleased
 
+- Extract `quick_blue_linux_dart` as the Flutter-free BlueZ backend. Keep
+  `quick_blue_linux` as a Flutter registration shell exporting the identical
+  implementation class and legacy constructors/types. Standalone consumers that
+  upgrade must change their Linux dependency/import/override to the new backend;
+  existing pins are unaffected. Retain lifecycle logic and shared singleton state.
+- Verify external Linux generated registration at runtime and reject Flutter
+  plugin metadata in standalone graphs. Restore Linux's plugin-metadata dry-run
+  validation without disabling version/changelog checks. Distribution remains Git/local.
 - Classify Android GATT failures on a lost link. A read, write or notification
   update that fails after, or within one second before, the disconnect event
   carries `remoteDisconnected`; the wait applies to native statuses 8, 19 and
@@ -28,8 +36,8 @@
 - Drop older Flutter support: require stable Flutter 3.47.7 (bundled Dart
   3.13.5), pin primary and fresh-resolution minimum-toolchain CI to that release,
   and document SDK migration. Retain standalone Dart 3.13 acceptance, the
-  Flutter-free dependency graph and existing generation pins. The separate Linux
-  publication metadata failure remains unresolved; no validation is disabled.
+  Flutter-free dependency graph and existing generation pins. The Linux
+  shell/backend split above addresses plugin-metadata validation separately.
 - Isolate cold-SDK Flutter template bootstrap from external consumer dependency
   resolution, retaining the assertion that the consumer Pub cache starts empty.
 
