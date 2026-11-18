@@ -13,6 +13,9 @@ import android.util.Log
 internal interface AndroidGattClient {
     val isGattClientAttached: Boolean
 
+    fun beginGattConnection(deviceId: String) = Unit
+    fun retireGattConnection(deviceId: String) = Unit
+
     fun emitConnectionState(
         deviceId: String,
         state: PlatformConnectionState,
@@ -185,6 +188,7 @@ internal object AndroidGattBroker {
                     )
                     BluetoothGatt.STATE_CONNECTED -> {
                         connectionClients.attach(deviceId, client)
+                        client.beginGattConnection(deviceId)
                         client.emitConnectionState(
                             deviceId,
                             PlatformConnectionState.CONNECTED,
@@ -192,7 +196,10 @@ internal object AndroidGattBroker {
                             BluetoothGatt.GATT_SUCCESS,
                         )
                     }
-                    else -> connectionClients.attach(deviceId, client)
+                    else -> {
+                        connectionClients.attach(deviceId, client)
+                        client.beginGattConnection(deviceId)
+                    }
                 }
                 return
             }
@@ -206,6 +213,7 @@ internal object AndroidGattBroker {
                     gattCallback,
                     BluetoothDevice.TRANSPORT_LE,
                 )
+                client.beginGattConnection(deviceId)
             } catch (error: Throwable) {
                 connectionClients.detach(deviceId, client)
                 connectionStates.remove(deviceId)
@@ -217,6 +225,7 @@ internal object AndroidGattBroker {
     fun disconnect(client: AndroidGattClient, deviceId: String): List<NotificationKey> {
         val plan = synchronized(lock) {
             if (!connectionClients.contains(deviceId, client)) return@synchronized null
+            client.retireGattConnection(deviceId)
             val detachOnly = connectionClients.clientCount(deviceId) > 1
             val gatt = if (detachOnly) {
                 connectionClients.detach(deviceId, client)
@@ -281,6 +290,7 @@ internal object AndroidGattBroker {
         val gattsToClose = mutableListOf<BluetoothGatt>()
         val unclaimed = synchronized(lock) {
             connectionClients.deviceIdsFor(client).forEach { deviceId ->
+                client.retireGattConnection(deviceId)
                 if (connectionClients.detach(deviceId, client)) {
                     operationQueue.failPending(deviceId)
                     connectionStates.remove(deviceId)
@@ -361,7 +371,11 @@ internal object AndroidGattBroker {
                 operationQueue.failPending(deviceId)
                 connectionStates.remove(deviceId)
                 notificationClaims.removeMatching { it.deviceId == deviceId }
-                connectionClients.removeAll(deviceId)
+                connectionClients.removeAll(deviceId).also { clients ->
+                    // Retire observation before unlocking permits a new connection.
+                    // close/Flutter delivery below may be delayed past that reconnect.
+                    clients.forEach { it.retireGattConnection(deviceId) }
+                }
             }
         }
         if (clients == null) return

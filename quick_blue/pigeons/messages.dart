@@ -22,6 +22,21 @@ enum PlatformBluetoothState {
 
 enum PlatformBondState { unknown, notBonded, bonding, bonded }
 
+// Internal Android-only observation; deliberately separate from public bonding.
+enum PlatformRepairState { unknown, inProgress, succeeded, failed }
+
+class PlatformRepairObservation {
+  PlatformRepairObservation({
+    required this.deviceId,
+    required this.generation,
+    required this.state,
+  });
+
+  final String deviceId;
+  final int generation;
+  final PlatformRepairState state;
+}
+
 enum PlatformAndroidScanMode { opportunistic, lowPower, balanced, lowLatency }
 
 enum PlatformAndroidScanCallbackType {
@@ -123,6 +138,7 @@ abstract class QuickBlueApi {
   void connect(String deviceId);
   void disconnect(String deviceId);
   PlatformBondState bondState(String deviceId);
+  PlatformRepairObservation repairObservation(String deviceId);
   void startPairing(String deviceId);
   @async
   void pair(String deviceId);
@@ -304,6 +320,7 @@ class PlatformGattServiceChange {
 abstract class QuickBlueEventApi {
   PlatformBluetoothState bluetoothState();
   PlatformBondStateChange bondStateChanges();
+  PlatformRepairObservation repairChanges();
   PlatformScanResult scanResults();
   PlatformMtuChange mtuChanged();
   PlatformL2CapSocketEvent l2CapSocketEvents();
